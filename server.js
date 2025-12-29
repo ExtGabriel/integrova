@@ -1,0 +1,1960 @@
+
+require('dotenv').config();
+
+// Validar variables de entorno críticas
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'OPENAI_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+    console.error('❌ ERROR: Faltan las siguientes variables de entorno:');
+    missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
+    console.error('\n📝 Por favor, crea un archivo .env basado en .env.example');
+    process.exit(1);
+}
+
+console.log('✅ Variables de entorno cargadas correctamente');
+
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+const path = require('path');
+const multer = require('multer');
+const xlsx = require('xlsx');
+
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
+app.use(express.static(path.join(__dirname, 'CFE INSIGHT/App'))); // Servir archivos estáticos
+
+// Configuración de multer para manejo de archivos
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB máximo
+    fileFilter: (req, file, cb) => {
+        // Permitir archivos Excel, Word, PDF, imágenes y texto
+        const allowedTypes = [
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/pdf',
+            'text/plain',
+            'image/jpeg',
+            'image/png',
+            'image/gif'
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Tipo de archivo no permitido'), false);
+        }
+    }
+});
+
+// Configuración de IA
+const AI_CONFIG = {
+    openai: {
+        apiKey: process.env.OPENAI_API_KEY,
+        baseUrl: 'https://api.openai.com/v1',
+        models: {
+            chat: 'gpt-3.5-turbo',
+            analysis: 'gpt-4'
+        }
+    }
+};
+
+// Contextos para CFE INSIGHT
+const AI_CONTEXTS = {
+    soporte: 'Eres un asistente experto en auditorías, compromisos y procesos relacionados con CFE INSIGHT. Proporciona respuestas útiles, precisas y profesionales en español. FORMATO DE RESPUESTA: Usa viñetas (•), numeración, y párrafos cortos. Incluye encabezados cuando sea apropiado. Si analizas datos, presenta hallazgos en tablas simples o listas estructuradas. Mantén un tono profesional pero accesible.',
+    auditoria: 'Eres un analista de auditoría especializado. Analiza patrones en logs, identifica riesgos y proporciona recomendaciones específicas para CFE INSIGHT. FORMATO DE RESPUESTA: Estructura tus respuestas con: 1) Resumen Ejecutivo, 2) Hallazgos Principales (con viñetas), 3) Recomendaciones (numeradas), 4) Próximos Pasos. Usa tablas para datos cuantitativos.',
+    reporte: 'Eres un generador de reportes automatizados. Crea informes claros, estructurados y accionables basados en datos proporcionados. FORMATO DE RESPUESTA: Siempre usa esta estructura: # Título del Reporte\n## Resumen Ejecutivo\n## Hallazgos Detallados\n- Punto 1\n- Punto 2\n## Recomendaciones\n1. Recomendación 1\n2. Recomendación 2\n## Conclusiones',
+    chat: 'Eres un asistente de chat inteligente para CFE INSIGHT. Responde de manera amigable, técnica y útil, escalando consultas complejas a humanos cuando sea necesario. FORMATO DE RESPUESTA: Mantén conversaciones naturales pero usa viñetas para listas o pasos. Incluye emojis apropiados para hacer las respuestas más amigables.'
+};
+
+// Función para procesar archivos Excel
+function processExcelFile(buffer, filename) {
+    try {
+        const workbook = xlsx.read(buffer, { type: 'buffer' });
+        let content = `Archivo Excel: ${filename}\n\n`;
+
+        workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+            content += `Hoja: ${sheetName}\n`;
+            content += 'Datos:\n';
+
+            // Mostrar primeras 10 filas para no sobrecargar
+            const rowsToShow = jsonData.slice(0, 10);
+            rowsToShow.forEach((row, index) => {
+                content += `Fila ${index + 1}: ${JSON.stringify(row)}\n`;
+            });
+
+            if (jsonData.length > 10) {
+                content += `... y ${jsonData.length - 10} filas más\n`;
+            }
+            content += '\n';
+        });
+
+        return content;
+    } catch (error) {
+        console.error('Error procesando Excel:', error);
+        return `[Error procesando archivo Excel: ${filename}]`;
+    }
+}
+
+// Función para procesar archivos Word
+function processWordFile(buffer, filename) {
+    // Para archivos Word, por ahora solo devolvemos metadatos
+    // En producción, usar librerías como mammoth o officeparser
+    return `[Archivo Word: ${filename}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB. Contenido no extraíble desde servidor - sugerir conversión a PDF o texto]`;
+}
+
+// Función para procesar PDFs
+function processPDFFile(buffer, filename) {
+    // Para PDFs, por ahora solo devolvemos metadatos
+    // En producción, usar librerías como pdf-parse
+    return `[Archivo PDF: ${filename}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB. Contenido no extraíble desde servidor - sugerir conversión a texto]`;
+}
+
+// Función para procesar imágenes
+function processImageFile(buffer, filename) {
+    return `[Archivo de imagen: ${filename}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB. Para análisis de imágenes, usar GPT-4 Vision en futuras versiones]`;
+}
+
+// User Management API Endpoints
+
+// Get all users
+app.get('/api/users', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*');
+
+        if (error) throw error;
+
+        // Mapear full_name a name para compatibilidad con el frontend
+        const mappedData = data.map(user => ({
+            ...user,
+            name: user.full_name
+        }));
+
+        res.json({ success: true, data: mappedData });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch users' });
+    }
+});
+
+// Get user by username
+app.get('/api/users/:username', async (req, res) => {
+    const username = req.params.username;
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error; // Ignore no rows found error
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'User not found' });
+        } else {
+            // Mapear full_name a name para compatibilidad con el frontend
+            const mappedData = { ...data, name: data.full_name };
+            res.json({ success: true, data: mappedData });
+        }
+
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch user' });
+    }
+});
+
+// Create a new user
+app.post('/api/users', async (req, res) => {
+    const { username, password, name, email, phone, role } = req.body;
+    console.log('📝 Intentando crear usuario:', { username, name, email, role });
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .insert([{ username, password, full_name: name, email, phone, role }])
+            .select();
+
+        if (error) {
+            console.error('❌ Error de Supabase al crear usuario:');
+            console.error('   Mensaje:', error.message);
+            console.error('   Código:', error.code);
+            console.error('   Detalles:', error.details);
+            console.error('   Hint:', error.hint);
+            console.error('   Error completo:', JSON.stringify(error, null, 2));
+            return res.status(500).json({
+                success: false,
+                error: error.message || 'Failed to create user',
+                details: error.details,
+                hint: error.hint
+            });
+        }
+
+        console.log('✅ Usuario creado exitosamente:', data[0]);
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('❌ Error inesperado al crear usuario:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to create user' });
+    }
+});
+
+// Update a user
+app.put('/api/users/:username', async (req, res) => {
+    const username = req.params.username;
+    const { password, name, email, phone, role } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .update({ password, full_name: name, email, phone, role })
+            .eq('username', username)
+            .select();
+
+        if (error) {
+            console.error('Error updating user:', error);
+            return res.status(500).json({ success: false, error: error.message || 'Failed to update user' });
+        }
+
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to update user' });
+    }
+});
+
+// Delete a user
+app.delete('/api/users/:username', async (req, res) => {
+    const username = req.params.username;
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .delete()
+            .eq('username', username);
+
+        if (error) throw error;
+
+        res.json({ success: true, data: { message: 'User deleted' } });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete user' });
+    }
+});
+
+// ============================================
+// ENTITIES API ENDPOINTS
+// ============================================
+
+// Get all entities
+app.get('/api/entities', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('entities')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching entities:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch entities' });
+    }
+});
+
+// Get entity by ID
+app.get('/api/entities/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('entities')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Entity not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching entity:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch entity' });
+    }
+});
+
+// Create a new entity
+app.post('/api/entities', async (req, res) => {
+    const { name, entity_id, description, status } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('entities')
+            .insert([{ name, entity_id, description, status: status || 'activo' }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating entity:', error);
+        res.status(500).json({ success: false, error: 'Failed to create entity' });
+    }
+});
+
+// Update an entity
+app.put('/api/entities/:id', async (req, res) => {
+    const id = req.params.id;
+    const { name, entity_id, description, status } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('entities')
+            .update({ name, entity_id, description, status })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating entity:', error);
+        res.status(500).json({ success: false, error: 'Failed to update entity' });
+    }
+});
+
+// Delete an entity
+app.delete('/api/entities/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('entities')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Entity deleted' } });
+    } catch (error) {
+        console.error('Error deleting entity:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete entity' });
+    }
+});
+
+// ============================================
+// COMMITMENTS API ENDPOINTS
+// ============================================
+
+// Get all commitments
+app.get('/api/commitments', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .select(`
+                *,
+                entities (
+                    id,
+                    name,
+                    entity_id
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching commitments:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch commitments' });
+    }
+});
+
+// Get commitment by ID
+app.get('/api/commitments/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .select(`
+                *,
+                entities (
+                    id,
+                    name,
+                    entity_id
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Commitment not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching commitment:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch commitment' });
+    }
+});
+
+// Get commitments by entity
+app.get('/api/commitments/entity/:entityId', async (req, res) => {
+    const entityId = req.params.entityId;
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .select('*')
+            .eq('entity_id', entityId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching commitments by entity:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch commitments' });
+    }
+});
+
+// Create a new commitment
+app.post('/api/commitments', async (req, res) => {
+    const { name, description, start_date, end_date, status, entity_id, created_by } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .insert([{ name, description, start_date, end_date, status, entity_id, created_by }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating commitment:', error);
+        res.status(500).json({ success: false, error: 'Failed to create commitment' });
+    }
+});
+
+// Update a commitment
+app.put('/api/commitments/:id', async (req, res) => {
+    const id = req.params.id;
+    const { name, description, start_date, end_date, status, entity_id } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .update({ name, description, start_date, end_date, status, entity_id })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating commitment:', error);
+        res.status(500).json({ success: false, error: 'Failed to update commitment' });
+    }
+});
+
+// Delete a commitment
+app.delete('/api/commitments/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('commitments')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Commitment deleted' } });
+    } catch (error) {
+        console.error('Error deleting commitment:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete commitment' });
+    }
+});
+
+// ============================================
+// WORK GROUPS API ENDPOINTS
+// ============================================
+
+// Get all work groups
+app.get('/api/work-groups', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('work_groups')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching work groups:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch work groups' });
+    }
+});
+
+// Get work group by ID
+app.get('/api/work-groups/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('work_groups')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Work group not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching work group:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch work group' });
+    }
+});
+
+// Create a new work group
+app.post('/api/work-groups', async (req, res) => {
+    const { name, description, members, commitments } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('work_groups')
+            .insert([{ name, description, members: members || [], commitments: commitments || [] }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating work group:', error);
+        res.status(500).json({ success: false, error: 'Failed to create work group' });
+    }
+});
+
+// Update a work group
+app.put('/api/work-groups/:id', async (req, res) => {
+    const id = req.params.id;
+    const { name, description, members, commitments } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('work_groups')
+            .update({ name, description, members, commitments })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating work group:', error);
+        res.status(500).json({ success: false, error: 'Failed to update work group' });
+    }
+});
+
+// Delete a work group
+app.delete('/api/work-groups/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('work_groups')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Work group deleted' } });
+    } catch (error) {
+        console.error('Error deleting work group:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete work group' });
+    }
+});
+
+// ============================================
+// RECORDS (LOGS) API ENDPOINTS
+// ============================================
+
+// Get all records with pagination
+app.get('/api/records', async (req, res) => {
+    try {
+        const { limit = 100, offset = 0, username, action } = req.query;
+
+        let query = supabase
+            .from('records')
+            .select('*', { count: 'exact' })
+            .order('timestamp', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (username) {
+            query = query.eq('username', username);
+        }
+        if (action) {
+            query = query.eq('action', action);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+        res.json({ success: true, data: { data, count, limit, offset } });
+    } catch (error) {
+        console.error('Error fetching records:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch records' });
+    }
+});
+
+// Get record by ID
+app.get('/api/records/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('records')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Record not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching record:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch record' });
+    }
+});
+
+// Create a new record (log)
+app.post('/api/records', async (req, res) => {
+    const { username, action, entity, commitment, details } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('records')
+            .insert([{ username, action, entity, commitment, details }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating record:', error);
+        res.status(500).json({ success: false, error: 'Failed to create record' });
+    }
+});
+
+// Delete a record
+app.delete('/api/records/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('records')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Record deleted' } });
+    } catch (error) {
+        console.error('Error deleting record:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete record' });
+    }
+});
+
+// Get records by date range
+app.get('/api/records/range/:startDate/:endDate', async (req, res) => {
+    const { startDate, endDate } = req.params;
+    try {
+        const { data, error } = await supabase
+            .from('records')
+            .select('*')
+            .gte('timestamp', startDate)
+            .lte('timestamp', endDate)
+            .order('timestamp', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching records by date range:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch records' });
+    }
+});
+
+// ============================================
+// AUDIT FORMS API ENDPOINTS
+// ============================================
+
+// Get audit form by type for current user
+app.get('/api/audit/forms/:formType', async (req, res) => {
+    const { formType } = req.params;
+    // TODO: Get user_id from authenticated session
+    const user_id = req.headers['user-id']; // Temporary, should come from auth middleware
+
+    if (!user_id) {
+        return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('audit_forms')
+            .select('*')
+            .eq('form_type', formType)
+            .eq('user_id', user_id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching audit form:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch audit form' });
+    }
+});
+
+// Create/update audit form
+app.post('/api/audit/forms', async (req, res) => {
+    const { formType, data: formData } = req.body;
+    // TODO: Get user_id from authenticated session
+    const user_id = req.headers['user-id']; // Temporary, should come from auth middleware
+
+    if (!user_id) {
+        return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!formType || !formData) {
+        return res.status(400).json({ error: 'formType y data son requeridos' });
+    }
+
+    try {
+        // Check if form already exists
+        const { data: existingForm } = await supabase
+            .from('audit_forms')
+            .select('id')
+            .eq('form_type', formType)
+            .eq('user_id', user_id)
+            .single();
+
+        let result;
+        if (existingForm) {
+            // Update existing form
+            const { data, error } = await supabase
+                .from('audit_forms')
+                .update({ data: formData })
+                .eq('id', existingForm.id)
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+        } else {
+            // Create new form
+            const { data, error } = await supabase
+                .from('audit_forms')
+                .insert([{ form_type: formType, user_id, data: formData }])
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+        }
+
+        res.status(existingForm ? 200 : 201).json({ success: true, data: result });
+    } catch (error) {
+        console.error('Error saving audit form:', error);
+        res.status(500).json({ success: false, error: 'Failed to save audit form' });
+    }
+});
+
+// ============================================
+// AUDIT REVIEWS API ENDPOINTS
+// ============================================
+
+// Get reviews for a form
+app.get('/api/audit/reviews/:formId', async (req, res) => {
+    const { formId } = req.params;
+
+    try {
+        const { data, error } = await supabase
+            .from('audit_reviews')
+            .select('*')
+            .eq('form_id', formId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching audit reviews:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch audit reviews' });
+    }
+});
+
+// Update review status (admin only)
+app.post('/api/audit/reviews', async (req, res) => {
+    const { formId, questionId, reviewed, reviewedBy } = req.body;
+
+    if (!formId || !questionId || reviewed === undefined) {
+        return res.status(400).json({ error: 'formId, questionId y reviewed son requeridos' });
+    }
+
+    // TODO: Check if user is admin
+    // For now, assume reviewedBy is provided and valid
+
+    try {
+        // Check if review already exists
+        const { data: existingReview } = await supabase
+            .from('audit_reviews')
+            .select('id')
+            .eq('form_id', formId)
+            .eq('question_id', questionId)
+            .single();
+
+        let result;
+        if (existingReview) {
+            // Update existing review
+            const updateData = { reviewed };
+            if (reviewed) {
+                updateData.reviewed_by = reviewedBy;
+                updateData.reviewed_at = new Date().toISOString();
+            }
+
+            const { data, error } = await supabase
+                .from('audit_reviews')
+                .update(updateData)
+                .eq('id', existingReview.id)
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+        } else {
+            // Create new review
+            const insertData = {
+                form_id: formId,
+                question_id: questionId,
+                reviewed
+            };
+            if (reviewed) {
+                insertData.reviewed_by = reviewedBy;
+                insertData.reviewed_at = new Date().toISOString();
+            }
+
+            const { data, error } = await supabase
+                .from('audit_reviews')
+                .insert([insertData])
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+        }
+
+        res.status(existingReview ? 200 : 201).json({ success: true, data: result });
+    } catch (error) {
+        console.error('Error updating audit review:', error);
+        res.status(500).json({ success: false, error: 'Failed to update audit review' });
+    }
+});
+
+// ============================================
+
+// ============================================
+// CLIENTES API ENDPOINTS
+// ============================================
+
+// ============================================
+// USUARIOS API ENDPOINTS
+// ============================================
+
+// Get all users
+app.get('/api/usuarios', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching usuarios:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch usuarios' });
+    }
+});
+
+// Get user by ID
+app.get('/api/usuarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching usuario:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch usuario' });
+    }
+});
+
+// Create user
+app.post('/api/usuarios', async (req, res) => {
+    const body = req.body || {};
+    const payload = {
+        username: body.username,
+        password: body.password,
+        full_name: body.full_name || body.name || body.nombre,
+        email: body.email || body.correo,
+        phone: body.phone || body.telefono,
+        role: body.role || body.rol,
+        groups: body.groups || body.grupos || []
+    };
+
+    if (!payload.username || !payload.password || !payload.full_name || !payload.email || !payload.role) {
+        return res.status(400).json({ success: false, error: 'username, password, full_name, email y role son requeridos' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .insert([payload])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating usuario:', error);
+        res.status(500).json({ success: false, error: 'Failed to create usuario' });
+    }
+});
+
+// Update user
+app.put('/api/usuarios/:id', async (req, res) => {
+    const { id } = req.params;
+    const body = req.body || {};
+    const payload = {
+        username: body.username,
+        password: body.password,
+        full_name: body.full_name || body.name || body.nombre,
+        email: body.email || body.correo,
+        phone: body.phone || body.telefono,
+        role: body.role || body.rol,
+        groups: body.groups || body.grupos || []
+    };
+
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .update(payload)
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        if (!data || !data.length) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating usuario:', error);
+        res.status(500).json({ success: false, error: 'Failed to update usuario' });
+    }
+});
+
+// Delete user
+app.delete('/api/usuarios/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Usuario eliminado' } });
+    } catch (error) {
+        console.error('Error deleting usuario:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete usuario' });
+    }
+});
+
+
+// Get all clientes
+app.get('/api/clientes', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .select(`
+                *,
+                usuarios (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .order('creado_en', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching clientes:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch clientes' });
+    }
+});
+
+// Get cliente by ID
+app.get('/api/clientes/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .select(`
+                *,
+                usuarios (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Cliente not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching cliente:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch cliente' });
+    }
+});
+
+// Create a new cliente
+app.post('/api/clientes', async (req, res) => {
+    const { nombre_empresa, nit, direccion, telefono, user_id } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .insert([{ nombre_empresa, nit, direccion, telefono, user_id }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating cliente:', error);
+        res.status(500).json({ success: false, error: 'Failed to create cliente' });
+    }
+});
+
+// Update a cliente
+app.put('/api/clientes/:id', async (req, res) => {
+    const id = req.params.id;
+    const { nombre_empresa, nit, direccion, telefono, user_id } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .update({ nombre_empresa, nit, direccion, telefono, user_id })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating cliente:', error);
+        res.status(500).json({ success: false, error: 'Failed to update cliente' });
+    }
+});
+
+// Delete a cliente
+app.delete('/api/clientes/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Cliente deleted' } });
+    } catch (error) {
+        console.error('Error deleting cliente:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete cliente' });
+    }
+});
+
+// ============================================
+// AUDITORIAS API ENDPOINTS
+// ============================================
+
+// Get all auditorias
+app.get('/api/auditorias', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .select(`
+                *,
+                clientes (
+                    id,
+                    nombre_empresa,
+                    nit
+                ),
+                usuarios:auditor_id (
+                    id,
+                    nombre,
+                    correo
+                ),
+                usuarios:creado_por (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .order('creado_en', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching auditorias:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch auditorias' });
+    }
+});
+
+// Get auditoria by ID
+app.get('/api/auditorias/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .select(`
+                *,
+                clientes (
+                    id,
+                    nombre_empresa,
+                    nit
+                ),
+                usuarios:auditor_id (
+                    id,
+                    nombre,
+                    correo
+                ),
+                usuarios:creado_por (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Auditoria not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching auditoria:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch auditoria' });
+    }
+});
+
+// Get auditorias by cliente
+app.get('/api/auditorias/cliente/:clienteId', async (req, res) => {
+    const clienteId = req.params.clienteId;
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .select(`
+                *,
+                usuarios:auditor_id (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('cliente_id', clienteId)
+            .order('creado_en', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching auditorias by cliente:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch auditorias' });
+    }
+});
+
+// Create a new auditoria
+app.post('/api/auditorias', async (req, res) => {
+    const { cliente_id, auditor_id, creado_por, tipo, fecha_inicio, fecha_fin, estado, comentarios } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .insert([{ cliente_id, auditor_id, creado_por, tipo, fecha_inicio, fecha_fin, estado: estado || 'planificada', comentarios }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating auditoria:', error);
+        res.status(500).json({ success: false, error: 'Failed to create auditoria' });
+    }
+});
+
+// Update an auditoria
+app.put('/api/auditorias/:id', async (req, res) => {
+    const id = req.params.id;
+    const { cliente_id, auditor_id, tipo, fecha_inicio, fecha_fin, estado, comentarios } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .update({ cliente_id, auditor_id, tipo, fecha_inicio, fecha_fin, estado, comentarios })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating auditoria:', error);
+        res.status(500).json({ success: false, error: 'Failed to update auditoria' });
+    }
+});
+
+// Delete an auditoria
+app.delete('/api/auditorias/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('auditorias')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Auditoria deleted' } });
+    } catch (error) {
+        console.error('Error deleting auditoria:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete auditoria' });
+    }
+});
+
+// ============================================
+// HALLAZGOS API ENDPOINTS
+// ============================================
+
+// Get all hallazgos
+app.get('/api/hallazgos', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .select(`
+                *,
+                auditorias (
+                    id,
+                    tipo,
+                    estado,
+                    clientes (
+                        id,
+                        nombre_empresa
+                    )
+                ),
+                usuarios:registrado_por (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .order('fecha_registro', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching hallazgos:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch hallazgos' });
+    }
+});
+
+// Get hallazgo by ID
+app.get('/api/hallazgos/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .select(`
+                *,
+                auditorias (
+                    id,
+                    tipo,
+                    estado,
+                    clientes (
+                        id,
+                        nombre_empresa
+                    )
+                ),
+                usuarios:registrado_por (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Hallazgo not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching hallazgo:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch hallazgo' });
+    }
+});
+
+// Get hallazgos by auditoria
+app.get('/api/hallazgos/auditoria/:auditoriaId', async (req, res) => {
+    const auditoriaId = req.params.auditoriaId;
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .select(`
+                *,
+                usuarios:registrado_por (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('auditoria_id', auditoriaId)
+            .order('fecha_registro', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching hallazgos by auditoria:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch hallazgos' });
+    }
+});
+
+// Create a new hallazgo
+app.post('/api/hallazgos', async (req, res) => {
+    const { auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .insert([{ auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating hallazgo:', error);
+        res.status(500).json({ success: false, error: 'Failed to create hallazgo' });
+    }
+});
+
+// Update a hallazgo
+app.put('/api/hallazgos/:id', async (req, res) => {
+    const id = req.params.id;
+    const { auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .update({ auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating hallazgo:', error);
+        res.status(500).json({ success: false, error: 'Failed to update hallazgo' });
+    }
+});
+
+// Delete a hallazgo
+app.delete('/api/hallazgos/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('hallazgos')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Hallazgo deleted' } });
+    } catch (error) {
+        console.error('Error deleting hallazgo:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete hallazgo' });
+    }
+});
+
+// ============================================
+// ACCIONES CORRECTIVAS API ENDPOINTS
+// ============================================
+
+// Get all acciones_correctivas
+app.get('/api/acciones-correctivas', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .select(`
+                *,
+                hallazgos (
+                    id,
+                    descripcion,
+                    severidad,
+                    auditorias (
+                        id,
+                        tipo,
+                        clientes (
+                            id,
+                            nombre_empresa
+                        )
+                    )
+                )
+            `)
+            .order('fecha_creacion', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching acciones correctivas:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch acciones correctivas' });
+    }
+});
+
+// Get accion correctiva by ID
+app.get('/api/acciones-correctivas/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .select(`
+                *,
+                hallazgos (
+                    id,
+                    descripcion,
+                    severidad,
+                    auditorias (
+                        id,
+                        tipo,
+                        clientes (
+                            id,
+                            nombre_empresa
+                        )
+                    )
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Accion correctiva not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching accion correctiva:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch accion correctiva' });
+    }
+});
+
+// Get acciones correctivas by hallazgo
+app.get('/api/acciones-correctivas/hallazgo/:hallazgoId', async (req, res) => {
+    const hallazgoId = req.params.hallazgoId;
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .select('*')
+            .eq('hallazgo_id', hallazgoId)
+            .order('fecha_creacion', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching acciones correctivas by hallazgo:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch acciones correctivas' });
+    }
+});
+
+// Create a new accion correctiva
+app.post('/api/acciones-correctivas', async (req, res) => {
+    const { hallazgo_id, descripcion, responsable, fecha_limite, estado, evidencia_url } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .insert([{ hallazgo_id, descripcion, responsable, fecha_limite, estado: estado || 'pendiente', evidencia_url }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating accion correctiva:', error);
+        res.status(500).json({ success: false, error: 'Failed to create accion correctiva' });
+    }
+});
+
+// Update an accion correctiva
+app.put('/api/acciones-correctivas/:id', async (req, res) => {
+    const id = req.params.id;
+    const { hallazgo_id, descripcion, responsable, fecha_limite, estado, evidencia_url } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .update({ hallazgo_id, descripcion, responsable, fecha_limite, estado, evidencia_url })
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        res.json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error updating accion correctiva:', error);
+        res.status(500).json({ success: false, error: 'Failed to update accion correctiva' });
+    }
+});
+
+// Delete an accion correctiva
+app.delete('/api/acciones-correctivas/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('acciones_correctivas')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Accion correctiva deleted' } });
+    } catch (error) {
+        console.error('Error deleting accion correctiva:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete accion correctiva' });
+    }
+});
+
+// ============================================
+// BITACORA API ENDPOINTS
+// ============================================
+
+// Get all bitacora entries
+app.get('/api/bitacora', async (req, res) => {
+    try {
+        const { limit = 100, offset = 0, usuario_id, accion, entidad } = req.query;
+
+        let query = supabase
+            .from('bitacora')
+            .select(`
+                *,
+                usuarios (
+                    id,
+                    nombre,
+                    correo
+                )
+            `, { count: 'exact' })
+            .order('fecha', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (usuario_id) {
+            query = query.eq('usuario_id', usuario_id);
+        }
+        if (accion) {
+            query = query.eq('accion', accion);
+        }
+        if (entidad) {
+            query = query.eq('entidad', entidad);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+        res.json({ success: true, data: { data, count, limit, offset } });
+    } catch (error) {
+        console.error('Error fetching bitacora:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch bitacora' });
+    }
+});
+
+// Get bitacora entry by ID
+app.get('/api/bitacora/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('bitacora')
+            .select(`
+                *,
+                usuarios (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            res.status(404).json({ success: false, error: 'Bitacora entry not found' });
+        } else {
+            res.json({ success: true, data });
+        }
+    } catch (error) {
+        console.error('Error fetching bitacora entry:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch bitacora entry' });
+    }
+});
+
+// Get bitacora by date range
+app.get('/api/bitacora/range/:startDate/:endDate', async (req, res) => {
+    const { startDate, endDate } = req.params;
+    try {
+        const { data, error } = await supabase
+            .from('bitacora')
+            .select(`
+                *,
+                usuarios (
+                    id,
+                    nombre,
+                    correo
+                )
+            `)
+            .gte('fecha', startDate)
+            .lte('fecha', endDate)
+            .order('fecha', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching bitacora by date range:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch bitacora' });
+    }
+});
+
+// Create a new bitacora entry
+app.post('/api/bitacora', async (req, res) => {
+    const { usuario_id, accion, entidad, registro_id } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('bitacora')
+            .insert([{ usuario_id, accion, entidad, registro_id }])
+            .select();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data: data[0] });
+    } catch (error) {
+        console.error('Error creating bitacora entry:', error);
+        res.status(500).json({ success: false, error: 'Failed to create bitacora entry' });
+    }
+});
+
+// Delete a bitacora entry
+app.delete('/api/bitacora/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const { data, error } = await supabase
+            .from('bitacora')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, data: { message: 'Bitacora entry deleted' } });
+    } catch (error) {
+        console.error('Error deleting bitacora entry:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete bitacora entry' });
+    }
+});
+
+// ============================================
+// AUTHENTICATION ENDPOINTS
+// ============================================
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .eq('password', password)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (!data) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        // Log the login action
+        await supabase
+            .from('records')
+            .insert([{
+                username: username,
+                action: 'login',
+                entity: null,
+                commitment: null,
+                details: { ip: req.ip, userAgent: req.get('user-agent') }
+            }]);
+
+        // Return user data without password
+        const { password: _, ...userWithoutPassword } = data;
+        res.json({ user: userWithoutPassword, message: 'Login successful' });
+
+    } catch (error) {
+        console.error('Error during login:', error);
+        res.status(500).json({ error: 'Failed to login' });
+    }
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', async (req, res) => {
+    const { username } = req.body;
+
+    try {
+        // Log the logout action
+        await supabase
+            .from('records')
+            .insert([{
+                username: username,
+                action: 'logout',
+                entity: null,
+                commitment: null,
+                details: { ip: req.ip, userAgent: req.get('user-agent') }
+            }]);
+
+        res.json({ message: 'Logout successful' });
+
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({ error: 'Failed to logout' });
+    }
+});
+
+// Endpoint para procesar archivos y hacer consultas IA
+app.post('/api/ai/process-files', upload.array('files', 5), async (req, res) => {
+    try {
+        const { prompt, context = 'soporte' } = req.body;
+        const files = req.files || [];
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt es requerido' });
+        }
+
+        let fullPrompt = prompt;
+
+        // Procesar archivos adjuntos
+        if (files.length > 0) {
+            fullPrompt += '\n\nArchivos adjuntos:\n';
+
+            for (const file of files) {
+                try {
+                    let fileContent = '';
+
+                    if (file.mimetype.includes('spreadsheet') || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls')) {
+                        fileContent = processExcelFile(file.buffer, file.originalname);
+                    } else if (file.mimetype.includes('word') || file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
+                        fileContent = processWordFile(file.buffer, file.originalname);
+                    } else if (file.mimetype === 'application/pdf') {
+                        fileContent = processPDFFile(file.buffer, file.originalname);
+                    } else if (file.mimetype.startsWith('image/')) {
+                        fileContent = processImageFile(file.buffer, file.originalname);
+                    } else if (file.mimetype === 'text/plain') {
+                        fileContent = `Archivo de texto: ${file.originalname}\nContenido:\n${file.buffer.toString('utf-8')}`;
+                    } else {
+                        fileContent = `[Archivo: ${file.originalname}, tipo: ${file.mimetype}, tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB]`;
+                    }
+
+                    fullPrompt += `\n--- ${file.originalname} ---\n${fileContent}\n`;
+
+                } catch (error) {
+                    console.error(`Error procesando archivo ${file.originalname}:`, error);
+                    fullPrompt += `\n--- ${file.originalname} ---\n[Error procesando archivo]\n`;
+                }
+            }
+        }
+
+        // Llamar a IA con el prompt completo
+        const response = await callOpenAI(fullPrompt, AI_CONTEXTS[context] || AI_CONTEXTS.soporte, 1500, 0.7);
+
+        // Log de la interacción
+        console.log(`[${new Date().toISOString()}] IA file processing - Context: ${context}, Files: ${files.length}, Prompt length: ${fullPrompt.length}, Response length: ${response.length}`);
+
+        res.json({ response, filesProcessed: files.length });
+
+    } catch (error) {
+        console.error('Error en /api/ai/process-files:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            message: 'Lo siento, hubo un error al procesar tu consulta con la IA. Por favor, intenta de nuevo más tarde.'
+        });
+    }
+});
+
+// Endpoint proxy para llamadas a IA
+app.post('/api/ai/call', async (req, res) => {
+    try {
+        const { prompt, context = 'soporte', provider = 'openai', options = {} } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt es requerido' });
+        }
+
+        const systemPrompt = AI_CONTEXTS[context] || AI_CONTEXTS.soporte;
+        const maxTokens = options.maxTokens || 1000;
+        const temperature = options.temperature || 0.7;
+
+        let response;
+
+        switch (provider) {
+            case 'openai':
+                response = await callOpenAI(prompt, systemPrompt, maxTokens, temperature);
+                break;
+            default:
+                return res.status(400).json({ error: `Proveedor ${provider} no soportado` });
+        }
+
+        // Log de la interacción (puedes implementar logging más avanzado aquí)
+        console.log(`[${new Date().toISOString()}] IA call - Context: ${context}, Prompt length: ${prompt.length}, Response length: ${response.length}`);
+
+        res.json({ response });
+
+    } catch (error) {
+        console.error('Error en /api/ai/call:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            message: 'Lo siento, hubo un error al procesar tu consulta con la IA. Por favor, intenta de nuevo más tarde.'
+        });
+    }
+});
+
+// Función para llamar a OpenAI
+async function callOpenAI(prompt, systemPrompt, maxTokens, temperature) {
+    const response = await fetch(`${AI_CONFIG.openai.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${AI_CONFIG.openai.apiKey}`
+        },
+        body: JSON.stringify({
+            model: AI_CONFIG.openai.models.chat,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt }
+            ],
+            max_tokens: maxTokens,
+            temperature: temperature
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Error de OpenAI: ${response.status} ${response.statusText} - ${errorData}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+}
+
+// Endpoint para análisis de logs
+app.post('/api/ai/analyze-logs', async (req, res) => {
+    try {
+        const { logs, analysisType = 'general' } = req.body;
+
+        if (!logs || !Array.isArray(logs)) {
+            return res.status(400).json({ error: 'Logs son requeridos y deben ser un array' });
+        }
+
+        const logsText = logs.map(log =>
+            `[${log.timestamp}] ${log.username}: ${log.action} - ${log.entity || 'N/A'} - ${log.commitment || 'N/A'}`
+        ).join('\n');
+
+        let prompt;
+        switch (analysisType) {
+            case 'anomalies':
+                prompt = `Analiza estos logs de CFE INSIGHT y identifica anomalías o patrones inusuales:\n\n${logsText}\n\nProporciona un resumen de hallazgos y recomendaciones.`;
+                break;
+            case 'patterns':
+                prompt = `Analiza estos logs de CFE INSIGHT e identifica patrones de comportamiento:\n\n${logsText}\n\nDescribe los patrones encontrados y su significado.`;
+                break;
+            case 'recommendations':
+                prompt = `Basado en estos logs de CFE INSIGHT, proporciona recomendaciones de auditoría:\n\n${logsText}\n\nSugiere mejoras en procesos y controles.`;
+                break;
+            default:
+                prompt = `Analiza estos logs de CFE INSIGHT:\n\n${logsText}\n\nProporciona un resumen ejecutivo de las actividades registradas.`;
+        }
+
+        const response = await callOpenAI(prompt, AI_CONTEXTS.auditoria, 1500, 0.7);
+        res.json({ response });
+
+    } catch (error) {
+        console.error('Error en /api/ai/analyze-logs:', error);
+        res.status(500).json({ error: 'Error al analizar logs' });
+    }
+});
+
+// Endpoint para generar reportes
+app.post('/api/ai/generate-report', async (req, res) => {
+    try {
+        const { data, reportType = 'general' } = req.body;
+
+        let prompt;
+        switch (reportType) {
+            case 'auditoria':
+                prompt = `Genera un reporte de auditoría basado en los siguientes datos de CFE INSIGHT:\n\n${JSON.stringify(data, null, 2)}\n\nEstructura el reporte con: 1) Resumen Ejecutivo, 2) Hallazgos, 3) Recomendaciones, 4) Conclusiones.`;
+                break;
+            case 'compromisos':
+                prompt = `Genera un reporte de seguimiento de compromisos basado en:\n\n${JSON.stringify(data, null, 2)}\n\nIncluye estado actual, riesgos identificados y próximos pasos.`;
+                break;
+            case 'usuarios':
+                prompt = `Genera un reporte de actividad de usuarios basado en:\n\n${JSON.stringify(data, null, 2)}\n\nAnaliza patrones de uso y recomendaciones de capacitación.`;
+                break;
+            default:
+                prompt = `Genera un reporte ejecutivo basado en los siguientes datos:\n\n${JSON.stringify(data, null, 2)}\n\nResume los puntos clave y tendencias.`;
+        }
+
+        const response = await callOpenAI(prompt, AI_CONTEXTS.reporte, 2000, 0.7);
+        res.json({ response });
+
+    } catch (error) {
+        console.error('Error en /api/ai/generate-report:', error);
+        res.status(500).json({ error: 'Error al generar reporte' });
+    }
+});
+
+// Endpoint de health check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Manejo de errores global
+app.use((error, req, res, next) => {
+    console.error('Error no manejado:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
+    console.log(`📁 Archivos estáticos servidos desde: ${path.join(__dirname, 'App')}`);
+    console.log(`📊 Procesamiento de archivos Excel habilitado`);
+});
+
+module.exports = app;

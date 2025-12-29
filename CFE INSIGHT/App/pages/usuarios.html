@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrova - Gestión de Usuarios</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/usuarios.css">
+</head>
+
+<body>
+  <header class="header-dashboard">
+    <div class="header-left">
+      <h1 class="page-title">Integrova - Usuarios</h1>
+    </div>
+    <div class="header-center">
+      <div class="buscador">
+        <i class="bi bi-search"></i>
+        <input id="searchInput" type="text" placeholder="Buscar por usuario, nombre, correo o teléfono...">
+      </div>
+    </div>
+    <div class="header-right">
+      <select id="roleFilter" class="form-select filter-select">
+        <option value="">Todos los roles</option>
+        <option value="cliente">Cliente</option>
+        <option value="auditor">Auditor</option>
+        <option value="auditor_senior">Auditor Senior</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="socio">Socio</option>
+        <option value="administrador">Administrador</option>
+        <option value="programador">Programador</option>
+      </select>
+      <button class="header-btn" id="addUserBtn" onclick="openAddModal()" title="Agregar Usuario">
+        <i class="bi bi-person-plus"></i>
+      </button>
+      <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Dashboard">
+        <i class="bi bi-house"></i>
+      </button>
+      <button class="header-btn" onclick="logout()" title="Salir">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="usuarios-container">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover" id="usersTable">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Teléfono</th>
+              <th>Rol</th>
+              <th>Equipo</th>
+              <th>Estado</th>
+              <th>Contraseña</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <!-- Rows will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-full">
+    <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+  </div>
+
+  <!-- Modal for Add/Edit User -->
+  <div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userModalLabel">Agregar Usuario</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="userForm">
+            <div class="form-group">
+              <label for="username">Usuario</label>
+              <input type="text" class="form-control" id="username" required>
+            </div>
+            <div class="form-group">
+              <label for="password">Contraseña</label>
+              <div class="input-group d-flex">
+                <input type="password" class="form-control" id="password" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePasswordModal">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="name">Nombre</label>
+              <input type="text" class="form-control" id="name" required>
+            </div>
+            <div class="form-group">
+              <label for="email">Correo</label>
+              <input type="email" class="form-control" id="email" required>
+            </div>
+            <div class="form-group">
+              <label for="phone">Teléfono</label>
+              <input type="tel" class="form-control" id="phone" required>
+            </div>
+            <div class="form-group">
+              <label for="role">Rol</label>
+              <select class="form-control" id="role" required>
+                <option value="cliente">Cliente</option>
+                <option value="auditor">Auditor</option>
+                <option value="auditor_senior">Auditor Senior</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="socio">Socio</option>
+                <option value="administrador">Administrador</option>
+                <option value="programador">Programador</option>
+              </select>
+            </div>
+            <div class="form-group" id="groupAssignment" style="display: none;">
+              <label for="userGroups">Equipos de Trabajo</label>
+              <div id="groupsContainer" class="border p-2"
+                style="min-height: 100px; max-height: 150px; overflow-y: auto;">
+                <!-- Groups will be populated here -->
+              </div>
+              <small class="form-text text-muted">Selecciona los grupos a los que pertenece este usuario.</small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="saveUserBtn">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Delete Confirmation -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">
+            <i class="bi bi-exclamation-triangle text-warning"></i> Confirmar Eliminación
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteModalMessage">¿Está seguro de eliminar al usuario?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script>
+    let users = [];
+    let editingUser = null;
+    let visibleUsers = new Set();
+
+    // Sesión en memoria (se pierde al recargar) - NO localStorage
+    let currentSession = window.appSession || null;
+
+    // Helper: normaliza cualquier resultado a un array
+    function normalizeToArray(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'object') return [value];
+      return [];
+    }
+
+    // Helper para añadir contenido a una celda (soporta string o Node)
+    function appendCellContent(td, content) {
+      if (!content && content !== 0) {
+        td.textContent = '';
+        return;
+      }
+      if (content instanceof Node) {
+        td.appendChild(content);
+      } else {
+        td.innerHTML = String(content);
+      }
+    }
+
+    // Fetch users from backend API
+    async function fetchUsers() {
+      try {
+        const res = await fetch('/api/usuarios');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const response = await res.json();
+        const rawUsers = response.success ? response.data : [];
+
+        // Normalizar campos: mapear campos de Supabase a frontend
+        users = rawUsers.map(u => ({
+          id: u.id,
+          username: u.username || u.nombre || u.correo?.split('@')[0] || 'N/A',
+          name: u.nombre || u.full_name || u.name || 'Sin nombre',
+          full_name: u.nombre || u.full_name || u.name || 'Sin nombre',
+          email: u.correo || u.email || 'No disponible',
+          phone: u.telefono || u.phone || 'No disponible',
+          role: u.rol || u.role || 'Sin rol',
+          team: u.equipo || u.team || u.group || 'Sin equipo',
+          active: u.activo !== undefined ? u.activo : (u.active !== undefined ? u.active : true),
+          password: u.password || '********',
+          created_at: u.creado_en || u.created_at
+        }));
+
+        console.log(`✅ ${users.length} usuarios cargados desde la base de datos:`, users);
+        renderUsers();
+      } catch (err) {
+        console.error('❌ Error al cargar usuarios:', err);
+        alert('Error al cargar usuarios: ' + err.message);
+      }
+    }
+
+    // Check session and role from API
+    async function checkAccess() {
+      // Verificar sesión en sessionStorage
+      const sessionStr = sessionStorage.getItem('userSession');
+      if (!sessionStr) {
+        window.location.href = '/login.html';
+        return false;
+      }
+
+      try {
+        currentSession = JSON.parse(sessionStr);
+      } catch (e) {
+        console.error('Error parsing session:', e);
+        window.location.href = '/login.html';
+        return false;
+      }
+
+      if (currentSession.role !== 'administrador' && currentSession.role !== 'programador' && currentSession.role !== 'socio') {
+        alert('No tienes permisos para acceder a esta página');
+        window.location.href = '/dashboard.html';
+        return false;
+      }
+
+      return true;
+    }
+    function renderUsers(filteredUsers = users) {
+      const tbody = document.getElementById('usersTableBody');
+      if (!tbody) {
+        console.warn('No se encontró tbody con id "usersTableBody"');
+        return;
+      }
+
+      tbody.innerHTML = '';
+
+      const safeUsers = normalizeToArray(filteredUsers);
+
+      const currentUser = currentSession ? currentSession.username : null;
+
+      safeUsers.forEach(user => {
+        const row = document.createElement('tr');
+
+        const tdUsername = document.createElement('td');
+        tdUsername.textContent = user.username || '';
+        row.appendChild(tdUsername);
+
+        const tdName = document.createElement('td');
+        tdName.textContent = user.name || '';
+        row.appendChild(tdName);
+
+        const tdEmail = document.createElement('td');
+        const emailCell = (typeof createCensoredCell === 'function')
+          ? createCensoredCell(user.email, visibleUsers.has(user.username))
+          : (user.email || '');
+        appendCellContent(tdEmail, emailCell);
+        row.appendChild(tdEmail);
+
+        const tdPhone = document.createElement('td');
+        const phoneCell = (typeof createCensoredCell === 'function')
+          ? createCensoredCell(user.phone, visibleUsers.has(user.username))
+          : (user.phone || '');
+        appendCellContent(tdPhone, phoneCell);
+        row.appendChild(tdPhone);
+
+        const tdRole = document.createElement('td');
+        tdRole.textContent = user.role || '';
+        row.appendChild(tdRole);
+
+        const tdEquipo = document.createElement('td');
+        tdEquipo.textContent = user.team || user.group || '';
+        row.appendChild(tdEquipo);
+
+        const tdEstado = document.createElement('td');
+        tdEstado.innerHTML = (user.active !== false)
+          ? '<span class="badge bg-success">Activo</span>'
+          : '<span class="badge bg-danger">Inactivo</span>';
+        row.appendChild(tdEstado);
+
+        const tdPassword = document.createElement('td');
+        const passwordCell = (typeof createPasswordCell === 'function')
+          ? createPasswordCell(user.password, visibleUsers.has(user.username))
+          : (user.password || '');
+        appendCellContent(tdPassword, passwordCell);
+        row.appendChild(tdPassword);
+
+        const tdActions = document.createElement('td');
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'user-actions';
+
+        // Botón Editar
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'btn btn-sm btn-warning';
+        btnEdit.title = 'Editar';
+        btnEdit.innerHTML = '<i class="bi bi-pencil-fill"></i>';
+        btnEdit.onclick = () => editUser(user.username);
+
+        // Botón Eliminar
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'btn btn-sm btn-danger';
+        btnDelete.title = 'Eliminar';
+        btnDelete.innerHTML = '<i class="bi bi-trash-fill"></i>';
+        btnDelete.disabled = user.username === currentUser;
+        btnDelete.onclick = () => deleteUser(user.username);
+
+        // Botón Ver/Ocultar
+        const btnToggle = document.createElement('button');
+        btnToggle.className = 'btn btn-sm btn-info';
+        btnToggle.title = 'Ver/Ocultar';
+        btnToggle.innerHTML = '<i class="bi bi-eye-fill"></i>';
+        btnToggle.onclick = () => toggleUserVisibility(user.username);
+
+        actionsDiv.appendChild(btnEdit);
+        actionsDiv.appendChild(btnDelete);
+        actionsDiv.appendChild(btnToggle);
+        tdActions.appendChild(actionsDiv);
+        row.appendChild(tdActions);
+
+        tbody.appendChild(row);
+      });
+    }
+
+    // Filter users
+    function filterUsers(query) {
+      const q = (query || '').toLowerCase();
+      const role = document.getElementById('roleFilter')?.value || '';
+
+      const filtered = users.filter(u => {
+        const matchesQuery = !q ||
+          (u.username || '').toLowerCase().includes(q) ||
+          (u.name || u.full_name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q) ||
+          (u.phone || '').toLowerCase().includes(q);
+
+        const matchesRole = !role || (u.role || '') === role;
+
+        return matchesQuery && matchesRole;
+      });
+
+      renderUsers(filtered);
+    }
+
+    // Open add user modal
+    function openAddModal() {
+      editingUser = null;
+      document.getElementById('userForm').reset();
+      document.getElementById('username').disabled = false;
+      document.getElementById('userModalLabel').textContent = 'Agregar Usuario';
+      const modal = new bootstrap.Modal(document.getElementById('userModal'));
+      modal.show();
+    }
+
+    // Edit user
+    function editUser(username) {
+      console.log('Intentando editar usuario:', username);
+      console.log('Lista de usuarios disponibles:', users);
+      editingUser = users.find(u => u.username === username);
+      if (!editingUser) {
+        console.error('Usuario no encontrado en el array:', username);
+        alert('Usuario no encontrado. Por favor recarga la página.');
+        return;
+      }
+      document.getElementById('username').value = editingUser.username;
+      document.getElementById('username').disabled = true; // Username no se puede modificar
+      document.getElementById('name').value = editingUser.name || '';
+      document.getElementById('email').value = editingUser.email || '';
+      document.getElementById('phone').value = editingUser.phone || '';
+      document.getElementById('role').value = editingUser.role || '';
+      document.getElementById('password').value = editingUser.password || '';
+      document.getElementById('userModalLabel').textContent = 'Editar Usuario';
+      const modal = new bootstrap.Modal(document.getElementById('userModal'));
+      modal.show();
+    }
+
+    // Save user
+    async function saveUser() {
+      const nameValue = document.getElementById('name').value;
+      const formData = {
+        username: editingUser ? editingUser.username : document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        full_name: nameValue,  // Backend usa 'full_name'
+        name: nameValue,        // También enviar 'name' por compatibilidad
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        role: document.getElementById('role').value
+      };
+
+      if (!formData.username || !formData.password || !nameValue) {
+        alert('Por favor completa los campos requeridos');
+        return;
+      }
+
+      try {
+        const url = editingUser
+          ? `/api/usuarios/${editingUser.username}`
+          : '/api/usuarios';
+        const method = editingUser ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Error del servidor:', errorData);
+          throw new Error(errorData.error || `HTTP ${res.status}`);
+        }
+
+        const result = await res.json();
+        console.log('Usuario guardado exitosamente:', result);
+        alert(editingUser ? 'Usuario actualizado' : 'Usuario creado');
+        bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+        fetchUsers();
+      } catch (err) {
+        console.error('Error saving user:', err);
+        alert('Error al guardar usuario: ' + err.message);
+      }
+    }
+
+    // Delete user
+    function deleteUser(username) {
+      if (currentSession && username === currentSession.username) {
+        alert('No puedes eliminar tu propia cuenta');
+        return;
+      }
+
+      const userToDelete = users.find(u => u.username === username);
+      if (!userToDelete) {
+        alert('Usuario no encontrado');
+        return;
+      }
+
+      const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+      document.getElementById('deleteModalMessage').textContent = `¿Eliminar a ${username}?`;
+      document.getElementById('confirmDeleteBtn').onclick = async () => {
+        try {
+          const res = await fetch(`/api/usuarios/${userToDelete.username}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          alert('Usuario eliminado');
+          modal.hide();
+          fetchUsers();
+        } catch (err) {
+          alert('Error: ' + err.message);
+        }
+      };
+      modal.show();
+    }
+
+    // Toggle user visibility
+    function toggleUserVisibility(username) {
+      if (visibleUsers.has(username)) {
+        visibleUsers.delete(username);
+      } else {
+        visibleUsers.add(username);
+      }
+      renderUsers();
+    }
+
+    // Logout
+    function logout() {
+      // Limpiar sesión en sessionStorage
+      sessionStorage.removeItem('userSession');
+      window.appSession = null;
+      window.location.href = '/login.html';
+    }
+
+    // Toggle theme
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+      // Theme preference removed - no localStorage
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAccess();
+      fetchUsers();
+
+      const searchInput = document.getElementById('searchInput');
+      const roleFilter = document.getElementById('roleFilter');
+      if (searchInput) searchInput.addEventListener('input', (e) => filterUsers(e.target.value));
+      if (roleFilter) roleFilter.addEventListener('change', () => filterUsers(document.getElementById('searchInput')?.value || ''));
+
+      const saveUserBtn = document.getElementById('saveUserBtn');
+      if (saveUserBtn) saveUserBtn.addEventListener('click', saveUser);
+
+      const togglePasswordBtn = document.getElementById('togglePasswordModal');
+      if (togglePasswordBtn) {
+        togglePasswordBtn.addEventListener('click', () => {
+          const passwordInput = document.getElementById('password');
+          passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+        });
+      }
+      // Theme preference removed - no localStorage
+    });
+  </script>
+</body>
+
+</html>

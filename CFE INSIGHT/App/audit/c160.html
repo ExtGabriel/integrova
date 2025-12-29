@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C160 - Información financiera - Procedimientos de auditoría</title>
+    <link rel="icon" href="assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <h2 class="welcome-text">C160 - Información financiera - Procedimientos de auditoría</h2>
+        <button class="btn-logout" onclick="logout()">
+            <i class="bi bi-box-arrow-right"></i> Salir
+        </button>
+    </header>
+
+    <div class="main-container">
+        <div class="form-container">
+            <h3>Información financiera - Procedimientos de auditoría <span id="statusMessage"></span></h3>
+            <div id="autoSaveIndicator" class="alert alert-info" style="display: none;">Guardando...</div>
+
+            <form id="c160Form">
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>1. Revisión analítica</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="revision_analitica"
+                                id="revision_analitica_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="revision_analitica_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="revision_analitica"
+                                id="revision_analitica_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="revision_analitica_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="revision_analitica"
+                                id="revision_analitica_na" value="na">
+                            <label class="form-check-label" for="revision_analitica_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="revision_analitica_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_revision_analitica" class="review-checkbox" disabled>
+                        <div id="review_revision_analitica_info" class="review-info"></div>
+                    </div>
+                </div>
+                <!-- Container para formularios relacionados con revision_analitica -->
+                <div id="related_forms_revision" class="row mb-3"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>2. Ajustes</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="ajustes" id="ajustes_sin_excep"
+                                value="sin_excepciones">
+                            <label class="form-check-label" for="ajustes_sin_excep">Completado sin excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="ajustes" id="ajustes_con_excep"
+                                value="con_excepciones">
+                            <label class="form-check-label" for="ajustes_con_excep">Completado con excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="ajustes" id="ajustes_na" value="na">
+                            <label class="form-check-label" for="ajustes_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="ajustes_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_ajustes" class="review-checkbox" disabled>
+                        <div id="review_ajustes_info" class="review-info"></div>
+                    </div>
+                </div>
+                <!-- Container para formularios relacionados con ajustes -->
+                <div id="related_forms_ajustes" class="row mb-3"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>3. Papeles de trabajo</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="papeles_trabajo"
+                                id="papeles_trabajo_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="papeles_trabajo_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="papeles_trabajo"
+                                id="papeles_trabajo_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="papeles_trabajo_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="papeles_trabajo" id="papeles_trabajo_na"
+                                value="na">
+                            <label class="form-check-label" for="papeles_trabajo_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="papeles_trabajo_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_papeles_trabajo" class="review-checkbox" disabled>
+                        <div id="review_papeles_trabajo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>4. Flujos de efectivo</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="flujos_efectivo"
+                                id="flujos_efectivo_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="flujos_efectivo_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="flujos_efectivo"
+                                id="flujos_efectivo_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="flujos_efectivo_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="flujos_efectivo" id="flujos_efectivo_na"
+                                value="na">
+                            <label class="form-check-label" for="flujos_efectivo_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="flujos_efectivo_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_flujos_efectivo" class="review-checkbox" disabled>
+                        <div id="review_flujos_efectivo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>5. Moneda extranjera</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="moneda_extranjera"
+                                id="moneda_extranjera_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="moneda_extranjera_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="moneda_extranjera"
+                                id="moneda_extranjera_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="moneda_extranjera_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="moneda_extranjera"
+                                id="moneda_extranjera_na" value="na">
+                            <label class="form-check-label" for="moneda_extranjera_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="moneda_extranjera_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_moneda_extranjera" class="review-checkbox" disabled>
+                        <div id="review_moneda_extranjera_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>6. Políticas contables</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="politicas_contables"
+                                id="politicas_contables_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="politicas_contables_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="politicas_contables"
+                                id="politicas_contables_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="politicas_contables_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="politicas_contables"
+                                id="politicas_contables_na" value="na">
+                            <label class="form-check-label" for="politicas_contables_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="politicas_contables_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_politicas_contables" class="review-checkbox" disabled>
+                        <div id="review_politicas_contables_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>7. Respaldo para revelaciones</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="respaldo_revelaciones"
+                                id="respaldo_revelaciones_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="respaldo_revelaciones_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="respaldo_revelaciones"
+                                id="respaldo_revelaciones_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="respaldo_revelaciones_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="respaldo_revelaciones"
+                                id="respaldo_revelaciones_na" value="na">
+                            <label class="form-check-label" for="respaldo_revelaciones_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="respaldo_revelaciones_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_respaldo_revelaciones" class="review-checkbox" disabled>
+                        <div id="review_respaldo_revelaciones_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>8. Listas de verificación de revelación</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="listas_verificacion"
+                                id="listas_verificacion_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="listas_verificacion_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="listas_verificacion"
+                                id="listas_verificacion_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="listas_verificacion_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="listas_verificacion"
+                                id="listas_verificacion_na" value="na">
+                            <label class="form-check-label" for="listas_verificacion_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="listas_verificacion_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_listas_verificacion" class="review-checkbox" disabled>
+                        <div id="review_listas_verificacion_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>9. Otra información</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="otra_informacion"
+                                id="otra_informacion_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="otra_informacion_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="otra_informacion"
+                                id="otra_informacion_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="otra_informacion_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="otra_informacion"
+                                id="otra_informacion_na" value="na">
+                            <label class="form-check-label" for="otra_informacion_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="otra_informacion_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_otra_informacion" class="review-checkbox" disabled>
+                        <div id="review_otra_informacion_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>10. Gestión de ganancias</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gestion_ganancias"
+                                id="gestion_ganancias_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="gestion_ganancias_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gestion_ganancias"
+                                id="gestion_ganancias_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="gestion_ganancias_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gestion_ganancias"
+                                id="gestion_ganancias_na" value="na">
+                            <label class="form-check-label" for="gestion_ganancias_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="gestion_ganancias_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_gestion_ganancias" class="review-checkbox" disabled>
+                        <div id="review_gestion_ganancias_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>11. Apariencia</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="apariencia" id="apariencia_sin_excep"
+                                value="sin_excepciones">
+                            <label class="form-check-label" for="apariencia_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="apariencia" id="apariencia_con_excep"
+                                value="con_excepciones">
+                            <label class="form-check-label" for="apariencia_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="apariencia" id="apariencia_na"
+                                value="na">
+                            <label class="form-check-label" for="apariencia_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="apariencia_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_apariencia" class="review-checkbox" disabled>
+                        <div id="review_apariencia_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>12. Escepticismo profesional</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="escepticismo" id="escepticismo_sin_excep"
+                                value="sin_excepciones">
+                            <label class="form-check-label" for="escepticismo_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="escepticismo" id="escepticismo_con_excep"
+                                value="con_excepciones">
+                            <label class="form-check-label" for="escepticismo_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="escepticismo" id="escepticismo_na"
+                                value="na">
+                            <label class="form-check-label" for="escepticismo_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="escepticismo_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_escepticismo" class="review-checkbox" disabled>
+                        <div id="review_escepticismo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>13. Criterios de la dirección</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="criterios_direccion"
+                                id="criterios_direccion_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="criterios_direccion_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="criterios_direccion"
+                                id="criterios_direccion_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="criterios_direccion_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="criterios_direccion"
+                                id="criterios_direccion_na" value="na">
+                            <label class="form-check-label" for="criterios_direccion_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="criterios_direccion_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_criterios_direccion" class="review-checkbox" disabled>
+                        <div id="review_criterios_direccion_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>14. Incorrecciones</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="incorrecciones"
+                                id="incorrecciones_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="incorrecciones_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="incorrecciones"
+                                id="incorrecciones_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="incorrecciones_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="incorrecciones" id="incorrecciones_na"
+                                value="na">
+                            <label class="form-check-label" for="incorrecciones_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="incorrecciones_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_incorrecciones" class="review-checkbox" disabled>
+                        <div id="review_incorrecciones_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>15. Nuevos riesgos</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="nuevos_riesgos"
+                                id="nuevos_riesgos_sin_excep" value="sin_excepciones">
+                            <label class="form-check-label" for="nuevos_riesgos_sin_excep">Completado sin
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="nuevos_riesgos"
+                                id="nuevos_riesgos_con_excep" value="con_excepciones">
+                            <label class="form-check-label" for="nuevos_riesgos_con_excep">Completado con
+                                excepciones</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="nuevos_riesgos" id="nuevos_riesgos_na"
+                                value="na">
+                            <label class="form-check-label" for="nuevos_riesgos_na">N/A</label>
+                        </div>
+                        <textarea class="form-control mt-2" id="nuevos_riesgos_nota" rows="2"
+                            placeholder="Agregar nota (opcional)"></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_nuevos_riesgos" class="review-checkbox" disabled>
+                        <div id="review_nuevos_riesgos_info" class="review-info"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" onclick="handleBack()">Volver</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de cambios sin guardar -->
+    <div id="unsavedModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Cambios sin guardar</h3>
+            <p>Tienes cambios sin guardar. ¿Qué deseas hacer?</p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="saveAndBack()">Guardar y salir</button>
+                <button class="btn btn-danger" onclick="discardAndBack()">Descartar cambios</button>
+                <button class="btn btn-secondary" onclick="closeUnsavedModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/utils.js"></script>
+    <script>
+        const FORM_TYPE = 'c160';
+        const USER_KEY = 'currentUser';
+        let autoSaveTimeout;
+        let currentFormId = null;
+        let isAdmin = false;
+        let commitmentId = null;
+
+        window.onload = function () {
+            const user = getCurrentSession();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            isAdmin = (user.role === 'admin');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            commitmentId = urlParams.get('commitment_id') || sessionStorage.getItem('current_commitment_id');
+
+            if (!commitmentId) {
+                alert('No se ha especificado un compromiso. Redirigiendo...');
+                window.location.href = 'compromisos.html';
+                return;
+            }
+
+            loadFormData();
+            setupReviewHandlers();
+        };
+
+        function setupReviewHandlers() {
+            const reviewCheckboxes = document.querySelectorAll('.review-checkbox');
+            reviewCheckboxes.forEach(checkbox => {
+                if (isAdmin) {
+                    checkbox.disabled = false;
+                    checkbox.addEventListener('change', handleReviewChange);
+                }
+            });
+        }
+
+        function getFieldValue(fieldId) {
+            const element = document.getElementById(fieldId);
+            if (!element) {
+                const radio = document.querySelector(`input[name="${fieldId}"]:checked`);
+                return radio ? radio.value : '';
+            }
+            return element.value || '';
+        }
+
+        function setFieldValue(fieldId, value) {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.value = value;
+            } else {
+                const radio = document.querySelector(`input[name="${fieldId}"][value="${value}"]`);
+                if (radio) radio.checked = true;
+            }
+        }
+
+        async function loadFormData() {
+            try {
+                const response = await apiClient.get(`/api/audit/forms/${FORM_TYPE}?commitment_id=${commitmentId}`);
+
+                if (response && response.success && response.data) {
+                    currentFormId = response.data.id;
+                    const data = response.data.data;
+
+                    setFieldValue('revision_analitica', data.revision_analitica);
+                    setFieldValue('ajustes', data.ajustes);
+                    setFieldValue('papeles_trabajo', data.papeles_trabajo);
+                    setFieldValue('flujos_efectivo', data.flujos_efectivo);
+                    setFieldValue('moneda_extranjera', data.moneda_extranjera);
+                    setFieldValue('politicas_contables', data.politicas_contables);
+                    setFieldValue('respaldo_revelaciones', data.respaldo_revelaciones);
+                    setFieldValue('listas_verificacion', data.listas_verificacion);
+                    setFieldValue('otra_informacion', data.otra_informacion);
+                    setFieldValue('gestion_ganancias', data.gestion_ganancias);
+                    setFieldValue('apariencia', data.apariencia);
+                    setFieldValue('escepticismo', data.escepticismo);
+                    setFieldValue('criterios_direccion', data.criterios_direccion);
+                    setFieldValue('incorrecciones', data.incorrecciones);
+                    setFieldValue('nuevos_riesgos', data.nuevos_riesgos);
+
+                    if (isAdmin && response.data.reviews) {
+                        loadReviewStatus(response.data.reviews);
+                    }
+                }
+
+                updateStatus();
+
+            } catch (error) {
+                console.error('Error loading form data:', error);
+                loadFromLocalStorage();
+            }
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem(`form_${FORM_TYPE}_commitment_${commitmentId}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                setFieldValue('revision_analitica', data.revision_analitica);
+                setFieldValue('ajustes', data.ajustes);
+                setFieldValue('papeles_trabajo', data.papeles_trabajo);
+                setFieldValue('flujos_efectivo', data.flujos_efectivo);
+                setFieldValue('moneda_extranjera', data.moneda_extranjera);
+                setFieldValue('politicas_contables', data.politicas_contables);
+                setFieldValue('respaldo_revelaciones', data.respaldo_revelaciones);
+                setFieldValue('listas_verificacion', data.listas_verificacion);
+                setFieldValue('otra_informacion', data.otra_informacion);
+                setFieldValue('gestion_ganancias', data.gestion_ganancias);
+                setFieldValue('apariencia', data.apariencia);
+                setFieldValue('escepticismo', data.escepticismo);
+                setFieldValue('criterios_direccion', data.criterios_direccion);
+                setFieldValue('incorrecciones', data.incorrecciones);
+                setFieldValue('nuevos_riesgos', data.nuevos_riesgos);
+                updateStatus();
+            }
+        }
+
+        function loadReviewStatus(reviews) {
+            reviews.forEach(review => {
+                const checkbox = document.getElementById(`review_${review.question_id}`);
+                const infoDiv = document.getElementById(`review_${review.question_id}_info`);
+
+                if (checkbox && review.reviewed) {
+                    checkbox.checked = true;
+                    if (infoDiv) {
+                        infoDiv.innerHTML = `<small class="text-success">Revisado por ${review.reviewed_by}<br>${new Date(review.reviewed_at).toLocaleDateString()}</small>`;
+                    }
+                }
+            });
+        }
+
+        async function autoSave() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.style.display = 'block';
+            indicator.textContent = 'Guardando...';
+
+            try {
+                const data = {
+                    revision_analitica: getFieldValue('revision_analitica'),
+                    ajustes: getFieldValue('ajustes'),
+                    papeles_trabajo: getFieldValue('papeles_trabajo'),
+                    flujos_efectivo: getFieldValue('flujos_efectivo'),
+                    moneda_extranjera: getFieldValue('moneda_extranjera'),
+                    politicas_contables: getFieldValue('politicas_contables'),
+                    respaldo_revelaciones: getFieldValue('respaldo_revelaciones'),
+                    listas_verificacion: getFieldValue('listas_verificacion'),
+                    otra_informacion: getFieldValue('otra_informacion'),
+                    gestion_ganancias: getFieldValue('gestion_ganancias'),
+                    apariencia: getFieldValue('apariencia'),
+                    escepticismo: getFieldValue('escepticismo'),
+                    criterios_direccion: getFieldValue('criterios_direccion'),
+                    incorrecciones: getFieldValue('incorrecciones'),
+                    nuevos_riesgos: getFieldValue('nuevos_riesgos'),
+                };
+
+                const response = await apiClient.post('/api/audit/forms', {
+                    formType: FORM_TYPE,
+                    commitmentId: commitmentId,
+                    data: data
+                });
+
+                if (response && response.success && response.data) {
+                    currentFormId = response.data.id;
+                }
+
+                localStorage.setItem(`form_${FORM_TYPE}_commitment_${commitmentId}`, JSON.stringify(data));
+
+                indicator.textContent = 'Guardado';
+                indicator.className = 'alert alert-success';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                    indicator.className = 'alert alert-info';
+                }, 2000);
+
+                updateStatus();
+
+                const user = getCurrentSession();
+                logAction(user.username, 'guardo_formulario', 'C160', 'Información financiera - Procedimientos de auditoría', new Date().toISOString().slice(0, 16).replace('T', ' '));
+
+            } catch (error) {
+                console.error('Error auto-saving:', error);
+                indicator.textContent = 'Error al guardar';
+                indicator.className = 'alert alert-danger';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                    indicator.className = 'alert alert-info';
+                }, 3000);
+            }
+        }
+
+        async function handleReviewChange(event) {
+            if (!isAdmin || !currentFormId) return;
+
+            const checkbox = event.target;
+            const questionId = checkbox.id.replace('review_', '');
+            const reviewed = checkbox.checked;
+
+            try {
+                await apiClient.post('/audit/reviews', {
+                    formId: currentFormId,
+                    questionId: questionId,
+                    reviewed: reviewed
+                });
+
+                const infoDiv = document.getElementById(`review_${questionId}_info`);
+                if (reviewed && infoDiv) {
+                    const user = getCurrentSession();
+                    infoDiv.innerHTML = `<small class="text-success">Revisado por ${user.username}<br>${new Date().toLocaleDateString()}</small>`;
+                } else if (infoDiv) {
+                    infoDiv.innerHTML = '';
+                }
+
+            } catch (error) {
+                console.error('Error updating review:', error);
+                checkbox.checked = !reviewed;
+            }
+        }
+
+        function updateStatus() {
+            const form = document.getElementById('c160Form');
+            const isComplete = form.checkValidity();
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = isComplete ? '✓ Completado' : '⚠ Pendiente';
+            statusEl.className = isComplete ? 'text-success' : 'text-warning';
+
+            if (typeof updateFormStatus === 'function') {
+                updateFormStatus('C160 - Información financiera - Procedimientos de auditoría', isComplete);
+            }
+        }
+
+        function hasUnsavedChanges() {
+            return true;
+        }
+
+        function handleBack() {
+            if (hasUnsavedChanges()) {
+                document.getElementById('unsavedModal').style.display = 'flex';
+            } else {
+                window.close();
+            }
+        }
+
+        function closeUnsavedModal() {
+            document.getElementById('unsavedModal').style.display = 'none';
+        }
+
+        function saveAndBack() {
+            autoSave().then(() => {
+                alert('Cambios guardados.');
+                closeUnsavedModal();
+                window.close();
+            });
+        }
+
+        function discardAndBack() {
+            closeUnsavedModal();
+            window.close();
+        }
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('unsavedModal');
+            if (event.target === modal) {
+                closeUnsavedModal();
+            }
+        }
+
+        document.getElementById('c160Form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            autoSave().then(() => {
+                alert('Formulario guardado exitosamente.');
+            });
+        });
+
+        document.getElementById('c160Form').addEventListener('input', function () {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(autoSave, 1000);
+        });
+
+        function logout() {
+            localStorage.removeItem(USER_KEY);
+            window.location.href = 'login.html';
+        }
+
+        // Inicializar sistema de formularios condicionales
+        window.addEventListener('DOMContentLoaded', () => {
+            initConditionalForms('revision_analitica_sin_excep', 'related_forms_revision');
+            initConditionalForms('ajustes_sin_excep', 'related_forms_ajustes');
+        });
+    </script>
+    <script src="../js/conditional-forms.js"></script>
+</body>
+
+</html>
