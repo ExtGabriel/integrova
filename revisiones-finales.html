@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisiones Finales - Socio | CFE INSIGHT</title>
+
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Estilos específicos de socio -->
+    <link rel="stylesheet" href="css/socio-styles.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F3F4F6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #E5E7EB;
+            padding-bottom: 0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #6B7280;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: #8B5CF6;
+        }
+
+        .tab.active {
+            color: #8B5CF6;
+            border-bottom-color: #8B5CF6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6B7280;
+        }
+
+        .error-message {
+            background-color: #FEE2E2;
+            border: 2px solid #EF4444;
+            border-radius: 8px;
+            padding: 20px;
+            color: #991B1B;
+            margin: 20px 0;
+        }
+
+        .success-message {
+            background-color: #D1FAE5;
+            border: 2px solid #10B981;
+            border-radius: 8px;
+            padding: 20px;
+            color: #065F46;
+            margin: 20px 0;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .quick-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Revisiones Finales de Socio</h1>
+            <p>Panel de control para revisión final de formularios de auditoría</p>
+        </div>
+
+        <!-- Estadísticas -->
+        <div id="stats-container"></div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('pendientes')">
+                📋 Pendientes <span id="pending-count"></span>
+            </button>
+            <button class="tab" onclick="switchTab('en-revision')">
+                🔍 En Revisión
+            </button>
+            <button class="tab" onclick="switchTab('completados')">
+                ✅ Completados
+            </button>
+            <button class="tab" onclick="switchTab('todos')">
+                📊 Todos
+            </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button onclick="refreshData()" style="background-color: #3B82F6; color: white;">
+                🔄 Actualizar
+            </button>
+            <button onclick="exportData()" style="background-color: #10B981; color: white;">
+                📥 Exportar
+            </button>
+        </div>
+
+        <!-- Tab Content: Pendientes -->
+        <div id="tab-pendientes" class="tab-content active">
+            <h2>Formularios Pendientes de Revisión</h2>
+            <div id="pending-forms"></div>
+        </div>
+
+        <!-- Tab Content: En Revisión -->
+        <div id="tab-en-revision" class="tab-content">
+            <h2>Formularios en Revisión</h2>
+            <div id="en-revision-forms"></div>
+        </div>
+
+        <!-- Tab Content: Completados -->
+        <div id="tab-completados" class="tab-content">
+            <h2>Formularios Completados</h2>
+            <div id="completed-forms"></div>
+        </div>
+
+        <!-- Tab Content: Todos -->
+        <div id="tab-todos" class="tab-content">
+            <h2>Todos los Formularios</h2>
+            <div id="all-forms"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/socio-utils.js"></script>
+
+    <script>
+        // Variables globales
+        let allForms = [];
+        let currentTab = 'pendientes';
+
+        // Verificar que el usuario es socio
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (!SocioUtils.isSocio() && !SocioUtils.isSocioOrAdmin()) {
+                alert('⚠️ No tiene permisos para acceder a esta página');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            await loadData();
+        });
+
+        // Cargar todos los datos
+        async function loadData() {
+            try {
+                showLoading();
+
+                // Cargar estadísticas
+                const statsHtml = await SocioUtils.renderSocioStatsDashboard();
+                document.getElementById('stats-container').innerHTML = statsHtml;
+
+                // Cargar formularios pendientes
+                const pendingForms = await SocioUtils.getPendingFinalReviews();
+                allForms = pendingForms;
+
+                updatePendingCount(pendingForms.length);
+                renderForms();
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                showError('Error cargando datos: ' + error.message);
+            }
+        }
+
+        // Actualizar contador de pendientes
+        function updatePendingCount(count) {
+            const badge = document.getElementById('pending-count');
+            if (badge) {
+                badge.innerHTML = count > 0 ? `(${count})` : '';
+            }
+        }
+
+        // Renderizar formularios según el tab activo
+        function renderForms() {
+            const pending = allForms.filter(f => f.final_review_status === 'pendiente');
+            const enRevision = allForms.filter(f => f.final_review_status === 'en_revision');
+            const completed = allForms.filter(f =>
+                ['aprobado', 'rechazado', 'con_observaciones'].includes(f.final_review_status)
+            );
+
+            document.getElementById('pending-forms').innerHTML =
+                SocioUtils.renderPendingForms(pending);
+
+            document.getElementById('en-revision-forms').innerHTML =
+                SocioUtils.renderPendingForms(enRevision);
+
+            document.getElementById('completed-forms').innerHTML =
+                SocioUtils.renderPendingForms(completed);
+
+            document.getElementById('all-forms').innerHTML =
+                SocioUtils.renderPendingForms(allForms);
+        }
+
+        // Cambiar de tab
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Actualizar botones
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Actualizar contenido
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // Refrescar datos
+        async function refreshData() {
+            await loadData();
+            showSuccess('Datos actualizados correctamente');
+        }
+
+        // Exportar datos (placeholder)
+        function exportData() {
+            alert('Funcionalidad de exportación en desarrollo');
+            // TODO: Implementar exportación a Excel/PDF
+        }
+
+        // Abrir formulario para revisión
+        function openFormForReview(formId, commitmentId) {
+            window.location.href = `audit-form-review.html?formId=${formId}&commitmentId=${commitmentId}`;
+        }
+
+        // Utilidades UI
+        function showLoading() {
+            const loadingHtml = '<div class="loading">🔄 Cargando datos...</div>';
+            ['pending-forms', 'en-revision-forms', 'completed-forms', 'all-forms'].forEach(id => {
+                document.getElementById(id).innerHTML = loadingHtml;
+            });
+        }
+
+        function hideLoading() {
+            // El loading se oculta cuando se renderizan los formularios
+        }
+
+        function showError(message) {
+            const errorHtml = `<div class="error-message">❌ ${message}</div>`;
+            document.getElementById('pending-forms').innerHTML = errorHtml;
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.innerHTML = `✅ ${message}`;
+            document.querySelector('.container').insertBefore(
+                successDiv,
+                document.querySelector('.tabs')
+            );
+
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

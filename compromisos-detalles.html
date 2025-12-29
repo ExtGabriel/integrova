@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Detalles del Compromiso</title>
+    <link rel="icon" href="assets/logoinsightdorado.png" type="image/x-icon">
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/compromisos-detalles.css">
+</head>
+
+<body>
+    <!-- Header Integrova 3 columnas con progreso -->
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title" id="headerTitle">Detalles</h1>
+        </div>
+        <div class="header-center">
+            <div class="global-progress">
+                <div class="progress-label">
+                    <span>Progreso General</span>
+                    <span id="globalProgress">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="globalFill" class="progress-fill progress-zero"></div>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="compromisos.html" class="header-btn" title="Regresar">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <button class="header-btn" onclick="logout()" title="Cerrar Sesión">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Tabs superiores del compromiso -->
+    <section class="top-tabs-section">
+        <div class="top-tabs-bar">
+            <button class="top-tab active" onclick="switchTopSection('documentos', event)">Documentos</button>
+            <button class="top-tab" onclick="switchTopSection('datos', event)">Datos</button>
+            <button class="top-tab" onclick="switchTopSection('ajustes', event)">Ajustes</button>
+            <button class="top-tab" onclick="switchTopSection('riesgo', event)">Riesgo y controles</button>
+            <button class="top-tab" onclick="switchTopSection('pendientes', event)">Pendientes</button>
+            <button class="top-tab" onclick="switchTopSection('consultas', event)">Consultas</button>
+            <button class="top-tab" onclick="switchTopSection('analisis', event)">Centro de análisis</button>
+        </div>
+    </section>
+
+    <!-- Vista: Documentos (contenido existente) -->
+    <div id="sectionDocumentos" class="section-view active">
+        <!-- Contenedor Principal -->
+        <div class="details-container">
+            <!-- Info del Compromiso (Cargado via JS) -->
+            <section id="commitmentInfo" class="commitment-info hidden-section">
+                <h2 id="commitmentName"></h2>
+                <div class="entity-assoc"><i class="bi bi-building"></i> <strong>Asociado a:</strong> <span
+                        id="entityAssoc"></span></div>
+                <p id="commitmentDescription"></p>
+                <span id="commitmentStatus" class="status-badge"></span>
+                <div class="dates">
+                    <div class="date-item"><i class="bi bi-calendar-check"></i> <strong>Inicio:</strong> <span
+                            id="startDate"></span></div>
+                    <div class="date-item"><i class="bi bi-calendar-x"></i> <strong>Fin:</strong> <span
+                            id="endDate"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tabs para 5 Secciones/Fases -->
+            <section class="tabs-section">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('planificacion', event)"><i
+                            class="bi bi-lightbulb"></i>
+                        Planificación</button>
+                    <button class="tab-btn" onclick="switchTab('ejecucion', event)"><i class="bi bi-search"></i>
+                        Evaluación
+                        de
+                        Riesgo</button>
+                    <button class="tab-btn" onclick="switchTab('evaluacion', event)"><i class="bi bi-gear"></i>
+                        Respuesta al Riesgo</button>
+                    <button class="tab-btn" onclick="switchTab('cierre', event)"><i class="bi bi-check-lg"></i>
+                        Documentos de Cierre</button>
+                    <button class="tab-btn" onclick="switchTab('documentos', event)"><i
+                            class="bi bi-file-earmark-text"></i>
+                        Planes y Procedimientos</button>
+                </div>
+
+                <!-- Tab: Planificación -->
+                <div id="planificacionTab" class="tab-content active">
+                    <div id="planificacionContent">
+                        <!-- Generado via JS: Header con progreso fase, subsecciones docs/forms -->
+                    </div>
+                </div>
+
+                <!-- Tab: Evaluación de Riesgo -->
+                <div id="ejecucionTab" class="tab-content">
+                    <div id="ejecucionContent">
+                        <!-- Generado via JS -->
+                    </div>
+                </div>
+
+                <!-- Tab: Respuesta al Riesgo -->
+                <div id="evaluacionTab" class="tab-content">
+                    <div id="evaluacionContent">
+                        <!-- Generado via JS -->
+                    </div>
+                </div>
+
+                <!-- Tab: Documentos de Cierre -->
+                <div id="cierreTab" class="tab-content">
+                    <div id="cierreContent">
+                        <!-- Generado via JS -->
+                    </div>
+                </div>
+
+                <!-- Tab: Planes y Procedimientos de Auditoría -->
+                <div id="documentosTab" class="tab-content">
+                    <div id="documentosContent">
+                        <div id="auditDocumentsContainer"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Datos -->
+    <div id="sectionDatos" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-database"></i> Datos del compromiso</h2>
+                <p>En esta sección se visualizarán y editarán los datos estructurados del compromiso (metadatos,
+                    responsables, fechas, entidad asociada, etc.).</p>
+                <p>Prototipo: próximamente. Mantiene el ID actual para compartir contexto.</p>
+                <div id="datosPlaceholder" class="no-content"><i class="bi bi-info-circle"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Ajustes -->
+    <div id="sectionAjustes" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-gear"></i> Ajustes</h2>
+                <p>Configuración y preferencias específicas del compromiso: permisos, revisiones requeridas, plantillas
+                    y opciones.</p>
+                <div id="ajustesPlaceholder" class="no-content"><i class="bi bi-sliders"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Riesgo y controles -->
+    <div id="sectionRiesgo" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-shield-check"></i> Riesgo y controles</h2>
+                <p>Matriz de riesgos, controles clave y su evaluación.</p>
+                <div id="riesgoPlaceholder" class="no-content"><i class="bi bi-exclamation-octagon"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Pendientes -->
+    <div id="sectionPendientes" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-list-check"></i> Pendientes</h2>
+                <p>Tareas, asignaciones y seguimiento de pendientes del compromiso.</p>
+                <div id="pendientesPlaceholder" class="no-content"><i class="bi bi-clipboard-check"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Consultas -->
+    <div id="sectionConsultas" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-question-circle"></i> Consultas</h2>
+                <p>Sistema de consultas y criterios contables aplicables al compromiso.</p>
+                <div id="consultasPlaceholder" class="no-content"><i class="bi bi-chat-dots"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Vista: Centro de análisis -->
+    <div id="sectionAnalisis" class="section-view" style="display:none;">
+        <div class="details-container">
+            <section class="commitment-info">
+                <h2><i class="bi bi-graph-up"></i> Centro de análisis</h2>
+                <p>Indicadores, analítica y visualizaciones relacionadas con el compromiso.</p>
+                <div id="analisisPlaceholder" class="no-content"><i class="bi bi-bar-chart"></i>
+                    <p>Contenido en construcción.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modal de Subida de Documentos -->
+    <div id="modalSubida" class="modal-subida">
+        <div class="modal-contenido">
+            <span class="cerrar-modal" onclick="cerrarModalSubida()">&times;</span>
+            <h2><i class="bi bi-cloud-upload"></i> Subir Documentos</h2>
+            <div id="zonaSubida" class="zona-subida" onclick="simularSeleccion()">
+                <i class="fas fa-cloud-upload-alt icono-nube"></i>
+                <p>Arrastra tus archivos aquí o haz clic para seleccionarlos</p>
+                <input type="file" id="inputArchivo" multiple style="display:none;">
+            </div>
+            <div id="listaArchivos" class="lista-archivos"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div id="modalConfirmacion" class="modal-overlay" style="display: none;">
+        <div class="modal-dialog">
+            <h3>Confirmar Eliminación</h3>
+            <p>¿Estás seguro de que deseas eliminar el documento "<span id="docNameToDelete"></span>"? Esta acción no se
+                puede deshacer.</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="cerrarModalConfirmacion()">Cancelar</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmarEliminacion()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/audit-documents.js"></script>
+    <script>
+        // Control de secciones superiores
+        function switchTopSection(sectionKey, event) {
+            // Tabs activos
+            document.querySelectorAll('.top-tab').forEach(btn => btn.classList.remove('active'));
+            if (event && event.target) event.target.classList.add('active');
+
+            // Vistas
+            const map = {
+                documentos: 'sectionDocumentos',
+                datos: 'sectionDatos',
+                ajustes: 'sectionAjustes',
+                riesgo: 'sectionRiesgo',
+                pendientes: 'sectionPendientes',
+                consultas: 'sectionConsultas',
+                analisis: 'sectionAnalisis'
+            };
+            Object.values(map).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const targetId = map[sectionKey] || 'sectionDocumentos';
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.style.display = 'block';
+
+            // Cuando volvemos a Documentos, aseguramos render y progreso
+            if (sectionKey === 'documentos') {
+                if (currentTab) {
+                    switchTab(currentTab);
+                } else {
+                    switchTab('planificacion');
+                }
+                updateGlobalProgress();
+            }
+        }
+        // Constante para Sesión
+        const USER_KEY = 'userSession';
+
+        // Mock Data: Compromisos con Entidad y 4 Secciones (sin cambios)
+        const allCommitments = [
+            { id: 1, name: 'Auditoría CFE 2023', entity: 'CFE Central', description: 'Evaluación integral de procesos financieros con CFE Central.', startDate: '2023-10-01', endDate: '2023-12-31', status: 'activo' },
+            { id: 2, name: 'Compromiso Entidad A', entity: 'Entidad A Energía', description: 'Planificación de riesgos en sector energético con Entidad A.', startDate: '2023-09-15', endDate: '2023-11-30', status: 'pendiente' },
+            { id: 3, name: 'Auditoría Interna B', entity: 'Departamento Interno', description: 'Revisión de cumplimiento normativo interno.', startDate: '2023-08-20', endDate: '2023-10-15', status: 'completado' },
+            { id: 4, name: 'Proyecto Riesgo C', entity: 'CFE Sur', description: 'Respuesta a hallazgos de auditoría previa con CFE Sur.', startDate: '2023-11-01', endDate: '2024-01-15', status: 'activo' },
+            { id: 5, name: 'Procedimientos D', entity: 'Equipo Auditoría', description: 'Desarrollo de planes de auditoría anual con equipo interno.', startDate: '2023-07-10', endDate: '2023-09-30', status: 'pendiente' }
+        ];
+
+        // Ya no necesitamos mockData porque getDefaultCommitmentData() maneja todos los compromisos
+
+        // Función para crear estructura de datos por defecto con formularios organizados jerárquicamente
+        function getDefaultCommitmentData() {
+            return {
+                planificacion: {
+                    docs: [],
+                    forms: [
+                        // Configuración del compromiso
+                        { name: 'A100 - Lista de verificación del Optimizador - Decisiones iniciales de compromiso', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Aceptación/continuidad del cliente
+                        { name: 'A200 - Actividades preliminares del compromiso', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Estrategia general de auditoría
+                        { name: 'A300 - Estrategia general de auditoría', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        { name: 'A360 - Hoja de trabajo - Selección de un auditor del componente', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Discusiones en equipo
+                        { name: 'A400 - Discusiones de planificación en equipo', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null }
+                    ]
+                },
+                ejecucion: {
+                    docs: [],
+                    forms: [
+                        // Comprensión de la entidad
+                        { name: 'B200 - Identificación de riesgos a través del entendimiento de la entidad', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Diseño de control
+                        { name: 'B300 - Comprensión de los componentes del sistema de control interno de la entidad', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        { name: 'B335 - Entendimiento del proceso de información financiera', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Areas identificadas de mayor riesgo de incorreción material
+                        { name: 'B400 - Evaluación de RIM (incluyendo riesgos de fraude)', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Procedimientos de evaluación de riesgo
+                        { name: 'B600 - Negocio en marcha', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null }
+                    ]
+                },
+                evaluacion: {
+                    docs: [],
+                    forms: [
+                        // Procedimientos de auditoría generales
+                        { name: 'C100 - Respuesta de auditoría a los riesgos evaluados', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        { name: 'C160 - Información financiera - Procedimientos de auditoría', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        { name: 'C165 - Hoja de trabajo - Evaluación del trabajo de un auditor del componente', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null }
+                    ]
+                },
+                cierre: {
+                    docs: [],
+                    forms: [
+                        // Incorrecciones identificadas
+                        { name: 'D100 - Evaluación de incorreciones identificadas', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Informes a Aquellos encargados de la dirección de la empresa
+                        { name: 'D500 - Comuniaciones con la gerencia/encargados de la dirección', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null },
+                        // Cierre de compromiso
+                        { name: 'D600 - Cierre de auditoría', completed: false, filledBy: null, filledAt: null, reviewedBySupervisor: null, reviewedBySupervisorAt: null, reviewedByPartner: null, reviewedByPartnerAt: null }
+                    ]
+                }
+            };
+        }
+
+        // Variables Globales
+        let currentData, currentId, currentCommitment, currentTab = 'planificacion';
+
+        // Función para Subir Documentos (Mock General)
+        function uploadDocuments(sectionName) {
+            currentSectionName = sectionName; // Actualiza sección actual
+            // Siempre abre el modal para subir documentos
+            abrirModalSubida();
+            // En versión real: Abrir file input/modal, actualizar uploaded en mockData/localStorage
+        }
+
+        // Nueva Función: Eliminar Documento Directamente (Legacy)
+        function deleteDocumentLegacy(docName, sectionName) {
+            // Mostrar modal de confirmación en lugar de alert
+            document.getElementById('docNameToDelete').textContent = docName;
+            document.getElementById('modalConfirmacion').style.display = 'flex';
+            // Guardar datos para la confirmación
+            window.pendingDelete = { docName, sectionName };
+        }
+
+        // Función para confirmar eliminación
+        function confirmarEliminacion() {
+            const { docName, sectionName } = window.pendingDelete;
+            // Elimina documento del array
+            const section = currentData[sectionName];
+            const index = section.docs.findIndex(doc => doc.name === docName);
+            if (index > -1) {
+                section.docs.splice(index, 1);
+                console.log(`Documento "${docName}" eliminado en ${sectionName}`);
+                // Log de acción
+                const currentUser = getCurrentSession();
+                const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                API.logAction('elimino_documento', null, currentCommitment?.name, { docName, sectionName, by: currentUser?.username, at: timestamp });
+
+                // Regenera el contenido de la sección actual para reflejar cambios automáticamente
+                switchTab(sectionName);
+
+                // Actualiza progreso global
+                updateGlobalProgress();
+            }
+            cerrarModalConfirmacion();
+        }
+
+        // Cache de formularios (desde backend)
+        const formsDataByCode = {};
+
+        // Preparar datos de formularios para una sección
+        async function prepareFormsDataForSection(sectionName) {
+            try {
+                const forms = (currentData[sectionName]?.forms) || [];
+                for (const f of forms) {
+                    const code = (f.name.split(' - ')[0] || '').toLowerCase();
+                    if (!code || formsDataByCode[code] !== undefined) continue;
+                    const resp = await API.AuditForms.getByType(code);
+                    formsDataByCode[code] = resp?.success ? (resp.data?.data || resp.data) : null;
+                }
+            } catch (e) {
+                console.error('Error preparando datos de formularios:', e);
+            }
+        }
+
+        // Verificar si un formulario está completamente lleno (usando datos precargados)
+        function isFormComplete(formName) {
+            const formCode = formName.split(' - ')[0].toLowerCase();
+            const data = formsDataByCode[formCode];
+            if (!data) return false;
+
+            try {
+
+                // Definir campos requeridos por cada tipo de formulario (IDs reales de los formularios generados)
+                const requiredFieldsByForm = {
+                    // Fase Planificación
+                    'a100': ['q1_colaboracion', 'q2_consultas', 'q3_analitica', 'q4_tipo', 'q5_estructura', 'q6_marco_especial'],
+                    'a200': ['q1_naturaleza', 'q2_doc_pref', 'q3_marco', 'q4_otras_tareas', 'q5_fecha_limite', 'q6_doc_pref2', 'q7_factores_riesgo', 'q8_auditoria_grupo', 'q9_auditores_componente', 'q10_doc_pref3', 'q11_politicas', 'q12_integridad', 'q13_restricciones', 'q14_amenazas', 'q15_recursos', 'q_conclusion', 'q_eval_riesgo', 'q_rcc'],
+                    'a300': ['caracteristicas', 'doc_pref1', 'factores_auditoria', 'doc_pref2', 'momento_realizacion', 'doc_pref3', 'asuntos_anteriores', 'factores_anteriores', 'partes_relacionadas', 'doc_pref4', 'procedimientos_evaluacion', 'uso_servicio', 'recursos_presupuesto', 'uso_experto', 'uso_auditores_internos', 'factores_auditores_internos', 'comunicacion_estrategia'],
+                    'a360': ['necesidad_auditor', 'naturaleza_alcance', 'comunicacion_bidireccional', 'nivel_participacion', 'competencia_capacidad', 'requisitos_eticos', 'planes_experto', 'comunicacion_auditor', 'conclusion_competencias'],
+                    'a400': ['discusiones_equipo'],
+                    // Fase Evaluación de riesgo
+                    'b200': ['descripcion_entidad', 'ubicaciones', 'titularidad', 'personal_clave', 'personas_direccion', 'propietarios', 'estructura_entidad', 'info_acciones', 'asesores', 'otros_contactos', 'estructura_deuda', 'contratos_largo_plazo', 'doc_pref_industria', 'doc_pref_naturaleza', 'negocio_otra_moneda', 'asuntos_clima', 'doc_pref_marco', 'requiere_flujo_efectivo', 'flujos_ingreso_juicio', 'doc_pref_sesgo', 'doc_pref_juicios', 'doc_pref_elementos', 'elementos_estimacion', 'enfoque_estimaciones', 'litigios_estimaciones', 'doc_pref_medidas'],
+                    'b300': ['doc_pref_ambiente', 'doc_pref_evaluacion_ambiente', 'doc_pref_proceso', 'doc_pref_riesgos_no_identificados', 'doc_pref_eval_procedimiento', 'doc_pref_sistemas_info', 'doc_pref_comunicacion', 'doc_pref_eval_sistemas', 'doc_pref_actividades', 'doc_pref_riesgos_ti', 'doc_pref_actividades_ti', 'doc_pref_monitoreo', 'doc_pref_eval_monitoreo', 'doc_pref_estimaciones'],
+                    'b335': ['proceso_informes', 'proceso_cierre', 'hechos_condiciones', 'procedimientos_posteriores', 'proceso_revelacion', 'marco_aplicable', 'naturaleza_asientos', 'controles_asientos', 'asuntos_significativos', 'responsabilidades_informes'],
+                    'b400': ['riesgo_nivel_estados', 'razones_evaluacion', 'doc_pref_nivel_estados', 'doc_pref_nivel_afirmacion', 'doc_pref_riesgos_identificados', 'doc_pref_fraude_ingresos', 'doc_pref_estimaciones', 'doc_pref_clases_transacciones', 'revision_evaluacion'],
+                    'b600': ['doc_pref_negocio', 'consultas_direccion', 'doc_opcional', 'consideraciones_hechos', 'conclusion_negocio'],
+                    // Fase Respuesta al riesgo
+                    'c100': ['nivel_riesgo', 'doc_pref_respuestas', 'doc_pref_naturaleza', 'doc_pref_vinculacion', 'doc_pref_respuestas_incertidumbre', 'doc_pref_resultados', 'doc_pref_identificacion', 'doc_pref_indicacion', 'doc_pref_discusiones', 'doc_pref_inconsistencias', 'doc_pref_incumplimiento', 'doc_pref_confianza', 'doc_pref_concordancia'],
+                    'c160': ['revision_analitica', 'ajustes', 'papeles_trabajo', 'flujos_efectivo', 'moneda_extranjera', 'politicas_contables', 'respaldo_revelaciones', 'listas_verificacion', 'otra_informacion', 'gestion_ganancias', 'apariencia', 'escepticismo', 'criterios_direccion', 'incorrecciones', 'nuevos_riesgos'],
+                    'c165': ['confirmacion_auditor', 'cuestiones_relevantes', 'partes_no_identificadas', 'hechos_negocio', 'info_financiera', 'trabajo_realizado', 'requisitos_eticos', 'casos_incumplimiento', 'incorrecciones'],
+                    // Fase Documentos de cierre
+                    'd100': ['doc_pref_materialidad', 'actualizar_materialidad', 'doc_pref_resumen', 'trabajo_adicional_a', 'trabajo_adicional_b', 'trabajo_adicional_c', 'doc_pref_evaluacion', 'discutir_patrones', 'discutir_efecto', 'discutir_sesgo', 'doc_pref_comunicacion'],
+                    'd500': ['comunicaciones_fraude', 'declaraciones_escritas', 'doc_pref_hallazgos', 'doc_pref_presentaciones', 'doc_pref_orales'],
+                    'd600': ['doc_pref_documentacion', 'doc_pref_analitica', 'doc_pref_posteriores', 'doc_pref_calidad', 'doc_pref_diferencias', 'doc_pref_informe', 'doc_pref_fracaso', 'desviaciones', 'procedimientos_adicionales', 'modificacion_archivo']
+                };
+
+                const requiredFields = requiredFieldsByForm[formCode];
+
+                if (!requiredFields) {
+                    const hasData = Object.values(data || {}).some(value => value !== '' && value !== null && value !== undefined);
+                    return hasData;
+                }
+
+                const allFieldsFilled = requiredFields.every(field => {
+                    const value = data[field];
+                    return value !== '' && value !== null && value !== undefined;
+                });
+
+                return allFieldsFilled;
+            } catch (e) {
+                console.error(`Error al verificar formulario ${formName}:`, e);
+                return false;
+            }
+        }
+
+        // Función para marcar formulario como llenado
+        function markAsFilled(itemName, sectionName) {
+            const currentUser = getCurrentSession();
+            if (!currentUser) {
+                alert('Debe iniciar sesión.');
+                return;
+            }
+
+            // VALIDAR QUE EL FORMULARIO ESTÉ COMPLETAMENTE LLENO
+            const isComplete = isFormComplete(itemName);
+            if (!isComplete) {
+                alert('⚠️ No se puede marcar como llenado.\n\nEl formulario aún tiene campos obligatorios sin completar. Por favor, asegúrese de llenar todas las respuestas requeridas antes de marcar como completado.');
+                return;
+            }
+
+            const section = currentData[sectionName];
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+            const formIndex = section.forms.findIndex(form => form.name === itemName);
+            if (formIndex > -1) {
+                section.forms[formIndex].completed = true;
+                section.forms[formIndex].filledBy = currentUser.username;
+                section.forms[formIndex].filledAt = timestamp;
+            }
+
+            // Log de acción
+            API.logAction('lleno_formulario', null, currentCommitment?.name, { form: itemName, section: sectionName, by: currentUser.username, at: timestamp });
+
+            // Regenera el contenido de la sección actual
+            switchTab(sectionName);
+
+            // Actualiza progreso global
+            updateGlobalProgress();
+        }
+
+        // Función para marcar como revisado (supervisor, socio, o doc)
+        function markAsReviewed(itemName, sectionName, reviewType) {
+            const currentUser = getCurrentSession();
+            if (!currentUser) {
+                alert('Debe iniciar sesión.');
+                return;
+            }
+
+            const section = currentData[sectionName];
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+            if (reviewType === 'supervisor') {
+                // Revisión de supervisor
+                const isSupervisor = currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+                if (!isSupervisor) {
+                    alert('Solo supervisores pueden realizar esta revisión.');
+                    return;
+                }
+                const formIndex = section.forms.findIndex(form => form.name === itemName);
+                if (formIndex > -1) {
+                    section.forms[formIndex].reviewedBySupervisor = currentUser.username;
+                    section.forms[formIndex].reviewedBySupervisorAt = timestamp;
+                }
+            } else if (reviewType === 'partner') {
+                // Revisión de socio
+                const isPartner = currentUser.role && currentUser.role.trim() === 'socio';
+                if (!isPartner) {
+                    alert('Solo socios pueden realizar esta revisión.');
+                    return;
+                }
+                const formIndex = section.forms.findIndex(form => form.name === itemName);
+                if (formIndex > -1) {
+                    section.forms[formIndex].reviewedByPartner = currentUser.username;
+                    section.forms[formIndex].reviewedByPartnerAt = timestamp;
+                }
+            } else if (reviewType === 'doc') {
+                // Revisión de documento
+                const isSupervisor = currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+                if (!isSupervisor) {
+                    alert('Solo supervisores pueden revisar documentos.');
+                    return;
+                }
+                const docIndex = section.docs.findIndex(doc => doc.name === itemName);
+                if (docIndex > -1) {
+                    section.docs[docIndex].reviewedBy = currentUser.username;
+                    section.docs[docIndex].reviewedAt = timestamp;
+                }
+            }
+
+            // Log de acción
+            API.logAction('reviso_elemento', null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
+
+            // Regenera el contenido de la sección actual para reflejar cambios automáticamente
+            switchTab(sectionName);
+
+            // Actualiza progreso global
+            updateGlobalProgress();
+        }
+
+        // Función para quitar revisión
+        function removeReview(itemName, sectionName, reviewType) {
+            const currentUser = getCurrentSession();
+            if (!currentUser) {
+                alert('Debe iniciar sesión.');
+                return;
+            }
+
+            const section = currentData[sectionName];
+
+            if (reviewType === 'supervisor') {
+                // Quitar revisión de supervisor
+                const isSupervisor = currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+                if (!isSupervisor) {
+                    alert('Solo supervisores pueden quitar esta revisión.');
+                    return;
+                }
+                const formIndex = section.forms.findIndex(form => form.name === itemName);
+                if (formIndex > -1) {
+                    section.forms[formIndex].reviewedBySupervisor = null;
+                    section.forms[formIndex].reviewedBySupervisorAt = null;
+                }
+            } else if (reviewType === 'partner') {
+                // Quitar revisión de socio
+                const isPartner = currentUser.role && currentUser.role.trim() === 'socio';
+                if (!isPartner) {
+                    alert('Solo socios pueden quitar esta revisión.');
+                    return;
+                }
+                const formIndex = section.forms.findIndex(form => form.name === itemName);
+                if (formIndex > -1) {
+                    section.forms[formIndex].reviewedByPartner = null;
+                    section.forms[formIndex].reviewedByPartnerAt = null;
+                }
+            } else if (reviewType === 'doc') {
+                // Quitar revisión de documento
+                const isSupervisor = currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+                if (!isSupervisor) {
+                    alert('Solo supervisores pueden quitar revisiones de documentos.');
+                    return;
+                }
+                const docIndex = section.docs.findIndex(doc => doc.name === itemName);
+                if (docIndex > -1) {
+                    section.docs[docIndex].reviewedBy = null;
+                    section.docs[docIndex].reviewedAt = null;
+                }
+            }
+
+            // Log de acción
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            API.logAction('quito_revision', null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
+
+            // Regenera el contenido de la sección actual para reflejar cambios automáticamente
+            switchTab(sectionName);
+
+            // Actualiza progreso global
+            updateGlobalProgress();
+        }
+
+        // Función para cerrar modal de confirmación
+        function cerrarModalConfirmacion() {
+            document.getElementById('modalConfirmacion').style.display = 'none';
+            delete window.pendingDelete;
+        }
+
+        // Función para obtener agrupaciones de formularios según la sección
+        function getFormGroupsForSection(sectionName) {
+            const groups = {
+                planificacion: [
+                    { title: 'Configuración del compromiso', codes: ['A100'] },
+                    { title: 'Aceptación/continuidad del cliente', codes: ['A200'] },
+                    { title: 'Estrategia general de auditoría', codes: ['A300', 'A360'] },
+                    { title: 'Discusiones en equipo', codes: ['A400'] },
+                    { title: 'Materialidad', codes: ['A500', 'A510'] }
+                ],
+                ejecucion: [
+                    { title: 'Revisión analítica', codes: ['B100'] },
+                    { title: 'Comprensión de la entidad', codes: ['B200'] },
+                    { title: 'Diseño de control', codes: ['B300', 'B335', 'B350'] },
+                    { title: 'Áreas identificadas de mayor riesgo de incorreción material', codes: ['B400', 'B450'] },
+                    { title: 'Resumen evaluación de riesgo', codes: ['B500', 'B510'] },
+                    { title: 'Procedimientos de evaluación de riesgo', codes: ['B600'] }
+                ],
+                evaluacion: [
+                    { title: 'Procedimientos de auditoría generales', codes: ['C100', 'C145', 'C160', 'C165'] }
+                ],
+                cierre: [
+                    { title: 'Incorrecciones identificadas', codes: ['D100', 'D200'] },
+                    { title: 'Evaluación de la evidencia de auditoría', codes: ['D350'] },
+                    { title: 'Informes a aquellos encargados de la dirección de la empresa', codes: ['D500'] },
+                    { title: 'Cierre de compromiso', codes: ['D600'] }
+                ]
+            };
+            return groups[sectionName] || null;
+        }
+
+        // Flag global para mostrar/ocultar extras
+        let showHiddenExtras = false;
+
+        // Función para generar formularios agrupados con encabezados de categoría
+        function generateGroupedForms(formsList, sectionName, groups) {
+            let html = '';
+
+            groups.forEach(group => {
+                // Filtrar formularios que pertenecen a este grupo
+                const groupForms = formsList.filter(form => {
+                    const formCode = form.name.split(' - ')[0].trim();
+                    return group.codes.includes(formCode);
+                });
+
+                if (groupForms.length > 0) {
+                    // Encabezado de grupo
+                    html += `<div class="form-group-header">
+                        <h5><i class="bi bi-folder2-open"></i> ${group.title}</h5>
+                    </div>`;
+                    html += '<ul class="sub-list">';
+
+                    // Generar cada formulario del grupo
+                    groupForms.forEach(item => {
+                        if (item.hidden && !showHiddenExtras) return;
+                        html += generateFormItem(item, sectionName);
+                    });
+
+                    html += '</ul>';
+                }
+            });
+
+            return html;
+        }
+
+        // Función para generar un item de formulario individual
+        function generateFormItem(item, sectionName) {
+            const isDone = item.completed;
+            const icon = isDone ? 'bi-check-circle-fill status-completed' : 'bi-x-circle status-pending';
+            const statusText = isDone ? 'Completado' : 'Pendiente';
+            const itemName = item.name;
+            const isHidden = !!item.hidden;
+
+            // Usuario actual y permisos
+            const currentUser = getCurrentSession();
+            const isSupervisor = currentUser && currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+            const isPartner = currentUser && currentUser.role && currentUser.role.trim() === 'socio';
+
+            const filledBy = item.filledBy;
+            const filledAt = item.filledAt;
+            const reviewedBySupervisor = item.reviewedBySupervisor;
+            const reviewedBySupervisorAt = item.reviewedBySupervisorAt;
+            const reviewedByPartner = item.reviewedByPartner;
+            const reviewedByPartnerAt = item.reviewedByPartnerAt;
+
+            // Verificar si el formulario está realmente completo
+            const isReallyComplete = isFormComplete(itemName);
+
+            let reviewInfo = '<div class="review-info">';
+
+            // Nivel 1: Llenado
+            if (filledBy && isReallyComplete) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-check-circle-fill review-icon" style="color:#4CAF50;"></i><small>Llenado por ${filledBy} el ${filledAt}</small></div>`;
+            } else if (filledBy && !isReallyComplete) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-exclamation-triangle-fill review-icon" style="color:#FFC107;"></i><small>Incompleto (faltan campos obligatorios)</small><button class="btn-review" onclick="markAsFilled('${itemName}', '${sectionName}')">Marcar Llenado</button></div>`;
+            } else {
+                reviewInfo += `<div class="review-level"><i class="bi bi-circle review-icon" style="color:#999;"></i><small>Pendiente de llenado</small><button class="btn-review" onclick="markAsFilled('${itemName}', '${sectionName}')">Marcar Llenado</button></div>`;
+            }
+
+            // Nivel 2: Revisión Supervisor
+            if (reviewedBySupervisor) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-check-circle-fill review-icon" style="color:#4CAF50;"></i><small>Revisado por supervisor ${reviewedBySupervisor} el ${reviewedBySupervisorAt}</small>${isSupervisor ? '<button class="btn-remove-review" onclick="removeReview(\'' + itemName + '\', \'' + sectionName + '\', \'supervisor\')">Quitar</button>' : ''}</div>`;
+            } else if (filledBy) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-clock review-icon" style="color:#FFC107;"></i><small>Pendiente de revisión supervisor</small>${isSupervisor ? '<button class="btn-review" onclick="markAsReviewed(\'' + itemName + '\', \'' + sectionName + '\', \'supervisor\')">Revisar</button>' : ''}</div>`;
+            } else {
+                reviewInfo += `<div class="review-level"><i class="bi bi-circle review-icon" style="color:#999;"></i><small>-</small></div>`;
+            }
+
+            // Nivel 3: Revisión Socio
+            if (reviewedByPartner) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-check-circle-fill review-icon" style="color:#4CAF50;"></i><small>Revisado por socio ${reviewedByPartner} el ${reviewedByPartnerAt}</small>${isPartner ? '<button class="btn-remove-review" onclick="removeReview(\'' + itemName + '\', \'' + sectionName + '\', \'partner\')">Quitar</button>' : ''}</div>`;
+            } else if (reviewedBySupervisor) {
+                reviewInfo += `<div class="review-level"><i class="bi bi-clock review-icon" style="color:#FFC107;"></i><small>Pendiente de revisión socio (opcional)</small>${isPartner ? '<button class="btn-review" onclick="markAsReviewed(\'' + itemName + '\', \'' + sectionName + '\', \'partner\')">Revisar</button>' : ''}</div>`;
+            } else {
+                reviewInfo += `<div class="review-level"><i class="bi bi-circle review-icon" style="color:#999;"></i><small>-</small></div>`;
+            }
+
+            reviewInfo += '</div>';
+
+            const actionText = isHidden ? 'Oculto' : (isDone ? 'Ver' : 'Llenar');
+            const actionColor = isHidden ? '#6c757d' : (isDone ? '#4CAF50' : '#FFC107');
+            const formCode = item.name.split(' - ')[0].toLowerCase();
+
+            return `<li class="sub-item" ${isHidden ? 'style="opacity:0.6;"' : ''}>
+                    <div class="item-header">
+                        <span><i class="${icon} status-icon"></i>${itemName}</span>
+                        <span>${statusText}${isHidden ? ' • <span style="color:#999"><i class="bi bi-eye-slash"></i> Oculto</span>' : ''}</span>
+                        <button class="action-btn-small" style="background: ${actionColor}; color: white;" ${isHidden ? 'disabled' : ''} onclick="openAuditForm('${formCode}')">${actionText}</button>
+                    </div>
+                    ${reviewInfo}
+                </li>`;
+        }
+
+        // Función para Generar Subsección (Docs o Forms) - Actualizada para docs dinámicos con revisión
+        function generateSubsection(type, sectionName) {
+            const section = currentData[sectionName];
+            const list = type === 'docs' ? section.docs : section.forms;
+            const label = type === 'docs' ? 'Documentos Subidos' : 'Formularios';
+            let html = `<h4><i class="bi bi-${type === 'docs' ? 'file-earmark-text' : 'clipboard-data'}"></i> ${label} (${list.length})</h4>`;
+
+            if (list.length === 0) {
+                html += `<div class="no-content"><i class="bi bi-${type === 'docs' ? 'file-earmark-x' : 'clipboard-x'}"></i><p>No hay ${label.toLowerCase()} en esta sección.</p></div>`;
+            } else {
+                // Definir agrupaciones por sección
+                const formGroups = getFormGroupsForSection(sectionName);
+
+                if (type === 'forms' && formGroups) {
+                    // Generar formularios agrupados con encabezados
+                    html += generateGroupedForms(list, sectionName, formGroups);
+                } else {
+                    // Generar lista simple para documentos
+                    html += '<ul class="sub-list">';
+                    list.forEach(item => {
+                        const isDone = true; // Los docs siempre están subidos
+                        const icon = 'bi-check-circle-fill status-completed';
+                        const statusText = 'Subido';
+                        const itemName = item.name;
+
+                        // Usuario actual y permisos
+                        const currentUser = getCurrentSession();
+                        const isSupervisor = currentUser && currentUser.role && (currentUser.role.trim() === 'admin' || currentUser.role.trim() === 'administrador' || currentUser.role.trim() === 'supervisor');
+
+                        // Información de revisión para documentos
+                        const uploadedBy = item.uploadedBy;
+                        const reviewedBy = item.reviewedBy;
+                        const reviewedAt = item.reviewedAt;
+
+                        let reviewInfo = '';
+                        if (reviewedBy) {
+                            reviewInfo = `<div class="review-info"><i class="bi bi-check-circle-fill review-icon"></i><small>Revisado por ${reviewedBy} el ${reviewedAt}</small>${isSupervisor ? '<button class="btn-remove-review" onclick="removeReview(\'' + itemName + '\', \'' + sectionName + '\', \'doc\')">Quitar Revisión</button>' : ''}</div>`;
+                        } else if (uploadedBy) {
+                            reviewInfo = `<div class="review-info"><i class="bi bi-clock review-icon"></i><small>Pendiente de revisión</small>${isSupervisor ? '<button class="btn-review" onclick="markAsReviewed(\'' + itemName + '\', \'' + sectionName + '\', \'doc\')">Revisar</button>' : ''}</div>`;
+                        }
+
+                        html += `<li class="sub-item">
+                                <div class="item-header">
+                                    <span><i class="${icon} status-icon"></i>${itemName}</span>
+                                    <span>${statusText}</span>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button class="action-btn-small" style="background: #4CAF50; color: white;" onclick="alert('Descargar ${itemName} (Mock: Archivo disponible en /docs/${itemName})')">Descargar</button>
+                                        <button class="action-btn-small action-btn-delete" onclick="deleteDocumentLegacy('${itemName}', '${sectionName}')">Eliminar</button>
+                                    </div>
+                                </div>
+                                ${reviewInfo}
+                            </li>`;
+                    });
+                    html += '</ul>';
+                }
+            }
+
+            // Botón General solo para Docs (Subir Documentos) - Siempre presente
+            if (type === 'docs') {
+                html += `<button class="action-btn-general" onclick="uploadDocuments('${sectionName}')"><i class="bi bi-upload"></i> Subir Documentos</button>`;
+            }
+
+            return html;
+        }
+
+        // Función para Actualizar Progreso de Sección
+        function updateSectionProgress(sectionName) {
+            const section = currentData[sectionName];
+            const formsTotal = section.forms.length;
+            const formsCompleted = section.forms.filter(f => f.completed).length;
+
+            const sectionPct = formsTotal > 0 ? Math.round((formsCompleted / formsTotal) * 100) : 0; // Solo basado en formularios
+
+            const progressEl = document.getElementById(`${sectionName}Progress`);
+            const fillEl = document.getElementById(`${sectionName}Fill`);
+            if (progressEl && fillEl) {
+                progressEl.textContent = sectionPct + '%';
+                fillEl.style.width = sectionPct + '%';
+            }
+
+            return sectionPct;
+        }
+
+        // Función para Actualizar Progreso Global
+        function updateGlobalProgress() {
+            const sections = ['planificacion', 'ejecucion', 'evaluacion', 'cierre'];
+            let totalPct = 0;
+            sections.forEach(sec => totalPct += updateSectionProgress(sec));
+            const globalPct = Math.round(totalPct / 4);
+
+            const globalProgressEl = document.getElementById('globalProgress');
+            const globalFillEl = document.getElementById('globalFill');
+            if (globalProgressEl && globalFillEl) {
+                globalProgressEl.textContent = globalPct + '%';
+                globalFillEl.style.width = globalPct + '%';
+            }
+
+            // Actualizar estado del compromiso basado en el progreso
+            updateCommitmentStatus(globalPct);
+        }
+
+        // Función para actualizar el estado del compromiso basado en el progreso
+        function updateCommitmentStatus(progressPct) {
+            if (!currentCommitment) return;
+
+            const statusEl = document.getElementById('commitmentStatus');
+            if (!statusEl) return;
+
+            let newStatus, newStatusText;
+
+            if (progressPct === 0) {
+                newStatus = 'pendiente';
+                newStatusText = 'Pendiente';
+            } else if (progressPct > 0 && progressPct < 100) {
+                newStatus = 'activo';
+                newStatusText = 'En Progreso';
+            } else {
+                newStatus = 'completado';
+                newStatusText = 'Completado';
+            }
+
+            // Actualizar UI
+            statusEl.textContent = newStatusText;
+            statusEl.className = `status-badge status-${newStatus}`;
+
+            // Actualizar en el objeto currentCommitment
+            currentCommitment.status = newStatus;
+        }
+
+        // Función para Cambiar Tab y Generar Contenido
+        async function switchTab(tabName, event) {
+            console.log('📑 switchTab() llamado:', tabName);
+            currentTab = tabName; // Actualiza tab actual
+
+            // Quita active de tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Activa el seleccionado
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Manejo especial para la pestaña de documentos
+            if (tabName === 'documentos') {
+                // Inicializar componente de documentos
+                if (currentId && typeof initAuditDocuments === 'function') {
+                    initAuditDocuments('auditDocumentsContainer', currentId);
+                }
+                return;
+            }
+
+            // ✨ IMPORTANTE: Aplicar formularios condicionales antes de renderizar
+            // Esto asegura que si el usuario ha modificado A100, los formularios se actualicen
+            if (currentId && currentData) {
+                try {
+                    await prepareFormsDataForSection(tabName);
+                    await applyConditionalForms();
+                } catch (e) {
+                    console.error('Error en switchTab - applyConditionalForms:', e);
+                }
+            }
+
+            // Genera contenido de la sección
+            const contentEl = document.getElementById(tabName + 'Content');
+            const session = getCurrentSession();
+            const isAdmin = session && session.role && (session.role.trim() === 'admin' || session.role.trim() === 'administrador');
+            contentEl.innerHTML = `
+                <div class="section-header">
+                    <h3><i class="bi bi-${tabName === 'planificacion' ? 'lightbulb' : tabName === 'ejecucion' ? 'gear' : tabName === 'evaluacion' ? 'search' : 'check-lg'}"></i> ${tabName.charAt(0).toUpperCase() + tabName.slice(1)}</h3>
+                    ${isAdmin ? `
+                    <div class="admin-controls">
+                        <label class="form-check-label" style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" class="form-check-input" id="toggleHiddenExtras" />
+                            <span><i class="bi bi-eye-slash"></i> Mostrar ocultos</span>
+                        </label>
+                    </div>
+                    ` : ''}
+                    <div class="section-progress">
+                        <div class="progress-label">
+                            <span>Progreso de Sección</span>
+                            <span id="${tabName}Progress">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="${tabName}Fill" class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sub-sections-container">
+                    <div class="sub-section">
+                        ${generateSubsection('docs', tabName)}
+                    </div>
+                    <div class="sub-section">
+                        ${generateSubsection('forms', tabName)}
+                    </div>
+                </div>
+            `;
+
+            // Toggle admin-only: mostrar ocultos
+            const toggle = document.getElementById('toggleHiddenExtras');
+            if (toggle) {
+                toggle.checked = showHiddenExtras;
+                toggle.addEventListener('change', () => {
+                    showHiddenExtras = toggle.checked;
+                    // Re-render forms section only
+                    const formsContainer = document.querySelector(`#${tabName}Content .sub-sections-container .sub-section:nth-child(2)`);
+                    if (formsContainer) {
+                        formsContainer.innerHTML = generateSubsection('forms', tabName);
+                    }
+                    updateSectionProgress(tabName);
+                });
+            }
+
+            // Actualiza progreso
+            updateSectionProgress(tabName);
+            updateGlobalProgress();
+
+            // Log Acción (Integra con Registros)
+            if (currentCommitment) {
+                addLogForSection(currentCommitment.name, tabName);
+            } else {
+                console.warn('Compromiso no cargado al switchTab');
+            }
+        }
+
+        // Función para Log Sección (usa backend)
+        function addLogForSection(commitmentName, section) {
+            const logMessage = `Usuario vio sección ${section} en compromiso: ${commitmentName}`;
+            console.log(logMessage);
+            const session = getCurrentSession();
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            if (session && session.username) {
+                API.logAction(session.username, 'vio_detalles', null, commitmentName, timestamp);
+            }
+        }
+
+        // Función para aplicar formularios condicionales basados en respuestas de A100
+        async function applyConditionalForms() {
+            console.log('🔄 applyConditionalForms() ejecutándose...');
+            console.log('📌 currentId:', currentId);
+
+            // Obtener respuestas del formulario A100 desde backend
+            let answers = null;
+            try {
+                const resp = await apiClient.get(`/api/audit/forms/a100?commitment_id=${currentId}`);
+                if (resp && resp.success && resp.data && resp.data.data) {
+                    answers = resp.data.data;
+                    console.log('📦 Datos A100 cargados desde backend');
+                } else {
+                    console.log('⏭️ A100 no completado en backend, no se agregan formularios condicionales');
+                    return;
+                }
+            } catch (err) {
+                console.error('❌ Error obteniendo A100 del backend:', err);
+                return;
+            }
+
+            try {
+                console.log('📋 Evaluando formularios condicionales desde A100:', answers);
+
+                // Mapeo de formularios condicionales a sus categorías
+                const conditionalFormsMapping = {
+                    // Planificación
+                    'A200Q': { section: 'planificacion', category: 'Aceptación/continuidad del cliente', title: 'A200Q - Cuestionario de aceptación' },
+                    'A205': { section: 'planificacion', category: 'Aceptación/continuidad del cliente', title: 'A205 - Continuación del cliente' },
+                    'A205L': { section: 'planificacion', category: 'Aceptación/continuidad del cliente', title: 'A205L - Lista de verificación continuidad' },
+                    'A345Q': { section: 'planificacion', category: 'Reuniones con el cliente y entregables', title: 'A345Q - Cuestionario reuniones cliente' },
+                    'A350': { section: 'planificacion', category: 'Reuniones con el cliente y entregables', title: 'A350 - Entregables al cliente' },
+                    'A350L': { section: 'planificacion', category: 'Reuniones con el cliente y entregables', title: 'A350L - Lista entregables' },
+                    // Ejecución
+                    'B020': { section: 'ejecucion', category: 'Analytics', title: 'B020 - Analytics preliminar' },
+                    'B030': { section: 'ejecucion', category: 'Analytics', title: 'B030 - Analytics detallado' },
+                    'B031': { section: 'ejecucion', category: 'Analytics', title: 'B031 - Analytics final' },
+                    'B200Q': { section: 'ejecucion', category: 'Comprensión de la entidad', title: 'B200Q - Cuestionario entidad' },
+                    'B300Q': { section: 'ejecucion', category: 'Diseño de control', title: 'B300Q - Cuestionario controles' },
+                    // Evaluación
+                    'C105Q': { section: 'evaluacion', category: 'Procedimientos de auditoría generales', title: 'C105Q - Cuestionario procedimientos' },
+                    // Cierre
+                    'D500Q': { section: 'cierre', category: 'Informes a aquellos encargados de la dirección de la empresa', title: 'D500Q - Cuestionario informes' },
+                    'D540Q': { section: 'cierre', category: 'Representaciones de la Administración', title: 'D540Q - Cuestionario representaciones' },
+                    'D545L': { section: 'cierre', category: 'Representaciones de la Administración', title: 'D545L - Lista representaciones' },
+                    'D630Q': { section: 'cierre', category: 'Archivo permanente', title: 'D630Q - Cuestionario archivo' }
+                };
+
+                // Determinar qué formularios agregar según las respuestas
+                const formsToAdd = new Set();
+                const formsToRemove = new Set(); // Formularios a eliminar explícitamente
+
+                // ⚙️ LÓGICA DE CONDICIONALES:
+
+                // Q2: ¿Usar solo el sistema de consultas?
+                // Si responde "sí", eliminar MUCHOS formularios (mantener solo consultas)
+                if (answers.q2_consultas && answers.q2_consultas === 'si') {
+                    console.log('⚠️ Q2=sí: Modo de solo consultas activado');
+                    // Remover los formularios que NO aplican en modo consultas
+                    ['A200Q', 'A205', 'A205L', 'A345Q', 'A350', 'A350L',
+                        'B020', 'B030', 'B031', 'B200Q', 'B300Q',
+                        'C105Q', 'D500Q', 'D540Q', 'D545L', 'D630Q'].forEach(f => formsToRemove.add(f));
+                } else {
+                    // Si Q2 no está respondida o es "no", entonces aplicar lógica normal
+
+                    // Q1: Nivel de colaboración
+                    if (answers.q1_colaboracion && answers.q1_colaboracion === 'alto') {
+                        console.log('✅ Q1=alto: Colaboración alta');
+                        ['A200Q', 'A205', 'A205L', 'A345Q', 'A350', 'A350L', 'B200Q', 'B300Q', 'D500Q', 'D540Q', 'D545L', 'D630Q'].forEach(f => formsToAdd.add(f));
+                    } else if (answers.q1_colaboracion && answers.q1_colaboracion === 'limitado') {
+                        console.log('✅ Q1=limitado: Colaboración limitada');
+                        ['A345Q', 'A350', 'A350L', 'C105Q', 'D630Q'].forEach(f => formsToAdd.add(f));
+                    } else if (answers.q1_colaboracion) {
+                        console.log('✅ Q1=ninguno: Sin colaboración especial');
+                        // No agregar formularios especiales de colaboración
+                    }
+
+                    // Q3: Usar analítica integrada
+                    if (answers.q3_analitica && answers.q3_analitica === 'si') {
+                        console.log('✅ Q3=sí: Analítica integrada activada');
+                        ['B020', 'B030', 'B031'].forEach(f => formsToAdd.add(f));
+                    }
+                }
+
+                console.log(`📊 Formularios a agregar: ${Array.from(formsToAdd).join(', ') || 'ninguno'}`);
+                console.log(`📊 Formularios a remover: ${Array.from(formsToRemove).join(', ') || 'ninguno'}`);
+
+                // PASO 1: Marcar formularios condicionales que no aplican como ocultos
+                const allConditionalForms = Object.keys(conditionalFormsMapping);
+                const sections = ['planificacion', 'ejecucion', 'evaluacion', 'cierre'];
+
+                sections.forEach(sectionName => {
+                    const section = currentData[sectionName];
+                    if (!section || !section.forms) return;
+
+                    section.forms.forEach(form => {
+                        const formCode = form.name.split(' - ')[0].toUpperCase();
+                        if (allConditionalForms.includes(formCode)) {
+                            const shouldHide = formsToRemove.has(formCode) || !formsToAdd.has(formCode);
+                            form.conditional = true;
+                            form.hidden = shouldHide;
+                            if (shouldHide) console.log(`🙈 Ocultando formulario condicional: ${form.name}`);
+                        } else {
+                            form.hidden = false;
+                        }
+                    });
+                });
+
+                // PASO 2: Agregar formularios que deben existir pero no están
+                formsToAdd.forEach(formCode => {
+                    const formInfo = conditionalFormsMapping[formCode];
+                    if (!formInfo) return;
+
+                    const section = currentData[formInfo.section];
+                    if (!section || !section.forms) return;
+
+                    // Verificar si ya existe
+                    const exists = section.forms.some(f => f.name === formInfo.title);
+                    if (!exists) {
+                        console.log(`➕ Agregando formulario condicional: ${formInfo.title}`);
+                        section.forms.push({
+                            name: formInfo.title,
+                            completed: false,
+                            filledBy: null,
+                            filledAt: null,
+                            reviewedBySupervisor: null,
+                            reviewedBySupervisorAt: null,
+                            reviewedByPartner: null,
+                            reviewedByPartnerAt: null,
+                            conditional: true,
+                            hidden: false
+                        });
+                    }
+                });
+
+            } catch (e) {
+                console.error('❌ Error al procesar formularios condicionales:', e);
+            }
+        }
+
+        // ==================== FUNCIONES DE ALMACENAMIENTO (Nivel Global) ====================
+
+        // Función para persistir en localStorage
+        function saveToLocalStorage() {
+            // Deshabilitado: se evita persistencia en localStorage para mantener estado consistente en backend
+        }
+
+        // Función para cargar desde localStorage
+        function loadFromLocalStorage() {
+            // Deshabilitado: se evita lectura de localStorage para mantener estado consistente
+        }
+
+        // Función para sincronizar estados de formularios con datos guardados
+        function syncFormStatesFromLocalStorage() {
+            const sections = ['planificacion', 'ejecucion', 'evaluacion', 'cierre'];
+            let hasChanges = false;
+
+            sections.forEach(sectionName => {
+                const section = currentData[sectionName];
+                if (!section || !section.forms) return;
+
+                section.forms.forEach(form => {
+                    // Verificar si el formulario está REALMENTE completo usando la función de validación
+                    const isComplete = isFormComplete(form.name);
+
+                    // Si el formulario está completo pero no está marcado, actualizarlo
+                    if (isComplete && !form.completed) {
+                        const currentUser = getCurrentSession();
+                        form.completed = true;
+                        form.filledBy = form.filledBy || (currentUser ? currentUser.username : 'Usuario');
+                        form.filledAt = form.filledAt || new Date().toISOString().slice(0, 16).replace('T', ' ');
+                        hasChanges = true;
+                        console.log(`Formulario ${form.name} sincronizado como completado (todas las respuestas llenas)`);
+                    }
+
+                    // Si el formulario estaba marcado como completo pero ya no lo está, quitarle la marca
+                    if (!isComplete && form.completed) {
+                        form.completed = false;
+                        form.filledBy = null;
+                        form.filledAt = null;
+                        hasChanges = true;
+                        console.log(`Formulario ${form.name} marcado como incompleto (faltan campos obligatorios)`);
+                    }
+                });
+            });
+
+            // Persistencia deshabilitada: evitar guardar en localStorage
+        }
+
+        // ==================== FIN FUNCIONES DE ALMACENAMIENTO ====================
+
+        // Función Principal: Cargar Detalles del Compromiso
+        async function loadCommitmentDetails() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                currentId = parseInt(urlParams.get('id'), 10);
+
+                if (!currentId) {
+                    document.getElementById('commitmentInfo').innerHTML = `
+                        <div style="text-align:center; padding:2rem;">
+                            <i class="bi bi-exclamation-triangle" style="font-size:4rem; color:#FFC107;"></i>
+                            <h2>ID de compromiso no proporcionado</h2>
+                            <a href="compromisos.html" class="nav-btn"><i class="bi bi-arrow-left"></i> Regresar a Compromisos</a>
+                        </div>`;
+                    document.querySelector('.tabs-section').style.display = 'none';
+                    return;
+                }
+
+                // Cargar entidades
+                const entitiesResp = await API.Entities.getAll();
+                if (!entitiesResp || !entitiesResp.success) throw new Error((entitiesResp && entitiesResp.error) || 'Error al cargar entidades');
+                console.debug('entitiesResp', entitiesResp);
+                // Normalizar a arreglo en caso de que la API devuelva objeto o wrapper (data.data)
+                const entitiesList = Array.isArray(entitiesResp.data)
+                    ? entitiesResp.data
+                    : Array.isArray(entitiesResp.data?.data)
+                        ? entitiesResp.data.data
+                        : entitiesResp.data
+                            ? [entitiesResp.data]
+                            : [];
+                const entities = {};
+                entitiesList.forEach(e => { if (e && (e.id !== undefined)) entities[e.id] = e; });
+
+                // Cargar compromiso
+                const commitResp = await API.Commitments.getById(currentId);
+                console.debug('commitResp', commitResp);
+                // Si la API falla o devuelve 404, intentar fallback desde datos de mock locales
+                let raw = null;
+                if (!commitResp || !commitResp.success) {
+                    // Usar mockData si existe
+                    if (!raw && mockData[currentId]) {
+                        const meta = allCommitments.find(c => c.id === currentId) || {};
+                        raw = {
+                            id: currentId,
+                            name: meta.name || (`Compromiso ${currentId}`),
+                            description: meta.description || '',
+                            startDate: meta.startDate || meta.start_date || '',
+                            endDate: meta.endDate || meta.end_date || '',
+                            status: meta.status || 'pendiente',
+                            entity: meta.entity || null
+                        };
+                        currentData = JSON.parse(JSON.stringify(mockData[currentId]));
+                    }
+                    // Si todavía no hay datos, mostrar error claro
+                    if (!raw) {
+                        document.getElementById('commitmentInfo').innerHTML = `
+                            <div style="text-align:center; padding:2rem;">
+                                <i class="bi bi-exclamation-triangle" style="font-size:4rem; color:#FFC107;"></i>
+                                <h2>Compromiso no encontrado</h2>
+                                <p>ID: ${currentId}</p>
+                                <p>Error: ${commitResp && commitResp.error ? commitResp.error : 'Sin detalles'}</p>
+                                <a href="compromisos.html" class="nav-btn"><i class="bi bi-arrow-left"></i> Regresar a Compromisos</a>
+                            </div>`;
+                        document.querySelector('.tabs-section').style.display = 'none';
+                        return;
+                    }
+                } else {
+                    raw = commitResp.data;
+                }
+
+                // Normalizar campos (API puede usar snake_case; mocks usan camelCase)
+                currentCommitment = {
+                    id: raw.id,
+                    name: raw.name || raw.title || '',
+                    description: raw.description || raw.descripcion || '',
+                    start_date: raw.start_date || raw.startDate || raw.startDateISO || raw.startDate || raw.start_date || '',
+                    end_date: raw.end_date || raw.endDate || raw.endDateISO || raw.endDate || raw.end_date || '',
+                    status: raw.status || raw.estado || 'pendiente',
+                    // Si usamos mock local, entity puede venir como nombre en "entity"
+                    entity_id: raw.entity_id || raw.entityId || (raw.entity && raw.entity.id) || null,
+                    entity_name: raw.entity && typeof raw.entity === 'string' ? raw.entity : null
+                };
+
+                // Poblado UI
+                document.getElementById('headerTitle').textContent = currentCommitment.name;
+                document.getElementById('commitmentName').textContent = currentCommitment.name;
+                const entity = entities[currentCommitment.entity_id];
+                document.getElementById('entityAssoc').textContent = entity ? entity.name : (currentCommitment.entity_name || 'Entidad no encontrada');
+                document.getElementById('commitmentDescription').textContent = currentCommitment.description;
+                const statusEl = document.getElementById('commitmentStatus');
+                statusEl.textContent = (currentCommitment.status || '').charAt(0).toUpperCase() + (currentCommitment.status || '').slice(1);
+                statusEl.className = `status-badge status-${currentCommitment.status || 'pendiente'}`;
+
+                // Fechas seguras
+                try {
+                    document.getElementById('startDate').textContent = currentCommitment.start_date ? new Date(currentCommitment.start_date).toLocaleDateString('es-ES') : '-';
+                    document.getElementById('endDate').textContent = currentCommitment.end_date ? new Date(currentCommitment.end_date).toLocaleDateString('es-ES') : '-';
+                } catch (e) {
+                    document.getElementById('startDate').textContent = '-';
+                    document.getElementById('endDate').textContent = '-';
+                }
+
+                // Evitar cargar estado desde localStorage; usar backend y defaults
+
+                // Si no hay datos en localStorage, usar estructura por defecto con todos los formularios
+                if (!currentData) {
+                    currentData = getDefaultCommitmentData();
+                }
+
+                // Asegurar que todas las secciones existan con sus formularios por defecto
+                const sections = ['planificacion', 'ejecucion', 'evaluacion', 'cierre'];
+                const defaultData = getDefaultCommitmentData();
+                sections.forEach(sec => {
+                    if (!currentData[sec]) {
+                        currentData[sec] = { docs: [], forms: [] };
+                    }
+                    // Si cualquier sección no tiene formularios, agregar los formularios por defecto de esa sección
+                    if (!currentData[sec].forms || currentData[sec].forms.length === 0) {
+                        currentData[sec].forms = JSON.parse(JSON.stringify(defaultData[sec].forms)); // Deep copy
+                    } else {
+                        // MIGRACIÓN: Agregar formularios nuevos que no existen en los datos guardados
+                        const existingFormNames = currentData[sec].forms.map(f => f.name);
+                        const defaultForms = defaultData[sec].forms;
+
+                        defaultForms.forEach(defaultForm => {
+                            if (!existingFormNames.includes(defaultForm.name)) {
+                                console.log(`➕ Agregando formulario nuevo: ${defaultForm.name} en ${sec}`);
+                                currentData[sec].forms.push(JSON.parse(JSON.stringify(defaultForm)));
+                            }
+                        });
+                    }
+                    // Asegurar que docs también exista
+                    if (!currentData[sec].docs) {
+                        currentData[sec].docs = [];
+                    }
+                });
+
+                // Aplicar formularios condicionales basados en respuestas de A100 (backend)
+                await applyConditionalForms();
+
+                // No guardar en localStorage: la persistencia debe ir al backend
+
+                console.log('📊 Estructura de datos cargada:', {
+                    planificacion: currentData.planificacion.forms.length + ' formularios',
+                    ejecucion: currentData.ejecucion.forms.length + ' formularios',
+                    evaluacion: currentData.evaluacion.forms.length + ' formularios',
+                    cierre: currentData.cierre.forms.length + ' formularios'
+                });
+
+                // Evitar sincronización con localStorage; el estado proviene del backend
+
+                document.getElementById('commitmentInfo').style.display = 'block';
+                switchTab('planificacion');
+                updateGlobalProgress();
+
+                // Log acción segura - CORREGIDO: usar sessionStorage
+                const session = getCurrentSession();
+                if (session && session.username) {
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    API.logAction(session.username, 'vio_detalles', null, currentCommitment.name, timestamp);
+                }
+            } catch (err) {
+                console.error('Error loading commitment details:', err);
+                document.getElementById('commitmentInfo').innerHTML = `
+                    <div style="text-align:center; padding:2rem;">
+                        <i class="bi bi-exclamation-triangle" style="font-size:4rem; color:#FFC107;"></i>
+                        <h2>Error al cargar compromiso</h2>
+                        <p>${err.message || err}</p>
+                        <a href="compromisos.html" class="nav-btn"><i class="bi bi-arrow-left"></i> Regresar a Compromisos</a>
+                    </div>`;
+                document.querySelector('.tabs-section').style.display = 'none';
+            }
+        }
+
+        // Event Listeners e Inicialización
+        document.addEventListener('DOMContentLoaded', function () {
+            // Chequeo de Sesión - ACTUALIZADO: usa sessionStorage
+            if (!sessionStorage.getItem(USER_KEY)) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Carga Detalles
+            loadCommitmentDetails();
+
+            // Inicializar vista superior en Documentos
+            switchTopSection('documentos');
+        });
+
+        // Función logout (Consistente)
+        function logout() {
+            try {
+                sessionStorage.removeItem(USER_KEY);
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+        // Función para abrir el modal
+        function abrirModalSubida() {
+            document.getElementById("modalSubida").style.display = "flex";
+        }
+
+        // Función para cerrar el modal
+        function cerrarModalSubida() {
+            document.getElementById("modalSubida").style.display = "none";
+            document.getElementById("listaArchivos").innerHTML = "";
+            // Reset input
+            document.getElementById("inputArchivo").value = "";
+        }
+
+        // Función para simular selección de archivos
+        function simularSeleccion() {
+            document.getElementById("inputArchivo").click();
+        }
+
+        // Función para guardar archivos seleccionados
+        function guardarArchivos() {
+            const input = document.getElementById("inputArchivo");
+            const files = input.files;
+            if (files.length === 0) {
+                alert("No hay archivos seleccionados.");
+                return;
+            }
+
+            // Agregar nombres de archivos al array de docs de la sección actual
+            const section = currentData[currentSectionName];
+            const currentUser = getCurrentSession();
+            for (let file of files) {
+                if (!section.docs.find(doc => doc.name === file.name)) {
+                    section.docs.push({
+                        name: file.name,
+                        uploadedBy: currentUser.username,
+                        reviewedBy: null,
+                        reviewedAt: null
+                    });
+                }
+            }
+
+            // Persistencia deshabilitada: no guardar en localStorage
+
+            // Log de acción
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            API.logAction(currentUser.username, 'subio_documento', null, currentCommitment.name, timestamp);
+
+            // Cierra modal
+            cerrarModalSubida();
+
+            // Actualiza la UI en tiempo real sin refrescar la página
+            switchTab(currentTab); // Usa currentTab en lugar de currentSectionName
+            updateGlobalProgress();
+        }
+
+        // Variable global para la sección actual
+        let currentSectionName = 'planificacion';
+
+        // Mostrar nombres de archivos seleccionados
+        document.getElementById("inputArchivo").addEventListener("change", function (e) {
+            const lista = document.getElementById("listaArchivos");
+            lista.innerHTML = "";
+            for (let file of e.target.files) {
+                const li = document.createElement("li");
+                li.textContent = "📄 " + file.name;
+                lista.appendChild(li);
+            }
+            // Agregar botón "Subir" si hay archivos
+            if (e.target.files.length > 0) {
+                const btn = document.createElement("button");
+                btn.textContent = "Subir Archivos";
+                btn.className = "action-btn-general";
+                btn.addEventListener('click', guardarArchivos);
+                lista.appendChild(btn);
+            }
+        });
+
+        // Cerrar modal al hacer clic fuera del contenido
+        window.onclick = function (event) {
+            const modalSubida = document.getElementById("modalSubida");
+            const modalConfirmacion = document.getElementById("modalConfirmacion");
+            if (event.target === modalSubida) cerrarModalSubida();
+            if (event.target === modalConfirmacion) cerrarModalConfirmacion();
+        }
+
+        // Función para abrir formulario de auditoría
+        function openAuditForm(formCode) {
+            if (!currentId) {
+                alert('Error: No se ha cargado el compromiso correctamente.');
+                return;
+            }
+            const url = `audit/${formCode}.html?commitment_id=${currentId}`;
+            window.open(url, '_blank');
+        }
+
+        // Detectar cuando la ventana recupera el foco (usuario vuelve de otra pestaña/ventana)
+        window.addEventListener('focus', async function () {
+            if (currentId && currentData) {
+                // ✨ IMPORTANTE: Aplicar formularios condicionales cuando el usuario regresa
+                // Esto detecta si ha habido cambios en A100 desde otra pestaña/ventana
+                await applyConditionalForms();
+
+                // Recargar la vista actual
+                if (currentTab) {
+                    switchTab(currentTab);
+                    updateGlobalProgress();
+                }
+            }
+        });
+
+    </script>
+</body>
+
+</html>

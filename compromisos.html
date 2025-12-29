@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Compromisos</title>
+    <link rel="icon" href="assets/logoinsightdorado.png" type="image/x-icon">
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/compromisos.css">
+    <!-- CryptoJS for encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+
+<body>
+    <!-- Header con 3 columnas -->
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title"><i class="bi bi-clipboard-check"></i> Compromisos</h1>
+        </div>
+
+        <div class="header-center">
+            <div class="search-input">
+                <i class="bi bi-search"></i>
+                <input id="searchInput" type="text" placeholder="Buscar compromisos...">
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button id="createCommitmentBtn" class="header-btn" onclick="window.location.href='crear-compromiso.html'"
+                title="Crear Compromiso">
+                <i class="bi bi-plus-circle"></i>
+            </button>
+            <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Regresar">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            <button class="header-btn" onclick="logout()" title="Salir">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="compromisos-container">
+            <div class="filters-row">
+                <div class="custom-select" id="customSelect">
+                    <div class="select-selected" id="selectSelected">Estado</div>
+                    <i class="bi bi-chevron-down custom-arrow"></i>
+                    <div class="select-items select-hide" id="selectItems">
+                        <div data-value="todos">Todos</div>
+                        <div data-value="activo">Activo</div>
+                        <div data-value="pendiente">Pendiente</div>
+                        <div data-value="completado">Completado</div>
+                    </div>
+                </div>
+            </div>
+            <div id="commitmentsList" class="commitments-grid">
+                <!-- Cards se generan via JS -->
+            </div>
+            <div id="noResults" class="no-results" style="display: none;">
+                <i class="bi bi-inbox"></i>
+                <p>No hay compromisos que coincidan con los filtros. Intenta ajustar la búsqueda.</p>
+            </div>
+        </div>
+    </div>
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api-client.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+    </script>
+    <script>
+        // Constante para Sesión (Unificada con login/dashboard)
+        const USER_KEY = 'userSession';
+
+        // Array de Compromisos (inicialmente vacío)
+        let allCommitments = [];
+
+        let allEntities = {}; // Para almacenar entidades
+
+        // Función para cargar entidades desde la API
+        async function loadEntitiesFromAPI() {
+            try {
+                const response = await API.Entities.getAll();
+                console.log('Raw entities response:', response);
+                if (response.success) {
+                    // Convertir array a objeto con IDs como keys
+                    allEntities = {};
+                    const entitiesArray = Array.isArray(response.data) ? response.data : [];
+                    entitiesArray.forEach(entity => {
+                        allEntities[entity.id] = entity;
+                    });
+                } else {
+                    console.error('Error loading entities:', response.error);
+                    // Fallback a mock data si hay error
+                    allEntities = {
+                        1: { name: 'Entidad Ejemplo A', id: 'ENT-001' },
+                        2: { name: 'Entidad Ejemplo B', id: 'ENT-002' },
+                        3: { name: 'Entidad Ejemplo C', id: 'ENT-003' },
+                        4: { name: 'Entidad Ejemplo D', id: 'ENT-004' }
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading entities from API:', error);
+                // Fallback a mock data si hay error
+                allEntities = {
+                    1: { name: 'Entidad Ejemplo A', id: 'ENT-001' },
+                    2: { name: 'Entidad Ejemplo B', id: 'ENT-002' },
+                    3: { name: 'Entidad Ejemplo C', id: 'ENT-003' },
+                    4: { name: 'Entidad Ejemplo D', id: 'ENT-004' }
+                };
+            }
+        }
+
+        // Función para cargar compromisos desde la API
+        async function loadCommitmentsFromAPI() {
+            try {
+                const response = await API.Commitments.getAll();
+                console.log('Raw commitments response:', response);
+                if (response.success) {
+                    allCommitments = Array.isArray(response.data) ? response.data : [];
+                } else {
+                    console.error('Error loading commitments:', response.error);
+                    allCommitments = [];
+                }
+            } catch (error) {
+                console.error('Error loading commitments from API:', error);
+                allCommitments = [];
+            }
+        }
+
+        // Cargar entidades, compromisos y grupos de trabajo al iniciar
+        async function initializeData() {
+            console.log('Iniciando carga de datos...');
+            await loadEntitiesFromAPI();
+            console.log('Entidades cargadas:', allEntities);
+            await loadWorkGroupsFromAPI();
+            console.log('Grupos de trabajo cargados:', workGroupsData);
+            await loadCommitmentsFromAPI();
+            console.log('Compromisos cargados:', allCommitments);
+            const filteredCommitments = filterCommitmentsByUserGroups();
+            console.log('Compromisos después de filtrar:', filteredCommitments);
+            return filteredCommitments;
+        }
+
+        let currentValue = 'todos'; // Para filtro de estado
+
+        // Función para Crear Card de Compromiso
+        function createCommitmentCard(commitment) {
+            const statusClass = `status-${commitment.status}`;
+            const statusText = commitment.status.charAt(0).toUpperCase() + commitment.status.slice(1);
+            const dates = `${new Date(commitment.start_date).toLocaleDateString('es-ES')} - ${new Date(commitment.end_date).toLocaleDateString('es-ES')}`;
+            // Usar la entidad del objeto commitment si existe, sino buscar en allEntities
+            const entityName = commitment.entities ? commitment.entities.name :
+                (allEntities[commitment.entity_id] ? allEntities[commitment.entity_id].name : 'Entidad no encontrada');
+
+            return `
+                <div class="commitment-card" data-status="${commitment.status}" data-entity="${entityName.toLowerCase()}">
+                    <div class="commitment-main">
+                        <h3>${commitment.name}</h3>
+                        <span class="commitment-entity">${entityName}</span>
+                        <span class="commitment-dates">${dates}</span>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="card-actions">
+                        <a href="entidades.html?compromiso=${commitment.id}" class="action-btn btn-primary" title="Entidades"><i class="bi bi-building"></i></a>
+                        <button class="action-btn btn-secondary" onclick="viewDetails(${commitment.id})" title="Ver Detalles"><i class="bi bi-eye"></i></button>
+                        <button class="action-btn btn-warning" onclick="editCommitment(${commitment.id})" title="Modificar"><i class="bi bi-pencil-square"></i></button>
+                        <button class="action-btn btn-danger" onclick="deleteCommitment(${commitment.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Variable global para almacenar los grupos de trabajo
+        let workGroupsData = [];
+
+        // Función para cargar grupos de trabajo desde la API
+        async function loadWorkGroupsFromAPI() {
+            try {
+                const response = await API.WorkGroups.getAll();
+                if (response.success) {
+                    workGroupsData = Array.isArray(response.data) ? response.data : [];
+                    console.log('Grupos de trabajo cargados:', workGroupsData);
+                } else {
+                    console.error('Error loading work groups:', response.error);
+                    workGroupsData = [];
+                }
+            } catch (error) {
+                console.error('Error loading work groups from API:', error);
+                workGroupsData = [];
+            }
+        }
+
+        // Función para filtrar compromisos basados en grupos del usuario
+        function filterCommitmentsByUserGroups() {
+            const userData = getCurrentSession();
+            if (!userData) return allCommitments;
+
+            const userRole = userData.role;
+            const username = userData.username;
+
+            // Administradores y programadores ven todos los compromisos
+            if (userRole === 'administrador' || userRole === 'programador') {
+                return allCommitments;
+            }
+
+            // Encontrar grupos donde el usuario es miembro
+            const userGroups = workGroupsData.filter(group => group.members && group.members.includes(username));
+            console.log(`Usuario ${username} pertenece a ${userGroups.length} grupos:`, userGroups);
+
+            // Obtener IDs de compromisos accesibles de dos formas:
+            // 1. Por el campo work_group_id en el compromiso
+            // 2. Por el array commitments[] en el grupo
+            const accessibleCommitmentIds = new Set();
+
+            // Obtener IDs de los grupos del usuario
+            const userGroupIds = userGroups.map(g => g.id);
+
+            // Recorrer todos los compromisos
+            allCommitments.forEach(commitment => {
+                // Método 1: El compromiso tiene work_group_id que coincide con un grupo del usuario
+                if (commitment.work_group_id && userGroupIds.includes(commitment.work_group_id)) {
+                    accessibleCommitmentIds.add(commitment.id);
+                }
+
+                // Método 2: El ID del compromiso está en el array commitments[] de algún grupo del usuario
+                userGroups.forEach(group => {
+                    if (group.commitments && group.commitments.includes(commitment.id)) {
+                        accessibleCommitmentIds.add(commitment.id);
+                    }
+                });
+            });
+
+            console.log(`Usuario ${username} tiene acceso a ${accessibleCommitmentIds.size} compromisos`);
+
+            // Retornar compromisos filtrados
+            return allCommitments.filter(commitment => accessibleCommitmentIds.has(commitment.id));
+        }
+
+        // Función para Cargar Lista
+        function loadCommitments(commitmentsToShow = null) {
+            const commitments = commitmentsToShow || filterCommitmentsByUserGroups();
+            console.log('loadCommitments called with', commitments.length, 'commitments');
+            const container = document.getElementById('commitmentsList');
+            if (!container) {
+                console.error('Container #commitmentsList not found');
+                return;
+            }
+
+            if (commitments.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center;"><p>No hay compromisos disponibles.</p></div>';
+                return;
+            }
+
+            container.innerHTML = commitments.map(createCommitmentCard).join('');
+            console.log('Cards rendered, applying filters...');
+            filterCommitments(); // Aplica filtros iniciales
+        }
+
+        // Función para Filtrar Compromisos
+        function filterCommitments() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.commitment-card');
+            let visibleCount = 0;
+
+            rows.forEach(card => {
+                const name = card.querySelector('h3').textContent.toLowerCase();
+                const entity = card.getAttribute('data-entity') || '';
+                const status = card.getAttribute('data-status');
+
+                const matchesSearch = searchTerm === '' || name.includes(searchTerm) || entity.includes(searchTerm);
+                const matchesStatus = currentValue === 'todos' || status === currentValue;
+
+                if (matchesSearch && matchesStatus) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Función para Ver Detalles (Mock: Alert; en futuro, redirige a subpágina)
+        function viewDetails(id) {
+            const commitment = allCommitments.find(c => c.id === id);
+            if (commitment) {
+                // Log the action
+                const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+                if (currentUser && currentUser.username) {
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    logAction(currentUser.username, 'edito_compromiso', null, commitment.name, timestamp);
+                }
+
+                window.location.href = `compromisos-detalles.html?id=${id}`;
+                // Futuro: window.location.href = `compromisos-detalles.html?id=${id}`;
+            }
+        }
+
+        // Función para Log Acción (Integra con Registro; usa localStorage)
+        function logAction(username, action, entity, commitment, timestamp) {
+            const records = getSecureItem('appRecords') || [];
+            records.push({ id: Date.now(), username, action, entity, commitment, timestamp });
+            setSecureItem('appRecords', records);
+        }
+
+        // Lógica del Custom Select (Igual que en Registro)
+        const selectElement = document.getElementById('customSelect');
+        const selectSelected = document.getElementById('selectSelected');
+        const selectItems = document.getElementById('selectItems');
+
+        if (selectSelected && selectItems) {
+            selectSelected.addEventListener('click', function () {
+                selectItems.classList.toggle('show');
+            });
+
+            selectItems.addEventListener('click', function (e) {
+                if (e.target.tagName === 'DIV') {
+                    const value = e.target.getAttribute('data-value');
+                    currentValue = value;
+
+                    selectSelected.textContent = e.target.textContent;
+                    selectSelected.classList.add('selected');
+
+                    // Marca como seleccionado
+                    selectItems.querySelectorAll('div').forEach(item => {
+                        item.classList.remove('same-as-selected');
+                    });
+                    e.target.classList.add('same-as-selected');
+
+                    selectItems.classList.remove('show');
+                    filterCommitments(); // Aplica filtro
+                    saveFilters(); // Guardar filtros
+                }
+            });
+
+            // Cierra select si clic fuera
+            document.addEventListener('click', function (e) {
+                if (!selectElement.contains(e.target)) {
+                    selectItems.classList.remove('show');
+                }
+            });
+        }
+
+        // Función para guardar filtros en localStorage
+        function saveFilters() {
+            const filters = {
+                searchTerm: document.getElementById('searchInput').value,
+                statusFilter: currentValue
+            };
+            localStorage.setItem('compromisosFilters', JSON.stringify(filters));
+        }
+
+        // Función para cargar filtros desde localStorage
+        function loadFilters() {
+            const savedFilters = localStorage.getItem('compromisosFilters');
+            if (savedFilters) {
+                const filters = JSON.parse(savedFilters);
+                document.getElementById('searchInput').value = filters.searchTerm || '';
+                currentValue = filters.statusFilter || 'todos';
+                // Actualizar UI del select
+                if (selectSelected) {
+                    const statusText = currentValue === 'todos' ? 'Todos' :
+                        currentValue === 'activo' ? 'Activo' :
+                            currentValue === 'pendiente' ? 'Pendiente' : 'Completado';
+                    selectSelected.textContent = statusText;
+                    selectSelected.classList.add('selected');
+                }
+            }
+        }
+
+        // Event Listeners para Filtros y Inicialización
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM Content Loaded');
+            console.log('API object exists:', typeof window.API !== 'undefined');
+            console.log('API.Commitments exists:', typeof window.API?.Commitments !== 'undefined');
+
+            // Chequeo de Sesión con expiración
+            const userData = getCurrentSession();
+            if (!userData) {
+                console.log('No user session found, redirecting to login');
+                window.location.href = 'login.html';
+                return;
+            }
+            console.log('User session found:', userData);
+
+            // Hide "Crear Compromiso" link based on role
+            const createCommitmentBtn = document.getElementById('createCommitmentBtn');
+            if (userData.role !== 'administrador' && userData.role !== 'auditor_senior' && userData.role !== 'programador' && userData.role !== 'socio') {
+                if (createCommitmentBtn) createCommitmentBtn.style.display = 'none';
+            }
+
+            // Cargar filtros guardados
+            loadFilters();
+
+            // Carga inicial de datos desde API
+            initializeData().then(filteredCommitments => {
+                loadCommitments(filteredCommitments);
+            }).catch(error => {
+                console.error('Error initializing data:', error);
+                // Mostrar mensaje de error al usuario
+                const container = document.getElementById('commitmentsList');
+                container.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #d32f2f;">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+                        <p>Error al cargar los compromisos. Por favor, verifica la conexión con el servidor.</p>
+                    </div>
+                `;
+            });
+
+            // Búsqueda en tiempo real con sanitización
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    // Sanitize search input
+                    this.value = sanitizeInput(this.value);
+                    filterCommitments();
+                    saveFilters(); // Guardar filtros
+                });
+            }
+
+            // Configura select inicial
+            if (selectSelected) {
+                const statusText = currentValue === 'todos' ? 'Todos' :
+                    currentValue === 'activo' ? 'Activo' :
+                        currentValue === 'pendiente' ? 'Pendiente' : 'Completado';
+                selectSelected.textContent = statusText;
+                if (currentValue !== 'todos') {
+                    selectSelected.classList.add('selected');
+                }
+            }
+        });
+
+        // Función para cargar entidades desde localStorage para el select
+        function loadEntitiesForSelect() {
+            const storedEntities = localStorage.getItem('entitiesData');
+            let entities = {};
+            if (storedEntities) {
+                entities = JSON.parse(storedEntities);
+            } else {
+                // Fallback a mock data si no hay en localStorage
+                entities = {
+                    1: { name: 'Entidad Ejemplo A', id: 'ENT-001' },
+                    2: { name: 'Entidad Ejemplo B', id: 'ENT-002' },
+                    3: { name: 'Entidad Ejemplo C', id: 'ENT-003' },
+                    4: { name: 'Entidad Ejemplo D', id: 'ENT-004' }
+                };
+            }
+
+            const select = document.getElementById('commitmentEntity');
+            select.innerHTML = '<option value="">Selecciona una entidad...</option>';
+            Object.keys(entities).forEach(key => {
+                const entity = entities[key];
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${entity.name} (${entity.id})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Función para filtrar entidades en el select basado en búsqueda
+        function filterEntities() {
+            const searchTerm = document.getElementById('entitySearch').value.toLowerCase().trim();
+            const select = document.getElementById('commitmentEntity');
+            const options = select.querySelectorAll('option');
+
+            options.forEach(option => {
+                if (option.value === '') return; // Skip placeholder
+                const text = option.textContent.toLowerCase();
+                option.style.display = text.includes(searchTerm) ? 'block' : 'none';
+            });
+        }
+
+        // Función para abrir modal de crear compromiso
+        function createCommitment() {
+            // Crear modal dinámicamente
+            const modalHTML = `
+                <div class="modal fade" id="createCommitmentModal" tabindex="-1" aria-labelledby="createCommitmentModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="createCommitmentModalLabel">Crear Nuevo Compromiso</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="createCommitmentForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentName" class="form-label">Nombre del Compromiso *</label>
+                                                <input type="text" class="form-control" id="commitmentName" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentStatus" class="form-label">Estado *</label>
+                                                <select class="form-control" id="commitmentStatus" required>
+                                                    <option value="activo">Activo</option>
+                                                    <option value="pendiente">Pendiente</option>
+                                                    <option value="completado">Completado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentStartDate" class="form-label">Fecha de Inicio *</label>
+                                                <input type="date" class="form-control" id="commitmentStartDate" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentEndDate" class="form-label">Fecha de Fin *</label>
+                                                <input type="date" class="form-control" id="commitmentEndDate" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="commitmentDescription" class="form-label">Descripción</label>
+                                        <textarea class="form-control" id="commitmentDescription" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="commitmentEntity" class="form-label">Entidad Asociada *</label>
+                                        <input type="text" class="form-control" id="entitySearch" placeholder="Buscar entidad..." oninput="filterEntities()">
+                                        <select class="form-control mt-2" id="commitmentEntity" required>
+                                            <!-- Opciones se cargan dinámicamente -->
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="saveNewCommitment()">Crear Compromiso</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Éxito -->
+                <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title" id="successModalLabel">Operación Exitosa</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                                <p id="successMessage" class="mt-3">La operación se realizó correctamente.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-success" data-bs-dismiss="modal">Aceptar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Edición -->
+                <div class="modal fade" id="editCommitmentModal" tabindex="-1" aria-labelledby="editCommitmentModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="editCommitmentModalLabel">Modificar Compromiso</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="editCommitmentForm">
+                                    <input type="hidden" id="editCommitmentId">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="editCommitmentName" class="form-label">Nombre del Compromiso *</label>
+                                                <input type="text" class="form-control" id="editCommitmentName" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="editCommitmentStatus" class="form-label">Estado *</label>
+                                                <select class="form-control" id="editCommitmentStatus" required>
+                                                    <option value="activo">Activo</option>
+                                                    <option value="pendiente">Pendiente</option>
+                                                    <option value="completado">Completado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="editCommitmentStartDate" class="form-label">Fecha de Inicio *</label>
+                                                <input type="date" class="form-control" id="editCommitmentStartDate" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="editCommitmentEndDate" class="form-label">Fecha de Fin *</label>
+                                                <input type="date" class="form-control" id="editCommitmentEndDate" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editCommitmentDescription" class="form-label">Descripción</label>
+                                        <textarea class="form-control" id="editCommitmentDescription" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editCommitmentEntity" class="form-label">Entidad Asociada *</label>
+                                        <input type="text" class="form-control" id="editEntitySearch" placeholder="Buscar entidad..." oninput="filterEditEntities()">
+                                        <select class="form-control mt-2" id="editCommitmentEntity" required>
+                                            <!-- Opciones se cargan dinámicamente -->
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-warning" onclick="saveEditedCommitment()">Guardar Cambios</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Confirmación de Eliminación -->
+                <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmar Eliminación</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                                <p class="mt-3">¿Está seguro que desea eliminar este compromiso?</p>
+                                <p id="deleteCommitmentName" class="fw-bold"></p>
+                                <p class="text-muted small">Esta acción no se puede deshacer.</p>
+                                <input type="hidden" id="deleteCommitmentId">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-danger" onclick="confirmDeleteCommitment()">Sí, Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Agregar modal al body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Limpiar formulario
+            document.getElementById('createCommitmentForm').reset();
+            // Cargar entidades
+            loadEntitiesForSelect();
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('createCommitmentModal'));
+            modal.show();
+
+            // Remover modal del DOM cuando se cierre
+            document.getElementById('createCommitmentModal').addEventListener('hidden.bs.modal', function () {
+                this.remove();
+            });
+        }
+
+        // Función para guardar nuevo compromiso
+        async function saveNewCommitment() {
+            const form = document.getElementById('createCommitmentForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Obtener valores del formulario
+            const name = sanitizeInput(document.getElementById('commitmentName').value.trim());
+            const description = sanitizeInput(document.getElementById('commitmentDescription').value.trim());
+            const startDate = document.getElementById('commitmentStartDate').value;
+            const endDate = document.getElementById('commitmentEndDate').value;
+            const status = document.getElementById('commitmentStatus').value;
+            const entityId = parseInt(document.getElementById('commitmentEntity').value);
+
+            // Validación adicional: fecha fin > fecha inicio
+            if (new Date(endDate) <= new Date(startDate)) {
+                alert('La fecha de fin debe ser posterior a la fecha de inicio.');
+                return;
+            }
+
+            // Crear nuevo compromiso
+            const newCommitment = {
+                name: name,
+                description: description || '',
+                startDate: startDate,
+                endDate: endDate,
+                status: status,
+                entityId: entityId
+            };
+
+            try {
+                // Crear compromiso via API
+                const response = await API.Commitments.create(newCommitment);
+
+                if (response.success) {
+                    const createdCommitment = response.data;
+
+                    // Log de acción
+                    const currentUser = getCurrentSession();
+                    if (currentUser) {
+                        await API.logAction('creo_compromiso', null, createdCommitment.id, name);
+                    }
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createCommitmentModal'));
+                    modal.hide();
+
+                    // Mostrar mensaje de éxito
+                    document.getElementById('successMessage').textContent = 'Compromiso creado exitosamente.';
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+
+                    // Recargar lista después de cerrar modal de éxito
+                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+                        // Recargar datos desde API
+                        initializeData().then(filteredCommitments => {
+                            loadCommitments(filteredCommitments);
+                            // Redirigir a detalles del nuevo compromiso
+                            window.location.href = `compromisos-detalles.html?id=${createdCommitment.id}`;
+                        });
+                    }, { once: true });
+                } else {
+                    console.error('Error creating commitment:', response.error);
+                    alert('Error al crear el compromiso: ' + response.error);
+                }
+            } catch (error) {
+                console.error('Error saving commitment:', error);
+                alert('Error al guardar el compromiso. Intente nuevamente.');
+            }
+        }
+
+        // Función para editar compromiso
+        async function editCommitment(id) {
+            const commitment = allCommitments.find(c => c.id === id);
+            if (!commitment) {
+                alert('Compromiso no encontrado');
+                return;
+            }
+
+            // Crear modal dinámicamente si no existe
+            if (!document.getElementById('editCommitmentModal')) {
+                const modalHTML = `
+                    <div class="modal fade" id="editCommitmentModal" tabindex="-1" aria-labelledby="editCommitmentModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editCommitmentModalLabel">Modificar Compromiso</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="editCommitmentForm">
+                                        <input type="hidden" id="editCommitmentId">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentName" class="form-label">Nombre del Compromiso *</label>
+                                                    <input type="text" class="form-control" id="editCommitmentName" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentStatus" class="form-label">Estado *</label>
+                                                    <select class="form-control" id="editCommitmentStatus" required>
+                                                        <option value="activo">Activo</option>
+                                                        <option value="pendiente">Pendiente</option>
+                                                        <option value="completado">Completado</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentStartDate" class="form-label">Fecha de Inicio *</label>
+                                                    <input type="date" class="form-control" id="editCommitmentStartDate" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentEndDate" class="form-label">Fecha de Fin *</label>
+                                                    <input type="date" class="form-control" id="editCommitmentEndDate" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="editCommitmentDescription" class="form-label">Descripción</label>
+                                            <textarea class="form-control" id="editCommitmentDescription" rows="3"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="editCommitmentEntity" class="form-label">Entidad Asociada *</label>
+                                            <input type="text" class="form-control" id="editEntitySearch" placeholder="Buscar entidad..." oninput="filterEditEntities()">
+                                            <select class="form-control mt-2" id="editCommitmentEntity" required>
+                                                <!-- Opciones se cargan dinámicamente -->
+                                            </select>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-warning" onclick="saveEditedCommitment()">Guardar Cambios</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+                // Remover modal del DOM cuando se cierre
+                document.getElementById('editCommitmentModal').addEventListener('hidden.bs.modal', function () {
+                    this.remove();
+                });
+            }
+
+            // Cargar entidades para el select
+            loadEntitiesForEditSelect();
+
+            // Llenar formulario con datos del compromiso
+            document.getElementById('editCommitmentId').value = commitment.id;
+            document.getElementById('editCommitmentName').value = commitment.name;
+            document.getElementById('editCommitmentDescription').value = commitment.description || '';
+            document.getElementById('editCommitmentStartDate').value = commitment.start_date;
+            document.getElementById('editCommitmentEndDate').value = commitment.end_date;
+            document.getElementById('editCommitmentStatus').value = commitment.status;
+            document.getElementById('editCommitmentEntity').value = commitment.entity_id;
+
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('editCommitmentModal'));
+            modal.show();
+        }
+
+        // Función para cargar entidades en el select de edición
+        function loadEntitiesForEditSelect() {
+            const select = document.getElementById('editCommitmentEntity');
+            select.innerHTML = '<option value="">Selecciona una entidad...</option>';
+            Object.keys(allEntities).forEach(key => {
+                const entity = allEntities[key];
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${entity.name} (${entity.id})`;
+                select.appendChild(option);
+            });
+        }
+
+        // Función para filtrar entidades en el select de edición
+        function filterEditEntities() {
+            const searchTerm = document.getElementById('editEntitySearch').value.toLowerCase().trim();
+            const select = document.getElementById('editCommitmentEntity');
+            const options = select.querySelectorAll('option');
+
+            options.forEach(option => {
+                if (option.value === '') return; // Skip placeholder
+                const text = option.textContent.toLowerCase();
+                option.style.display = text.includes(searchTerm) ? 'block' : 'none';
+            });
+        }
+
+        // Función para guardar cambios de compromiso editado
+        async function saveEditedCommitment() {
+            const form = document.getElementById('editCommitmentForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Obtener valores del formulario
+            const id = parseInt(document.getElementById('editCommitmentId').value);
+            const name = sanitizeInput(document.getElementById('editCommitmentName').value.trim());
+            const description = sanitizeInput(document.getElementById('editCommitmentDescription').value.trim());
+            const startDate = document.getElementById('editCommitmentStartDate').value;
+            const endDate = document.getElementById('editCommitmentEndDate').value;
+            const status = document.getElementById('editCommitmentStatus').value;
+            const entityId = parseInt(document.getElementById('editCommitmentEntity').value);
+
+            // Validación adicional: fecha fin > fecha inicio
+            if (new Date(endDate) <= new Date(startDate)) {
+                alert('La fecha de fin debe ser posterior a la fecha de inicio.');
+                return;
+            }
+
+            // Preparar datos actualizados
+            const updatedCommitment = {
+                name: name,
+                description: description || '',
+                start_date: startDate,
+                end_date: endDate,
+                status: status,
+                entity_id: entityId
+            };
+
+            try {
+                // Actualizar compromiso via API
+                const response = await API.Commitments.update(id, updatedCommitment);
+
+                if (response.success) {
+                    // Log de acción
+                    const currentUser = getCurrentSession();
+                    if (currentUser) {
+                        await API.logAction('modifico_compromiso', null, id, name);
+                    }
+
+                    // Cerrar modal de edición
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editCommitmentModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+
+                    // Mostrar mensaje de éxito
+                    const successMessageEl = document.getElementById('successMessage');
+                    if (successMessageEl) {
+                        successMessageEl.textContent = 'Compromiso actualizado exitosamente.';
+                    }
+
+                    const successModalEl = document.getElementById('successModal');
+                    if (successModalEl) {
+                        const successModal = new bootstrap.Modal(successModalEl);
+                        successModal.show();
+
+                        // Recargar lista después de cerrar modal de éxito
+                        successModalEl.addEventListener('hidden.bs.modal', function () {
+                            // Recargar datos desde API
+                            initializeData().then(filteredCommitments => {
+                                loadCommitments(filteredCommitments);
+                            });
+                        }, { once: true });
+                    } else {
+                        // Si no existe el modal, recargar directamente
+                        initializeData().then(filteredCommitments => {
+                            loadCommitments(filteredCommitments);
+                        });
+                    }
+                } else {
+                    console.error('Error updating commitment:', response.error);
+                    alert('Error al actualizar el compromiso: ' + response.error);
+                }
+            } catch (error) {
+                console.error('Error saving edited commitment:', error);
+                alert('Error al guardar los cambios. Intente nuevamente.');
+            }
+        }
+
+        // Función para eliminar compromiso
+        async function deleteCommitment(id) {
+            const commitment = allCommitments.find(c => c.id === id);
+            if (!commitment) {
+                alert('Compromiso no encontrado');
+                return;
+            }
+
+            // Crear modal de confirmación si no existe
+            if (!document.getElementById('deleteConfirmModal')) {
+                const modalHTML = `
+                    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmar Eliminación</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body text-center">
+                                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                                    <p class="mt-3">¿Está seguro que desea eliminar este compromiso?</p>
+                                    <p id="deleteCommitmentName" class="fw-bold"></p>
+                                    <p class="text-muted small">Esta acción no se puede deshacer.</p>
+                                    <input type="hidden" id="deleteCommitmentId">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-danger" onclick="confirmDeleteCommitment()">Sí, Eliminar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+                // Remover modal del DOM cuando se cierre
+                document.getElementById('deleteConfirmModal').addEventListener('hidden.bs.modal', function () {
+                    this.remove();
+                });
+            }
+
+            // Mostrar datos del compromiso a eliminar
+            document.getElementById('deleteCommitmentName').textContent = commitment.name;
+            document.getElementById('deleteCommitmentId').value = id;
+
+            // Mostrar modal de confirmación
+            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            modal.show();
+        }
+
+        // Función para confirmar eliminación
+        async function confirmDeleteCommitment() {
+            const id = parseInt(document.getElementById('deleteCommitmentId').value);
+            const commitmentName = document.getElementById('deleteCommitmentName').textContent;
+
+            try {
+                // Eliminar compromiso via API
+                const response = await API.Commitments.delete(id);
+
+                if (response.success) {
+                    // Log de acción
+                    const currentUser = getCurrentSession();
+                    if (currentUser) {
+                        await API.logAction('elimino_compromiso', null, id, commitmentName);
+                    }
+
+                    // Cerrar modal de confirmación
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                    modal.hide();
+
+                    // Mostrar mensaje de éxito
+                    document.getElementById('successMessage').textContent = 'Compromiso eliminado exitosamente.';
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+
+                    // Recargar lista después de cerrar modal de éxito
+                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+                        // Recargar datos desde API
+                        initializeData().then(filteredCommitments => {
+                            loadCommitments(filteredCommitments);
+                        });
+                    }, { once: true });
+                } else {
+                    console.error('Error deleting commitment:', response.error);
+                    alert('Error al eliminar el compromiso: ' + response.error);
+                }
+            } catch (error) {
+                console.error('Error deleting commitment:', error);
+                alert('Error al eliminar el compromiso. Intente nuevamente.');
+            }
+        }
+
+        // Función logout (Corregida, consistente)
+        function logout() {
+            try {
+                if (localStorage.getItem(USER_KEY)) {
+                    localStorage.removeItem(USER_KEY);
+                }
+                // Opcional: No limpia logs aquí para persistir
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada exitosamente');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+
+</html>
