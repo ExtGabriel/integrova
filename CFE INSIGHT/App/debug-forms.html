@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 Debug Formularios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', monospace;
+        }
+
+        .debug-section {
+            background: #252526;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+        }
+
+        .debug-title {
+            color: #4ec9b0;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .log-entry {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #007acc;
+            background: #1e1e1e;
+            font-size: 12px;
+        }
+
+        .log-success {
+            border-left-color: #4ec9b0;
+        }
+
+        .log-error {
+            border-left-color: #f48771;
+        }
+
+        .log-warning {
+            border-left-color: #dcdcaa;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <h1>🔍 Depurador de Formularios CFE INSIGHT</h1>
+        <p>Esta herramienta intercepta y muestra todas las operaciones de carga/guardado.</p>
+
+        <div class="debug-section">
+            <div class="debug-title">⚙️ Configuración</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Formulario:</label>
+                    <select id="formType" class="form-select form-select-sm">
+                        <option value="a100">A100</option>
+                        <option value="a200">A200</option>
+                        <option value="a360">A360</option>
+                        <option value="b200">B200</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label>Commitment ID:</label>
+                    <input type="number" id="commitmentId" class="form-control form-control-sm" value="1">
+                </div>
+                <div class="col-md-4" style="padding-top: 25px;">
+                    <button onclick="openFormWithDebug()" class="btn btn-primary btn-sm">🔗 Abrir Formulario con
+                        Debug</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🧪 Pruebas Rápidas</div>
+            <button onclick="testSaveLoad()" class="btn btn-success btn-sm">💾 Test Guardar y Cargar</button>
+            <button onclick="inspectFormState()" class="btn btn-info btn-sm">🔍 Inspeccionar Estado</button>
+            <button onclick="clearLog()" class="btn btn-secondary btn-sm">🗑️ Limpiar Log</button>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">📋 Log de Operaciones</div>
+            <div id="logContainer"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">📊 Último Estado</div>
+            <div class="code-block" id="stateDisplay">Esperando operación...</div>
+        </div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        let interceptedCalls = [];
+
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            container.insertBefore(entry, container.firstChild);
+
+            // Limitar a 100 entradas
+            while (container.children.length > 100) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+            document.getElementById('stateDisplay').textContent = 'Log limpiado';
+        }
+
+        async function testSaveLoad() {
+            const formType = document.getElementById('formType').value;
+            const commitmentId = document.getElementById('commitmentId').value;
+
+            log(`🔄 Iniciando test: ${formType} - Commitment ${commitmentId}`, 'info');
+
+            // Generar datos de prueba
+            const testData = {
+                q1_test: 'Valor de prueba 1',
+                q2_test: 'Valor de prueba 2',
+                timestamp: new Date().toISOString()
+            };
+
+            // Guardar
+            try {
+                log('📤 Guardando datos...', 'info');
+                const saveResponse = await apiClient.post('/api/audit/forms', {
+                    formType: formType,
+                    commitmentId: parseInt(commitmentId),
+                    data: testData
+                });
+
+                if (saveResponse.success) {
+                    log(`✅ Guardado exitoso: ID ${saveResponse.data.id}`, 'success');
+                    document.getElementById('stateDisplay').textContent = JSON.stringify(saveResponse.data, null, 2);
+                } else {
+                    log(`❌ Error al guardar: ${saveResponse.error}`, 'error');
+                    return;
+                }
+
+                // Esperar un momento
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Cargar
+                log('📥 Cargando datos...', 'info');
+                const loadResponse = await apiClient.get(`/api/audit/forms/${formType}?commitment_id=${commitmentId}`);
+
+                if (loadResponse.success && loadResponse.data) {
+                    log(`✅ Carga exitosa: ${Object.keys(loadResponse.data.data).length} campos`, 'success');
+
+                    // Comparar datos
+                    const savedData = loadResponse.data.data;
+                    let allMatch = true;
+                    for (const key in testData) {
+                        if (savedData[key] !== testData[key]) {
+                            log(`⚠️ Campo ${key} no coincide: guardado="${testData[key]}", cargado="${savedData[key]}"`, 'warning');
+                            allMatch = false;
+                        }
+                    }
+
+                    if (allMatch) {
+                        log('✅ Todos los campos coinciden correctamente', 'success');
+                    }
+
+                    document.getElementById('stateDisplay').textContent =
+                        '=== GUARDADO ===\n' + JSON.stringify(testData, null, 2) +
+                        '\n\n=== CARGADO ===\n' + JSON.stringify(savedData, null, 2);
+                } else {
+                    log('⚠️ No se encontró el formulario', 'warning');
+                }
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                document.getElementById('stateDisplay').textContent = error.stack;
+            }
+        }
+
+        async function inspectFormState() {
+            const formType = document.getElementById('formType').value;
+            const commitmentId = document.getElementById('commitmentId').value;
+
+            log(`🔍 Inspeccionando estado: ${formType}`, 'info');
+
+            try {
+                const response = await apiClient.get(`/api/audit/forms/${formType}?commitment_id=${commitmentId}`);
+
+                if (response.success && response.data) {
+                    const data = response.data;
+                    log(`📊 Formulario encontrado: ${data.id}`, 'success');
+                    log(`📅 Creado: ${new Date(data.created_at).toLocaleString()}`, 'info');
+                    log(`📅 Actualizado: ${new Date(data.updated_at).toLocaleString()}`, 'info');
+                    log(`👤 User ID: ${data.user_id || 'null'}`, 'info');
+                    log(`📝 Campos: ${Object.keys(data.data).length}`, 'info');
+
+                    const fields = Object.keys(data.data).map(key => `${key}: ${JSON.stringify(data.data[key])}`).join('\n');
+
+                    document.getElementById('stateDisplay').textContent =
+                        `ID: ${data.id}\n` +
+                        `Form Type: ${data.form_type}\n` +
+                        `Commitment ID: ${data.commitment_id}\n` +
+                        `User ID: ${data.user_id}\n` +
+                        `Creado: ${data.created_at}\n` +
+                        `Actualizado: ${data.updated_at}\n\n` +
+                        `=== DATOS ===\n${fields}`;
+                } else {
+                    log('⚠️ No hay datos guardados para este formulario', 'warning');
+                    document.getElementById('stateDisplay').textContent = 'No hay datos guardados';
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function openFormWithDebug() {
+            const formType = document.getElementById('formType').value;
+            const commitmentId = document.getElementById('commitmentId').value;
+
+            log(`🔗 Abriendo formulario ${formType} con commitment_id=${commitmentId}`, 'info');
+
+            const url = `audit/${formType}.html?commitment_id=${commitmentId}&debug=true`;
+            const win = window.open(url, '_blank');
+
+            if (win) {
+                log('✅ Formulario abierto en nueva ventana', 'success');
+                log('💡 Abre la consola del navegador (F12) en la ventana del formulario para ver más detalles', 'info');
+            } else {
+                log('❌ No se pudo abrir la ventana (bloqueador de pop-ups?)', 'error');
+            }
+        }
+
+        // Inicializar
+        window.onload = () => {
+            log('🚀 Depurador iniciado', 'success');
+            log('💡 Selecciona un formulario y usa los botones para probar', 'info');
+        };
+    </script>
+</body>
+
+</html>
