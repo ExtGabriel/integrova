@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>A200 - Actividades Preliminares del Compromiso - v3</title>
+    <link rel="icon" href="assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <h2 class="welcome-text">A200 - Actividades Preliminares del Compromiso</h2>
+        <button class="btn-logout" onclick="logout()">
+            <i class="bi bi-box-arrow-right"></i> Salir
+        </button>
+    </header>
+
+    <div class="main-container">
+        <div class="form-container">
+            <h3>Actividades Preliminares del Compromiso <span id="statusMessage"></span></h3>
+            <div id="autoSaveIndicator" class="alert alert-info" style="display: none;">Guardando...</div>
+
+            <form id="a200Form">
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>1. Naturaleza de la asignación básica</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <textarea class="form-control" id="q1_naturaleza" rows="3"
+                            placeholder="Describa la naturaleza..."></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q1_naturaleza" class="review-checkbox" disabled>
+                        <div id="review_q1_naturaleza_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>2. Documentación preferida</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q2_doc_pref" id="q2_doc_pref_si"
+                                value="si" required>
+                            <label class="form-check-label" for="q2_doc_pref_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q2_doc_pref" id="q2_doc_pref_no"
+                                value="no" required>
+                            <label class="form-check-label" for="q2_doc_pref_no">No</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q2_doc_pref" class="review-checkbox" disabled>
+                        <div id="review_q2_doc_pref_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>3. Marco de información financiera</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <textarea class="form-control" id="q3_marco" rows="2"
+                            placeholder="Especifique el marco..."></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q3_marco" class="review-checkbox" disabled>
+                        <div id="review_q3_marco_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>4. Otras tareas solicitadas/realizadas</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <textarea class="form-control" id="q4_otras_tareas" rows="2"
+                            placeholder="Describa otras tareas..."></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q4_otras_tareas" class="review-checkbox" disabled>
+                        <div id="review_q4_otras_tareas_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>5. Fecha límite para completar la auditoría</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="date" class="form-control" id="q5_fecha_limite">
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q5_fecha_limite" class="review-checkbox" disabled>
+                        <div id="review_q5_fecha_limite_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>6. Documentación preferida</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q6_doc_pref2" id="q6_doc_pref2_si"
+                                value="si" required>
+                            <label class="form-check-label" for="q6_doc_pref2_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q6_doc_pref2" id="q6_doc_pref2_no"
+                                value="no" required>
+                            <label class="form-check-label" for="q6_doc_pref2_no">No</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q6_doc_pref2" class="review-checkbox" disabled>
+                        <div id="review_q6_doc_pref2_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>7. ¿Existen riesgos que pudieran afectar la aceptación/continuación?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q7_factores_riesgo"
+                                id="q7_factores_riesgo_si" value="si">
+                            <label class="form-check-label" for="q7_factores_riesgo_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q7_factores_riesgo"
+                                id="q7_factores_riesgo_no" value="no">
+                            <label class="form-check-label" for="q7_factores_riesgo_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q7_factores_riesgo"
+                                id="q7_factores_riesgo_na" value="na">
+                            <label class="form-check-label" for="q7_factores_riesgo_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q7_factores_riesgo" class="review-checkbox" disabled>
+                        <div id="review_q7_factores_riesgo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <!-- Container para formularios relacionados con q7 -->
+                <div id="related_forms_q7" class="row mb-3"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>8. ¿Este compromiso es una auditoría de grupo?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q8_auditoria_grupo"
+                                id="q8_auditoria_grupo_si" value="si">
+                            <label class="form-check-label" for="q8_auditoria_grupo_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q8_auditoria_grupo"
+                                id="q8_auditoria_grupo_no" value="no">
+                            <label class="form-check-label" for="q8_auditoria_grupo_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q8_auditoria_grupo"
+                                id="q8_auditoria_grupo_na" value="na">
+                            <label class="form-check-label" for="q8_auditoria_grupo_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q8_auditoria_grupo" class="review-checkbox" disabled>
+                        <div id="review_q8_auditoria_grupo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <!-- Container para formularios relacionados con q8 -->
+                <div id="related_forms_q8" class="row mb-3"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>9. ¿Son necesarias personas de otra firma?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q9_auditores_componente"
+                                id="q9_auditores_componente_si" value="si">
+                            <label class="form-check-label" for="q9_auditores_componente_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q9_auditores_componente"
+                                id="q9_auditores_componente_no" value="no">
+                            <label class="form-check-label" for="q9_auditores_componente_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q9_auditores_componente"
+                                id="q9_auditores_componente_na" value="na">
+                            <label class="form-check-label" for="q9_auditores_componente_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q9_auditores_componente" class="review-checkbox" disabled>
+                        <div id="review_q9_auditores_componente_info" class="review-info"></div>
+                    </div>
+                </div>
+                <!-- Container para formularios relacionados con q9 -->
+                <div id="related_forms_q9" class="row mb-3"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>10. Documentación preferida</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q10_doc_pref3" id="q10_doc_pref3_si"
+                                value="si" required>
+                            <label class="form-check-label" for="q10_doc_pref3_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q10_doc_pref3" id="q10_doc_pref3_no"
+                                value="no" required>
+                            <label class="form-check-label" for="q10_doc_pref3_no">No</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q10_doc_pref3" class="review-checkbox" disabled>
+                        <div id="review_q10_doc_pref3_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>11. ¿La aceptación violaría algún requisito ético?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q11_politicas" id="q11_politicas_si"
+                                value="si">
+                            <label class="form-check-label" for="q11_politicas_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q11_politicas" id="q11_politicas_no"
+                                value="no">
+                            <label class="form-check-label" for="q11_politicas_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q11_politicas" id="q11_politicas_na"
+                                value="na">
+                            <label class="form-check-label" for="q11_politicas_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q11_politicas" class="review-checkbox" disabled>
+                        <div id="review_q11_politicas_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>12. ¿Está satisfecha con la integridad de la compañía?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q12_integridad" id="q12_integridad_si"
+                                value="si">
+                            <label class="form-check-label" for="q12_integridad_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q12_integridad" id="q12_integridad_no"
+                                value="no">
+                            <label class="form-check-label" for="q12_integridad_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q12_integridad" id="q12_integridad_na"
+                                value="na">
+                            <label class="form-check-label" for="q12_integridad_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q12_integridad" class="review-checkbox" disabled>
+                        <div id="review_q12_integridad_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>13. ¿No existen prohibiciones éticas?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q13_restricciones"
+                                id="q13_restricciones_si" value="si">
+                            <label class="form-check-label" for="q13_restricciones_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q13_restricciones"
+                                id="q13_restricciones_no" value="no">
+                            <label class="form-check-label" for="q13_restricciones_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q13_restricciones"
+                                id="q13_restricciones_na" value="na">
+                            <label class="form-check-label" for="q13_restricciones_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q13_restricciones" class="review-checkbox" disabled>
+                        <div id="review_q13_restricciones_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>14. ¿No hay amenazas significativas a la independencia?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q14_amenazas" id="q14_amenazas_si"
+                                value="si">
+                            <label class="form-check-label" for="q14_amenazas_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q14_amenazas" id="q14_amenazas_no"
+                                value="no">
+                            <label class="form-check-label" for="q14_amenazas_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q14_amenazas" id="q14_amenazas_na"
+                                value="na">
+                            <label class="form-check-label" for="q14_amenazas_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q14_amenazas" class="review-checkbox" disabled>
+                        <div id="review_q14_amenazas_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>15. ¿La firma cuenta con los recursos disponibles?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q15_recursos" id="q15_recursos_si"
+                                value="si">
+                            <label class="form-check-label" for="q15_recursos_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q15_recursos" id="q15_recursos_no"
+                                value="no">
+                            <label class="form-check-label" for="q15_recursos_no">No</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q15_recursos" id="q15_recursos_na"
+                                value="na">
+                            <label class="form-check-label" for="q15_recursos_na">N/A</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q15_recursos" class="review-checkbox" disabled>
+                        <div id="review_q15_recursos_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Conclusión</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <textarea class="form-control" id="q_conclusion" rows="4"
+                            placeholder="Escriba su conclusión..."></textarea>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q_conclusion" class="review-checkbox" disabled>
+                        <div id="review_q_conclusion_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Evaluación de riesgo del compromiso</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="q_eval_riesgo" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="bajo">Riesgo Bajo</option>
+                            <option value="moderado">Riesgo Moderado</option>
+                            <option value="alto">Riesgo Alto</option>
+                            <option value="no_aceptado">No Aceptado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q_eval_riesgo" class="review-checkbox" disabled>
+                        <div id="review_q_eval_riesgo_info" class="review-info"></div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>¿Se requiere un RCC para este compromiso?</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q_rcc" id="q_rcc_si" value="si" required>
+                            <label class="form-check-label" for="q_rcc_si">Sí</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q_rcc" id="q_rcc_no" value="no" required>
+                            <label class="form-check-label" for="q_rcc_no">No</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <input type="checkbox" id="review_q_rcc" class="review-checkbox" disabled>
+                        <div id="review_q_rcc_info" class="review-info"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" onclick="handleBack()">Volver</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de cambios sin guardar -->
+    <div id="unsavedModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Cambios sin guardar</h3>
+            <p>Tienes cambios sin guardar. ¿Qué deseas hacer?</p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="saveAndBack()">Guardar y salir</button>
+                <button class="btn btn-danger" onclick="discardAndBack()">Descartar cambios</button>
+                <button class="btn btn-secondary" onclick="closeUnsavedModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/utils.js"></script>
+    <script>
+        const FORM_TYPE = 'a200';
+        const USER_KEY = 'currentUser';
+        let autoSaveTimeout;
+        let currentFormId = null;
+        let isAdmin = false;
+        let commitmentId = null;
+
+        window.onload = function () {
+            const user = getCurrentSession();
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            isAdmin = (user.role === 'admin');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            commitmentId = urlParams.get('commitment_id') || sessionStorage.getItem('current_commitment_id');
+
+            if (!commitmentId) {
+                alert('No se ha especificado un compromiso. Redirigiendo...');
+                window.location.href = 'compromisos.html';
+                return;
+            }
+
+            loadFormData();
+            setupReviewHandlers();
+        };
+
+        function setupReviewHandlers() {
+            const reviewCheckboxes = document.querySelectorAll('.review-checkbox');
+            reviewCheckboxes.forEach(checkbox => {
+                if (isAdmin) {
+                    checkbox.disabled = false;
+                    checkbox.addEventListener('change', handleReviewChange);
+                }
+            });
+        }
+
+        function getFieldValue(fieldId) {
+            // PRIMERO: Intentar buscar radio button marcado
+            const radio = document.querySelector(`input[name="${fieldId}"]:checked`);
+            if (radio) {
+                return radio.value;
+            }
+
+            // SEGUNDO: Buscar elemento con el ID
+            const element = document.getElementById(fieldId);
+            if (element && element.value !== undefined) {
+                return element.value || '';
+            }
+
+            // TERCERO: No se encontró nada
+            return '';
+        }
+
+        function setFieldValue(fieldId, value) {
+            if (!value) {
+                console.log(`⚠️ setFieldValue: ${fieldId} - valor vacío o undefined`);
+                return;
+            }
+
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.value = value;
+                console.log(`✅ setFieldValue: ${fieldId} = "${value}" (elemento directo)`);
+            } else {
+                const radio = document.querySelector(`input[name="${fieldId}"][value="${value}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    console.log(`✅ setFieldValue: ${fieldId} = "${value}" (radio button)`);
+                } else {
+                    console.warn(`❌ setFieldValue: No se encontró elemento con id="${fieldId}" ni radio con name="${fieldId}" y value="${value}"`);
+                }
+            }
+        }
+
+        async function loadFormData() {
+            try {
+                console.log('🔄 Cargando formulario:', FORM_TYPE, 'commitment_id:', commitmentId);
+                const response = await apiClient.get(`/api/audit/forms/${FORM_TYPE}?commitment_id=${commitmentId}`);
+                console.log('📥 Respuesta recibida:', response);
+
+                if (response && response.success && response.data) {
+                    currentFormId = response.data.id;
+                    const data = response.data.data;
+                    console.log('📝 Datos a cargar:', data);
+                    console.log('📋 Campos disponibles:', Object.keys(data));
+
+                    // Cargar cada campo con log
+                    const fields = [
+                        'q1_naturaleza', 'q2_doc_pref', 'q3_marco', 'q4_otras_tareas',
+                        'q5_fecha_limite', 'q6_doc_pref2', 'q7_factores_riesgo',
+                        'q8_auditoria_grupo', 'q9_auditores_componente', 'q10_doc_pref3',
+                        'q11_politicas', 'q12_integridad', 'q13_restricciones',
+                        'q14_amenazas', 'q15_recursos', 'q_conclusion',
+                        'q_eval_riesgo', 'q_rcc'
+                    ];
+
+                    fields.forEach(field => {
+                        if (data[field] !== undefined) {
+                            setFieldValue(field, data[field]);
+                            console.log(`✅ ${field} = ${data[field]}`);
+                        } else {
+                            console.log(`⚠️ ${field} no tiene valor`);
+                        }
+                    });
+
+                    if (isAdmin && response.data.reviews) {
+                        loadReviewStatus(response.data.reviews);
+                    }
+
+                    console.log('✅ Formulario cargado correctamente');
+                } else {
+                    console.log('⚠️ No hay datos guardados para este formulario');
+                }
+
+                updateStatus();
+
+            } catch (error) {
+                console.error('❌ Error loading form data:', error);
+                loadFromLocalStorage();
+            }
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem(`form_${FORM_TYPE}_commitment_${commitmentId}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                setFieldValue('q1_naturaleza', data.q1_naturaleza);
+                setFieldValue('q2_doc_pref', data.q2_doc_pref);
+                setFieldValue('q3_marco', data.q3_marco);
+                setFieldValue('q4_otras_tareas', data.q4_otras_tareas);
+                setFieldValue('q5_fecha_limite', data.q5_fecha_limite);
+                setFieldValue('q6_doc_pref2', data.q6_doc_pref2);
+                setFieldValue('q7_factores_riesgo', data.q7_factores_riesgo);
+                setFieldValue('q8_auditoria_grupo', data.q8_auditoria_grupo);
+                setFieldValue('q9_auditores_componente', data.q9_auditores_componente);
+                setFieldValue('q10_doc_pref3', data.q10_doc_pref3);
+                setFieldValue('q11_politicas', data.q11_politicas);
+                setFieldValue('q12_integridad', data.q12_integridad);
+                setFieldValue('q13_restricciones', data.q13_restricciones);
+                setFieldValue('q14_amenazas', data.q14_amenazas);
+                setFieldValue('q15_recursos', data.q15_recursos);
+                setFieldValue('q_conclusion', data.q_conclusion);
+                setFieldValue('q_eval_riesgo', data.q_eval_riesgo);
+                setFieldValue('q_rcc', data.q_rcc);
+                updateStatus();
+            }
+        }
+
+        function loadReviewStatus(reviews) {
+            reviews.forEach(review => {
+                const checkbox = document.getElementById(`review_${review.question_id}`);
+                const infoDiv = document.getElementById(`review_${review.question_id}_info`);
+
+                if (checkbox && review.reviewed) {
+                    checkbox.checked = true;
+                    if (infoDiv) {
+                        infoDiv.innerHTML = `<small class="text-success">Revisado por ${review.reviewed_by}<br>${new Date(review.reviewed_at).toLocaleDateString()}</small>`;
+                    }
+                }
+            });
+        }
+
+        async function autoSave() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.style.display = 'block';
+            indicator.textContent = 'Guardando...';
+
+            try {
+                const data = {
+                    q1_naturaleza: getFieldValue('q1_naturaleza'),
+                    q2_doc_pref: getFieldValue('q2_doc_pref'),
+                    q3_marco: getFieldValue('q3_marco'),
+                    q4_otras_tareas: getFieldValue('q4_otras_tareas'),
+                    q5_fecha_limite: getFieldValue('q5_fecha_limite'),
+                    q6_doc_pref2: getFieldValue('q6_doc_pref2'),
+                    q7_factores_riesgo: getFieldValue('q7_factores_riesgo'),
+                    q8_auditoria_grupo: getFieldValue('q8_auditoria_grupo'),
+                    q9_auditores_componente: getFieldValue('q9_auditores_componente'),
+                    q10_doc_pref3: getFieldValue('q10_doc_pref3'),
+                    q11_politicas: getFieldValue('q11_politicas'),
+                    q12_integridad: getFieldValue('q12_integridad'),
+                    q13_restricciones: getFieldValue('q13_restricciones'),
+                    q14_amenazas: getFieldValue('q14_amenazas'),
+                    q15_recursos: getFieldValue('q15_recursos'),
+                    q_conclusion: getFieldValue('q_conclusion'),
+                    q_eval_riesgo: getFieldValue('q_eval_riesgo'),
+                    q_rcc: getFieldValue('q_rcc'),
+                };
+
+                console.log('💾 Guardando datos:', data);
+                console.log('📊 Campos con valor:', Object.keys(data).filter(k => data[k]));
+
+                const response = await apiClient.post('/api/audit/forms', {
+                    formType: FORM_TYPE,
+                    commitmentId: commitmentId,
+                    data: data
+                });
+
+                console.log('📤 Respuesta del servidor:', response);
+
+                if (response && response.success && response.data) {
+                    currentFormId = response.data.id;
+                    console.log('✅ Guardado exitoso, ID:', currentFormId);
+                }
+
+                localStorage.setItem(`form_${FORM_TYPE}_commitment_${commitmentId}`, JSON.stringify(data));
+
+                indicator.textContent = 'Guardado';
+                indicator.className = 'alert alert-success';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                    indicator.className = 'alert alert-info';
+                }, 2000);
+
+                updateStatus();
+
+                const user = getCurrentSession();
+                logAction(user.username, 'guardo_formulario', 'A200', 'Actividades Preliminares del Compromiso', new Date().toISOString().slice(0, 16).replace('T', ' '));
+
+            } catch (error) {
+                console.error('Error auto-saving:', error);
+                indicator.textContent = 'Error al guardar';
+                indicator.className = 'alert alert-danger';
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                    indicator.className = 'alert alert-info';
+                }, 3000);
+            }
+        }
+
+        async function handleReviewChange(event) {
+            if (!isAdmin || !currentFormId) return;
+
+            const checkbox = event.target;
+            const questionId = checkbox.id.replace('review_', '');
+            const reviewed = checkbox.checked;
+
+            try {
+                await apiClient.post('/audit/reviews', {
+                    formId: currentFormId,
+                    questionId: questionId,
+                    reviewed: reviewed
+                });
+
+                const infoDiv = document.getElementById(`review_${questionId}_info`);
+                if (reviewed && infoDiv) {
+                    const user = getCurrentSession();
+                    infoDiv.innerHTML = `<small class="text-success">Revisado por ${user.username}<br>${new Date().toLocaleDateString()}</small>`;
+                } else if (infoDiv) {
+                    infoDiv.innerHTML = '';
+                }
+
+            } catch (error) {
+                console.error('Error updating review:', error);
+                checkbox.checked = !reviewed;
+            }
+        }
+
+        function updateStatus() {
+            const form = document.getElementById('a200Form');
+            const isComplete = form.checkValidity();
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = isComplete ? '✓ Completado' : '⚠ Pendiente';
+            statusEl.className = isComplete ? 'text-success' : 'text-warning';
+
+            if (typeof updateFormStatus === 'function') {
+                updateFormStatus('A200 - Actividades Preliminares del Compromiso', isComplete);
+            }
+        }
+
+        function hasUnsavedChanges() {
+            return true;
+        }
+
+        function handleBack() {
+            if (hasUnsavedChanges()) {
+                document.getElementById('unsavedModal').style.display = 'flex';
+            } else {
+                window.close();
+            }
+        }
+
+        function closeUnsavedModal() {
+            document.getElementById('unsavedModal').style.display = 'none';
+        }
+
+        function saveAndBack() {
+            autoSave().then(() => {
+                alert('Cambios guardados.');
+                closeUnsavedModal();
+                window.close();
+            });
+        }
+
+        function discardAndBack() {
+            closeUnsavedModal();
+            window.close();
+        }
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('unsavedModal');
+            if (event.target === modal) {
+                closeUnsavedModal();
+            }
+        }
+
+        document.getElementById('a200Form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            autoSave().then(() => {
+                alert('Formulario guardado exitosamente.');
+            });
+        });
+
+        document.getElementById('a200Form').addEventListener('input', function () {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(autoSave, 1000);
+        });
+
+        function logout() {
+            localStorage.removeItem(USER_KEY);
+            window.location.href = 'login.html';
+        }
+
+        // Inicializar sistema de formularios condicionales
+        window.addEventListener('DOMContentLoaded', () => {
+            initConditionalForms('q7_factores_riesgo_si', 'related_forms_q7');
+            initConditionalForms('q8_auditoria_grupo_si', 'related_forms_q8');
+            initConditionalForms('q9_auditores_componente_si', 'related_forms_q9');
+        });
+    </script>
+    <script src="../js/conditional-forms.js"></script>
+</body>
+
+</html>
