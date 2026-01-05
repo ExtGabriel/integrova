@@ -4,9 +4,21 @@
  * Versión: 1.0.0
  */
 
+// Determinar la URL base de la API desde entorno o contexto
+const API_BASE_URL =
+    (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+    (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+    (typeof window !== 'undefined' && window.API_BASE_URL) ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+
+// Exponer para otros módulos que cargan en el navegador
+if (typeof window !== 'undefined') {
+    window.API_BASE_URL = API_BASE_URL;
+}
+
 // Configuración de la API
 const API_CONFIG = {
-    baseURL: 'http://localhost:3001',
+    baseURL: API_BASE_URL,
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json'
@@ -99,41 +111,59 @@ const httpClient = new HTTPClient(API_CONFIG);
 
 const AuthAPI = {
     /**
-     * Iniciar sesión
-     * @param {string} username - Nombre de usuario
-     * @param {string} password - Contraseña
-     * @returns {Promise<Object>} Usuario autenticado
+     * Iniciar sesión usando Supabase Auth (email/password)
+     * @param {string} email
+     * @param {string} password
      */
-    async login(username, password) {
-        const response = await httpClient.post('/api/auth/login', { username, password });
-
-        if (response.success) {
-            // Guardar sesión en sessionStorage (persiste entre páginas)
-            const userData = response.user || response.data?.user;
-            const sessionData = {
-                id: userData.id,
-                username: userData.username,
-                name: userData.name || userData.full_name,
-                role: userData.role,
-                email: userData.email,
-                loginTime: new Date().toISOString()
-            };
-            sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-            window.appSession = sessionData;
+    async login(email, password) {
+        if (!window.supabaseClient) {
+            return { success: false, error: 'Supabase no está configurado en el frontend' };
         }
 
-        return response;
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (error) {
+            return { success: false, error: error.message };
+        }
+
+        // Supabase gestiona la sesión internamente; devolvemos user y session directo
+        return { success: true, user: data.user, session: data.session };
     },
 
     /**
-     * Cerrar sesión
-     * @returns {Promise<Object>} Resultado del logout
+     * Cerrar sesión en Supabase
      */
     async logout() {
-        // Limpiar sesión en sessionStorage
-        sessionStorage.removeItem('userSession');
+        if (window.supabaseClient) {
+            await window.supabaseClient.auth.signOut();
+        }
+        sessionStorage.removeItem('userUI');
         window.appSession = null;
         return { success: true };
+    },
+
+    /**
+     * Recuperar sesión actual desde Supabase y sincronizar sessionStorage
+     */
+    async getSession() {
+        if (!window.supabaseClient) return null;
+        const { data, error } = await window.supabaseClient.auth.getSession();
+        if (error || !data.session) return null;
+        return data.session;
+    },
+
+    /**
+     * Suscribirse a cambios de sesión
+     */
+    onAuthStateChange(callback) {
+        if (!window.supabaseClient) return { unsubscribe: () => { } };
+        const { data: listener } = window.supabaseClient.auth.onAuthStateChange((event, session) => {
+            callback(session?.user || null, event, session || null);
+        });
+        return listener;
     }
 };
 

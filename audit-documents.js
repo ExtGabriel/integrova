@@ -3,6 +3,11 @@
  * Maneja la subida, listado y eliminación de documentos de auditoría
  */
 
+const AUDIT_API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ||
+    (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+    (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+
 class AuditDocumentsManager {
     constructor(commitmentId, formId = null) {
         this.commitmentId = commitmentId;
@@ -588,7 +593,7 @@ class AuditDocumentsManager {
                 formData.append('form_id', this.formId);
             }
 
-            const response = await fetch('http://localhost:3001/api/audit/documents/upload', {
+            const response = await fetch(`${AUDIT_API_BASE_URL}/api/audit/documents/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -615,7 +620,7 @@ class AuditDocumentsManager {
         } catch (error) {
             // Si es un error de red
             if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
-                throw new Error('No se pudo conectar al servidor. Verifica que el servidor esté en ejecución en http://localhost:3001');
+                throw new Error('No se pudo conectar al servidor. Verifica que el servidor esté en ejecución.');
             }
             // Re-lanzar el error para que sea manejado por uploadFiles
             throw error;
@@ -628,8 +633,8 @@ class AuditDocumentsManager {
     async loadDocuments() {
         try {
             const url = this.formId
-                ? `http://localhost:3001/api/audit/documents/form/${this.formId}`
-                : `http://localhost:3001/api/audit/documents/commitment/${this.commitmentId}?category=planes_procedimientos`;
+                ? `${AUDIT_API_BASE_URL}/api/audit/documents/form/${this.formId}`
+                : `${AUDIT_API_BASE_URL}/api/audit/documents/commitment/${this.commitmentId}?category=planes_procedimientos`;
 
             const response = await fetch(url);
 
@@ -830,7 +835,7 @@ class AuditDocumentsManager {
      */
     async downloadDocument(documentId) {
         try {
-            window.open(`http://localhost:3001/api/audit/documents/download/${documentId}`, '_blank');
+            window.open(`${AUDIT_API_BASE_URL}/api/audit/documents/download/${documentId}`, '_blank');
         } catch (error) {
             console.error('Error al descargar documento:', error);
             alert('Error al descargar el documento');
@@ -853,7 +858,7 @@ class AuditDocumentsManager {
 
         try {
             const response = await fetch(
-                `http://localhost:3001/api/audit/documents/${documentId}?user_id=${this.currentUser.id}`,
+                `${AUDIT_API_BASE_URL}/api/audit/documents/${documentId}?user_id=${this.currentUser.id}`,
                 { method: 'DELETE' }
             );
 

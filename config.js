@@ -5,7 +5,10 @@
 const AI_CONFIG = {
     // Configuración del proxy backend
     proxy: {
-        baseUrl: 'http://localhost:3001/api/ai', // URL del servidor backend
+        baseUrl: `${(typeof window !== 'undefined' && window.API_BASE_URL) ||
+            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof window !== 'undefined' ? window.location.origin : '')}/api/ai`,
         timeout: 30000, // Timeout en ms
         enabled: true
     },

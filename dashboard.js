@@ -178,7 +178,12 @@ async function performGlobalSearch() {
         showLoading(true);
 
         // Usar el nuevo endpoint de búsqueda global
-        const response = await fetch(`http://localhost:3001/api/search?query=${encodeURIComponent(searchTerm)}&types=entities,commitments,users`);
+        const baseUrl = (typeof window !== 'undefined' && window.API_BASE_URL) ||
+            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof window !== 'undefined' ? window.location.origin : '');
+
+        const response = await fetch(`${baseUrl}/api/search?query=${encodeURIComponent(searchTerm)}&types=entities,commitments,users`);
 
         if (!response.ok) {
             throw new Error('Error en la búsqueda');
