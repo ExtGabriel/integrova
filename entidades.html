@@ -456,7 +456,7 @@
     </script>
     <script>
         // Verificar usuario al cargar con expiración
-        const userKey = 'userSession';
+        const userKey = 'userUI';
         const userData = getCurrentSession();
 
         if (!userData) {
@@ -559,7 +559,7 @@
 
             try {
                 console.log('🔄 Cargando usuarios desde la API...');
-                console.log('🌐 API URL:', API_CONFIG?.baseURL || 'http://localhost:3001');
+                console.log('🌐 API URL:', API_CONFIG?.baseURL || (window.API_BASE_URL || window.location.origin));
 
                 const response = await API.Usuarios.getAll();
 
@@ -1628,6 +1628,15 @@
         });
 
 
+    </script>
+
+    <!-- Auth Guard: Proteger ruta -->
+    <script type="module">
+        import { initAuthGuard } from '../js/auth-guard.js';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initAuthGuard('logoutBtn');
+        });
     </script>
 </body>
 

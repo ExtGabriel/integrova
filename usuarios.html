@@ -227,7 +227,7 @@
     // Check session and role from API
     async function checkAccess() {
       // Verificar sesión en sessionStorage
-      const sessionStr = sessionStorage.getItem('userSession');
+      const sessionStr = sessionStorage.getItem('userUI');
       if (!sessionStr) {
         window.location.href = '/login.html';
         return false;
@@ -485,7 +485,7 @@
     // Logout
     function logout() {
       // Limpiar sesión en sessionStorage
-      sessionStorage.removeItem('userSession');
+      sessionStorage.removeItem('userUI');
       window.appSession = null;
       window.location.href = '/login.html';
     }
@@ -517,6 +517,15 @@
         });
       }
       // Theme preference removed - no localStorage
+    });
+  </script>
+
+  <!-- Auth Guard: Proteger ruta -->
+  <script type="module">
+    import { initAuthGuard } from '../js/auth-guard.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initAuthGuard('logoutBtn');
     });
   </script>
 </body>

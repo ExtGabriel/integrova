@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="../css/styles.css">
+    <script src="../js/supabase-client.js"></script>
 </head>
 
 <body>
@@ -23,8 +24,8 @@
 
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="username" class="form-label">Usuario</label>
-                        <input type="text" class="form-control" id="username" placeholder="Tu usuario" required>
+                        <label for="username" class="form-label">Correo</label>
+                        <input type="email" class="form-control" id="username" placeholder="tu@correo.com" required>
                     </div>
                     <div class="form-group">
                         <label for="password" class="form-label">Contraseña</label>
@@ -56,20 +57,21 @@
         const form = document.getElementById('loginForm');
         const alertContainer = document.getElementById('alertContainer');
 
-        // Verificar estado del servidor al cargar
+        // Verificar sesión activa con Supabase al cargar
         window.addEventListener('DOMContentLoaded', async () => {
-            // Limpiar cualquier sesión previa
             window.appSession = null;
 
-            const isServerOnline = await API.checkServerHealth();
-            if (!isServerOnline) {
-                alertContainer.innerHTML = `
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    Servidor no disponible. Contacta al administrador.
-                </div>
-            `;
+            const existingSession = await API.Auth.getSession();
+            if (existingSession?.user) {
+                window.location.href = 'dashboard.html';
+                return;
             }
+
+            API.Auth.onAuthStateChange((user) => {
+                if (user) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
         });
 
         // Toggle password visibility
@@ -91,6 +93,15 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
 
+            if (!validateEmail(username)) {
+                alertContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> Ingresa un correo válido.
+                </div>`;
+                setTimeout(() => { alertContainer.innerHTML = ''; }, 4000);
+                return;
+            }
+
             // Deshabilitar botón durante el proceso
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
@@ -107,7 +118,7 @@
                     }
                 }
 
-                // Intentar login con API
+                // Login con Supabase Auth
                 const response = await API.Auth.login(username, password);
 
                 if (response.success) {
@@ -115,23 +126,14 @@
                     alertContainer.innerHTML = '';
                     resetFailedAttempts(username);
 
-                    // Obtener datos del usuario de forma segura
-                    const userData = response.user || response.data?.user || {};
-
-                    // Guardar sesión en sessionStorage (persiste durante la sesión del navegador)
-                    const sessionData = {
-                        id: userData.id || 'unknown',
-                        username: userData.username || userData.name || username,
-                        name: userData.name || userData.username || username,
-                        email: userData.email || userData.correo || '',
-                        role: userData.role || userData.rol || 'cliente',
-                        loginTime: new Date().toISOString()
+                    // Guardar datos de UI mínimos (opcional: rol/nombre)
+                    const user = response.user;
+                    const uiData = {
+                        name: user?.user_metadata?.name || user?.email || username,
+                        role: user?.user_metadata?.role || 'usuario'
                     };
-
-                    sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-                    window.appSession = sessionData; // También en memoria para compatibilidad
-
-                    console.log('✅ Sesión creada:', sessionData);
+                    sessionStorage.setItem('userUI', JSON.stringify(uiData));
+                    window.appSession = uiData;
 
                     // Mostrar mensaje de éxito
                     alertContainer.innerHTML = `

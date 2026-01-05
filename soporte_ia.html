@@ -249,7 +249,7 @@
     </script>
     <script>
         // Constante unificada: Matching con login
-        const USER_KEY = 'userSession';
+        const USER_KEY = 'userUI';
 
         document.addEventListener('DOMContentLoaded', function () {
             // Chequeo de sesión con expiración
@@ -339,6 +339,12 @@
         // Indicador de carga mejorado
         const submitBtn = document.getElementById('submitBtn');
         const originalBtnText = submitBtn.innerHTML;
+
+        // URL base para llamadas a la API (usa env o dominio actual)
+        const API_BASE_URL = (window.API_BASE_URL) ||
+            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            window.location.origin;
 
         // Historial functions
         const historialSection = document.getElementById('historialSection');
@@ -468,7 +474,7 @@
                 formData.append('files', file);
             });
 
-            fetch('http://localhost:3001/api/ai/process-files', {
+            fetch(`${API_BASE_URL}/api/ai/process-files`, {
                 method: 'POST',
                 body: formData
             }).then(response => {
@@ -763,7 +769,7 @@
         async function generateReportWithAI(data, tipo) {
             const prompt = `Genera un reporte detallado de tipo "${tipo}" basándose en los siguientes datos:\n\n${JSON.stringify(data, null, 2)}`;
 
-            const response = await fetch('http://localhost:3001/api/ai/call', {
+            const response = await fetch(`${API_BASE_URL}/api/ai/call`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -790,7 +796,7 @@
         async function analyzeLogsWithAI(logs, tipo) {
             const prompt = `Analiza los siguientes logs y proporciona sugerencias de auditoría enfocadas en "${tipo}":\n\n${JSON.stringify(logs.slice(0, 50), null, 2)}`; // Limitar a 50 logs para no exceder el límite
 
-            const response = await fetch('http://localhost:3001/api/ai/call', {
+            const response = await fetch(`${API_BASE_URL}/api/ai/call`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
