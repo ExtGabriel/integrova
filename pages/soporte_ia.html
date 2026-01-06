@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soporte IA - CFE INSIGHT</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <button class="btn-back" onclick="window.location.href='dashboard.html'">
+            <i class="bi bi-arrow-left"></i> Volver
+        </button>
+        <h2 class="welcome-text" id="welcomeText">Bienvenido, Usuario</h2>
+        <button class="btn-logout" onclick="logout()">
+            <i class="bi bi-box-arrow-right"></i> Salir
+        </button>
+    </header>
+
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar tema oscuro/claro">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <!-- Indicador de carga global -->
+    <div id="globalLoading" class="global-loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Procesando...</span>
+            </div>
+            <p id="loadingText">Procesando con IA...</p>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="dashboard-container">
+            <h1 class="page-title">Soporte IA</h1>
+            <p class="text-center mb-4" style="color: #666; font-size: 1.1em; line-height: 1.6;">
+                Bienvenido al Soporte IA de CFE INSIGHT. Aquí puedes consultar con nuestro asistente inteligente sobre
+                auditorías, compromisos y procesos relacionados. Describe tu consulta en el campo a continuación y
+                recibirás asistencia personalizada.
+            </p>
+
+            <!-- Formulario principal de consulta IA -->
+            <form id="soporteForm" class="soporte-form needs-validation" novalidate>
+                <div class="form-group">
+                    <label for="consulta" class="form-label">Tu Consulta <span class="char-count">(0/500)</span></label>
+                    <textarea id="consulta" name="consulta" class="form-control" rows="6" cols="80"
+                        placeholder="Describe tu consulta aquí..." required></textarea>
+                    <div class="invalid-feedback">
+                        La consulta no puede estar vacía y debe tener al menos 10 caracteres.
+                    </div>
+                    <small class="form-text text-muted">Máximo 500 caracteres. Describe tu consulta de manera
+                        detallada.</small>
+                </div>
+                <div class="form-group">
+                    <label for="archivos" class="form-label">Adjuntar Archivos (opcional)</label>
+                    <input type="file" id="archivos" name="archivos" class="form-control" multiple
+                        accept=".pdf,.doc,.docx,.xlsx,.xls,.jpg,.png,.txt">
+                    <div class="invalid-feedback" id="fileError">
+                        Máximo 5 archivos, cada uno de hasta 10MB. Formatos permitidos: PDF, DOC, DOCX, XLSX, XLS, JPG,
+                        PNG, TXT.
+                    </div>
+                    <small class="form-text text-muted">Puedes adjuntar hasta 5 archivos (máx. 10MB cada uno). Formatos:
+                        PDF, DOC, DOCX, XLS, JPG, PNG, TXT.</small>
+                    <div id="fileList" class="file-list mt-2"></div>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="bi bi-send"></i> Enviar Consulta
+                    </button>
+                </div>
+            </form>
+
+            <!-- Funcionalidades adicionales de IA -->
+            <div class="additional-features mt-5" style="display: block !important; visibility: visible !important;">
+                <h3 class="mb-4"><i class="bi bi-robot"></i> Funcionalidades Avanzadas de IA</h3>
+
+                <!-- Pestañas para funcionalidades adicionales -->
+                <ul class="nav nav-tabs" id="aiTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="reporte-tab" data-bs-toggle="tab" data-bs-target="#reporte"
+                            type="button" role="tab" aria-controls="reporte" aria-selected="true"
+                            onclick="showTab('reporte')">
+                            <i class="bi bi-file-earmark-text"></i> Generar Reporte
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sugerencias-tab" data-bs-toggle="tab" data-bs-target="#sugerencias"
+                            type="button" role="tab" aria-controls="sugerencias" aria-selected="false"
+                            onclick="showTab('sugerencias')">
+                            <i class="bi bi-lightbulb"></i> Sugerencias Auditoría
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="aiTabsContent" style="display: block !important;">
+                    <!-- Pestaña Generar Reporte -->
+                    <div class="tab-pane fade show active" id="reporte" role="tabpanel" aria-labelledby="reporte-tab"
+                        style="display: block !important;">
+                        <div class="reporte-section">
+                            <p class="text-muted mb-4">Genera reportes automáticos basados en datos del sistema usando
+                                IA.</p>
+
+                            <div class="form-group">
+                                <label for="reporteTipo" class="form-label">Tipo de Reporte</label>
+                                <select id="reporteTipo" class="form-select">
+                                    <option value="auditoria">Reporte de Auditoría</option>
+                                    <option value="compromisos">Reporte de Compromisos</option>
+                                    <option value="usuarios">Reporte de Actividad de Usuarios</option>
+                                    <option value="general">Reporte General</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reporteContexto" class="form-label">Contexto Adicional (opcional)</label>
+                                <textarea id="reporteContexto" class="form-control" rows="3"
+                                    placeholder="Describe el contexto específico o alcance del reporte..."></textarea>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="button" class="btn btn-success" id="generarReporteBtn">
+                                    <i class="bi bi-robot"></i> Generar Reporte con IA
+                                </button>
+                            </div>
+
+                            <div id="reporteResultado" class="mt-4" style="display: none;">
+                                <h5>Resultado del Reporte:</h5>
+                                <div id="reporteContenido" class="alert alert-info"></div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="copiarReporte()">
+                                    <i class="bi bi-clipboard"></i> Copiar Reporte
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pestaña Sugerencias Auditoría -->
+                    <div class="tab-pane fade" id="sugerencias" role="tabpanel" aria-labelledby="sugerencias-tab"
+                        style="display: none !important;">
+                        <div class="sugerencias-section" style="display: block !important;">
+                            <p class="text-muted mb-4">Obtén sugerencias inteligentes de auditoría basadas en patrones
+                                de logs y datos históricos.</p>
+
+                            <div class="form-group">
+                                <label for="sugerenciasTipo" class="form-label">Tipo de Análisis</label>
+                                <select id="sugerenciasTipo" class="form-select">
+                                    <option value="general">Análisis General</option>
+                                    <option value="anomalies">Detección de Anomalías</option>
+                                    <option value="patterns">Patrones de Comportamiento</option>
+                                    <option value="recommendations">Recomendaciones Específicas</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Período de Análisis</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input type="date" id="fechaDesde" class="form-control" value="">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="date" id="fechaHasta" class="form-control" value="">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="button" class="btn btn-warning" id="generarSugerenciasBtn">
+                                    <i class="bi bi-brain"></i> Analizar con IA
+                                </button>
+                            </div>
+
+                            <div id="sugerenciasResultado" class="mt-4" style="display: none;">
+                                <h5>Sugerencias de Auditoría:</h5>
+                                <div id="sugerenciasContenido" class="alert alert-warning"></div>
+                                <button class="btn btn-sm btn-outline-warning" onclick="copiarSugerencias()">
+                                    <i class="bi bi-clipboard"></i> Copiar Sugerencias
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Área de Respuesta IA Mejorada -->
+            <div class="response-section mt-4" id="responseSection" style="display: none;">
+                <div class="response-header">
+                    <h4><i class="bi bi-robot"></i> Respuesta de la IA</h4>
+                    <button class="btn btn-sm btn-outline-primary" onclick="copyResponse()">
+                        <i class="bi bi-clipboard"></i> Copiar
+                    </button>
+                </div>
+                <div class="response-content card mt-3">
+                    <div class="card-body">
+                        <div id="responseContent" class="ai-response"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial de Consultas -->
+            <div class="historial-section" id="historialSection" style="display: none;">
+                <div class="historial-header">
+                    <h4><i class="bi bi-clock-history"></i> Historial de Consultas</h4>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleHistorial">
+                        <i class="bi bi-chevron-up"></i> Ocultar
+                    </button>
+                </div>
+                <div class="historial-list" id="historialList">
+                    <!-- Historial items will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/config.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+    </script>
+    <script>
+        // Constante unificada: Matching con login
+        const USER_KEY = 'userUI';
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Chequeo de sesión con expiración
+            const userData = getCurrentSession();
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const name = userData.name;
+            document.getElementById('welcomeText').textContent = `Bienvenido, ${name}`;
+        });
+
+        // Logout (Usa USER_KEY)
+        function logout() {
+            localStorage.removeItem(USER_KEY);
+            window.location.href = 'login.html';
+        }
+
+        // Contador de caracteres y validación en tiempo real
+        const consultaTextarea = document.getElementById('consulta');
+        const charCount = document.querySelector('.char-count');
+
+        consultaTextarea.addEventListener('input', function () {
+            const length = this.value.length;
+            charCount.textContent = `(${length}/500)`;
+            if (length > 450) {
+                charCount.style.color = 'red';
+            } else {
+                charCount.style.color = '';
+            }
+            // Validación en tiempo real
+            if (this.value.trim() === '' || this.value.trim().length < 10) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        // Manejo de archivos con validación mejorada
+        const archivosInput = document.getElementById('archivos');
+        const fileList = document.getElementById('fileList');
+        const fileError = document.getElementById('fileError');
+
+        archivosInput.addEventListener('change', function () {
+            fileList.innerHTML = '';
+            fileError.style.display = 'none';
+            const files = Array.from(this.files);
+            let hasError = false;
+
+            if (files.length > 5) {
+                fileError.textContent = 'Máximo 5 archivos permitidos.';
+                fileError.style.display = 'block';
+                this.classList.add('is-invalid');
+                this.value = '';
+                return;
+            }
+
+            files.forEach(file => {
+                if (file.size > 10 * 1024 * 1024) { // 10MB
+                    fileError.textContent = `El archivo ${file.name} supera los 10MB.`;
+                    fileError.style.display = 'block';
+                    this.classList.add('is-invalid');
+                    hasError = true;
+                    this.value = '';
+                    return;
+                }
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `<i class="bi bi-file-earmark"></i> ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) <button type="button" class="btn btn-sm btn-outline-danger remove-file"><i class="bi bi-x"></i></button>`;
+                fileList.appendChild(fileItem);
+            });
+
+            if (!hasError) {
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        fileList.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-file') || e.target.closest('.remove-file')) {
+                e.target.closest('.file-item').remove();
+                // Actualizar input files (simplificado, en producción usar DataTransfer)
+                const remainingFiles = Array.from(fileList.children).map(item => item.textContent.split(' ')[1]);
+                // Nota: Para una implementación completa, usar DataTransfer para reconstruir FileList
+            }
+        });
+
+        // Indicador de carga mejorado
+        const submitBtn = document.getElementById('submitBtn');
+        const originalBtnText = submitBtn.innerHTML;
+
+        // URL base para llamadas a la API (usa env o dominio actual)
+        const API_BASE_URL = (window.API_BASE_URL) ||
+            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            window.location.origin;
+
+        // Historial functions
+        const historialSection = document.getElementById('historialSection');
+        const historialList = document.getElementById('historialList');
+        const toggleHistorial = document.getElementById('toggleHistorial');
+
+        function loadHistorial() {
+            const historial = JSON.parse(localStorage.getItem('soporteHistorial') || '[]');
+            if (historial.length > 0) {
+                historialSection.style.display = 'block';
+                renderHistorial(historial);
+            }
+        }
+
+        function renderHistorial(historial) {
+            historialList.innerHTML = '';
+            historial.slice(-10).reverse().forEach(item => { // Mostrar últimos 10
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'historial-item';
+                itemDiv.innerHTML = `
+                <h5>${item.consulta.substring(0, 50)}${item.consulta.length > 50 ? '...' : ''}</h5>
+                <p>${item.respuesta}</p>
+                <div class="historial-meta">
+                    <span>${new Date(item.fecha).toLocaleString()}</span>
+                    ${item.archivos.length > 0 ? `<div class="historial-archivos"><small><i class="bi bi-paperclip"></i> ${item.archivos.length} archivo(s)</small></div>` : ''}
+                </div>
+            `;
+                historialList.appendChild(itemDiv);
+            });
+        }
+
+        toggleHistorial.addEventListener('click', function () {
+            if (historialList.style.display === 'none') {
+                historialList.style.display = 'block';
+                this.innerHTML = '<i class="bi bi-chevron-up"></i> Ocultar';
+            } else {
+                historialList.style.display = 'none';
+                this.innerHTML = '<i class="bi bi-chevron-down"></i> Mostrar';
+            }
+        });
+
+        // Load historial on page load
+        loadHistorial();
+
+        // Función para leer contenido de archivos
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+
+                // Leer como texto para archivos de texto, o como array buffer para otros
+                if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+                    reader.readAsText(file);
+                } else {
+                    // Para archivos binarios, solo devolver información básica
+                    resolve(`[Archivo binario: ${file.name}, tipo: ${file.type}, tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB]`);
+                }
+            });
+        }
+
+        // Manejar envío del formulario con validación Bootstrap
+        document.getElementById('soporteForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const form = this;
+            const consulta = consultaTextarea.value.trim();
+
+            // Validación manual adicional
+            let isValid = true;
+            if (!consulta || consulta.length < 10) {
+                consultaTextarea.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                consultaTextarea.classList.remove('is-invalid');
+            }
+
+            // Validar archivos si hay
+            if (archivosInput.files.length > 0) {
+                const files = Array.from(archivosInput.files);
+                if (files.length > 5) {
+                    fileError.textContent = 'Máximo 5 archivos permitidos.';
+                    fileError.style.display = 'block';
+                    archivosInput.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    let hasLargeFile = false;
+                    files.forEach(file => {
+                        if (file.size > 10 * 1024 * 1024) {
+                            hasLargeFile = true;
+                        }
+                    });
+                    if (hasLargeFile) {
+                        fileError.textContent = 'Uno o más archivos superan los 10MB.';
+                        fileError.style.display = 'block';
+                        archivosInput.classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        archivosInput.classList.remove('is-invalid');
+                    }
+                }
+            }
+
+            if (!isValid) {
+                e.stopPropagation();
+                return;
+            }
+
+            form.classList.add('was-validated');
+
+            // Enviar consulta a OpenAI
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando con IA...';
+            submitBtn.disabled = true;
+
+            // Usar el endpoint del servidor para procesar consultas con IA (más seguro)
+            // Mostrar indicador de carga mejorado
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Procesando con IA...';
+            submitBtn.disabled = true;
+
+            // Usar el nuevo endpoint que procesa archivos en el servidor
+            const formData = new FormData();
+            formData.append('prompt', consulta);
+            formData.append('context', 'soporte');
+
+            // Agregar archivos al FormData
+            const files = Array.from(archivosInput.files);
+            files.forEach((file, index) => {
+                formData.append('files', file);
+            });
+
+            fetch(`${API_BASE_URL}/api/ai/process-files`, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                // Primero parsear el JSON para ver si hay error con mensaje específico
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        // Si hay un mensaje específico del servidor, usarlo
+                        if (data.needsConfiguration) {
+                            throw new Error('CONFIG_NEEDED:' + data.message);
+                        }
+                        throw new Error(data.message || `Error del servidor: ${response.status}`);
+                    }
+                    return data;
+                });
+            }).then(data => {
+                const respuesta = data.response;
+
+                // Mostrar respuesta en el área dedicada
+                document.getElementById('responseContent').innerHTML = formatAIResponse(respuesta);
+                document.getElementById('responseSection').style.display = 'block';
+
+                // Guardar en historial localStorage
+                const historial = JSON.parse(localStorage.getItem('soporteHistorial') || '[]');
+                historial.push({
+                    consulta: consulta,
+                    respuesta: respuesta,
+                    fecha: new Date().toISOString(),
+                    archivos: Array.from(archivosInput.files).map(f => f.name)
+                });
+                localStorage.setItem('soporteHistorial', JSON.stringify(historial));
+
+                // Mostrar notificación de éxito
+                showNotification('Consulta procesada exitosamente por IA', 'success');
+
+                form.reset();
+                form.classList.remove('was-validated');
+                consultaTextarea.classList.remove('is-invalid');
+                archivosInput.classList.remove('is-invalid');
+                fileError.style.display = 'none';
+                charCount.textContent = '(0/500)';
+                fileList.innerHTML = '';
+
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+
+                // Reload historial
+                loadHistorial();
+            }).catch(error => {
+                console.error('Error:', error);
+
+                // Mostrar mensaje específico según el tipo de error
+                let errorMessage = 'Error al procesar la consulta. Intenta de nuevo.';
+                let errorType = 'danger';
+
+                if (error.message.startsWith('CONFIG_NEEDED:')) {
+                    // Mensaje especial para configuración pendiente
+                    errorMessage = error.message.replace('CONFIG_NEEDED:', '');
+                    errorType = 'warning';
+
+                    // Mostrar también en el área de respuesta
+                    document.getElementById('responseContent').innerHTML = `
+                        <div class="alert alert-warning">
+                            <h5><i class="bi bi-exclamation-triangle"></i> Configuración Pendiente</h5>
+                            <pre style="white-space: pre-wrap; font-family: inherit;">${errorMessage}</pre>
+                            <hr>
+                            <p class="mb-0">
+                                <strong>Cuando estés listo:</strong><br>
+                                1. Compra créditos en OpenAI<br>
+                                2. Copia tu API key al archivo .env<br>
+                                3. Reinicia el servidor<br>
+                                4. ¡Listo para usar la IA!
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('responseSection').style.display = 'block';
+                } else {
+                    errorMessage = error.message || errorMessage;
+                }
+
+                showNotification(errorMessage.split('\n')[0], errorType);
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            });
+        });
+
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            // Crear elemento de notificación
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+            notification.innerHTML = `
+            <i class="bi bi-check-circle-fill"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+            document.body.appendChild(notification);
+
+            // Auto-remover después de 5 segundos
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Función para mostrar pestañas manualmente
+        function showTab(tabName) {
+            // Ocultar todas las pestañas
+            const tabs = document.querySelectorAll('.tab-pane');
+            tabs.forEach(tab => tab.classList.remove('show', 'active'));
+
+            // Mostrar la pestaña seleccionada
+            const activeTab = document.getElementById(tabName);
+            if (activeTab) {
+                activeTab.classList.add('show', 'active');
+            }
+
+            // Actualizar botones de pestañas
+            const tabButtons = document.querySelectorAll('.nav-link');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            const activeButton = document.getElementById(tabName + '-tab');
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+
+        // ===== FUNCIONES PARA LAS NUEVAS FUNCIONALIDADES DE IA =====
+
+        // Generar reporte con IA
+        document.getElementById('generarReporteBtn').addEventListener('click', async function () {
+            const tipo = document.getElementById('reporteTipo').value;
+            const contexto = document.getElementById('reporteContexto').value.trim();
+            const btn = this;
+
+            // Obtener datos del sistema según el tipo de reporte
+            let data = {};
+            switch (tipo) {
+                case 'auditoria':
+                    data = getSecureItem('appRecords') || [];
+                    break;
+                case 'compromisos':
+                    data = JSON.parse(localStorage.getItem('commitmentsData') || '[]');
+                    break;
+                case 'usuarios':
+                    data = JSON.parse(localStorage.getItem('appUsers') || '[]');
+                    break;
+                default:
+                    data = {
+                        records: getSecureItem('appRecords') || [],
+                        users: JSON.parse(localStorage.getItem('appUsers') || '[]'),
+                        commitments: JSON.parse(localStorage.getItem('commitmentsData') || '[]')
+                    };
+            }
+
+            // Agregar contexto si existe
+            if (contexto) {
+                data.contextoAdicional = contexto;
+            }
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generando...';
+            btn.disabled = true;
+
+            try {
+                const reporte = await generateReportWithAI(data, tipo);
+                document.getElementById('reporteContenido').textContent = reporte;
+                document.getElementById('reporteResultado').style.display = 'block';
+                showNotification('Reporte generado exitosamente', 'success');
+            } catch (error) {
+                console.error('Error generando reporte:', error);
+                showNotification('Error al generar el reporte', 'danger');
+            } finally {
+                btn.innerHTML = '<i class="bi bi-robot"></i> Generar Reporte con IA';
+                btn.disabled = false;
+            }
+        });
+
+        // Generar sugerencias de auditoría
+        document.getElementById('generarSugerenciasBtn').addEventListener('click', async function () {
+            const tipo = document.getElementById('sugerenciasTipo').value;
+            const fechaDesde = document.getElementById('fechaDesde').value;
+            const fechaHasta = document.getElementById('fechaHasta').value;
+            const btn = this;
+
+            // Obtener logs filtrados por fecha
+            let logs = getSecureItem('appRecords') || [];
+
+            if (fechaDesde || fechaHasta) {
+                logs = logs.filter(log => {
+                    const logDate = new Date(log.timestamp.split(' ')[0]);
+                    const desde = fechaDesde ? new Date(fechaDesde) : null;
+                    const hasta = fechaHasta ? new Date(fechaHasta) : null;
+
+                    if (desde && logDate < desde) return false;
+                    if (hasta && logDate > hasta) return false;
+                    return true;
+                });
+            }
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analizando...';
+            btn.disabled = true;
+
+            try {
+                const sugerencias = await analyzeLogsWithAI(logs, tipo);
+                document.getElementById('sugerenciasContenido').textContent = sugerencias;
+                document.getElementById('sugerenciasResultado').style.display = 'block';
+                showNotification('Análisis completado', 'success');
+            } catch (error) {
+                console.error('Error generando sugerencias:', error);
+                showNotification('Error al analizar los logs', 'danger');
+            } finally {
+                btn.innerHTML = '<i class="bi bi-brain"></i> Analizar con IA';
+                btn.disabled = false;
+            }
+        });
+
+        // Función para copiar reporte al portapapeles
+        function copiarReporte() {
+            const contenido = document.getElementById('reporteContenido').textContent;
+            navigator.clipboard.writeText(contenido).then(() => {
+                showNotification('Reporte copiado al portapapeles', 'success');
+            }).catch(() => {
+                showNotification('Error al copiar', 'danger');
+            });
+        }
+
+        // Función para copiar sugerencias al portapapeles
+        function copiarSugerencias() {
+            const contenido = document.getElementById('sugerenciasContenido').textContent;
+            navigator.clipboard.writeText(contenido).then(() => {
+                showNotification('Sugerencias copiadas al portapapeles', 'success');
+            }).catch(() => {
+                showNotification('Error al copiar', 'danger');
+            });
+        }
+
+        // Función para formatear respuestas de IA
+        function formatAIResponse(text) {
+            if (!text) return '';
+
+            // Convertir texto plano a HTML estructurado
+            let formatted = text
+                // Encabezados
+                .replace(/^# (.+)$/gm, '<h1 class="ai-heading">$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2 class="ai-subheading">$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3 class="ai-subsubheading">$1</h3>')
+
+                // Viñetas
+                .replace(/^\* (.+)$/gm, '<li class="ai-bullet">• $1</li>')
+                .replace(/^- (.+)$/gm, '<li class="ai-bullet">• $1</li>')
+
+                // Numeración
+                .replace(/^\d+\. (.+)$/gm, '<li class="ai-numbered">$1</li>')
+
+                // Negritas
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/__(.+?)__/g, '<strong>$1</strong>')
+
+                // Cursivas
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/_(.+?)_/g, '<em>$1</em>')
+
+                // Párrafos
+                .split('\n\n')
+                .map(paragraph => {
+                    if (paragraph.trim() === '') return '';
+                    if (paragraph.includes('<li') || paragraph.includes('<h')) {
+                        return paragraph;
+                    }
+                    return `<p class="ai-paragraph">${paragraph.replace(/\n/g, '<br>')}</p>`;
+                })
+                .join('');
+
+            // Envolver listas
+            formatted = formatted.replace(/(<li class="ai-bullet">• .+<\/li>)+/g, '<ul class="ai-list">$&</ul>');
+            formatted = formatted.replace(/(<li class="ai-numbered">.+<\/li>)+/g, '<ol class="ai-list">$&</ol>');
+
+            return formatted;
+        }
+
+        // Función para copiar respuesta de IA
+        function copyResponse() {
+            const contenido = document.getElementById('responseContent').textContent;
+            navigator.clipboard.writeText(contenido).then(() => {
+                showNotification('Respuesta copiada al portapapeles', 'success');
+            }).catch(() => {
+                showNotification('Error al copiar', 'danger');
+            });
+        }
+
+        // Función para generar reporte con IA (usa el endpoint del servidor)
+        async function generateReportWithAI(data, tipo) {
+            const prompt = `Genera un reporte detallado de tipo "${tipo}" basándose en los siguientes datos:\n\n${JSON.stringify(data, null, 2)}`;
+
+            const response = await fetch(`${API_BASE_URL}/api/ai/call`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    context: 'reporte',
+                    options: {
+                        maxTokens: 2000,
+                        temperature: 0.7
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error del servidor: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.response;
+        }
+
+        // Función para analizar logs con IA (usa el endpoint del servidor)
+        async function analyzeLogsWithAI(logs, tipo) {
+            const prompt = `Analiza los siguientes logs y proporciona sugerencias de auditoría enfocadas en "${tipo}":\n\n${JSON.stringify(logs.slice(0, 50), null, 2)}`; // Limitar a 50 logs para no exceder el límite
+
+            const response = await fetch(`${API_BASE_URL}/api/ai/call`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    context: 'auditoria',
+                    options: {
+                        maxTokens: 1500,
+                        temperature: 0.7
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error del servidor: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.response;
+        }
+</html >

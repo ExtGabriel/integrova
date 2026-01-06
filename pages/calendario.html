@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFE INSIGHT Calendario</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .calendar-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-nav {
+            background: none;
+            border: 2px solid rgba(76, 175, 80, 0.2);
+            color: #2E7D32;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-nav:hover {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: #4CAF50;
+        }
+
+        .current-month {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2E7D32;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .calendar-day-header {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            padding: 15px 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .calendar-day {
+            background: white;
+            min-height: 120px;
+            padding: 8px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-day:hover {
+            background: rgba(76, 175, 80, 0.05);
+            transform: scale(1.02);
+        }
+
+        .calendar-day.other-month {
+            background: rgba(200, 200, 200, 0.3);
+            color: #999;
+        }
+
+        .day-number {
+            font-weight: 600;
+            color: #2E7D32;
+            margin-bottom: 5px;
+        }
+
+        .calendar-day.other-month .day-number {
+            color: #999;
+        }
+
+        .event-item {
+            background: linear-gradient(135deg, #FFC107, #FF8F00);
+            color: white;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-item.commitment {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+        }
+
+        .event-item.deadline {
+            background: linear-gradient(135deg, #F44336, #C62828);
+        }
+
+        .events-list {
+            margin-top: 30px;
+        }
+
+        .event-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        .event-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(76, 175, 80, 0.15);
+        }
+
+        .event-card.commitment {
+            border-left-color: #4CAF50;
+        }
+
+        .event-card.deadline {
+            border-left-color: #F44336;
+        }
+
+        .event-card.meeting {
+            border-left-color: #2196F3;
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .event-title {
+            font-weight: 600;
+            color: #2E7D32;
+            margin: 0;
+        }
+
+        .event-date {
+            font-size: 0.9rem;
+            color: #666;
+            margin: 0;
+        }
+
+        .event-description {
+            color: #37474F;
+            margin: 8px 0;
+        }
+
+        .event-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(76, 175, 80, 0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-events {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-events i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-container {
+                padding: 10px;
+            }
+
+            .calendar-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .calendar-nav {
+                order: 2;
+            }
+
+            .current-month {
+                order: 1;
+            }
+
+            .calendar-grid {
+                grid-template-columns: repeat(7, 1fr);
+                gap: 1px;
+            }
+
+            .calendar-day {
+                min-height: 80px;
+                padding: 4px;
+            }
+
+            .day-number {
+                font-size: 0.9rem;
+            }
+
+            .event-item {
+                font-size: 0.7rem;
+                padding: 2px 4px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <h1 class="page-title">Calendario de Compromisos</h1>
+        <div class="header-actions">
+            <a href="dashboard.html" class="btn-back">
+                <i class="bi bi-arrow-left"></i> Regresar
+            </a>
+            <button class="btn-logout" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> Salir
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="calendar-container">
+            <!-- Calendar Header -->
+            <div class="calendar-header">
+                <div class="calendar-nav">
+                    <button class="btn-nav" onclick="previousMonth()">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <div class="current-month" id="currentMonth">Enero 2025</div>
+                    <button class="btn-nav" onclick="nextMonth()">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="calendar-actions">
+                    <button class="btn btn-primary" onclick="goToToday()">
+                        <i class="bi bi-calendar-today"></i> Hoy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Calendar will be generated here -->
+            </div>
+
+            <!-- Events List -->
+            <div class="events-list">
+                <h3><i class="bi bi-calendar-event"></i> Eventos del Mes</h3>
+                <div id="eventsList">
+                    <!-- Events will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+
+        // Global variables
+        let currentDate = new Date();
+        let allCommitments = [];
+        let allEntities = {};
+
+        // Load data from localStorage
+        function loadData() {
+            showLoading();
+
+            // Load entities
+            const entitiesData = localStorage.getItem('entitiesData');
+            if (entitiesData) {
+                allEntities = JSON.parse(entitiesData);
+            }
+
+            // Load commitments
+            const commitmentsData = localStorage.getItem('commitmentsData');
+            if (commitmentsData) {
+                allCommitments = JSON.parse(commitmentsData);
+            }
+
+            hideLoading();
+            renderCalendar();
+            renderEventsList();
+        }
+
+        // Show loading overlay
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        // Hide loading overlay
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Render calendar grid
+        function renderCalendar() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            // Update month display
+            const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            document.getElementById('currentMonth').textContent = `${months[month]} ${year}`;
+
+            // Clear previous calendar
+            calendarGrid.innerHTML = '';
+
+            // Add day headers
+            const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            daysOfWeek.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                calendarGrid.appendChild(header);
+            });
+
+            // Get first day of month and last day
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            // Generate calendar days
+            const currentDay = new Date(startDate);
+            for (let i = 0; i < 42; i++) { // 6 weeks * 7 days
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+
+                if (currentDay.getMonth() !== month) {
+                    dayElement.classList.add('other-month');
+                }
+
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = currentDay.getDate();
+                dayElement.appendChild(dayNumber);
+
+                // Add events for this day
+                const dayEvents = getEventsForDay(currentDay);
+                dayEvents.forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = `event-item ${event.type}`;
+                    eventElement.textContent = event.title;
+                    eventElement.title = event.title;
+                    dayElement.appendChild(eventElement);
+                });
+
+                calendarGrid.appendChild(dayElement);
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+        }
+
+        // Get events for a specific day
+        function getEventsForDay(date) {
+            const events = [];
+            const dateStr = date.toISOString().split('T')[0];
+
+            // Check commitments
+            allCommitments.forEach(commitment => {
+                const startDate = new Date(commitment.startDate).toISOString().split('T')[0];
+                const endDate = new Date(commitment.endDate).toISOString().split('T')[0];
+
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    const entity = allEntities[commitment.entityId];
+                    const entityName = entity ? entity.name : 'Entidad desconocida';
+
+                    events.push({
+                        type: 'commitment',
+                        title: commitment.name,
+                        description: `${commitment.description} - ${entityName}`,
+                        date: dateStr,
+                        commitment: commitment
+                    });
+                }
+            });
+
+            // Mock deadlines (could be loaded from localStorage in future)
+            const mockDeadlines = [
+                { date: '2025-01-15', title: 'Auditoría Trimestral', type: 'deadline' },
+                { date: '2025-01-22', title: 'Revisión de Procesos', type: 'deadline' },
+                { date: '2025-02-28', title: 'Informe Anual', type: 'deadline' }
+            ];
+
+            mockDeadlines.forEach(deadline => {
+                if (deadline.date === dateStr) {
+                    events.push({
+                        type: 'deadline',
+                        title: deadline.title,
+                        description: 'Fecha límite importante',
+                        date: dateStr
+                    });
+                }
+            });
+
+            return events;
+        }
+
+        // Render events list for current month
+        function renderEventsList() {
+            const eventsList = document.getElementById('eventsList');
+            eventsList.innerHTML = '';
+
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const events = [];
+
+            // Collect all events for the month
+            allCommitments.forEach(commitment => {
+                const startDate = new Date(commitment.startDate);
+                const endDate = new Date(commitment.endDate);
+
+                // Check if commitment overlaps with current month
+                if ((startDate.getFullYear() === year && startDate.getMonth() === month) ||
+                    (endDate.getFullYear() === year && endDate.getMonth() === month) ||
+                    (startDate < new Date(year, month, 1) && endDate > new Date(year, month + 1, 0))) {
+
+                    const entity = allEntities[commitment.entityId];
+                    const entityName = entity ? entity.name : 'Entidad desconocida';
+
+                    events.push({
+                        type: 'commitment',
+                        title: commitment.name,
+                        description: `${commitment.description} - ${entityName}`,
+                        startDate: commitment.startDate,
+                        endDate: commitment.endDate,
+                        commitment: commitment
+                    });
+                }
+            });
+
+            if (events.length === 0) {
+                eventsList.innerHTML = `
+                    <div class="no-events">
+                        <i class="bi bi-calendar-x"></i>
+                        <p>No hay eventos programados para este mes.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort events by start date
+            events.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+            events.forEach(event => {
+                const eventCard = document.createElement('div');
+                eventCard.className = `event-card ${event.type}`;
+
+                const startDate = new Date(event.startDate).toLocaleDateString('es-ES');
+                const endDate = new Date(event.endDate).toLocaleDateString('es-ES');
+
+                eventCard.innerHTML = `
+                    <div class="event-header">
+                        <h4 class="event-title">${event.title}</h4>
+                        <p class="event-date">${startDate} - ${endDate}</p>
+                    </div>
+                    <p class="event-description">${event.description}</p>
+                    <div class="event-meta">
+                        <span><i class="bi bi-building"></i> ${event.type === 'commitment' ? 'Compromiso' : 'Fecha Límite'}</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewEventDetails(${event.commitment ? event.commitment.id : 0})">
+                            <i class="bi bi-eye"></i> Ver Detalles
+                        </button>
+                    </div>
+                `;
+
+                eventsList.appendChild(eventCard);
+            });
+        }
+
+        // Navigation functions
+        function previousMonth() {
+            showLoading();
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            setTimeout(() => {
+                renderCalendar();
+                renderEventsList();
+                hideLoading();
+            }, 300);
+        }
+
+        function nextMonth() {
+            showLoading();
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            setTimeout(() => {
+                renderCalendar();
+                renderEventsList();
+                hideLoading();
+            }, 300);
+        }
+
+        function goToToday() {
+            showLoading();
+            currentDate = new Date();
+            setTimeout(() => {
+                renderCalendar();
+                renderEventsList();
+                hideLoading();
+            }, 300);
+        }
+
+        // View event details
+        function viewEventDetails(commitmentId) {
+            if (commitmentId) {
+                window.location.href = `compromisos-detalles.html?id=${commitmentId}`;
+            }
+        }
+
+        // Logout function
+        function logout() {
+            try {
+                if (sessionStorage.getItem('userUI')) {
+                    sessionStorage.removeItem('userUI');
+                }
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada exitosamente');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            // Check session
+            const userData = getCurrentSession();
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            loadData();
+        });
+    </script>
+</body>
+
+</html>

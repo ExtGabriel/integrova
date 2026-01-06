@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFE INSIGHT Login</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="../js/supabase-client.js"></script>
+</head>
+
+<body>
+    <div class="login-page">
+        <div class="login-wrapper">
+            <div class="logo-brand">
+                <img src="../assets/logointegrovadorado.png" alt="Integrova" class="logo-brand-img">
+            </div>
+
+            <div class="login-container">
+                <div id="alertContainer"></div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" placeholder="tu usuario" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" placeholder="Tu contraseña"
+                                required>
+                            <button class="btn btn-toggle-password" type="button" id="togglePassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-login">
+                        <i class="bi bi-box-arrow-in-right"></i> Entrar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer-login">
+        <p>&copy; 2025 Integrova. Sistema Integral de Auditoría v2.0</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script>
+        const form = document.getElementById('loginForm');
+        const alertContainer = document.getElementById('alertContainer');
+
+        // Verificar sesión activa con Supabase al cargar
+        window.addEventListener('DOMContentLoaded', async () => {
+            window.appSession = null;
+
+            const existingSession = await API.Auth.getSession();
+            if (existingSession?.user) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            API.Auth.onAuthStateChange((user) => {
+                if (user) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
+        });
+
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const passwordInput = document.getElementById('password');
+            const icon = this.querySelector('i');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username) {
+                alertContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> Ingresa tu usuario.
+                </div>`;
+                setTimeout(() => { alertContainer.innerHTML = ''; }, 4000);
+                return;
+            }
+
+            // Deshabilitar botón durante el proceso
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...';
+
+            try {
+                // Check if account is blocked (local check)
+                if (isAccountBlocked(username)) {
+                    if (username === 'admin') {
+                        unblockAccount(username);
+                    } else {
+                        throw new Error('Cuenta bloqueada temporalmente. Intente más tarde o contacte a un programador.');
+                    }
+                }
+
+                // Login con Supabase Auth resolviendo username -> correo
+                const response = await API.Auth.login(username, password);
+
+                if (response.success) {
+                    // Login exitoso
+                    alertContainer.innerHTML = '';
+                    resetFailedAttempts(username);
+
+                    // Guardar datos de UI mínimos (opcional: rol/nombre)
+                    const user = response.user;
+                    const uiData = {
+                        id: user?.id || response.session?.user?.id,
+                        username: response.username || user?.user_metadata?.username || username,
+                        email: response.email || user?.email,
+                        name: user?.user_metadata?.name || user?.email || username,
+                        role: user?.user_metadata?.role || 'usuario'
+                    };
+                    sessionStorage.setItem('userUI', JSON.stringify(uiData));
+                    window.appSession = uiData;
+
+                    // Mostrar mensaje de éxito
+                    alertContainer.innerHTML = `
+                    <div class="alert alert-success" role="alert">
+                        <i class="bi bi-check-circle"></i> ¡Bienvenido! Redirigiendo...
+                    </div>
+                `;
+
+                    // Redirigir después de un breve delay
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                } else {
+                    // Login fallido
+                    throw new Error(response.error || 'Usuario o contraseña incorrectos');
+                }
+
+            } catch (error) {
+                // Manejar error
+                console.error('Error en login:', error);
+
+                // Increment failed attempts
+                const attempts = incrementFailedAttempts(username);
+
+                // Mostrar mensaje de error
+                let message = error.message || 'Usuario o contraseña incorrectos.';
+                if (attempts < 5 && !message.includes('bloqueada')) {
+                    message += ` (${attempts}/5 intentos)`;
+                } else if (attempts >= 5) {
+                    message = 'Cuenta bloqueada por 5 minutos debido a múltiples intentos fallidos.';
+                }
+
+                alertContainer.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+
+                setTimeout(() => {
+                    alertContainer.innerHTML = '';
+                }, 5000);
+
+            } finally {
+                // Rehabilitar botón
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFE INSIGHT Registros</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/registros.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1 class="page-title">Registros</h1>
+        <div class="header-actions">
+            <a href="dashboard.html" class="btn-back">
+                <i class="bi bi-arrow-left"></i> Regresar
+            </a>
+            <button class="btn-logout" onclick="logout()">
+                <i class="bi bi-box-arrow-right"></i> Salir
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="registros-container">
+            <div class="search-filters">
+                <div class="filters-select date-filter">
+                    <input type="date" id="dateFilter">
+                    <i class="bi bi-calendar"></i>
+                </div>
+                <div class="search-input">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar por usuario, nombre o entidad...">
+                </div>
+                <div class="filters-select">
+                    <div class="custom-select" id="customSelect">
+                        <div class="select-selected" id="selectSelected">Todos</div>
+                        <div class="select-items select-hide" id="selectItems">
+                            <div data-value="todos"><i class="bi bi-circle"></i> Todos</div>
+                            <div data-value="creo_usuario"><i class="bi bi-person-plus"></i> Creó Usuario</div>
+                            <div data-value="edito_usuario"><i class="bi bi-person-gear"></i> Editó Usuario</div>
+                            <div data-value="elimino_usuario"><i class="bi bi-person-dash"></i> Eliminó Usuario</div>
+                            <div data-value="subio_documento"><i class="bi bi-cloud-upload"></i> Subió Documento</div>
+                            <div data-value="elimino_documento"><i class="bi bi-cloud-minus"></i> Eliminó Documento
+                            </div>
+                            <div data-value="creo_entidad"><i class="bi bi-building-add"></i> Creó Entidad</div>
+                            <div data-value="edito_entidad"><i class="bi bi-building-gear"></i> Editó Entidad</div>
+                            <div data-value="elimino_entidad"><i class="bi bi-building-dash"></i> Eliminó Entidad</div>
+                            <div data-value="creo_compromiso"><i class="bi bi-calendar-plus"></i> Creó Compromiso</div>
+                            <div data-value="edito_compromiso"><i class="bi bi-calendar-event"></i> Editó Compromiso
+                            </div>
+                            <div data-value="elimino_compromiso"><i class="bi bi-calendar-minus"></i> Eliminó Compromiso
+                            </div>
+                            <div data-value="lleno_formulario"><i class="bi bi-file-earmark-check"></i> Llenó Formulario
+                            </div>
+                            <div data-value="vio_detalles"><i class="bi bi-eye"></i> Visito</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Toggle para Filtros Avanzados -->
+            <section class="toggle-filters-section">
+                <button class="btn-toggle-filters" id="toggleAdvancedFilters">
+                    <i class="bi bi-funnel"></i> Mostrar Filtros Avanzados
+                </button>
+            </section>
+
+            <!-- Filtros Avanzados -->
+            <section class="advanced-filters-section" id="advancedFiltersSection" style="display: none;">
+                <div class="advanced-filters-grid">
+                    <div class="filter-group">
+                        <label for="dateFrom">Fecha Desde:</label>
+                        <input type="date" id="dateFrom">
+                    </div>
+                    <div class="filter-group">
+                        <label for="dateTo">Fecha Hasta:</label>
+                        <input type="date" id="dateTo">
+                    </div>
+                    <div class="filter-group">
+                        <label for="userFilter">Usuario:</label>
+                        <select id="userFilter">
+                            <option value="">Todos los usuarios</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="entityFilter">Entidad:</label>
+                        <select id="entityFilter">
+                            <option value="">Todas las entidades</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="commitmentFilter">Compromiso:</label>
+                        <select id="commitmentFilter">
+                            <option value="">Todos los compromisos</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="advanced-filters-actions">
+                    <button class="btn-apply-filters" id="applyAdvancedFilters">
+                        <i class="bi bi-funnel"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn-reset-filters" id="resetAdvancedFilters">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+                    </button>
+                </div>
+            </section>
+
+            <!-- Acciones Adicionales -->
+            <section class="actions-section">
+                <!-- Botón Exportar CSV -->
+                <button class="btn-export" onclick="exportToCSV()">
+                    <i class="bi bi-download"></i> Exportar CSV
+                </button>
+                <!-- Botón Analizar con IA -->
+                <button class="btn btn-warning ms-2" onclick="analizarConIA()">
+                    <i class="bi bi-robot"></i> Analizar con IA
+                </button>
+            </section>
+            <!-- Lista de Registros -->
+            <div class="records-list" id="recordsList">
+                <!-- Los registros se cargarán dinámicamente desde localStorage -->
+            </div>
+            <!-- Controles de Paginación -->
+            <div class="pagination-controls" id="paginationControls">
+                <!-- Los controles de paginación se generarán dinámicamente -->
+            </div>
+            <div id="noResults">No se encontraron registros.</div>
+        </div>
+
+
+        <!-- Toggle Tema Oscuro/Claro -->
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="bi bi-moon"></i>
+        </button>
+
+        <!-- Footer -->
+        <div class="footer-full">
+            <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="deleteModalBody">
+                    ¿Está seguro de eliminar este registro?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Éxito -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Éxito</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="successModalBody">
+                    Registro eliminado exitosamente.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalles del Registro -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">Detalles del Registro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="detailsModalBody">
+                    <!-- Los detalles se cargarán dinámicamente -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CryptoJS for encryption/decryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- Bootstrap JS (opcional para tooltips, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+
+        // Constante para clave de sesión
+        const USER_KEY = 'userUI';
+        const RECORDS_KEY = 'appRecords';
+
+        // Función logout
+        function logout() {
+            try {
+                if (localStorage.getItem(USER_KEY)) {
+                    localStorage.removeItem(USER_KEY);
+                }
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada exitosamente');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Variable global para filtro de acción
+        let currentValue = 'todos';
+        let records = [];
+        let allRecords = []; // Todos los registros originales
+        let allEntities = {};
+        let allCommitments = [];
+        // Variables para paginación
+        let currentPage = 1;
+        let recordsPerPage = 10;
+
+        // Función para formatear fechas de yyyy-mm-dd hh:mm a dd/mm/yyyy hh:mm
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split(' ');
+            if (parts.length !== 2) return dateStr;
+            const datePart = parts[0];
+            const timePart = parts[1];
+            const dateParts = datePart.split('-');
+            if (dateParts.length !== 3) return dateStr;
+            return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} ${timePart}`;
+        }
+
+        // Función para obtener el nombre del usuario por username
+        function getUserName(username) {
+            const users = getSecureItem('appUsers') || [];
+            const user = users.find(u => u.username === username);
+            return user ? user.name : username;
+        }
+
+        // Función para renderizar registros con paginación
+        function renderRecords() {
+            const recordsList = document.getElementById('recordsList');
+            recordsList.innerHTML = '';
+
+            // Calcular índices para la página actual
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const endIndex = startIndex + recordsPerPage;
+            const recordsToShow = records.slice(startIndex, endIndex);
+
+            recordsToShow.forEach(record => {
+                const row = document.createElement('div');
+                row.className = 'record-row';
+                row.setAttribute('data-action', record.action);
+
+                const actionIcon = getActionIcon(record.action);
+                const actionText = getActionText(record.action);
+
+                // Determinar la entidad para acciones relacionadas con compromisos
+                let entityForRecord = record.entity || 'N/A';
+                if (record.action === 'edito_compromiso' && record.commitment) {
+                    // Buscar el compromiso por nombre y obtener su entidad
+                    const commitment = allCommitments.find(c => c.name === record.commitment);
+                    if (commitment) {
+                        entityForRecord = getEntityName(commitment.entityId);
+                    }
+                }
+
+                const detailedActionText = getDetailedActionText(record.action, record.commitment);
+
+                row.innerHTML = `
+                    <div class="record-field"><i class="bi bi-person record-icon"></i> ${record.username}</div>
+                    <div class="record-field">${getUserName(record.username)}</div>
+                    <div class="record-field">${entityForRecord}</div>
+                    <div class="record-field">${record.commitment || 'N/A'}</div>
+                    <div class="record-field">${formatDate(record.timestamp)}</div>
+                    <div class="record-field">${actionIcon} ${detailedActionText}</div>
+                    <div class="record-field">
+                        <button class="btn btn-info btn-sm" onclick="showRecordDetails('${record.id}')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="record-field">
+                        <button class="btn btn-delete btn-sm" onclick="deleteRecord('${record.id}', '${record.username}', '${record.action}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+
+                recordsList.appendChild(row);
+            });
+
+            // Renderizar controles de paginación
+            renderPaginationControls();
+        }
+
+        // Función para obtener icono de acción
+        function getActionIcon(action) {
+            switch (action) {
+                case 'creo_usuario': return '<i class="bi bi-person-plus record-icon"></i>';
+                case 'edito_usuario': return '<i class="bi bi-person-gear record-icon"></i>';
+                case 'elimino_usuario': return '<i class="bi bi-person-dash record-icon"></i>';
+                case 'subio_documento': return '<i class="bi bi-cloud-upload record-icon"></i>';
+                case 'elimino_documento': return '<i class="bi bi-cloud-minus record-icon"></i>';
+                case 'creo_entidad': return '<i class="bi bi-building-add record-icon"></i>';
+                case 'edito_entidad': return '<i class="bi bi-building-gear record-icon"></i>';
+                case 'elimino_entidad': return '<i class="bi bi-building-dash record-icon"></i>';
+                case 'creo_compromiso': return '<i class="bi bi-calendar-plus record-icon"></i>';
+                case 'edito_compromiso': return '<i class="bi bi-calendar-event record-icon"></i>';
+                case 'elimino_compromiso': return '<i class="bi bi-calendar-minus record-icon"></i>';
+                case 'lleno_formulario': return '<i class="bi bi-file-earmark-check record-icon"></i>';
+                case 'vio_detalles': return '<i class="bi bi-eye record-icon"></i>';
+                default: return '<i class="bi bi-circle record-icon"></i>';
+            }
+        }
+
+        // Función para obtener texto de acción
+        function getActionText(action) {
+            switch (action) {
+                case 'creo_usuario': return 'Creó Usuario';
+                case 'edito_usuario': return 'Editó Usuario';
+                case 'elimino_usuario': return 'Eliminó Usuario';
+                case 'subio_documento': return 'Subió Documento';
+                case 'elimino_documento': return 'Eliminó Documento';
+                case 'creo_entidad': return 'Creó Entidad';
+                case 'edito_entidad': return 'Editó Entidad';
+                case 'elimino_entidad': return 'Eliminó Entidad';
+                case 'creo_compromiso': return 'Creó Compromiso';
+                case 'edito_compromiso': return 'Editó Compromiso';
+                case 'elimino_compromiso': return 'Eliminó Compromiso';
+                case 'lleno_formulario': return 'Llenó Formulario';
+                case 'vio_detalles': return 'Visito';
+                default: return 'Acción';
+            }
+        }
+
+        // Función para obtener texto detallado de acción con objeto específico
+        function getDetailedActionText(action, commitment) {
+            const baseText = getActionText(action);
+            if (action === 'edito_compromiso' && commitment) {
+                return `${baseText}: ${commitment}`;
+            }
+            return baseText;
+        }
+
+        // Función para cargar entidades desde API
+        async function loadEntities() {
+            try {
+                const response = await API.Entities.getAll();
+                if (response.success && response.data) {
+                    const apiEntities = Array.isArray(response.data) ? response.data :
+                        (response.data.data ? response.data.data : []);
+                    allEntities = {};
+                    apiEntities.forEach(entity => {
+                        allEntities[entity.id] = {
+                            name: entity.name || entity.entity_name || 'Entidad sin nombre',
+                            id: entity.entity_id || entity.id
+                        };
+                    });
+                } else {
+                    // Fallback a localStorage
+                    const storedEntities = localStorage.getItem('entitiesData');
+                    if (storedEntities) {
+                        allEntities = JSON.parse(storedEntities);
+                    } else {
+                        allEntities = {};
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando entidades:', error);
+                allEntities = {};
+            }
+        }
+
+        // Función para cargar compromisos desde API
+        async function loadCommitments() {
+            try {
+                const response = await API.Commitments.getAll();
+                if (response.success && response.data) {
+                    const apiCommitments = Array.isArray(response.data) ? response.data :
+                        (response.data.data ? response.data.data : []);
+                    allCommitments = apiCommitments.map(commitment => ({
+                        id: commitment.id || commitment.commitment_id,
+                        title: commitment.title || commitment.name || 'Compromiso sin título'
+                    }));
+                } else {
+                    // Fallback a localStorage
+                    const storedCommitments = localStorage.getItem('commitmentsData');
+                    if (storedCommitments) {
+                        allCommitments = JSON.parse(storedCommitments);
+                    } else {
+                        allCommitments = [];
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando compromisos:', error);
+                allCommitments = [];
+            }
+        }
+
+        // Función para obtener el nombre de la entidad por ID
+        function getEntityName(entityId) {
+            if (!entityId) return 'N/A';
+            const entity = allEntities[entityId];
+            return entity ? entity.name : 'Entidad no encontrada';
+        }
+
+        // Función para cargar registros desde API
+        async function loadRecords() {
+            try {
+                showLoading(true);
+
+                // Cargar entidades y compromisos si es necesario
+                await loadEntities();
+                await loadCommitments();
+
+                // Cargar registros desde API
+                const response = await API.Records.getAll();
+
+                if (response.success && response.data) {
+                    // Normalizar datos de API
+                    const apiRecords = Array.isArray(response.data) ? response.data :
+                        (response.data.data ? response.data.data : []);
+
+                    allRecords = apiRecords.map(record => ({
+                        id: record.id || record.record_id || Date.now() + Math.random(),
+                        username: record.username || record.user_name || 'Sistema',
+                        action: record.action || record.action_type || 'accion_desconocida',
+                        entity: record.entity || record.entity_name || '',
+                        commitment: record.commitment || record.commitment_name || null,
+                        timestamp: record.timestamp || record.created_at || new Date().toISOString()
+                    }));
+
+                    records = [...allRecords];
+
+                    // Ordenar por timestamp descendente (más recientes primero)
+                    records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                } else {
+                    console.warn('No se pudieron cargar registros desde API, usando localStorage como fallback');
+                    // Fallback a localStorage si API falla
+                    const storedRecords = getSecureItem(RECORDS_KEY);
+                    if (storedRecords) {
+                        allRecords = storedRecords;
+                        records = [...allRecords];
+                        records.forEach(record => {
+                            if (!record.id) {
+                                record.id = (Date.now() + Math.random()).toString();
+                            }
+                        });
+                        records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    } else {
+                        records = [];
+                        allRecords = [];
+                    }
+                }
+
+                renderRecords();
+            } catch (error) {
+                console.error('Error cargando registros:', error);
+                showError('Error al cargar los registros: ' + error.message);
+                // Fallback final a datos vacíos
+                records = [];
+                allRecords = [];
+                renderRecords();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Chequeo de sesión con expiración
+            const userData = getCurrentSession();
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Restringir acceso: solo administradores y programadores pueden ver logs
+            if (userData.role !== 'administrador' && userData.role !== 'programador' && userData.role !== 'socio') {
+                alert('Acceso denegado. Solo administradores, programadores y socios pueden ver los registros.');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Cargar registros al iniciar
+            loadRecords();
+
+            // Función para guardar filtros en localStorage
+            function saveFilters() {
+                const filters = {
+                    searchTerm: document.getElementById('searchInput').value,
+                    actionFilter: currentValue,
+                    dateFilter: document.getElementById('dateFilter').value
+                };
+                localStorage.setItem('registrosFilters', JSON.stringify(filters));
+            }
+
+            // Función para cargar filtros desde localStorage
+            function loadFilters() {
+                const savedFilters = localStorage.getItem('registrosFilters');
+                if (savedFilters) {
+                    const filters = JSON.parse(savedFilters);
+                    document.getElementById('searchInput').value = filters.searchTerm || '';
+                    currentValue = filters.actionFilter || 'todos';
+                    document.getElementById('dateFilter').value = filters.dateFilter || '';
+                    // Actualizar UI del select
+                    if (selectSelected) {
+                        const actionText = currentValue === 'todos' ? 'Todos' :
+                            currentValue === 'creo_usuario' ? 'Creó Usuario' :
+                                currentValue === 'edito_usuario' ? 'Editó Usuario' :
+                                    currentValue === 'elimino_usuario' ? 'Eliminó Usuario' :
+                                        currentValue === 'subio_documento' ? 'Subió Documento' :
+                                            currentValue === 'elimino_documento' ? 'Eliminó Documento' :
+                                                currentValue === 'creo_entidad' ? 'Creó Entidad' :
+                                                    currentValue === 'edito_entidad' ? 'Editó Entidad' :
+                                                        currentValue === 'elimino_entidad' ? 'Eliminó Entidad' :
+                                                            currentValue === 'creo_compromiso' ? 'Creó Compromiso' :
+                                                                currentValue === 'edito_compromiso' ? 'Editó Compromiso' :
+                                                                    currentValue === 'elimino_compromiso' ? 'Eliminó Compromiso' :
+                                                                        currentValue === 'lleno_formulario' ? 'Llenó Formulario' :
+                                                                            currentValue === 'vio_detalles' ? 'Visito' : 'Todos';
+                        selectSelected.textContent = actionText;
+                        selectSelected.classList.add('selected');
+                    }
+                }
+            }
+
+            // Event listeners para filtros con sanitización
+            document.getElementById('searchInput').addEventListener('input', function () {
+                // Sanitize search input
+                this.value = sanitizeInput(this.value);
+                filterRecords();
+                saveFilters(); // Guardar filtros
+            });
+            document.getElementById('dateFilter').addEventListener('change', function () {
+                // Sanitize date input (though date inputs are inherently safe)
+                this.value = sanitizeInput(this.value);
+                filterRecords();
+                saveFilters(); // Guardar filtros
+            });
+
+            // Custom Select Logic
+            const customSelect = document.getElementById('customSelect');
+            const selectSelected = document.getElementById('selectSelected');
+            const selectItems = document.getElementById('selectItems');
+
+            // Inicialización: Mostrar "Todos" al cargar y marcar la primera opción
+            selectSelected.textContent = 'Todos';
+            selectSelected.classList.add('selected');
+
+            // Toggle lista al clic en selected
+            selectSelected.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const isHidden = selectItems.classList.contains('select-hide');
+                if (isHidden) {
+                    selectItems.classList.remove('select-hide');
+                    selectItems.classList.add('show');
+                } else {
+                    selectItems.classList.add('select-hide');
+                    selectItems.classList.remove('show');
+                }
+            });
+
+            // Seleccionar opción
+            const options = selectItems.querySelectorAll('div[data-value]');
+            options.forEach(option => {
+                option.addEventListener('click', function () {
+                    currentValue = this.getAttribute('data-value');
+                    const optionText = this.textContent.trim().replace(/<i.*<\/i>/, '').trim();
+                    selectSelected.textContent = optionText;
+                    selectSelected.classList.add('selected');
+
+                    // Marcar como seleccionada
+                    options.forEach(opt => opt.classList.remove('same-as-selected'));
+                    this.classList.add('same-as-selected');
+
+                    // Cerrar lista
+                    selectItems.classList.add('select-hide');
+                    selectItems.classList.remove('show');
+
+                    // Aplicar filtro
+                    filterRecords();
+                });
+            });
+
+            // Cerrar lista al clic fuera
+            document.addEventListener('click', function (e) {
+                if (!customSelect.contains(e.target)) {
+                    selectItems.classList.add('select-hide');
+                    selectItems.classList.remove('show');
+                }
+            });
+
+            // Inicializar filtros al cargar
+            filterRecords();
+
+            // Poblar filtros avanzados después de cargar datos
+            populateAdvancedFilters();
+
+            // Event listeners para filtros avanzados
+            document.getElementById('toggleAdvancedFilters').addEventListener('click', function () {
+                const advancedFilters = document.getElementById('advancedFiltersSection');
+                const basicFilters = document.querySelector('.search-filters');
+                const isHidden = advancedFilters.style.display === 'none';
+
+                if (isHidden) {
+                    // Mostrar filtros avanzados, ocultar básicos
+                    basicFilters.style.display = 'none';
+                    advancedFilters.style.display = 'block';
+                    this.innerHTML = '<i class="bi bi-funnel-fill"></i> Mostrar Filtros Básicos';
+                } else {
+                    // Mostrar filtros básicos, ocultar avanzados
+                    basicFilters.style.display = 'flex';
+                    advancedFilters.style.display = 'none';
+                    this.innerHTML = '<i class="bi bi-funnel"></i> Mostrar Filtros Avanzados';
+                }
+            });
+
+            document.getElementById('applyAdvancedFilters').addEventListener('click', applyAdvancedFilters);
+            document.getElementById('resetAdvancedFilters').addEventListener('click', resetAdvancedFilters);
+        });
+
+        // Variable para almacenar el ID del registro a eliminar
+        let recordToDelete = null;
+
+        // Función para eliminar un registro
+        function deleteRecord(id, username, action) {
+            console.log('Intentando eliminar registro ID:', id);
+            recordToDelete = id;
+            const modalBody = document.getElementById('deleteModalBody');
+            modalBody.innerHTML = `¿Está seguro de eliminar este registro?<br><br><strong>Usuario:</strong> ${username}<br><strong>Acción:</strong> ${getActionText(action)}`;
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            deleteModal.show();
+        }
+
+        // Event listener para el botón de confirmar eliminación
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+            if (recordToDelete) {
+                // Elimina el registro específico por ID
+                records = records.filter(record => record.id !== recordToDelete);
+                setSecureItem(RECORDS_KEY, records);
+                renderRecords();
+                filterRecords();
+                recordToDelete = null;
+                // Cerrar el modal de eliminación
+                const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                deleteModal.hide();
+                // Mostrar modal de éxito
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+            }
+        });
+
+        // Función para renderizar controles de paginación
+        function renderPaginationControls() {
+            const paginationControls = document.getElementById('paginationControls');
+            paginationControls.innerHTML = '';
+
+            const totalPages = Math.ceil(records.length / recordsPerPage);
+
+            if (totalPages <= 1) return; // No mostrar controles si hay solo una página
+
+            // Botón Anterior
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.textContent = 'Anterior';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderRecords();
+                }
+            });
+            paginationControls.appendChild(prevBtn);
+
+            // Números de página
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'page-btn';
+                pageBtn.textContent = i;
+                if (i === currentPage) {
+                    pageBtn.classList.add('active');
+                }
+                pageBtn.addEventListener('click', () => {
+                    currentPage = i;
+                    renderRecords();
+                });
+                paginationControls.appendChild(pageBtn);
+            }
+
+            // Botón Siguiente
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.textContent = 'Siguiente';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderRecords();
+                }
+            });
+            paginationControls.appendChild(nextBtn);
+        }
+
+        // Función para exportar registros a CSV
+        function exportToCSV() {
+            if (records.length === 0) {
+                alert('No hay registros para exportar.');
+                return;
+            }
+
+            // Crear headers del CSV
+            const headers = ['Usuario', 'Nombre', 'Entidad', 'Compromiso', 'Fecha', 'Acción'];
+
+            // Crear filas de datos
+            const csvData = records.map(record => {
+                const actionText = getActionText(record.action);
+                let entityForRecord = record.entity || 'N/A';
+                if (record.action === 'edito_compromiso' && record.commitment) {
+                    const commitment = allCommitments.find(c => c.name === record.commitment);
+                    if (commitment) {
+                        entityForRecord = getEntityName(commitment.entityId);
+                    }
+                }
+
+                return [
+                    record.username,
+                    getUserName(record.username),
+                    entityForRecord,
+                    record.commitment || 'N/A',
+                    formatDate(record.timestamp),
+                    actionText
+                ];
+            });
+
+            // Combinar headers y datos
+            const csvContent = [headers, ...csvData]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+
+            // Crear blob y descargar
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `registros_cfe_insight_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Función para poblar filtros avanzados
+        function populateAdvancedFilters() {
+            try {
+                // Poblar usuarios
+                const userFilter = document.getElementById('userFilter');
+                userFilter.innerHTML = '<option value="">Todos los usuarios</option>';
+                const users = getSecureItem('appUsers') || [];
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = user.name;
+                    userFilter.appendChild(option);
+                });
+
+                // Poblar entidades
+                const entityFilter = document.getElementById('entityFilter');
+                entityFilter.innerHTML = '<option value="">Todas las entidades</option>';
+                Object.values(allEntities).forEach(entity => {
+                    const option = document.createElement('option');
+                    option.value = entity.id;
+                    option.textContent = entity.name;
+                    entityFilter.appendChild(option);
+                });
+
+                // Poblar compromisos
+                const commitmentFilter = document.getElementById('commitmentFilter');
+                commitmentFilter.innerHTML = '<option value="">Todos los compromisos</option>';
+                allCommitments.forEach(commitment => {
+                    const option = document.createElement('option');
+                    option.value = commitment.id;
+                    option.textContent = commitment.name;
+                    commitmentFilter.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error poblando filtros avanzados:', error);
+            }
+        }
+
+        // Función para aplicar filtros avanzados
+        function applyAdvancedFilters() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const userFilter = document.getElementById('userFilter').value;
+            const entityFilter = document.getElementById('entityFilter').value;
+            const commitmentFilter = document.getElementById('commitmentFilter').value;
+
+            // Filtrar registros basados en criterios avanzados desde allRecords
+            let filteredRecords = allRecords.filter(record => {
+                // Filtro de fecha desde
+                if (dateFrom) {
+                    const recordDate = new Date(record.timestamp.split(' ')[0]);
+                    const fromDate = new Date(dateFrom);
+                    if (recordDate < fromDate) return false;
+                }
+
+                // Filtro de fecha hasta
+                if (dateTo) {
+                    const recordDate = new Date(record.timestamp.split(' ')[0]);
+                    const toDate = new Date(dateTo);
+                    if (recordDate > toDate) return false;
+                }
+
+                // Filtro de usuario
+                if (userFilter && record.username !== userFilter) return false;
+
+                // Filtro de entidad
+                if (entityFilter) {
+                    let recordEntityId = record.entity;
+                    if (record.action === 'edito_compromiso' && record.commitment) {
+                        const commitment = allCommitments.find(c => c.name === record.commitment);
+                        if (commitment) recordEntityId = commitment.entityId;
+                    }
+                    if (recordEntityId !== entityFilter) return false;
+                }
+
+                // Filtro de compromiso
+                if (commitmentFilter) {
+                    const commitment = allCommitments.find(c => c.id == commitmentFilter);
+                    if (!commitment || record.commitment !== commitment.name) return false;
+                }
+
+                return true;
+            });
+
+            // Actualizar la lista de registros filtrados y renderizar
+            records = filteredRecords;
+            currentPage = 1;
+            renderRecords();
+        }
+
+        // Función para resetear filtros avanzados
+        function resetAdvancedFilters() {
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('userFilter').value = '';
+            document.getElementById('entityFilter').value = '';
+            document.getElementById('commitmentFilter').value = '';
+            // Recargar todos los registros
+            loadRecords();
+        }
+
+        // Función para mostrar detalles del registro
+        function showRecordDetails(recordId) {
+            const record = allRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const actionDescription = getActionDescription(record.action);
+            const actionText = getActionText(record.action);
+            const actionIcon = getActionIcon(record.action);
+
+            // Determinar la entidad para acciones relacionadas con compromisos
+            let entityForRecord = record.entity || 'N/A';
+            if (record.action === 'edito_compromiso' && record.commitment) {
+                const commitment = allCommitments.find(c => c.name === record.commitment);
+                if (commitment) {
+                    entityForRecord = getEntityName(commitment.entityId);
+                }
+            }
+
+            const detailsHtml = `
+                <div class="record-details">
+                    <div class="detail-row">
+                        <strong>Usuario:</strong> <span>${record.username}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Nombre:</strong> <span>${getUserName(record.username)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Entidad:</strong> <span>${entityForRecord}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Compromiso:</strong> <span>${record.commitment || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Fecha y Hora:</strong> <span>${formatDate(record.timestamp)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Acción:</strong> <span>${actionIcon} ${actionText} - ${actionDescription}</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detailsModalBody').innerHTML = detailsHtml;
+            const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+            detailsModal.show();
+        }
+
+        // Función para obtener descripción detallada de la acción
+        function getActionDescription(action) {
+            switch (action) {
+                case 'creo_usuario':
+                    return 'El usuario creó una nueva cuenta en el sistema. Esto incluye la asignación de credenciales y permisos iniciales.';
+                case 'edito_usuario':
+                    return 'El usuario modificó la información de una cuenta existente, como nombre, permisos o datos personales.';
+                case 'elimino_usuario':
+                    return 'El usuario eliminó una cuenta del sistema. Esta acción puede requerir confirmación adicional.';
+                case 'subio_documento':
+                    return 'El usuario cargó un documento al sistema, posiblemente relacionado con un compromiso o entidad específica.';
+                case 'elimino_documento':
+                    return 'El usuario eliminó un documento del sistema. Esto puede afectar la trazabilidad de información.';
+                case 'creo_entidad':
+                    return 'El usuario creó una nueva entidad en el sistema, definiendo su estructura y características.';
+                case 'edito_entidad':
+                    return 'El usuario modificó la información de una entidad existente, como nombre o configuración.';
+                case 'elimino_entidad':
+                    return 'El usuario eliminó una entidad del sistema. Esta acción puede tener impactos en compromisos asociados.';
+                case 'creo_compromiso':
+                    return 'El usuario creó un nuevo compromiso, definiendo objetivos, fechas y responsables.';
+                case 'edito_compromiso':
+                    return 'El usuario modificó un compromiso existente, actualizando detalles como fechas o responsables.';
+                case 'elimino_compromiso':
+                    return 'El usuario eliminó un compromiso del sistema. Esto puede afectar el seguimiento de objetivos.';
+                case 'lleno_formulario':
+                    return 'El usuario completó y envió un formulario, proporcionando información requerida para un proceso específico.';
+                case 'vio_detalles':
+                    return 'El usuario accedió a la vista detallada de un elemento, como un compromiso o entidad.';
+                default:
+                    return 'Acción registrada en el sistema.';
+            }
+        }
+
+        // Función para analizar registros con IA
+        async function analyzeLogsWithAI(records, analysisType) {
+            // Simular análisis con IA - en producción, esto debería llamar a una API de IA
+            const analysis = {
+                general: `Análisis General: Se encontraron ${records.length} registros en total. Los usuarios más activos son ${getTopUsers(records).join(', ')}.`,
+                anomalies: `Detección de Anomalías: No se encontraron anomalías significativas en los registros.`,
+                patterns: `Patrones de Comportamiento: Los usuarios tienden a realizar más acciones durante horas laborales.`,
+                recommendations: `Recomendaciones: Considerar implementar más controles de seguridad para acciones críticas.`
+            };
+            return analysis[analysisType] || 'Tipo de análisis no reconocido.';
+        }
+
+        function getTopUsers(records) {
+            const userCounts = {};
+            records.forEach(record => {
+                userCounts[record.username] = (userCounts[record.username] || 0) + 1;
+            });
+            return Object.keys(userCounts).sort((a, b) => userCounts[b] - userCounts[a]).slice(0, 3);
+        }
+
+        async function analizarConIA() {
+            if (records.length === 0) {
+                alert('No hay registros para analizar.');
+                return;
+            }
+
+            // Mostrar modal de análisis con opciones
+            const analysisModal = document.createElement('div');
+            analysisModal.className = 'modal fade';
+            analysisModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Análisis con IA</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Selecciona el tipo de análisis que deseas realizar:</p>
+                            <select id="analysisType" class="form-select mb-3">
+                                <option value="general">Análisis General</option>
+                                <option value="anomalies">Detección de Anomalías</option>
+                                <option value="patterns">Patrones de Comportamiento</option>
+                                <option value="recommendations">Recomendaciones Específicas</option>
+                            </select>
+                            <div id="analysisResult" class="mt-3" style="display: none;">
+                                <h6>Resultado del Análisis:</h6>
+                                <div id="analysisContent" class="alert alert-info"></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="button" class="btn btn-warning" id="runAnalysisBtn">Analizar con IA</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(analysisModal);
+            const modal = new bootstrap.Modal(analysisModal);
+            modal.show();
+
+            // Event listener para ejecutar análisis
+            document.getElementById('runAnalysisBtn').addEventListener('click', async function () {
+                const analysisType = document.getElementById('analysisType').value;
+                const btn = this;
+
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analizando...';
+                btn.disabled = true;
+
+                try {
+                    const result = await analyzeLogsWithAI(records, analysisType);
+                    document.getElementById('analysisContent').textContent = result;
+                    document.getElementById('analysisResult').style.display = 'block';
+                } catch (error) {
+                    console.error('Error analizando logs:', error);
+                    document.getElementById('analysisContent').textContent = 'Error al analizar los logs. Intente nuevamente.';
+                    document.getElementById('analysisResult').style.display = 'block';
+                } finally {
+                    btn.innerHTML = 'Analizar con IA';
+                    btn.disabled = false;
+                }
+            });
+
+            // Limpiar modal al cerrar
+            analysisModal.addEventListener('hidden.bs.modal', function () {
+                analysisModal.remove();
+            });
+        }
+
+        // Función filterRecords (actualizada para resetear página)
+        function filterRecords() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterAction = currentValue;
+            const selectedDate = document.getElementById('dateFilter').value;
+
+            const rows = document.querySelectorAll('.record-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const userField = row.querySelector('.record-field:nth-child(1)');
+                const nameField = row.querySelector('.record-field:nth-child(2)');
+                const entityField = row.querySelector('.record-field:nth-child(3)');
+                const dateField = row.querySelector('.record-field:nth-child(5)');
+                const actionAttr = row.getAttribute('data-action') ? row.getAttribute('data-action').toLowerCase() : '';
+
+                const user = userField ? userField.textContent.toLowerCase().trim() : '';
+                const name = nameField ? nameField.textContent.toLowerCase().trim() : '';
+                const entity = entityField ? entityField.textContent.toLowerCase().trim() : '';
+                const rowDate = dateField ? dateField.textContent.trim() : '';
+                // Convertir fecha seleccionada de yyyy-mm-dd a dd/mm/yyyy para comparación
+                const selectedDateFormatted = selectedDate ? formatDate(selectedDate) : '';
+                const rowDateOnly = rowDate.split(' ')[0];
+
+                const matchesSearch = searchTerm === '' ||
+                    user.includes(searchTerm) ||
+                    name.includes(searchTerm) ||
+                    entity.includes(searchTerm);
+
+                const matchesAction = filterAction === 'todos' || actionAttr === filterAction;
+                const matchesDate = selectedDate === '' || rowDateOnly === selectedDateFormatted.split(' ')[0];
+
+                if (matchesSearch && matchesAction && matchesDate) {
+                    row.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+
+            const noResults = document.getElementById('noResults');
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+
+            // Resetear a página 1 cuando se aplican filtros
+            currentPage = 1;
+            renderRecords();
+        }
+    </script>
+
+    <!-- Auth Guard: Proteger ruta -->
+    <script type="module">
+        import { initAuthGuard } from '../js/auth-guard.js';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initAuthGuard('logoutBtn');
+        });
+    </script>
+</body>
+
+</html>
