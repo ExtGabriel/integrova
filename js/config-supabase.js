@@ -17,15 +17,15 @@
 
 window.SUPABASE_CONFIG = {
     // URL de tu proyecto Supabase (ejemplo: https://abcdefgh.supabase.co)
-    url: '__SUPABASE_URL__',
+    url: 'https://ffefbeamhilqpvwutzri.supabase.co',
 
     // Clave pública "anon" (segura para exponer en frontend)
-    anonKey: '__SUPABASE_ANON_KEY__'
+    anonKey: 'sb_publishable_PZQlhfX2zZXz8WpEcEo7TQ_U6oN7_km'
 };
 
 // Validación automática en desarrollo
 if (typeof window !== 'undefined' &&
-    (window.SUPABASE_CONFIG.url === '__SUPABASE_URL__' ||
-        window.SUPABASE_CONFIG.anonKey === '__SUPABASE_ANON_KEY__')) {
+    (window.SUPABASE_CONFIG.url === 'https://ffefbeamhilqpvwutzri.supabase.co' ||
+    window.SUPABASE_CONFIG.anonKey === 'sb_publishable_PZQlhfX2zZXz8WpEcEo7TQ_U6oN7_km')) {
     console.warn('🔧 CONFIGURACIÓN PENDIENTE: Edita /App/js/config-supabase.js con tus credenciales reales.');
 }
