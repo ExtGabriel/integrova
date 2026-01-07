@@ -117,7 +117,7 @@ export async function initAuthGuard(logoutBtnId = 'logoutBtn') {
 }
 
 /**
- * Carga el perfil del usuario desde la tabla `usuarios` usando auth_id
+ * Carga el perfil del usuario desde la tabla `users` usando auth_id
  * @param {boolean} persist - Si debe almacenarse en sessionStorage
  * @returns {Promise<object|null>} Datos básicos de UI o null
  */
@@ -139,7 +139,7 @@ export async function ensureUserProfile(persist = true) {
         }
 
         const { data, error: profileError } = await supabase
-            .from('usuarios')
+            .from('users')
             .select('id, auth_id, nombre, rol, correo')
             .eq('auth_id', session.user.id)
             .maybeSingle();
@@ -150,7 +150,7 @@ export async function ensureUserProfile(persist = true) {
         }
 
         if (!data) {
-            console.warn('No se encontró registro en tabla usuarios para el auth_id actual');
+            console.warn('No se encontró registro en tabla users para el auth_id actual');
             return null;
         }
 

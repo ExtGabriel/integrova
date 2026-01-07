@@ -1105,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                 if (!error && session?.user) {
                     const { data: profile, error: profileError } = await supabase
-                        .from('usuarios')
+                        .from('users')
                         .select('id, auth_id, nombre, rol, correo')
                         .eq('auth_id', session.user.id)
                         .maybeSingle();

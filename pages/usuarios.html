@@ -160,7 +160,7 @@
       try {
         const supabase = await getSupabase();
         const { data, error } = await supabase
-          .from('usuarios')
+          .from('users')
           .select('id, auth_id, nombre, rol, correo, telefono, equipo, username, activo, created_at');
 
         if (error) throw error;
@@ -190,7 +190,7 @@
     async function fetchCurrentProfile(authId) {
       const supabase = await getSupabase();
       const { data, error } = await supabase
-        .from('usuarios')
+        .from('users')
         .select('id, auth_id, nombre, rol, correo')
         .eq('auth_id', authId)
         .maybeSingle();
@@ -225,7 +225,7 @@
         if (!currentSession) {
           const profile = await fetchCurrentProfile(session.user.id);
           if (!profile) {
-            alert('No se encontró tu perfil en la tabla usuarios. Contacta a un administrador.');
+            alert('No se encontró tu perfil en la tabla users. Contacta a un administrador.');
             await supabase.auth.signOut();
             window.location.href = 'login.html';
             return false;

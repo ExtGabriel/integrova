@@ -78,7 +78,7 @@
 
         async function storeUserProfile(session) {
             const { data, error } = await supabase
-                .from('usuarios')
+                .from('users')
                 .select('id, auth_id, nombre, rol, correo')
                 .eq('auth_id', session.user.id)
                 .maybeSingle();
@@ -90,7 +90,7 @@
             }
 
             if (!data) {
-                showAlert('No se encontró tu perfil en la tabla usuarios. Contacta a un administrador.');
+                showAlert('No se encontró tu perfil en la tabla users. Contacta a un administrador.');
                 return null;
             }
 
