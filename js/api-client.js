@@ -5,11 +5,21 @@
  */
 
 // Determinar la URL base de la API desde entorno o contexto
-const API_BASE_URL =
-    (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-    (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-    (typeof window !== 'undefined' && window.API_BASE_URL) ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+// IMPORTANTE: NO usar import.meta directamente (causa syntax error en scripts normales)
+let API_BASE_URL = '';
+
+try {
+    // Intentar leer desde window.API_BASE_URL primero (más seguro)
+    API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) || '';
+
+    // Si no existe, usar window.location.origin como fallback
+    if (!API_BASE_URL && typeof window !== 'undefined') {
+        API_BASE_URL = window.location.origin;
+    }
+} catch (e) {
+    // Fallback silencioso si falla
+    API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
+}
 
 // Exponer para otros módulos que cargan en el navegador
 if (typeof window !== 'undefined') {
