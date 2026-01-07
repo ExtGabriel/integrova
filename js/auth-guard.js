@@ -3,7 +3,7 @@
  * Verifica autenticación con Supabase y protege rutas
  */
 
-import { supabaseClient } from './supabase-client.js';
+import { getSupabaseClient } from './supabaseClient.js';
 
 const USER_UI_KEY = 'userUI';
 
@@ -15,7 +15,16 @@ const USER_UI_KEY = 'userUI';
  */
 export async function requireAuth(redirect = true) {
     try {
-        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        const supabase = await getSupabaseClient();
+        if (!supabase) {
+            console.error('❌ Supabase no configurado');
+            if (redirect) {
+                window.location.href = 'login.html';
+            }
+            return null;
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
             console.error('❌ Error al verificar sesión:', error);
@@ -66,7 +75,8 @@ export async function logout() {
         sessionStorage.removeItem(USER_UI_KEY);
 
         // Cerrar sesión en Supabase
-        const { error } = await supabaseClient.auth.signOut();
+        const supabase = await getSupabaseClient();
+        const { error } = supabase ? await supabase.auth.signOut() : { error: null };
         if (error) {
             console.error('Error al cerrar sesión en Supabase:', error);
         }
@@ -104,6 +114,63 @@ export async function initAuthGuard(logoutBtnId = 'logoutBtn') {
     }
 
     return session;
+}
+
+/**
+ * Carga el perfil del usuario desde la tabla `usuarios` usando auth_id
+ * @param {boolean} persist - Si debe almacenarse en sessionStorage
+ * @returns {Promise<object|null>} Datos básicos de UI o null
+ */
+export async function ensureUserProfile(persist = true) {
+    try {
+        const cached = getUserUI();
+        if (cached) {
+            return cached;
+        }
+
+        const supabase = await getSupabaseClient();
+        if (!supabase) {
+            return null;
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+            return null;
+        }
+
+        const { data, error: profileError } = await supabase
+            .from('usuarios')
+            .select('id, auth_id, nombre, rol, correo')
+            .eq('auth_id', session.user.id)
+            .maybeSingle();
+
+        if (profileError) {
+            console.error('Error al obtener perfil de usuario:', profileError);
+            return null;
+        }
+
+        if (!data) {
+            console.warn('No se encontró registro en tabla usuarios para el auth_id actual');
+            return null;
+        }
+
+        const uiData = {
+            id: data.id,
+            auth_id: data.auth_id,
+            name: data.nombre || session.user.email || 'Usuario',
+            email: data.correo || session.user.email || '',
+            role: data.rol || 'usuario'
+        };
+
+        if (persist) {
+            sessionStorage.setItem(USER_UI_KEY, JSON.stringify(uiData));
+        }
+
+        return uiData;
+    } catch (error) {
+        console.error('❌ Error crítico al cargar perfil de usuario:', error);
+        return null;
+    }
 }
 
 // Constante exportada para consistencia
