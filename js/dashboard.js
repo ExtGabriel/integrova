@@ -1106,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (!error && session?.user) {
                     const { data: profile, error: profileError } = await supabase
                         .from('users')
-                        .select('id, auth_id, nombre, rol, correo')
+                        .select('id, auth_id, full_name, email, role, username, phone, groups')
                         .eq('auth_id', session.user.id)
                         .maybeSingle();
 
@@ -1116,9 +1116,16 @@ document.addEventListener('DOMContentLoaded', async function () {
                         userData = {
                             id: profile.id,
                             auth_id: profile.auth_id,
-                            name: profile.nombre || session.user.email,
-                            email: profile.correo || session.user.email,
-                            role: profile.rol || 'usuario'
+                            name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
+                            email: profile.email || session.user?.email,
+                            role: profile.role || 'usuario',
+                            username: profile.username || session.user?.user_metadata?.username || null,
+                            phone: profile.phone ?? null,
+                            groups: Array.isArray(profile.groups)
+                                ? profile.groups
+                                : profile.groups
+                                    ? [profile.groups]
+                                    : []
                         };
                         setSessionWithExpiry(userData);
                     }

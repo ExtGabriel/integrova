@@ -140,7 +140,7 @@ export async function ensureUserProfile(persist = true) {
 
         const { data, error: profileError } = await supabase
             .from('users')
-            .select('id, auth_id, nombre, rol, correo')
+            .select('id, auth_id, full_name, email, role, username, phone, groups')
             .eq('auth_id', session.user.id)
             .maybeSingle();
 
@@ -157,9 +157,16 @@ export async function ensureUserProfile(persist = true) {
         const uiData = {
             id: data.id,
             auth_id: data.auth_id,
-            name: data.nombre || session.user.email || 'Usuario',
-            email: data.correo || session.user.email || '',
-            role: data.rol || 'usuario'
+            name: data.full_name || session.user?.user_metadata?.full_name || session.user?.email || 'Usuario',
+            email: data.email || session.user?.email || '',
+            role: data.role || 'usuario',
+            username: data.username || session.user?.user_metadata?.username || null,
+            phone: data.phone ?? null,
+            groups: Array.isArray(data.groups)
+                ? data.groups
+                : data.groups
+                    ? [data.groups]
+                    : []
         };
 
         if (persist) {

@@ -161,22 +161,22 @@
         const supabase = await getSupabase();
         const { data, error } = await supabase
           .from('users')
-          .select('id, auth_id, nombre, rol, correo, telefono, equipo, username, activo, created_at');
+          .select('id, auth_id, full_name, email, role, username, phone, groups');
 
         if (error) throw error;
 
         users = (data || []).map(u => ({
           id: u.id,
-          username: u.username || u.nombre || (u.correo ? u.correo.split('@')[0] : 'N/A'),
-          name: u.nombre || 'Sin nombre',
-          full_name: u.nombre || 'Sin nombre',
-          email: u.correo || 'No disponible',
-          phone: u.telefono || 'No disponible',
-          role: u.rol || 'Sin rol',
-          team: u.equipo || u.team || u.group || 'Sin equipo',
-          active: u.activo !== undefined ? u.activo : true,
+          username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
+          name: u.full_name || 'Sin nombre',
+          full_name: u.full_name || 'Sin nombre',
+          email: u.email || 'No disponible',
+          phone: u.phone || 'No disponible',
+          role: u.role || 'Sin rol',
+          team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : 'Sin grupo',
+          active: true,
           password: '********',
-          created_at: u.created_at
+          created_at: null
         }));
 
         console.log(`✅ ${users.length} usuarios cargados desde Supabase:`, users);
@@ -191,7 +191,7 @@
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from('users')
-        .select('id, auth_id, nombre, rol, correo')
+        .select('id, auth_id, full_name, email, role, username, phone, groups')
         .eq('auth_id', authId)
         .maybeSingle();
 
@@ -234,9 +234,16 @@
           currentSession = {
             id: profile.id,
             auth_id: profile.auth_id,
-            name: profile.nombre || session.user.email,
-            email: profile.correo || session.user.email,
-            role: profile.rol || 'usuario'
+            name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
+            email: profile.email || session.user?.email,
+            role: profile.role || 'usuario',
+            username: profile.username || session.user?.user_metadata?.username || null,
+            phone: profile.phone ?? null,
+            groups: Array.isArray(profile.groups)
+              ? profile.groups
+              : profile.groups
+                ? [profile.groups]
+                : []
           };
 
           sessionStorage.setItem('userUI', JSON.stringify(currentSession));
