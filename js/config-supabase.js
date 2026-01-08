@@ -17,15 +17,15 @@
 
 window.SUPABASE_CONFIG = {
     // URL de tu proyecto Supabase (ejemplo: https://abcdefgh.supabase.co)
-    url: 'https://ffefbeamhilqpvwutzri.supabase.co',
+    url: 'https://xtrsmplqcczubdygftfm.supabase.co',
 
     // Clave pública "anon" (segura para exponer en frontend)
-    anonKey: 'sb_publishable_PZQlhfX2zZXz8WpEcEo7TQ_U6oN7_km'
+    anonKey: 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z'
 };
 
 // Validación automática en desarrollo
 if (typeof window !== 'undefined' &&
-    (window.SUPABASE_CONFIG.url === 'https://ffefbeamhilqpvwutzri.supabase.co' ||
-    window.SUPABASE_CONFIG.anonKey === 'sb_publishable_PZQlhfX2zZXz8WpEcEo7TQ_U6oN7_km')) {
+    (window.SUPABASE_CONFIG.url === 'https://xtrsmplqcczubdygftfm.supabase.co' ||
+    window.SUPABASE_CONFIG.anonKey === 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z')) {
     console.warn('🔧 CONFIGURACIÓN PENDIENTE: Edita /App/js/config-supabase.js con tus credenciales reales.');
 }
