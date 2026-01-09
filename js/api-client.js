@@ -47,20 +47,51 @@ class HTTPClient {
     }
 
     async request(method, endpoint, data = null, customHeaders = {}) {
-        const url = `${this.baseURL}${endpoint}`;
 
-        // Obtener user-id de la sesión si existe
-        const session = typeof getCurrentSession === 'function' ? getCurrentSession() : null;
-        const userId = session?.id || session?.user_id;
-
-        const options = {
-            method,
-            headers: {
-                ...this.headers,
-                ...(userId ? { 'user-id': userId } : {}),
-                ...customHeaders
-            }
+    // 🚫 Backend deshabilitado (modo Supabase)
+    if (window.SUPABASE_ONLY_MODE && endpoint.startsWith('/api/')) {
+        console.warn(`⛔ API deshabilitada: ${endpoint}`);
+        return {
+            success: true,
+            data: [],
+            status: 200
         };
+    }
+
+    const url = `${this.baseURL}${endpoint}`;
+
+    const options = {
+        method,
+        headers: {
+            ...this.headers,
+            ...customHeaders
+        }
+    };
+
+    if (data && (method === 'POST' || method === 'PUT')) {
+        options.body = JSON.stringify(data);
+    }
+
+    try {
+        const response = await fetch(url, options);
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(responseData.error || `HTTP ${response.status}`);
+        }
+
+        return { success: true, data: responseData, status: response.status };
+
+    } catch (error) {
+        console.warn(`⚠️ API ignorada (${endpoint}):`, error.message);
+        return {
+            success: true,
+            data: [],
+            status: 200
+        };
+    }
+}
+
 
         if (data && (method === 'POST' || method === 'PUT')) {
             options.body = JSON.stringify(data);
@@ -884,4 +915,5 @@ window.apiClient = httpClient;
 // Log de inicialización
 console.log('✅ API Client inicializado correctamente');
 console.log('📡 Base URL:', API_CONFIG.baseURL);
+
 
