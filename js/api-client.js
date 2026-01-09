@@ -796,17 +796,8 @@ async function checkServerHealth() {
  * @param {string} commitment - Compromiso afectado (opcional)
  * @param {Object} details - Detalles adicionales (opcional)
  */
-async function logAction(action, entity = null, commitment = null, details = {}) {
-    const session = getCurrentSession();
-    if (!session) return;
-
-    await RecordsAPI.create({
-        username: session.username,
-        action,
-        entity,
-        commitment,
-        details
-    });
+async function logAction() {
+    // deshabilitado temporalmente
 }
 
 /**
@@ -915,5 +906,3 @@ window.apiClient = httpClient;
 // Log de inicialización
 console.log('✅ API Client inicializado correctamente');
 console.log('📡 Base URL:', API_CONFIG.baseURL);
-
-
