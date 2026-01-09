@@ -1,3 +1,6 @@
+// ⚠️ MODO TRANSICIÓN: backend deshabilitado
+window.SUPABASE_ONLY_MODE = true;
+
 /**
  * CFE INSIGHT - API Client
  * Cliente para consumir la API REST del backend con Supabase
@@ -881,3 +884,4 @@ window.apiClient = httpClient;
 // Log de inicialización
 console.log('✅ API Client inicializado correctamente');
 console.log('📡 Base URL:', API_CONFIG.baseURL);
+
