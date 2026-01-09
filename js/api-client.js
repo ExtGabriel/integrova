@@ -167,25 +167,12 @@ const AuthAPI = {
         const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         let resolvedEmail = usernameOrEmail;
 
-        // Si el usuario ingresó un username, resolver su correo antes de autenticar
+        // Si el usuario ingresó un username, retornar error temporal
         if (!isEmail(usernameOrEmail)) {
-            try {
-                const userResponse = await UsersAPI.getByUsername(usernameOrEmail);
-
-                if (!userResponse?.success) {
-                    return { success: false, error: 'Usuario no encontrado' };
-                }
-
-                const userData = userResponse.data?.user || userResponse.data || userResponse;
-                resolvedEmail = userData?.email || userData?.correo || userData?.mail || null;
-
-                if (!resolvedEmail) {
-                    return { success: false, error: 'El usuario no tiene un correo asociado' };
-                }
-            } catch (lookupError) {
-                console.error('Error buscando usuario por username:', lookupError);
-                return { success: false, error: 'No se pudo validar el usuario' };
-            }
+            return {
+                success: false,
+                error: 'Login por username aún no disponible (activar en Supabase)'
+            };
         }
 
         const { data, error } = await window.supabaseClient.auth.signInWithPassword({
