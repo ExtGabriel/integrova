@@ -266,7 +266,9 @@ class GlobalSearch {
             // Buscar en compromisos
             if (filter === 'all' || filter === 'commitments') {
                 if (window.API && window.API.Commitments) {
-                    const response = await API.Commitments.getAll();
+                    const response = API?.Commitments?.getAll
+                        ? await API.Commitments.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.commitments = response.data.filter(item =>
                             item.description?.toLowerCase().includes(searchTerm) ||
@@ -280,7 +282,9 @@ class GlobalSearch {
             // Buscar en entidades
             if (filter === 'all' || filter === 'entities') {
                 if (window.API && window.API.Entities) {
-                    const response = await API.Entities.getAll();
+                    const response = API?.Entities?.getAll
+                        ? await API.Entities.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.entities = response.data.filter(item =>
                             item.name?.toLowerCase().includes(searchTerm) ||
@@ -293,7 +297,9 @@ class GlobalSearch {
             // Buscar en usuarios
             if (filter === 'all' || filter === 'users') {
                 if (window.API && window.API.Users) {
-                    const response = await API.Users.getAll();
+                    const response = API?.Users?.getAll
+                        ? await API.Users.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.users = response.data.filter(item =>
                             item.username?.toLowerCase().includes(searchTerm) ||
@@ -308,7 +314,9 @@ class GlobalSearch {
             // Buscar en registros
             if (filter === 'all' || filter === 'records') {
                 if (window.API && window.API.Records) {
-                    const response = await API.Records.getAll();
+                    const response = API?.Records?.getAll
+                        ? await API.Records.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.records = response.data.filter(item =>
                             item.action?.toLowerCase().includes(searchTerm) ||
@@ -321,7 +329,9 @@ class GlobalSearch {
             // Buscar en grupos
             if (filter === 'all' || filter === 'groups') {
                 if (window.API && window.API.WorkGroups) {
-                    const response = await API.WorkGroups.getAll();
+                    const response = API?.WorkGroups?.getAll
+                        ? await API.WorkGroups.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.groups = response.data.filter(item =>
                             item.name?.toLowerCase().includes(searchTerm) ||

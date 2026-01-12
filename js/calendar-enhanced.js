@@ -39,7 +39,9 @@ class EnhancedCalendar {
         try {
             // Cargar compromisos
             if (window.API && window.API.Commitments) {
-                const response = await API.Commitments.getAll();
+                const response = API?.Commitments?.getAll
+                    ? await API.Commitments.getAll()
+                    : { success: false, data: [] };
                 if (response.success && response.data) {
                     this.commitments = response.data;
                 }

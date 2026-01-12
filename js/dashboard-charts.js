@@ -43,7 +43,9 @@ async function createCommitmentStatusChart() {
         // Obtener datos de compromisos
         let commitments = [];
         if (window.API && window.API.Commitments) {
-            const response = await API.Commitments.getAll();
+            const response = API?.Commitments?.getAll
+                ? await API.Commitments.getAll()
+                : { success: false, data: [] };
             if (response.success && response.data) {
                 commitments = response.data;
             }
@@ -159,7 +161,9 @@ async function createCommitmentEntityChart() {
         // Obtener datos
         let commitments = [];
         if (window.API && window.API.Commitments) {
-            const response = await API.Commitments.getAll();
+            const response = API?.Commitments?.getAll
+                ? await API.Commitments.getAll()
+                : { success: false, data: [] };
             if (response.success && response.data) {
                 commitments = response.data;
             }
@@ -270,7 +274,9 @@ async function createActivityChart() {
         // Obtener registros de actividad
         let records = [];
         if (window.API && window.API.Records) {
-            const response = await API.Records.getAll();
+            const response = API?.Records?.getAll
+                ? await API.Records.getAll()
+                : { success: false, data: [] };
             if (response.success && response.data) {
                 // Asegurar que records sea un array
                 records = Array.isArray(response.data) ? response.data : [];
@@ -400,7 +406,9 @@ async function createUserRoleChart() {
         // Obtener usuarios
         let users = [];
         if (window.API && window.API.Users) {
-            const response = await API.Users.getAll();
+            const response = API?.Users?.getAll
+                ? await API.Users.getAll()
+                : { success: false, data: [] };
             if (response.success && response.data) {
                 users = response.data;
             }
