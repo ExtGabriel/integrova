@@ -40,8 +40,8 @@ function initializeDashboard() {
 // Load dashboard data from API endpoints
 async function loadDashboardData() {
     try {
-        // Show loading state
-        showLoading(true);
+        // Show loading state (NOTA: NO usar loading overlay, causa problemas)
+        // showLoading(true);
 
         // Load entities count
         const entitiesResponse = API?.Entities?.getAll
@@ -89,13 +89,13 @@ async function loadDashboardData() {
         // Load AI insights
         loadAIInsights();
 
-        // Hide loading state
-        API.showLoading(false);
+        // Hide loading state - ya no necesario
+        // API.showLoading(false);
 
     } catch (error) {
         console.error('Error loading dashboard data:', error);
         showError('Error al cargar los datos del dashboard');
-        API.showLoading(false);
+        // API.showLoading(false);
     }
 }
 
