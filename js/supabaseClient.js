@@ -1,8 +1,11 @@
 /**
- * SUPABASE CLIENT - VANILLA JS (SIN MÓDULOS ES6)
+ * SUPABASE CLIENT - VANILLA JS v1 (SIN MÓDULOS ES6)
  * 
- * Carga el cliente Supabase desde CDN como un script global.
- * Expone window.supabaseClient listo para usar.
+ * ⚠️ REQUISITO: El script de Supabase v1 debe estar cargado ANTES de este archivo
+ * <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
+ * 
+ * Este archivo inicializa el cliente Supabase usando la librería ya cargada en window.supabase.
+ * Expone window.supabaseClient y funciones de helper para acceder a sesiones.
  */
 
 (function () {
@@ -20,13 +23,26 @@
     let initPromise = null;
 
     /**
-     * Inicializar Supabase Client
+     * Inicializar Supabase Client usando librería ya cargada
      */
     function initSupabase() {
         if (initPromise) return initPromise;
 
         initPromise = (async () => {
             try {
+                // Esperar a que el SDK esté disponible
+                let attempts = 0;
+                while (typeof window.supabase === 'undefined' && attempts < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+
+                if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+                    console.error('❌ ERROR: Supabase SDK v1 no está disponible en window.supabase');
+                    console.error('❌ Verifica que el script se cargó: <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>');
+                    return null;
+                }
+
                 // Validar configuración
                 if (!SUPABASE_URL || !SUPABASE_ANON_KEY ||
                     SUPABASE_URL === '__SUPABASE_URL__' ||
@@ -35,20 +51,7 @@
                     return null;
                 }
 
-                // Cargar librería Supabase desde CDN
-                const script = await loadSupabaseSDK();
-                if (!script) {
-                    console.error('❌ No se pudo cargar Supabase SDK desde CDN');
-                    return null;
-                }
-
-                // Obtener createClient de la librería global
-                if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-                    console.error('❌ Supabase SDK no está disponible en window.supabase');
-                    return null;
-                }
-
-                // Crear instancia del cliente
+                // Crear instancia del cliente usando v1
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                     auth: {
                         autoRefreshToken: true,
@@ -64,7 +67,7 @@
 
                 // Exponer globalmente
                 window.supabaseClient = supabaseClient;
-                console.log('✅ Supabase client inicializado correctamente');
+                console.log('✅ Supabase v1 client inicializado correctamente');
 
                 return supabaseClient;
 
@@ -75,37 +78,6 @@
         })();
 
         return initPromise;
-    }
-
-    /**
-     * Cargar Supabase SDK desde CDN
-     */
-    function loadSupabaseSDK() {
-        return new Promise((resolve, reject) => {
-            // Si ya está cargado, resolver inmediatamente
-            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-                resolve(true);
-                return;
-            }
-
-            // Crear script tag para cargar desde CDN
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/dist/module.umd.js';
-            script.async = true;
-            script.crossOrigin = 'anonymous';
-
-            script.onload = () => {
-                console.log('✅ Supabase SDK cargado desde CDN');
-                resolve(true);
-            };
-
-            script.onerror = () => {
-                console.error('❌ Error al cargar Supabase SDK desde CDN');
-                reject(new Error('Failed to load Supabase SDK'));
-            };
-
-            document.head.appendChild(script);
-        });
     }
 
     /**

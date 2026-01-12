@@ -122,6 +122,38 @@
     }
 
     /**
+     * Iniciar sesión
+     */
+    async function login(email, password) {
+        try {
+            if (!email || !password) {
+                throw new Error('Email y contraseña son requeridos');
+            }
+
+            const client = await window.getSupabaseClient();
+            if (!client) {
+                throw new Error('Supabase no está inicializado');
+            }
+
+            const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data || !data.session) {
+                throw new Error('No se pudo establecer la sesión');
+            }
+
+            currentSession = data.session;
+            return { success: true, session: data.session };
+        } catch (err) {
+            console.error('❌ Error en login:', err);
+            return { success: false, error: err.message || err };
+        }
+    }
+
+    /**
      * ==========================================
      * API GLOBAL CENTRALIZADA
      * ==========================================
@@ -129,6 +161,7 @@
 
     window.API = {
         // === Sesión y Autenticación ===
+        login,
         getSession,
         getMyProfile,
         signOut,
