@@ -20,25 +20,28 @@ window.SUPABASE_CONFIG = {
     url: 'https://xtrsmplqcczubdygftfm.supabase.co',
 
     // Clave pública "anon" (segura para exponer en frontend)
-    // ⚠️ REEMPLAZA CON TU CLAVE REAL - Las claves de Supabase son tokens JWT largos que empiezan con "eyJ"
-    // Ejemplo: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0cnNtcGxxY2N6dWJkeWdmdGZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODkxNjA1MjcsImV4cCI6MjAwNDczNjUyN30.abc123...'
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0cnNtcGxxY2N6dWJkeWdmdGZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODkxNjA1MjcsImV4cCI6MjAwNDczNjUyN30.REEMPLAZA_ESTE_TOKEN_CON_TU_CLAVE_REAL'
+    anonKey: 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z'
 };
 
 // Validación automática en desarrollo
 if (typeof window !== 'undefined') {
     const isPlaceholder =
-        window.SUPABASE_CONFIG.anonKey.includes('sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z') ||
-        window.SUPABASE_CONFIG.anonKey === 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z' ||
-        !window.SUPABASE_CONFIG.anonKey.startsWith('eyJ');
+        window.SUPABASE_CONFIG.anonKey.includes('REEMPLAZA_ESTE_TOKEN') ||
+        !window.SUPABASE_CONFIG.anonKey.trim();
 
     if (isPlaceholder) {
         console.error('❌ CONFIGURACIÓN INVÁLIDA: La anonKey de Supabase no es válida.');
         console.error('📋 PASOS PARA CONFIGURAR:');
-        console.error('1. Ve a https://supabase.com/dashboard');
-        console.error('2. Selecciona tu proyecto "xtrsmplqcczubdygftfm"');
-        console.error('3. Settings > API');
-        console.error('4. Copia la "anon public" key (un token JWT largo que empieza con eyJ)');
-        console.error('5. Reemplaza la anonKey en /App/js/config-supabase.js');
+        console.error('1️⃣  Ve a https://supabase.com/dashboard');
+        console.error('2️⃣  Inicia sesión con tu cuenta (la que creó el proyecto xtrsmplqcczubdygftfm)');
+        console.error('3️⃣  Selecciona el proyecto "xtrsmplqcczubdygftfm"');
+        console.error('4️⃣  Ve a Settings > API');
+        console.error('5️⃣  En "Project API keys", busca la sección "anon public"');
+        console.error('6️⃣  Copia la clave completa');
+        console.error('7️⃣  Reemplaza la anonKey en /App/js/config-supabase.js');
+        console.error('');
+        console.error('⚠️  Sin una clave válida, no podrás iniciar sesión.');
+    } else {
+        console.log('✅ Configuración de Supabase cargada correctamente');
     }
 }
