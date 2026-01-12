@@ -1,9 +1,65 @@
 
 
 
+/**
+ * ============================================
+ * UI STUB FUNCTIONS - GLOBAL & DEFENSIVE
+ * ============================================
+ * Estas funciones siempre están disponibles como stubs globales.
+ * Nunca rompen el flujo de la aplicación.
+ */
 
+// Stub global: showLoading - mostrar indicador de carga
+window.showLoading = window.showLoading || function (show = true) {
+    try {
+        if (show) {
+            console.log('⏳ Loading...');
+            loadingCount++;
+            const overlay = createLoadingOverlay();
+            if (!overlay.parentElement) {
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+        } else {
+            console.log('✅ Loading complete');
+            loadingCount = Math.max(0, loadingCount - 1);
+            if (loadingCount === 0 && loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('Error in showLoading stub:', err);
+    }
+};
 
+// Alias para mantener compatibilidad
+window.hideLoading = function () {
+    window.showLoading(false);
+};
 
+// Stub global: showError - mostrar error al usuario
+window.showError = window.showError || function (message, duration = 5000) {
+    try {
+        console.error('❌ Error:', message);
+        // Fallback a showError si existe
+        if (typeof showError === 'function' && arguments.callee !== showError) {
+            return showError(message, duration);
+        }
+        // Si no, mostrar en consola y retornar
+        return;
+    } catch (err) {
+        console.error('Error in showError stub:', err);
+    }
+};
+
+// Stub global: showSuccess - mostrar éxito al usuario
+window.showSuccess = window.showSuccess || function (message, duration = 3000) {
+    try {
+        console.log('✓ Success:', message);
+    } catch (err) {
+        console.error('Error in showSuccess stub:', err);
+    }
+};
 
 // Utility functions for input validation and sanitization
 
