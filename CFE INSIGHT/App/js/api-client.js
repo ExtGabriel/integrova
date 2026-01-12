@@ -1,14 +1,20 @@
 /**
- * CFE INSIGHT - API CLIENT (VANILLA JS)
+ * CFE INSIGHT - API CLIENT (VANILLA JS) - ESTABILIZADO
  * 
  * Cliente centralizado DEFENSIVO para Supabase + APIs.
  * Expone window.API con métodos seguros.
  * 
- * REQUISITO: supabaseClient.js y config-supabase.js deben cargarse ANTES de este archivo.
+ * CRÍTICO:
+ * - supabaseClient.js DEBE cargarse antes
+ * - window.API SIEMPRE existirá (nunca será undefined)
+ * - Todos los módulos tienen stubs seguros
+ * - No hay propiedades undefined
  */
 
 (function () {
     'use strict';
+
+    console.log('⏳ api-client.js: Inicializando...');
 
     /**
      * ==========================================
@@ -25,6 +31,17 @@
     // Estado global
     let currentSession = null;
     let currentProfile = null;
+
+    /**
+     * Helper: Validar que Supabase está disponible
+     */
+    async function getSupabaseClient() {
+        if (window.getSupabaseClient) {
+            return await window.getSupabaseClient();
+        }
+        console.error('❌ api-client.js: getSupabaseClient no disponible');
+        return null;
+    }
 
     /**
      * ==========================================
@@ -55,25 +72,42 @@
         }
     }
 
+    /**
+     * Obtener perfil del usuario autenticado
+     */
     async function getMyProfile() {
-        const user = supabaseClient.auth.user();
-        if (!user) {
-            console.error("❌ No hay usuario autenticado");
+        try {
+            const client = await getSupabaseClient();
+            if (!client) {
+                console.error('❌ Supabase no disponible para getMyProfile');
+                return null;
+            }
+
+            // Obtener usuario autenticado
+            const { data: { user }, error: userError } = await client.auth.getUser();
+            if (userError || !user) {
+                console.error('❌ No hay usuario autenticado:', userError?.message);
+                return null;
+            }
+
+            // Obtener perfil de users table
+            const { data, error } = await client
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                console.error('❌ Error cargando perfil:', error);
+                return null;
+            }
+
+            currentProfile = data;
+            return data;
+        } catch (err) {
+            console.error('❌ Error en getMyProfile:', err);
             return null;
         }
-
-        const { data, error } = await supabaseClient
-            .from("users")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-
-        if (error) {
-            console.error("❌ Error cargando perfil:", error);
-            return null;
-        }
-
-        return data;
     }
 
     /**
@@ -81,7 +115,7 @@
      */
     async function signOut() {
         try {
-            const client = await window.getSupabaseClient();
+            const client = await getSupabaseClient();
             if (client) {
                 await client.auth.signOut();
             }
@@ -104,7 +138,7 @@
                 throw new Error('Email y contraseña son requeridos');
             }
 
-            const client = await window.getSupabaseClient();
+            const client = await getSupabaseClient();
             if (!client) {
                 throw new Error('Supabase no está inicializado');
             }
@@ -129,7 +163,150 @@
 
     /**
      * ==========================================
-     * API GLOBAL CENTRALIZADA
+     * MÓDULOS DE API - STUBS SEGUROS
+     * ==========================================
+     */
+
+    /**
+     * Módulo: Entidades
+     */
+    const EntitiesModule = {
+        async getAll() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: [], error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('entities').select('*');
+                if (error) throw error;
+                return { success: true, data: data || [] };
+            } catch (err) {
+                console.error('❌ Error en Entities.getAll:', err);
+                return { success: false, data: [], error: err.message };
+            }
+        },
+
+        async getById(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: null, error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('entities').select('*').eq('id', id).single();
+                if (error) throw error;
+                return { success: true, data };
+            } catch (err) {
+                console.error('❌ Error en Entities.getById:', err);
+                return { success: false, data: null, error: err.message };
+            }
+        }
+    };
+
+    /**
+     * Módulo: Compromisos
+     */
+    const CommitmentsModule = {
+        async getAll() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: [], error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('commitments').select('*');
+                if (error) throw error;
+                return { success: true, data: data || [] };
+            } catch (err) {
+                console.error('❌ Error en Commitments.getAll:', err);
+                return { success: false, data: [], error: err.message };
+            }
+        },
+
+        async getById(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: null, error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('commitments').select('*').eq('id', id).single();
+                if (error) throw error;
+                return { success: true, data };
+            } catch (err) {
+                console.error('❌ Error en Commitments.getById:', err);
+                return { success: false, data: null, error: err.message };
+            }
+        }
+    };
+
+    /**
+     * Módulo: Usuarios
+     */
+    const UsersModule = {
+        async getAll() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: [], error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('users').select('*');
+                if (error) throw error;
+                return { success: true, data: data || [] };
+            } catch (err) {
+                console.error('❌ Error en Users.getAll:', err);
+                return { success: false, data: [], error: err.message };
+            }
+        },
+
+        async getById(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: null, error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('users').select('*').eq('id', id).single();
+                if (error) throw error;
+                return { success: true, data };
+            } catch (err) {
+                console.error('❌ Error en Users.getById:', err);
+                return { success: false, data: null, error: err.message };
+            }
+        }
+    };
+
+    /**
+     * Módulo: Notificaciones
+     */
+    const NotificationsModule = {
+        async getAll() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: [], error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('notifications').select('*');
+                if (error) throw error;
+                return { success: true, data: data || [] };
+            } catch (err) {
+                console.error('⚠️ Notificaciones no disponibles (OK en demo):', err.message);
+                return { success: true, data: [] }; // Retornar lista vacía en lugar de error
+            }
+        }
+    };
+
+    /**
+     * Módulo: Auditoría
+     */
+    const AuditModule = {
+        async getAll() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: false, data: [], error: 'Supabase no disponible' };
+
+                const { data, error } = await client.from('audit_logs').select('*');
+                if (error) throw error;
+                return { success: true, data: data || [] };
+            } catch (err) {
+                console.error('⚠️ Auditoría no disponible (OK en demo):', err.message);
+                return { success: true, data: [] };
+            }
+        }
+    };
+
+    /**
+     * ==========================================
+     * API GLOBAL CENTRALIZADA (NUNCA SERÁ UNDEFINED)
      * ==========================================
      */
 
@@ -139,12 +316,20 @@
         getSession,
         getMyProfile,
         signOut,
+        supabase: window.supabaseClient || null, // Cliente Supabase directo si lo necesitan
 
-        // === Funciones auxiliares ===
+        // === Módulos de datos ===
+        Entities: EntitiesModule,
+        Commitments: CommitmentsModule,
+        Users: UsersModule,
+        Notifications: NotificationsModule,
+        Audit: AuditModule,
+
+        // === Funciones auxiliares de UI ===
         showError(message, containerId = 'alertContainer') {
             const container = document.getElementById(containerId);
             if (!container) {
-                console.error('Container not found:', containerId);
+                console.error('❌ Container no encontrado:', containerId);
                 alert(message);
                 return;
             }
@@ -160,7 +345,7 @@
         showSuccess(message, containerId = 'alertContainer') {
             const container = document.getElementById(containerId);
             if (!container) {
-                console.error('Container not found:', containerId);
+                console.error('❌ Container no encontrado:', containerId);
                 alert(message);
                 return;
             }
@@ -193,7 +378,7 @@
         }
     };
 
-    // Log
-    console.log('✅ API Client inicializado (window.API disponible)');
+    console.log('✅ api-client.js: API Client inicializado (window.API SIEMPRE disponible)');
 
 })();
+
