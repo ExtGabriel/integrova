@@ -1106,8 +1106,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (!error && session?.user) {
                     const { data: profile, error: profileError } = await supabase
                         .from('users')
-                        .select('id, auth_id, full_name, email, role, username, phone, groups')
-                        .eq('auth_id', session.user.id)
+                        .select('id, full_name, email, role, username, phone, groups')
+                        .eq('id', session.user.id)
                         .maybeSingle();
 
                     if (profileError) {
@@ -1115,7 +1115,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                     } else if (profile) {
                         userData = {
                             id: profile.id,
-                            auth_id: profile.auth_id,
                             name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
                             email: profile.email || session.user?.email,
                             role: profile.role || 'usuario',

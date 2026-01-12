@@ -120,7 +120,7 @@
     }
 
     /**
-     * Carga el perfil del usuario desde la tabla `users` usando auth_id
+     * Carga el perfil del usuario desde la tabla `users` usando id
      * @param {boolean} persist - Si debe almacenarse en sessionStorage
      * @returns {Promise<object|null>} Datos básicos de UI o null
      */
@@ -143,8 +143,8 @@
 
             const { data, error: profileError } = await supabase
                 .from('users')
-                .select('id, auth_id, full_name, email, role, username, phone, groups')
-                .eq('auth_id', session.user.id)
+                .select('id, full_name, email, role, username, phone, groups')
+                .eq('id', session.user.id)
                 .maybeSingle();
 
             if (profileError) {
@@ -153,13 +153,12 @@
             }
 
             if (!data) {
-                console.warn('No se encontró registro en tabla users para el auth_id actual');
+                console.warn('No se encontró registro en tabla users para el id actual');
                 return null;
             }
 
             const uiData = {
                 id: data.id,
-                auth_id: data.auth_id,
                 name: data.full_name || session.user?.user_metadata?.full_name || session.user?.email || 'Usuario',
                 email: data.email || session.user?.email || '',
                 role: data.role || 'usuario',

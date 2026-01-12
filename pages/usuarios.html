@@ -163,7 +163,7 @@
         const supabase = await getSupabase();
         const { data, error } = await supabase
           .from('users')
-          .select('id, auth_id, full_name, email, role, username, phone, groups');
+          .select('id, full_name, email, role, username, phone, groups');
 
         if (error) throw error;
 
@@ -193,8 +193,8 @@
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from('users')
-        .select('id, auth_id, full_name, email, role, username, phone, groups')
-        .eq('auth_id', authId)
+        .select('id, full_name, email, role, username, phone, groups')
+        .eq('id', authId)
         .maybeSingle();
 
       if (error) {
@@ -235,7 +235,6 @@
 
           currentSession = {
             id: profile.id,
-            auth_id: profile.auth_id,
             name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
             email: profile.email || session.user?.email,
             role: profile.role || 'usuario',
