@@ -404,11 +404,11 @@ async function createUserRoleChart() {
 
     try {
         // Obtener usuarios
-        let users = []; API?.Users?.getAll
-            ? await API.Users.getAll()
-            : { success: false, data: [] }
+        let users = [];
         if (window.API && window.API.Users) {
-            const response = await API.Users.getAll();
+            const response = API?.Users?.getAll
+                ? await API.Users.getAll()
+                : { success: false, data: [] };
             if (response.success && response.data) {
                 users = response.data;
             }

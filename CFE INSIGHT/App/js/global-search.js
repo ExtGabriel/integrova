@@ -295,11 +295,11 @@ class GlobalSearch {
             }
 
             // Buscar en usuarios
-            if (filter === 'all' || fAPI?.Users?.getAll
-                ? await API.Users.getAll()
-                : { success: false, data: [] }
+            if (filter === 'all' || filter === 'users') {
                 if (window.API && window.API.Users) {
-                    const response = await API.Users.getAll();
+                    const response = API?.Users?.getAll
+                        ? await API.Users.getAll()
+                        : { success: false, data: [] };
                     if (response.success && response.data) {
                         results.users = response.data.filter(item =>
                             item.username?.toLowerCase().includes(searchTerm) ||
@@ -309,114 +309,114 @@ class GlobalSearch {
                         );
                     }
                 }
-        }
+            }
 
             // Buscar en registros
-            if (filter === 'all' || fAPI?.Records?.getAll
-            ? await API.Records.getAll()
-            : { success: false, data: [] }
+            if (filter === 'all' || filter === 'records') {
                 if (window.API && window.API.Records) {
-                const response = await API.Records.getAll();
-                if (response.success && response.data) {
-                    results.records = response.data.filter(item =>
-                        item.action?.toLowerCase().includes(searchTerm) ||
-                        item.user?.toLowerCase().includes(searchTerm)
-                    );
+                    const response = API?.Records?.getAll
+                        ? await API.Records.getAll()
+                        : { success: false, data: [] };
+                    if (response.success && response.data) {
+                        results.records = response.data.filter(item =>
+                            item.action?.toLowerCase().includes(searchTerm) ||
+                            item.user?.toLowerCase().includes(searchTerm)
+                        );
+                    }
                 }
             }
-    }
 
-    // Buscar en grupos
-    if(filter === 'all' || fAPI?.WorkGroups?.getAll
-        ? await API.WorkGroups.getAll()
-        : { success: false, data: [] }
-if (window.API && window.API.WorkGroups) {
-    const response = await API.WorkGroups.getAll();
-    if (response.success && response.data) {
-        results.groups = response.data.filter(item =>
-            item.name?.toLowerCase().includes(searchTerm) ||
-            item.description?.toLowerCase().includes(searchTerm)
-        );
-    }
-}
+            // Buscar en grupos
+            if (filter === 'all' || filter === 'groups') {
+                if (window.API && window.API.WorkGroups) {
+                    const response = API?.WorkGroups?.getAll
+                        ? await API.WorkGroups.getAll()
+                        : { success: false, data: [] };
+                    if (response.success && response.data) {
+                        results.groups = response.data.filter(item =>
+                            item.name?.toLowerCase().includes(searchTerm) ||
+                            item.description?.toLowerCase().includes(searchTerm)
+                        );
+                    }
+                }
             }
         } catch (error) {
-    console.error('Error en búsqueda:', error);
-}
+            console.error('Error en búsqueda:', error);
+        }
 
-return results;
+        return results;
     }
 
-// Mostrar resultados
-displayResults(results, query) {
-    const container = document.getElementById('search-results');
-    const totalResults = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
+    // Mostrar resultados
+    displayResults(results, query) {
+        const container = document.getElementById('search-results');
+        const totalResults = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
 
-    if (totalResults === 0) {
-        container.innerHTML = `
+        if (totalResults === 0) {
+            container.innerHTML = `
                 <div class="search-empty">
                     <i class="bi bi-inbox fs-1 text-muted"></i>
                     <p class="mt-3 text-muted">No se encontraron resultados para "${query}"</p>
                     <small class="text-muted">Intenta con otros términos de búsqueda</small>
                 </div>
             `;
-        return;
-    }
+            return;
+        }
 
-    let html = '';
+        let html = '';
 
-    // Compromisos
-    if (results.commitments.length > 0) {
-        html += this.renderSection('Compromisos', results.commitments, 'commitments', query);
-    }
+        // Compromisos
+        if (results.commitments.length > 0) {
+            html += this.renderSection('Compromisos', results.commitments, 'commitments', query);
+        }
 
-    // Entidades
-    if (results.entities.length > 0) {
-        html += this.renderSection('Entidades', results.entities, 'entities', query);
-    }
+        // Entidades
+        if (results.entities.length > 0) {
+            html += this.renderSection('Entidades', results.entities, 'entities', query);
+        }
 
-    // Usuarios
-    if (results.users.length > 0) {
-        html += this.renderSection('Usuarios', results.users, 'users', query);
-    }
+        // Usuarios
+        if (results.users.length > 0) {
+            html += this.renderSection('Usuarios', results.users, 'users', query);
+        }
 
-    // Registros
-    if (results.records.length > 0) {
-        html += this.renderSection('Registros', results.records, 'records', query);
-    }
+        // Registros
+        if (results.records.length > 0) {
+            html += this.renderSection('Registros', results.records, 'records', query);
+        }
 
-    // Grupos
-    if (results.groups.length > 0) {
-        html += this.renderSection('Grupos', results.groups, 'groups', query);
-    }
+        // Grupos
+        if (results.groups.length > 0) {
+            html += this.renderSection('Grupos', results.groups, 'groups', query);
+        }
 
-    container.innerHTML = html;
+        container.innerHTML = html;
 
-    // Adjuntar event listeners a los resultados
-    container.querySelectorAll('.search-result-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const type = item.dataset.type;
-            const id = item.dataset.id;
-            this.navigateToResult(type, id);
+        // Adjuntar event listeners a los resultados
+        container.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                const id = item.dataset.id;
+                this.navigateToResult(type, id);
+            });
         });
-    });
-}
+    }
 
-// Renderizar sección de resultados
-renderSection(title, items, type, query) {
-    const icons = {
-        commitments: 'bi-file-earmark-text',
-        entities: 'bi-building',
-        users: 'bi-people',
-        records: 'bi-list-ul',
-        groups: 'bi-diagram-3'
-    };
+    // Renderizar sección de resultados
+    renderSection(title, items, type, query) {
+        const icons = {
+            commitments: 'bi-file-earmark-text',
+            entities: 'bi-building',
+            users: 'bi-people',
+            records: 'bi-list-ul',
+            groups: 'bi-diagram-3'
+        };
 
-    const maxItems = 5;
-    const displayItems = items.slice(0, maxItems);
-    const hasMore = items.length > maxItems;
+        const maxItems = 5;
+        const displayItems = items.slice(0, maxItems);
+        const hasMore = items.length > maxItems;
 
-    return `
+        return `
             <div class="search-section">
                 <div class="search-section-header">
                     <h6><i class="bi ${icons[type]}"></i> ${title} (${items.length})</h6>
@@ -427,47 +427,47 @@ renderSection(title, items, type, query) {
                 </div>
             </div>
         `;
-}
-
-// Renderizar item de resultado
-renderResultItem(item, type, query) {
-    let title = '';
-    let subtitle = '';
-    let badge = '';
-
-    switch (type) {
-        case 'commitments':
-            title = item.description || 'Sin descripción';
-            subtitle = `Entidad: ${item.entity || 'N/A'} | Vence: ${this.formatDate(item.deadline)}`;
-            badge = `<span class="badge bg-${this.getStatusColor(item.status)}">${item.status}</span>`;
-            break;
-        case 'entities':
-            title = item.name || 'Sin nombre';
-            subtitle = `Responsable: ${item.responsible || 'N/A'}`;
-            break;
-        case 'users':
-            title = item.name || item.username || 'Sin nombre';
-            subtitle = `${item.email || ''} | Rol: ${item.role || 'N/A'}`;
-            badge = `<span class="badge bg-info">${item.role}</span>`;
-            break;
-        case 'records':
-            title = item.action || 'Sin acción';
-            subtitle = `Usuario: ${item.user || 'N/A'} | ${this.formatDate(item.timestamp)}`;
-            break;
-        case 'groups':
-            title = item.name || 'Sin nombre';
-            subtitle = item.description || 'Sin descripción';
-            break;
     }
 
-    // Resaltar término de búsqueda
-    const highlightTerm = (text) => {
-        if (!query) return text;
-        const regex = new RegExp(`(${query})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
-    };
+    // Renderizar item de resultado
+    renderResultItem(item, type, query) {
+        let title = '';
+        let subtitle = '';
+        let badge = '';
 
-    return `
+        switch (type) {
+            case 'commitments':
+                title = item.description || 'Sin descripción';
+                subtitle = `Entidad: ${item.entity || 'N/A'} | Vence: ${this.formatDate(item.deadline)}`;
+                badge = `<span class="badge bg-${this.getStatusColor(item.status)}">${item.status}</span>`;
+                break;
+            case 'entities':
+                title = item.name || 'Sin nombre';
+                subtitle = `Responsable: ${item.responsible || 'N/A'}`;
+                break;
+            case 'users':
+                title = item.name || item.username || 'Sin nombre';
+                subtitle = `${item.email || ''} | Rol: ${item.role || 'N/A'}`;
+                badge = `<span class="badge bg-info">${item.role}</span>`;
+                break;
+            case 'records':
+                title = item.action || 'Sin acción';
+                subtitle = `Usuario: ${item.user || 'N/A'} | ${this.formatDate(item.timestamp)}`;
+                break;
+            case 'groups':
+                title = item.name || 'Sin nombre';
+                subtitle = item.description || 'Sin descripción';
+                break;
+        }
+
+        // Resaltar término de búsqueda
+        const highlightTerm = (text) => {
+            if (!query) return text;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<mark>$1</mark>');
+        };
+
+        return `
             <div class="search-result-item" data-type="${type}" data-id="${item.id}">
                 <div class="search-result-content">
                     <div class="search-result-title">${highlightTerm(title)}</div>
@@ -476,112 +476,112 @@ renderResultItem(item, type, query) {
                 ${badge ? `<div class="search-result-badge">${badge}</div>` : ''}
             </div>
         `;
-}
-
-// Navegar al resultado
-navigateToResult(type, id) {
-    const isInPagesFolder = window.location.pathname.includes('/pages/');
-    const prefix = isInPagesFolder ? '' : 'pages/';
-
-    const pages = {
-        commitments: `${prefix}compromisos.html`,
-        entities: `${prefix}entidades.html`,
-        users: `${prefix}usuarios.html`,
-        records: `${prefix}registros.html`,
-        groups: `${prefix}grupos.html`
-    };
-
-    const page = pages[type];
-    if (page) {
-        this.closeSearch();
-        window.location.href = `${page}?highlight=${id}`;
     }
-}
 
-// Historial de búsquedas
-addToHistory(query) {
-    if (!query || query.trim().length < 2) return;
+    // Navegar al resultado
+    navigateToResult(type, id) {
+        const isInPagesFolder = window.location.pathname.includes('/pages/');
+        const prefix = isInPagesFolder ? '' : 'pages/';
 
-    const term = query.trim();
-    this.searchHistory = [term, ...this.searchHistory.filter(t => t !== term)];
-    this.searchHistory = this.searchHistory.slice(0, this.maxHistory);
-    this.saveSearchHistory();
-}
+        const pages = {
+            commitments: `${prefix}compromisos.html`,
+            entities: `${prefix}entidades.html`,
+            users: `${prefix}usuarios.html`,
+            records: `${prefix}registros.html`,
+            groups: `${prefix}grupos.html`
+        };
 
-searchFromHistory(term) {
-    const input = document.getElementById('global-search-input');
-    input.value = term;
-    this.performSearch(term);
-}
-
-clearHistory() {
-    this.searchHistory = [];
-    this.saveSearchHistory();
-    this.showInitialState();
-}
-
-loadSearchHistory() {
-    try {
-        const stored = localStorage.getItem(this.storageKey);
-        if (stored) {
-            this.searchHistory = JSON.parse(stored);
+        const page = pages[type];
+        if (page) {
+            this.closeSearch();
+            window.location.href = `${page}?highlight=${id}`;
         }
-    } catch (e) {
+    }
+
+    // Historial de búsquedas
+    addToHistory(query) {
+        if (!query || query.trim().length < 2) return;
+
+        const term = query.trim();
+        this.searchHistory = [term, ...this.searchHistory.filter(t => t !== term)];
+        this.searchHistory = this.searchHistory.slice(0, this.maxHistory);
+        this.saveSearchHistory();
+    }
+
+    searchFromHistory(term) {
+        const input = document.getElementById('global-search-input');
+        input.value = term;
+        this.performSearch(term);
+    }
+
+    clearHistory() {
         this.searchHistory = [];
-    }
-}
-
-saveSearchHistory() {
-    try {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.searchHistory));
-    } catch (e) {
-        console.error('Error guardando historial:', e);
-    }
-}
-
-// Utilidades
-formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-getStatusColor(status) {
-    const colors = {
-        'pendiente': 'warning',
-        'en proceso': 'info',
-        'cumplido': 'success',
-        'vencido': 'danger'
-    };
-    return colors[status?.toLowerCase()] || 'secondary';
-}
-
-// Navegación con teclado
-handleKeyboardNavigation(e) {
-    const items = document.querySelectorAll('.search-result-item');
-    if (items.length === 0) return;
-
-    let currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
-
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        currentIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
-    } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        currentIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
-    } else if (e.key === 'Enter' && currentIndex >= 0) {
-        e.preventDefault();
-        items[currentIndex].click();
-        return;
-    } else {
-        return;
+        this.saveSearchHistory();
+        this.showInitialState();
     }
 
-    // Actualizar clases
-    items.forEach(item => item.classList.remove('active'));
-    items[currentIndex].classList.add('active');
-    items[currentIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
+    loadSearchHistory() {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (stored) {
+                this.searchHistory = JSON.parse(stored);
+            }
+        } catch (e) {
+            this.searchHistory = [];
+        }
+    }
+
+    saveSearchHistory() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.searchHistory));
+        } catch (e) {
+            console.error('Error guardando historial:', e);
+        }
+    }
+
+    // Utilidades
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    getStatusColor(status) {
+        const colors = {
+            'pendiente': 'warning',
+            'en proceso': 'info',
+            'cumplido': 'success',
+            'vencido': 'danger'
+        };
+        return colors[status?.toLowerCase()] || 'secondary';
+    }
+
+    // Navegación con teclado
+    handleKeyboardNavigation(e) {
+        const items = document.querySelectorAll('.search-result-item');
+        if (items.length === 0) return;
+
+        let currentIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+        } else if (e.key === 'Enter' && currentIndex >= 0) {
+            e.preventDefault();
+            items[currentIndex].click();
+            return;
+        } else {
+            return;
+        }
+
+        // Actualizar clases
+        items.forEach(item => item.classList.remove('active'));
+        items[currentIndex].classList.add('active');
+        items[currentIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
 }
 
 // Inicializar sistema global
