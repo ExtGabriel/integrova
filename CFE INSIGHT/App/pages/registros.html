@@ -13,6 +13,7 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/registros.css">
+
 </head>
 
 <body>
@@ -234,7 +235,7 @@
         });
 
         // Constante para clave de sesión
-        const USER_KEY = 'userSession';
+        const USER_KEY = 'userUI';
         const RECORDS_KEY = 'appRecords';
 
         // Función logout
@@ -1116,6 +1117,16 @@
             currentPage = 1;
             renderRecords();
         }
+    </script>
+
+    <!-- Auth Guard: Proteger ruta -->
+    <script src="../js/auth-guard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (typeof initAuthGuard === 'function') {
+                await initAuthGuard('logoutBtn');
+            }
+        });
     </script>
 </body>
 

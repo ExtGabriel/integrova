@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFE INSIGHT Login</title>
+    <title>Integrova Login</title>
     <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -23,8 +23,8 @@
 
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="username" class="form-label">Usuario</label>
-                        <input type="text" class="form-control" id="username" placeholder="Tu usuario" required>
+                        <label for="email" class="form-label">Correo electrónico</label>
+                        <input type="email" class="form-control" id="email" placeholder="tu correo" required>
                     </div>
                     <div class="form-group">
                         <label for="password" class="form-label">Contraseña</label>
@@ -45,141 +45,185 @@
     </div>
 
     <footer class="footer-login">
-        <p>&copy; 2025 Integrova. Sistema Integral de Auditoría v2.0</p>
+        <p>&copy; 2025 Integrova. Sistema Integral de Gestión y Auditoría v2.0</p>
     </footer>
 
+    <!-- Scripts en orden correcto (SIN type="module") -->
+    <!-- 1. SDK Supabase v2 desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 2. Configuración Supabase -->
+    <script src="../js/config-supabase.js"></script>
+
+    <!-- 3. Cliente Supabase (vanilla JS) -->
+    <script src="../js/supabaseClient.js"></script>
+
+    <!-- 3. Bootstrap -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <!-- 4. Utilidades -->
     <script src="../js/utils.js"></script>
-    <script src="../js/api-client.js"></script>
+
+    <!-- 5. Lógica de login (vanilla JS) -->
     <script>
-        const form = document.getElementById('loginForm');
-        const alertContainer = document.getElementById('alertContainer');
+        (function () {
+            'use strict';
 
-        // Verificar estado del servidor al cargar
-        window.addEventListener('DOMContentLoaded', async () => {
-            // Limpiar cualquier sesión previa
-            window.appSession = null;
-
-            const isServerOnline = await API.checkServerHealth();
-            if (!isServerOnline) {
-                alertContainer.innerHTML = `
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    Servidor no disponible. Contacta al administrador.
-                </div>
-            `;
-            }
-        });
-
-        // Toggle password visibility
-        document.getElementById('togglePassword').addEventListener('click', function () {
+            const form = document.getElementById('loginForm');
+            const alertContainer = document.getElementById('alertContainer');
+            const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
-            const icon = this.querySelector('i');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                icon.className = 'bi bi-eye-slash';
-            } else {
-                passwordInput.type = 'password';
-                icon.className = 'bi bi-eye';
-            }
-        });
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-
-            // Deshabilitar botón durante el proceso
             const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...';
+            let supabaseClient = null;
 
-            try {
-                // Check if account is blocked (local check)
-                if (isAccountBlocked(username)) {
-                    if (username === 'admin') {
-                        unblockAccount(username);
-                    } else {
-                        throw new Error('Cuenta bloqueada temporalmente. Intente más tarde o contacte a un programador.');
-                    }
-                }
-
-                // Intentar login con API
-                const response = await API.Auth.login(username, password);
-
-                if (response.success) {
-                    // Login exitoso
-                    alertContainer.innerHTML = '';
-                    resetFailedAttempts(username);
-
-                    // Obtener datos del usuario de forma segura
-                    const userData = response.user || response.data?.user || {};
-
-                    // Guardar sesión en sessionStorage (persiste durante la sesión del navegador)
-                    const sessionData = {
-                        id: userData.id || 'unknown',
-                        username: userData.username || userData.name || username,
-                        name: userData.name || userData.username || username,
-                        email: userData.email || userData.correo || '',
-                        role: userData.role || userData.rol || 'cliente',
-                        loginTime: new Date().toISOString()
-                    };
-
-                    sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-                    window.appSession = sessionData; // También en memoria para compatibilidad
-
-                    console.log('✅ Sesión creada:', sessionData);
-
-                    // Mostrar mensaje de éxito
-                    alertContainer.innerHTML = `
-                    <div class="alert alert-success" role="alert">
-                        <i class="bi bi-check-circle"></i> ¡Bienvenido! Redirigiendo...
+            const showAlert = (message, type = 'danger', timeout = 4000) => {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-${type}" role="alert">
+                        <i class="bi ${type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'}"></i> ${message}
                     </div>
                 `;
+                if (timeout) {
+                    setTimeout(() => { alertContainer.innerHTML = ''; }, timeout);
+                }
+            };
 
-                    // Redirigir después de un breve delay
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1000);
-                } else {
-                    // Login fallido
-                    throw new Error(response.error || 'Usuario o contraseña incorrectos');
+            async function storeUserProfile(session) {
+                if (!supabaseClient) {
+                    showAlert('Supabase no está disponible');
+                    return null;
                 }
 
-            } catch (error) {
-                // Manejar error
-                console.error('Error en login:', error);
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('users')
+                        .select('id, auth_id, full_name, email, role, username, phone')
+                        .eq('auth_id', session.user.id)
+                        .maybeSingle();
 
-                // Increment failed attempts
-                const attempts = incrementFailedAttempts(username);
+                    if (error) {
+                        console.error('❌ Error al obtener perfil:', error);
+                        showAlert('No se pudo obtener tu perfil. Contacta a un administrador.');
+                        return null;
+                    }
 
-                // Mostrar mensaje de error
-                let message = error.message || 'Usuario o contraseña incorrectos.';
-                if (attempts < 5 && !message.includes('bloqueada')) {
-                    message += ` (${attempts}/5 intentos)`;
-                } else if (attempts >= 5) {
-                    message = 'Cuenta bloqueada por 5 minutos debido a múltiples intentos fallidos.';
+                    if (!data) {
+                        showAlert('No se encontró tu perfil. Contacta a un administrador.');
+                        return null;
+                    }
+
+                    const uiData = {
+                        id: data.id,
+                        auth_id: data.auth_id,
+                        name: data.full_name || session.user?.user_metadata?.full_name || session.user?.email,
+                        email: data.email || session.user?.email || '',
+                        role: data.role || 'usuario',
+                        username: data.username || session.user?.user_metadata?.username || null,
+                        phone: data.phone ?? null,
+                        groups: Array.isArray(data.groups) ? data.groups : data.groups ? [data.groups] : []
+                    };
+
+                    sessionStorage.setItem('userUI', JSON.stringify(uiData));
+                    window.appSession = uiData;
+                    return uiData;
+                } catch (err) {
+                    console.error('❌ Error inesperado:', err);
+                    showAlert('Error procesando tu perfil');
+                    return null;
                 }
-
-                alertContainer.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> ${message}
-                </div>
-            `;
-
-                setTimeout(() => {
-                    alertContainer.innerHTML = '';
-                }, 5000);
-
-            } finally {
-                // Rehabilitar botón
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
             }
-        });
+
+            async function handleActiveSession(session) {
+                if (!session) return;
+                const uiData = await storeUserProfile(session);
+                if (!uiData) {
+                    if (supabaseClient) {
+                        await supabaseClient.auth.signOut();
+                    }
+                    return;
+                }
+                showAlert('¡Bienvenido! Redirigiendo...', 'success', 1500);
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 800);
+            }
+
+            // Verificar sesión al cargar
+            window.addEventListener('DOMContentLoaded', async () => {
+                window.appSession = null;
+
+                // Obtener cliente Supabase
+                supabaseClient = await window.getSupabaseClient();
+                if (!supabaseClient) {
+                    showAlert('⚠️ Supabase no está configurado. Contacta al administrador.');
+                    return;
+                }
+
+                // Verificar si hay sesión activa
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session?.user) {
+                    await handleActiveSession(session);
+                    return;
+                }
+
+                // Escuchar cambios de autenticación
+                supabaseClient.auth.onAuthStateChange(async (event, newSession) => {
+                    if (event === 'SIGNED_IN' && newSession?.user) {
+                        await handleActiveSession(newSession);
+                    }
+                });
+            });
+
+            // Toggle password visibility
+            document.getElementById('togglePassword').addEventListener('click', function () {
+                const icon = this.querySelector('i');
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.className = 'bi bi-eye-slash';
+                } else {
+                    passwordInput.type = 'password';
+                    icon.className = 'bi bi-eye';
+                }
+            });
+
+            // Manejar login
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value.trim();
+                const password = passwordInput.value.trim();
+
+                if (!email || !email.includes('@')) {
+                    showAlert('Ingresa un correo válido.');
+                    return;
+                }
+
+                if (!password) {
+                    showAlert('Ingresa tu contraseña.');
+                    return;
+                }
+
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...';
+
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    await handleActiveSession(data.session);
+                } catch (error) {
+                    console.error('❌ Error en login:', error);
+                    const message = error.message || 'Usuario o contraseña incorrectos.';
+                    showAlert(message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        })();
     </script>
 </body>
 

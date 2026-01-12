@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Validar variables de entorno críticas
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'OPENAI_API_KEY'];
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -23,16 +23,39 @@ const xlsx = require('xlsx');
 
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// Configuración de CORS: permitir frontend (Vercel) y desarrollo local
+const corsOptions = {
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'http://localhost:3000',      // Desarrollo local
+            'http://localhost:5000',      // Desarrollo local alternativo
+            'http://localhost:8080',      // Desarrollo local alternativo
+            process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
+        ].filter(Boolean); // Remover valores undefined/null
+
+        // Permitir requests sin origin (por ejemplo, Postman, cURL, apps móviles)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`❌ CORS rechazado para origin: ${origin}`);
+            callback(new Error('CORS no permitido'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400 // 24 horas
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
 app.use(express.static(path.join(__dirname, 'CFE INSIGHT/App'))); // Servir archivos estáticos
 
@@ -721,55 +744,39 @@ app.get('/api/audit/forms/:formType', async (req, res) => {
 });
 
 // Create/update audit form
-app.post('/api/audit/forms', async (req, res) => {
-    const { formType, data: formData } = req.body;
-    // TODO: Get user_id from authenticated session
-    const user_id = req.headers['user-id']; // Temporary, should come from auth middleware
+// Endpoint de login deshabilitado: la autenticación se realiza únicamente via Supabase Auth desde el frontend
+app.post('/api/auth/login', (_req, res) => {
+    return res.status(410).json({
+        success: false,
+        error: 'Autenticación movida a Supabase Auth. Usa supabase.auth.signInWithPassword desde el frontend.'
+    });
+});
+if (existingForm) {
+    // Update existing form
+    const { data, error } = await supabase
+        .from('audit_forms')
+        .update({ data: formData })
+        .eq('id', existingForm.id)
+        .select();
 
-    if (!user_id) {
-        return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
+    if (error) throw error;
+    result = data[0];
+} else {
+    // Create new form
+    const { data, error } = await supabase
+        .from('audit_forms')
+        .insert([{ form_type: formType, user_id, data: formData }])
+        .select();
 
-    if (!formType || !formData) {
-        return res.status(400).json({ error: 'formType y data son requeridos' });
-    }
+    if (error) throw error;
+    result = data[0];
+}
 
-    try {
-        // Check if form already exists
-        const { data: existingForm } = await supabase
-            .from('audit_forms')
-            .select('id')
-            .eq('form_type', formType)
-            .eq('user_id', user_id)
-            .single();
-
-        let result;
-        if (existingForm) {
-            // Update existing form
-            const { data, error } = await supabase
-                .from('audit_forms')
-                .update({ data: formData })
-                .eq('id', existingForm.id)
-                .select();
-
-            if (error) throw error;
-            result = data[0];
-        } else {
-            // Create new form
-            const { data, error } = await supabase
-                .from('audit_forms')
-                .insert([{ form_type: formType, user_id, data: formData }])
-                .select();
-
-            if (error) throw error;
-            result = data[0];
-        }
-
-        res.status(existingForm ? 200 : 201).json({ success: true, data: result });
+res.status(existingForm ? 200 : 201).json({ success: true, data: result });
     } catch (error) {
-        console.error('Error saving audit form:', error);
-        res.status(500).json({ success: false, error: 'Failed to save audit form' });
-    }
+    console.error('Error saving audit form:', error);
+    res.status(500).json({ success: false, error: 'Failed to save audit form' });
+}
 });
 
 // ============================================

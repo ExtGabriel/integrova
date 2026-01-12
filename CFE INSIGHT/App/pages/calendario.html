@@ -210,8 +210,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .no-events {
@@ -345,7 +350,7 @@
         }
 
         // Aplicar tema guardado
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-theme');
@@ -397,7 +402,7 @@
 
             // Update month display
             const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
             document.getElementById('currentMonth').textContent = `${months[month]} ${year}`;
 
             // Clear previous calendar
@@ -605,8 +610,8 @@
         // Logout function
         function logout() {
             try {
-                if (localStorage.getItem('userSession')) {
-                    localStorage.removeItem('userSession');
+                if (sessionStorage.getItem('userUI')) {
+                    sessionStorage.removeItem('userUI');
                 }
                 window.location.href = 'login.html';
                 console.log('Sesión cerrada exitosamente');
@@ -617,7 +622,7 @@
         }
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Check session
             const userData = getCurrentSession();
             if (!userData) {
@@ -629,4 +634,5 @@
         });
     </script>
 </body>
+
 </html>

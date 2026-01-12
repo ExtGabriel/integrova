@@ -39,15 +39,14 @@ function sanitizeInput(input) {
     });
 }
 
-// Check if session is expired - ACTUALIZADO: usa sessionStorage
+// Check if UI session data exists (auth source of truth is Supabase)
 function isSessionExpired() {
-    const sessionStr = sessionStorage.getItem('userSession');
-    return !sessionStr;
+    return !sessionStorage.getItem('userUI');
 }
 
-// Get current session data if valid - ACTUALIZADO: usa sessionStorage
+// Get UI session data (name/role). Auth is managed by Supabase tokens.
 function getCurrentSession() {
-    const sessionStr = sessionStorage.getItem('userSession');
+    const sessionStr = sessionStorage.getItem('userUI');
     if (!sessionStr) return null;
     try {
         return JSON.parse(sessionStr);
@@ -57,10 +56,10 @@ function getCurrentSession() {
     }
 }
 
-// Set session - ACTUALIZADO: usa sessionStorage
+// Set UI session data (name/role). Do not store Supabase tokens here.
 function setSessionWithExpiry(userData) {
-    sessionStorage.setItem('userSession', JSON.stringify(userData));
-    window.appSession = userData; // También en memoria para compatibilidad
+    sessionStorage.setItem('userUI', JSON.stringify(userData));
+    window.appSession = userData;
 }
 
 // Validate strong password (min 8 chars, uppercase, lowercase, number, special char)

@@ -4,19 +4,16 @@
 
 // Navigation function for dashboard buttons
 function navigateTo(page) {
-    // Detectar si ya estamos en la carpeta pages/
-    const isInPagesFolder = window.location.pathname.includes('/pages/');
-    const prefix = isInPagesFolder ? '' : 'pages/';
-
+    // All pages are in /App/pages/, use simple relative paths
     const pageMap = {
-        'Registro': `${prefix}registros.html`,
-        'Calendario': `${prefix}calendario.html`,
-        'Entidades': `${prefix}entidades.html`,
-        'Usuarios': `${prefix}usuarios.html`,
-        'Grupos': `${prefix}grupos.html`,
-        'Compromisos': `${prefix}compromisos.html`,
-        'Chat': `${prefix}chat.html`,
-        'Ayuda': `${prefix}ayuda.html`
+        'Registro': 'registros.html',
+        'Calendario': 'calendario.html',
+        'Entidades': 'entidades.html',
+        'Usuarios': 'usuarios.html',
+        'Grupos': 'grupos.html',
+        'Compromisos': 'compromisos.html',
+        'Chat': 'chat.html',
+        'Ayuda': 'ayuda.html'
     };
 
     if (pageMap[page]) {
@@ -177,8 +174,17 @@ async function performGlobalSearch() {
     try {
         showLoading(true);
 
+        // TODO FASE FUTURA: Backend search no disponible en hosting estático
+        throw new Error('Búsqueda global no disponible en esta fase');
+
+        /*
         // Usar el nuevo endpoint de búsqueda global
-        const response = await fetch(`http://localhost:3001/api/search?query=${encodeURIComponent(searchTerm)}&types=entities,commitments,users`);
+        const baseUrl = (typeof window !== 'undefined' && window.API_BASE_URL) ||
+            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
+            (typeof window !== 'undefined' ? window.location.origin : '');
+
+        const response = await fetch(`${baseUrl}/api/search?query=${encodeURIComponent(searchTerm)}&types=entities,commitments,users`);
 
         if (!response.ok) {
             throw new Error('Error en la búsqueda');
@@ -196,9 +202,6 @@ async function performGlobalSearch() {
             commitments: [],
             users: []
         };
-
-        const isInPagesFolder = window.location.pathname.includes('/pages/');
-        const prefix = isInPagesFolder ? '' : 'pages/';
 
         // Formatear entidades
         if (result.data.entities && Array.isArray(result.data.entities)) {
@@ -234,6 +237,7 @@ async function performGlobalSearch() {
         }
 
         displaySearchResults(formattedResults);
+        */
 
     } catch (error) {
         console.error('Error performing search:', error);
@@ -1086,24 +1090,61 @@ function nextMonth() {
 }
 
 // Initialize dashboard when DOM is loaded
-document.addEventListener('DOMContentLoaded', function () {
-    // Check session
-    const userData = getCurrentSession();
-    if (!userData) {
-        const isInPagesFolder = window.location.pathname.includes('/pages/');
-        const loginPath = isInPagesFolder ? 'login.html' : 'pages/login.html';
+document.addEventListener('DOMContentLoaded', async function () {
+    const isInPagesFolder = window.location.pathname.includes('/pages/');
+    const loginPath = isInPagesFolder ? 'login.html' : 'pages/login.html';
+
+    try {
+        let userData = getCurrentSession();
+
+        // Si no hay UI cacheado, intentar reconstruirlo desde Supabase
+        if (!userData && window.supabaseClientPromise) {
+            const supabase = await window.supabaseClientPromise;
+            if (supabase) {
+                const { data: { session }, error } = await supabase.auth.getSession();
+
+                if (!error && session?.user) {
+                    const { data: profile, error: profileError } = await supabase
+                        .from('users')
+                        .select('id, auth_id, full_name, email, role, username, phone, groups')
+                        .eq('auth_id', session.user.id)
+                        .maybeSingle();
+
+                    if (profileError) {
+                        console.error('Error cargando perfil en dashboard:', profileError);
+                    } else if (profile) {
+                        userData = {
+                            id: profile.id,
+                            auth_id: profile.auth_id,
+                            name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
+                            email: profile.email || session.user?.email,
+                            role: profile.role || 'usuario',
+                            username: profile.username || session.user?.user_metadata?.username || null,
+                            phone: profile.phone ?? null,
+                            groups: Array.isArray(profile.groups)
+                                ? profile.groups
+                                : profile.groups
+                                    ? [profile.groups]
+                                    : []
+                        };
+                        setSessionWithExpiry(userData);
+                    }
+                }
+            }
+        }
+
+        if (!userData) {
+            window.location.href = loginPath;
+            return;
+        }
+
+        document.getElementById('welcomeText').textContent = `Bienvenido, ${userData.name}`;
+        applyRoleRestrictions(userData.role);
+        initializeDashboard();
+    } catch (error) {
+        console.error('Error verificando sesión en dashboard:', error);
         window.location.href = loginPath;
-        return;
     }
-
-    // Set welcome message
-    document.getElementById('welcomeText').textContent = `Bienvenido, ${userData.name}`;
-
-    // Apply role restrictions to quick actions
-    applyRoleRestrictions(userData.role);
-
-    // Initialize dashboard
-    initializeDashboard();
 });
 
 // Navigation function for dashboard buttons (alternativa)
@@ -1118,16 +1159,12 @@ function logout() {
         window.appSession = null;
         window.readNotificationsCache = [];
 
-        // Redirect to login page
-        const isInPagesFolder = window.location.pathname.includes('/pages/');
-        const loginPath = isInPagesFolder ? 'login.html' : 'pages/login.html';
-        window.location.href = loginPath;
+        // All pages are in /App/pages/, use simple redirect
+        window.location.href = 'login.html';
     } catch (error) {
         console.error('Error during logout:', error);
         // Fallback: force redirect even if there's an error
-        const isInPagesFolder = window.location.pathname.includes('/pages/');
-        const loginPath = isInPagesFolder ? 'login.html' : 'pages/login.html';
-        window.location.href = loginPath;
+        window.location.href = 'login.html';
     }
 }
 

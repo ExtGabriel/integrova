@@ -11,6 +11,7 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/compromisos-detalles.css">
+    
 </head>
 
 <body>
@@ -296,7 +297,8 @@
                         <p class="exhaust-description">Verifique la exhaustividad de los asientos comparando el
                             <strong>saldo calculado del periodo actual</strong> con el <strong>saldo del periodo
                                 actual</strong>. En la columna <strong>Diferencia</strong> se mostrarán las
-                            desviaciones.</p>
+                            desviaciones.
+                        </p>
                         <p class="exhaust-description">Las cuentas se muestran de acuerdo a los grupos financieros a los
                             que han sido asignadas. Cualquier excepción se muestra debajo.</p>
 
@@ -472,7 +474,7 @@
             }
         }
         // Constante para Sesión
-        const USER_KEY = 'userSession';
+        const USER_KEY = 'userUI';
 
         // Mock Data: Compromisos con Entidad y 4 Secciones (sin cambios)
         const allCommitments = [
@@ -1188,7 +1190,9 @@
             // Obtener respuestas del formulario A100 desde backend
             let answers = null;
             try {
-                const resp = await apiClient.get(`/api/audit/forms/a100?commitment_id=${currentId}`);
+                // TODO FASE FUTURA: cargar desde Supabase
+                // const resp = await apiClient.get(`/api/audit/forms/a100?commitment_id=${currentId}`);
+                const resp = { success: false, data: null };
                 if (resp && resp.success && resp.data && resp.data.data) {
                     answers = resp.data.data;
                     console.log('📦 Datos A100 cargados desde backend');

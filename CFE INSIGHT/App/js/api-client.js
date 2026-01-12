@@ -1,813 +1,199 @@
 /**
- * CFE INSIGHT - API Client
- * Cliente para consumir la API REST del backend con Supabase
- * Versión: 1.0.0
+ * CFE INSIGHT - API CLIENT (VANILLA JS)
+ * 
+ * Cliente centralizado DEFENSIVO para Supabase + APIs.
+ * Expone window.API con métodos seguros.
+ * 
+ * REQUISITO: supabaseClient.js y config-supabase.js deben cargarse ANTES de este archivo.
  */
 
-// Configuración de la API
-const API_CONFIG = {
-    baseURL: 'http://localhost:3001',
-    timeout: 30000,
-    headers: {
-        'Content-Type': 'application/json'
-    }
-};
+(function () {
+    'use strict';
 
-// Cliente HTTP genérico
-class HTTPClient {
-    constructor(config) {
-        this.baseURL = config.baseURL;
-        this.timeout = config.timeout;
-        this.headers = config.headers;
-    }
-
-    async request(method, endpoint, data = null, customHeaders = {}) {
-        const url = `${this.baseURL}${endpoint}`;
-
-        // Obtener user-id de la sesión si existe
-        const session = typeof getCurrentSession === 'function' ? getCurrentSession() : null;
-        const userId = session?.id || session?.user_id;
-
-        const options = {
-            method,
-            headers: {
-                ...this.headers,
-                ...(userId ? { 'user-id': userId } : {}),
-                ...customHeaders
-            }
-        };
-
-        if (data && (method === 'POST' || method === 'PUT')) {
-            options.body = JSON.stringify(data);
-        }
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-            options.signal = controller.signal;
-
-            const response = await fetch(url, options);
-            clearTimeout(timeoutId);
-
-            const responseData = await response.json();
-
-            if (!response.ok) {
-                throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            // Si responseData ya tiene la estructura {success, data}, devolverla directamente
-            // Si no, envolverla
-            if (responseData.hasOwnProperty('success') && responseData.hasOwnProperty('data')) {
-                return responseData;
-            }
-
-            return { success: true, data: responseData, status: response.status };
-        } catch (error) {
-            console.error(`API Error [${method} ${endpoint}]:`, error);
-            return {
-                success: false,
-                error: error.message || 'Error de conexión con el servidor',
-                status: 0
-            };
-        }
-    }
-
-    get(endpoint, customHeaders = {}) {
-        return this.request('GET', endpoint, null, customHeaders);
-    }
-
-    post(endpoint, data, customHeaders = {}) {
-        return this.request('POST', endpoint, data, customHeaders);
-    }
-
-    put(endpoint, data, customHeaders = {}) {
-        return this.request('PUT', endpoint, data, customHeaders);
-    }
-
-    delete(endpoint, customHeaders = {}) {
-        return this.request('DELETE', endpoint, null, customHeaders);
-    }
-}
-
-// Instancia del cliente HTTP
-const httpClient = new HTTPClient(API_CONFIG);
-
-// ============================================
-// API DE AUTENTICACIÓN
-// ============================================
-
-const AuthAPI = {
     /**
-     * Iniciar sesión
-     * @param {string} username - Nombre de usuario
-     * @param {string} password - Contraseña
-     * @returns {Promise<Object>} Usuario autenticado
+     * ==========================================
+     * INICIALIZACIÓN
+     * ==========================================
      */
-    async login(username, password) {
-        const response = await httpClient.post('/api/auth/login', { username, password });
 
-        if (response.success) {
-            // Guardar sesión en sessionStorage (persiste entre páginas)
-            const userData = response.user || response.data?.user;
-            const sessionData = {
-                id: userData.id,
-                username: userData.username,
-                name: userData.name || userData.full_name,
-                role: userData.role,
-                email: userData.email,
-                loginTime: new Date().toISOString()
-            };
-            sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-            window.appSession = sessionData;
+    // Esperar a que Supabase esté inicializado
+    let supabaseReady = window.supabaseReady || Promise.resolve();
+    if (!supabaseReady || !supabaseReady.then) {
+        supabaseReady = Promise.resolve();
+    }
+
+    // Estado global
+    let currentSession = null;
+    let currentProfile = null;
+
+    /**
+     * ==========================================
+     * FUNCIONES CORE DE SESIÓN Y PERFIL
+     * ==========================================
+     */
+
+    /**
+     * Obtener sesión actual desde Supabase
+     */
+    async function getSession() {
+        try {
+            if (!window.getSupabaseSession) {
+                console.warn('⚠️ getSupabaseSession no disponible');
+                return null;
+            }
+
+            const { data, error } = await window.getSupabaseSession();
+            if (error || !data.session) {
+                return null;
+            }
+
+            currentSession = data.session;
+            return currentSession;
+        } catch (err) {
+            console.error('❌ Error obteniendo sesión:', err);
+            return null;
+        }
+    }
+
+    async function getMyProfile() {
+        const user = supabaseClient.auth.user();
+        if (!user) {
+            console.error("❌ No hay usuario autenticado");
+            return null;
         }
 
-        return response;
-    },
+        const { data, error } = await supabaseClient
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+        if (error) {
+            console.error("❌ Error cargando perfil:", error);
+            return null;
+        }
+
+        return data;
+    }
 
     /**
      * Cerrar sesión
-     * @returns {Promise<Object>} Resultado del logout
      */
-    async logout() {
-        // Limpiar sesión en sessionStorage
-        sessionStorage.removeItem('userSession');
-        window.appSession = null;
-        return { success: true };
-    }
-};
-
-// ============================================
-// API DE USUARIOS (NUEVA ESTRUCTURA)
-// ============================================
-
-const UsuariosAPI = {
-    /**
-     * Obtener todos los usuarios
-     * @returns {Promise<Object>} Respuesta con lista de usuarios
-     */
-    async getAll() {
-        return await httpClient.get('/api/users');
-    },
-
-    /**
-     * Obtener usuario por ID
-     * @param {number} id - ID del usuario
-     * @returns {Promise<Object>} Usuario encontrado
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/users/${id}`);
-    },
-
-    /**
-     * Crear nuevo usuario
-     * @param {Object} userData - Datos del usuario
-     * @returns {Promise<Object>} Usuario creado
-     */
-    async create(userData) {
-        return await httpClient.post('/api/users', userData);
-    },
-
-    /**
-     * Actualizar usuario
-     * @param {number} id - ID del usuario
-     * @param {Object} userData - Datos a actualizar
-     * @returns {Promise<Object>} Usuario actualizado
-     */
-    async update(id, userData) {
-        return await httpClient.put(`/api/users/${id}`, userData);
-    },
-
-    /**
-     * Eliminar usuario
-     * @param {number} id - ID del usuario
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/users/${id}`);
-    }
-};
-
-// ============================================
-// API DE USUARIOS (ESTRUCTURA ANTIGUA - PARA COMPATIBILIDAD)
-// ============================================
-
-const UsersAPI = {
-    /**
-     * Obtener todos los usuarios
-     * @returns {Promise<Object>} Respuesta con lista de usuarios
-     */
-    async getAll() {
-        return await httpClient.get('/api/users');
-    },
-
-    /**
-     * Obtener usuario por username
-     * @param {string} username - Username del usuario
-     * @returns {Promise<Object>} Usuario encontrado
-     */
-    async getByUsername(username) {
-        return await httpClient.get(`/api/users/${username}`);
-    },
-
-    /**
-     * Crear nuevo usuario
-     * @param {Object} userData - Datos del usuario
-     * @returns {Promise<Object>} Usuario creado
-     */
-    async create(userData) {
-        return await httpClient.post('/api/users', userData);
-    },
-
-    /**
-     * Actualizar usuario
-     * @param {string} username - Username del usuario
-     * @param {Object} userData - Datos a actualizar
-     * @returns {Promise<Object>} Usuario actualizado
-     */
-    async update(username, userData) {
-        return await httpClient.put(`/api/users/${username}`, userData);
-    },
-
-    /**
-     * Eliminar usuario
-     * @param {string} username - Username del usuario
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(username) {
-        return await httpClient.delete(`/api/users/${username}`);
-    }
-};
-
-// ============================================
-// API DE ENTIDADES
-// ============================================
-
-const EntitiesAPI = {
-    /**
-     * Obtener todas las entidades
-     * @returns {Promise<Object>} Respuesta con lista de entidades
-     */
-    async getAll() {
-        return await httpClient.get('/api/entities');
-    },
-
-    /**
-     * Obtener entidad por ID
-     * @param {number} id - ID de la entidad
-     * @returns {Promise<Object>} Entidad encontrada
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/entities/${id}`);
-    },
-
-    /**
-     * Crear nueva entidad
-     * @param {Object} entityData - Datos de la entidad
-     * @returns {Promise<Object>} Entidad creada
-     */
-    async create(entityData) {
-        return await httpClient.post('/api/entities', entityData);
-    },
-
-    /**
-     * Actualizar entidad
-     * @param {number} id - ID de la entidad
-     * @param {Object} entityData - Datos a actualizar
-     * @returns {Promise<Object>} Entidad actualizada
-     */
-    async update(id, entityData) {
-        return await httpClient.put(`/api/entities/${id}`, entityData);
-    },
-
-    /**
-     * Eliminar entidad
-     * @param {number} id - ID de la entidad
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/entities/${id}`);
-    }
-};
-
-// ============================================
-// API DE CLIENTES (NUEVA ESTRUCTURA)
-// ============================================
-
-const ClientesAPI = {
-    /**
-     * Obtener todos los clientes
-     * @returns {Promise<Object>} Respuesta con lista de clientes
-     */
-    async getAll() {
-        return await httpClient.get('/api/clientes');
-    },
-
-    /**
-     * Obtener cliente por ID
-     * @param {number} id - ID del cliente
-     * @returns {Promise<Object>} Cliente encontrado
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/clientes/${id}`);
-    },
-
-    /**
-     * Crear nuevo cliente
-     * @param {Object} clienteData - Datos del cliente
-     * @returns {Promise<Object>} Cliente creado
-     */
-    async create(clienteData) {
-        return await httpClient.post('/api/clientes', clienteData);
-    },
-
-    /**
-     * Actualizar cliente
-     * @param {number} id - ID del cliente
-     * @param {Object} clienteData - Datos a actualizar
-     * @returns {Promise<Object>} Cliente actualizado
-     */
-    async update(id, clienteData) {
-        return await httpClient.put(`/api/clientes/${id}`, clienteData);
-    },
-
-    /**
-     * Eliminar cliente
-     * @param {number} id - ID del cliente
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/clientes/${id}`);
-    }
-};
-
-// ============================================
-// API DE AUDITORIAS (NUEVA ESTRUCTURA)
-// ============================================
-
-const AuditoriasAPI = {
-    /**
-     * Obtener todas las auditorías
-     * @returns {Promise<Object>} Respuesta con lista de auditorías
-     */
-    async getAll() {
-        return await httpClient.get('/api/auditorias');
-    },
-
-    /**
-     * Obtener auditoría por ID
-     * @param {number} id - ID de la auditoría
-     * @returns {Promise<Object>} Auditoría encontrada
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/auditorias/${id}`);
-    },
-
-    /**
-     * Obtener auditorías por cliente
-     * @param {number} clienteId - ID del cliente
-     * @returns {Promise<Object>} Respuesta con lista de auditorías del cliente
-     */
-    async getByCliente(clienteId) {
-        return await httpClient.get(`/api/auditorias/cliente/${clienteId}`);
-    },
-
-    /**
-     * Crear nueva auditoría
-     * @param {Object} auditoriaData - Datos de la auditoría
-     * @returns {Promise<Object>} Auditoría creada
-     */
-    async create(auditoriaData) {
-        return await httpClient.post('/api/auditorias', auditoriaData);
-    },
-
-    /**
-     * Actualizar auditoría
-     * @param {number} id - ID de la auditoría
-     * @param {Object} auditoriaData - Datos a actualizar
-     * @returns {Promise<Object>} Auditoría actualizada
-     */
-    async update(id, auditoriaData) {
-        return await httpClient.put(`/api/auditorias/${id}`, auditoriaData);
-    },
-
-    /**
-     * Eliminar auditoría
-     * @param {number} id - ID de la auditoría
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/auditorias/${id}`);
-    }
-};
-
-// ============================================
-// API DE COMPROMISOS
-// ============================================
-
-const CommitmentsAPI = {
-    /**
-     * Obtener todos los compromisos
-     * @returns {Promise<Object>} Respuesta con lista de compromisos
-     */
-    async getAll() {
-        return await httpClient.get('/api/commitments');
-    },
-
-    /**
-     * Obtener compromiso por ID
-     * @param {number} id - ID del compromiso
-     * @returns {Promise<Object>} Compromiso encontrado con relaciones
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/commitments/${id}`);
-    },
-
-    /**
-     * Obtener compromisos por entidad
-     * @param {number} entityId - ID de la entidad
-     * @returns {Promise<Object>} Respuesta con lista de compromisos de la entidad
-     */
-    async getByEntity(entityId) {
-        return await httpClient.get(`/api/commitments/entity/${entityId}`);
-    },
-
-    /**
-     * Crear nuevo compromiso
-     * @param {Object} commitmentData - Datos del compromiso
-     * @returns {Promise<Object>} Compromiso creado
-     */
-    async create(commitmentData) {
-        return await httpClient.post('/api/commitments', commitmentData);
-    },
-
-    /**
-     * Actualizar compromiso
-     * @param {number} id - ID del compromiso
-     * @param {Object} commitmentData - Datos a actualizar
-     * @returns {Promise<Object>} Compromiso actualizado
-     */
-    async update(id, commitmentData) {
-        return await httpClient.put(`/api/commitments/${id}`, commitmentData);
-    },
-
-    /**
-     * Eliminar compromiso
-     * @param {number} id - ID del compromiso
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/commitments/${id}`);
-    }
-};
-
-// ============================================
-// API DE EQUIPOS DE TRABAJO
-// ============================================
-
-const WorkGroupsAPI = {
-    /**
-     * Obtener todos los equipos de trabajo
-     * @returns {Promise<Object>} Respuesta con lista de grupos
-     */
-    async getAll() {
-        return await httpClient.get('/api/work-groups');
-    },
-
-    /**
-     * Obtener grupo por ID
-     * @param {number} id - ID del grupo
-     * @returns {Promise<Object>} Grupo encontrado
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/work-groups/${id}`);
-    },
-
-    /**
-     * Crear nuevo grupo
-     * @param {Object} groupData - Datos del grupo
-     * @returns {Promise<Object>} Grupo creado
-     */
-    async create(groupData) {
-        return await httpClient.post('/api/work-groups', groupData);
-    },
-
-    /**
-     * Actualizar grupo
-     * @param {number} id - ID del grupo
-     * @param {Object} groupData - Datos a actualizar
-     * @returns {Promise<Object>} Grupo actualizado
-     */
-    async update(id, groupData) {
-        return await httpClient.put(`/api/work-groups/${id}`, groupData);
-    },
-
-    /**
-     * Eliminar grupo
-     * @param {number} id - ID del grupo
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/work-groups/${id}`);
-    }
-};
-
-// ============================================
-// API DE REGISTROS (LOGS)
-// ============================================
-
-const RecordsAPI = {
-    /**
-     * Obtener registros con paginación
-     * @param {Object} options - Opciones de consulta
-     * @returns {Promise<Object>} Registros con metadata de paginación
-     */
-    async getAll(options = {}) {
-        const { limit = 100, offset = 0, username = null, action = null } = options;
-
-        let endpoint = `/api/records?limit=${limit}&offset=${offset}`;
-        if (username) endpoint += `&username=${username}`;
-        if (action) endpoint += `&action=${action}`;
-
-        return await httpClient.get(endpoint);
-    },
-
-    /**
-     * Obtener registro por ID
-     * @param {number} id - ID del registro
-     * @returns {Promise<Object>} Registro encontrado
-     */
-    async getById(id) {
-        return await httpClient.get(`/api/records/${id}`);
-    },
-
-    /**
-     * Obtener registros por rango de fechas
-     * @param {string} startDate - Fecha inicial (YYYY-MM-DD)
-     * @param {string} endDate - Fecha final (YYYY-MM-DD)
-     * @returns {Promise<Object>} Respuesta con lista de registros en el rango
-     */
-    async getByDateRange(startDate, endDate) {
-        return await httpClient.get(`/api/records/range/${startDate}/${endDate}`);
-    },
-
-    /**
-     * Crear nuevo registro
-     * @param {Object} recordData - Datos del registro
-     * @returns {Promise<Object>} Registro creado
-     */
-    async create(recordData) {
-        return await httpClient.post('/api/records', recordData);
-    },
-
-    /**
-     * Eliminar registro
-     * @param {number} id - ID del registro
-     * @returns {Promise<Object>} Resultado de la eliminación
-     */
-    async delete(id) {
-        return await httpClient.delete(`/api/records/${id}`);
-    }
-};
-
-// ============================================
-// API DE FORMULARIOS DE AUDITORÍA
-// ============================================
-
-const AuditFormsAPI = {
-    /**
-     * Obtener formulario por tipo para el usuario actual
-     * @param {string} formType - Tipo de formulario (a100, a101, etc.)
-     * @returns {Promise<Object>} Formulario encontrado
-     */
-    async getByType(formType) {
-        return await httpClient.get(`/api/audit/forms/${formType}`);
-    },
-
-    /**
-     * Crear/actualizar formulario
-     * @param {string} formType - Tipo de formulario
-     * @param {Object} data - Datos del formulario
-     * @returns {Promise<Object>} Formulario creado/actualizado
-     */
-    async save(formType, data) {
-        return await httpClient.post('/api/audit/forms', { formType, data });
-    }
-};
-
-// ============================================
-// API DE REVISIONES DE AUDITORÍA
-// ============================================
-
-const AuditReviewsAPI = {
-    /**
-     * Obtener revisiones de un formulario
-     * @param {string} formId - ID del formulario
-     * @returns {Promise<Object>} Respuesta con lista de revisiones
-     */
-    async getByFormId(formId) {
-        return await httpClient.get(`/api/audit/reviews/${formId}`);
-    },
-
-    /**
-     * Marcar pregunta como revisada (solo admins)
-     * @param {string} formId - ID del formulario
-     * @param {string} questionId - ID de la pregunta
-     * @param {boolean} reviewed - Estado de revisión
-     * @returns {Promise<Object>} Revisión creada/actualizada
-     */
-    async update(formId, questionId, reviewed) {
-        const session = getCurrentSession();
-        if (!session) {
-            return { success: false, error: 'Sesión no válida' };
+    async function signOut() {
+        try {
+            const client = await window.getSupabaseClient();
+            if (client) {
+                await client.auth.signOut();
+            }
+            currentSession = null;
+            currentProfile = null;
+            sessionStorage.removeItem('userUI');
+            return { success: true };
+        } catch (err) {
+            console.error('❌ Error cerrando sesión:', err);
+            return { success: false, error: err.message };
         }
-
-        return await httpClient.post('/api/audit/reviews', {
-            formId,
-            questionId,
-            reviewed,
-            reviewedBy: session.id
-        });
     }
-};
-
-// ============================================
-// API DE INTELIGENCIA ARTIFICIAL
-// ============================================
-
-const AIAPI = {
-    /**
-     * Llamada general a IA
-     * @param {string} prompt - Pregunta o solicitud
-     * @param {string} context - Contexto (soporte, auditoria, reporte, chat)
-     * @param {Object} options - Opciones adicionales
-     * @returns {Promise<Object>} Respuesta de la IA
-     */
-    async call(prompt, context = 'soporte', options = {}) {
-        return await httpClient.post('/api/ai/call', { prompt, context, options });
-    },
 
     /**
-     * Analizar logs con IA
-     * @param {Array} logs - Array de logs a analizar
-     * @param {string} analysisType - Tipo de análisis (general, anomalies, patterns, recommendations)
-     * @returns {Promise<Object>} Análisis de la IA
+     * Iniciar sesión
      */
-    async analyzeLogs(logs, analysisType = 'general') {
-        return await httpClient.post('/api/ai/analyze-logs', { logs, analysisType });
-    },
+    async function login(email, password) {
+        try {
+            if (!email || !password) {
+                throw new Error('Email y contraseña son requeridos');
+            }
+
+            const client = await window.getSupabaseClient();
+            if (!client) {
+                throw new Error('Supabase no está inicializado');
+            }
+
+            const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data || !data.session) {
+                throw new Error('No se pudo establecer la sesión');
+            }
+
+            currentSession = data.session;
+            return { success: true, session: data.session };
+        } catch (err) {
+            console.error('❌ Error en login:', err);
+            return { success: false, error: err.message || err };
+        }
+    }
 
     /**
-     * Generar reporte con IA
-     * @param {Object} data - Datos para el reporte
-     * @param {string} reportType - Tipo de reporte (general, auditoria, compromisos, usuarios)
-     * @returns {Promise<Object>} Reporte generado
+     * ==========================================
+     * API GLOBAL CENTRALIZADA
+     * ==========================================
      */
-    async generateReport(data, reportType = 'general') {
-        return await httpClient.post('/api/ai/generate-report', { data, reportType });
-    }
-};
 
-// ============================================
-// UTILIDADES
-// ============================================
+    window.API = {
+        // === Sesión y Autenticación ===
+        login,
+        getSession,
+        getMyProfile,
+        signOut,
 
-/**
- * Verificar estado del servidor
- * @returns {Promise<boolean>} True si el servidor está disponible
- */
-async function checkServerHealth() {
-    try {
-        const response = await httpClient.get('/api/health');
-        return response.success && response.data.status === 'OK';
-    } catch (error) {
-        return false;
-    }
-}
-
-/**
- * Registrar acción en el sistema
- * @param {string} action - Acción realizada
- * @param {string} entity - Entidad afectada (opcional)
- * @param {string} commitment - Compromiso afectado (opcional)
- * @param {Object} details - Detalles adicionales (opcional)
- */
-async function logAction(action, entity = null, commitment = null, details = {}) {
-    const session = getCurrentSession();
-    if (!session) return;
-
-    await RecordsAPI.create({
-        username: session.username,
-        action,
-        entity,
-        commitment,
-        details
-    });
-}
-
-/**
- * Mostrar notificación de error
- * @param {string} message - Mensaje de error
- * @param {string} containerId - ID del contenedor donde mostrar el error
- */
-function showError(message, containerId = 'alertContainer') {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        console.error('Error container not found:', containerId);
-        alert(message);
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-    setTimeout(() => {
-        container.innerHTML = '';
-    }, 5000);
-}
-
-/**
- * Mostrar notificación de éxito
- * @param {string} message - Mensaje de éxito
- * @param {string} containerId - ID del contenedor donde mostrar el mensaje
- */
-function showSuccess(message, containerId = 'alertContainer') {
-    const container = document.getElementById(containerId);
-    if (!container) {
-        console.error('Success container not found:', containerId);
-        alert(message);
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-    setTimeout(() => {
-        container.innerHTML = '';
-    }, 3000);
-}
-
-/**
- * Mostrar indicador de carga
- * @param {boolean} show - Mostrar u ocultar
- * @param {string} containerId - ID del contenedor
- */
-function showLoading(show, containerId = 'loadingContainer') {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    if (show) {
-        container.innerHTML = `
-            <div class="text-center my-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
+        // === Funciones auxiliares ===
+        showError(message, containerId = 'alertContainer') {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Container not found:', containerId);
+                alert(message);
+                return;
+            }
+            container.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
-                <p class="mt-2">Cargando datos...</p>
-            </div>
-        `;
-        container.style.display = 'block';
-    } else {
-        container.innerHTML = '';
-        container.style.display = 'none';
-    }
-}
+            `;
+            setTimeout(() => { container.innerHTML = ''; }, 5000);
+        },
 
-// ============================================
-// EXPORTAR API
-// ============================================
+        showSuccess(message, containerId = 'alertContainer') {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Container not found:', containerId);
+                alert(message);
+                return;
+            }
+            container.innerHTML = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            setTimeout(() => { container.innerHTML = ''; }, 3000);
+        },
 
-// Hacer disponible globalmente
-window.API = {
-    Auth: AuthAPI,
-    Usuarios: UsuariosAPI,
-    Users: UsersAPI,
-    Entities: EntitiesAPI,
-    Clientes: ClientesAPI,
-    Auditorias: AuditoriasAPI,
-    Commitments: CommitmentsAPI,
-    WorkGroups: WorkGroupsAPI,
-    Records: RecordsAPI,
-    AuditForms: AuditFormsAPI,
-    AuditReviews: AuditReviewsAPI,
-    AI: AIAPI,
-    checkServerHealth,
-    logAction,
-    showError,
-    showSuccess,
-    showLoading
-};
+        showLoading(show, containerId = 'loadingContainer') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (show) {
+                container.innerHTML = `
+                    <div class="text-center my-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando datos...</p>
+                    </div>
+                `;
+                container.style.display = 'block';
+            } else {
+                container.innerHTML = '';
+                container.style.display = 'none';
+            }
+        }
+    };
 
-// Exportar httpClient globalmente para uso en formularios
-window.apiClient = httpClient;
+    // Log
+    console.log('✅ API Client inicializado (window.API disponible)');
 
-// Log de inicialización
-console.log('✅ API Client inicializado correctamente');
-console.log('📡 Base URL:', API_CONFIG.baseURL);
+})();

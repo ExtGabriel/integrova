@@ -49,7 +49,31 @@ if (!isTestEnv) {
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
-app.use(cors()); // Habilitar CORS
+// Configuración de CORS: permitir frontend (Vercel) y desarrollo local
+const corsOptions = {
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'http://localhost:3000',      // Desarrollo local
+            'http://localhost:5000',      // Desarrollo local alternativo
+            'http://localhost:8080',      // Desarrollo local alternativo
+            process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
+        ].filter(Boolean); // Remover valores undefined/null
+
+        // Permitir requests sin origin (por ejemplo, Postman, cURL, apps móviles)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`❌ CORS rechazado para origin: ${origin}`);
+            callback(new Error('CORS no permitido'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400 // 24 horas
+};
+
+app.use(cors(corsOptions)); // Habilitar CORS con configuración restringida
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
 app.use(express.static(path.join(__dirname, 'App'))); // Servir archivos estáticos
 
@@ -707,102 +731,12 @@ app.post('/api/ai/generate-report', async (req, res) => {
 // ENDPOINTS DE AUTENTICACIÓN
 // ============================================
 
-// Endpoint para login
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        if (!username || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Usuario y contraseña son requeridos'
-            });
-        }
-
-        // Modo demo: autenticación con credenciales de demo
-        if (isDemoMode) {
-            // Credenciales de demo
-            const demoUsers = {
-                'admin': { password: 'Admin123!', role: 'admin', email: 'admin@cfinsight.com' },
-                'auditor': { password: 'Auditor123!', role: 'auditor', email: 'auditor@cfinsight.com' }
-            };
-
-            const demoUser = demoUsers[username];
-            if (!demoUser || demoUser.password !== password) {
-                return res.status(401).json({
-                    success: false,
-                    error: 'Usuario o contraseña incorrectos'
-                });
-            }
-
-            console.log(`Demo login successful for user: ${username}`);
-            res.json({
-                success: true,
-                user: {
-                    id: `demo-${username}-1`,
-                    username: username,
-                    email: demoUser.email,
-                    role: demoUser.role,
-                    created_at: new Date().toISOString()
-                }
-            });
-            return;
-        }
-
-        if (!supabase) {
-            console.error('Supabase client not initialized');
-            return res.status(500).json({
-                success: false,
-                error: 'Servicio de base de datos no disponible'
-            });
-        }
-
-        // Buscar usuario por email o username
-        // El usuario puede ingresar el email o el username
-        console.log(`Intentando login con: ${username}`);
-
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .or(`email.eq.${username},username.eq.${username}`)
-            .single();
-
-        if (error) {
-            console.error('Login query error:', error);
-            if (error.code === 'PGRST116') { // No rows found
-                return res.status(401).json({
-                    success: false,
-                    error: 'Usuario o contraseña incorrectos'
-                });
-            }
-            throw error;
-        }
-
-        // Por ahora, aceptar cualquier password (temporal - en producción debe usar hash)
-        // TODO: Implementar verificación de contraseña con bcrypt
-        console.log(`Login successful for user: ${data.name}`);
-
-        // Mapear campos de Supabase a formato esperado
-        res.json({
-            success: true,
-            user: {
-                id: data.id,
-                username: data.username,
-                name: data.name,
-                email: data.email,
-                role: data.role,
-                created_at: data.created_at
-            }
-        });
-
-    } catch (error) {
-        console.error('Error en login:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error interno del servidor',
-            message: error.message
-        });
-    }
+// Endpoint de login deshabilitado: la autenticación se realiza únicamente via Supabase Auth desde el frontend
+app.post('/api/auth/login', (_req, res) => {
+    return res.status(410).json({
+        success: false,
+        error: 'Autenticación movida a Supabase Auth. Usa supabase.auth.signInWithPassword desde el frontend.'
+    });
 });
 
 // ============================================
@@ -1741,17 +1675,17 @@ app.post('/api/audit/forms', async (req, res) => {
             return res.status(400).json({ success: false, error: 'commitmentId es requerido' });
         }
 
-        // VALIDAR que el user_id exista en la tabla usuarios si no es null
+        // VALIDAR que el user_id exista en la tabla users si no es null
         if (userId) {
             const { data: userExists } = await supabase
-                .from('usuarios')
+                .from('users')
                 .select('id')
                 .eq('id', userId)
                 .single();
 
             // Si el usuario no existe, forzar a null para evitar error de FK
             if (!userExists) {
-                console.warn(`⚠️ User ID ${userId} no existe en usuarios, guardando como NULL`);
+                console.warn(`⚠️ User ID ${userId} no existe en users, guardando como NULL`);
                 userId = null;
             }
         }
