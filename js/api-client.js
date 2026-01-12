@@ -55,51 +55,25 @@
         }
     }
 
-    /**
-     * Obtener perfil del usuario actual desde public.users
-     * Filtra por auth.uid()
-     */
     async function getMyProfile() {
-        try {
-            // Primero, obtener la sesión
-            const session = await getSession();
-            if (!session || !session.user || !session.user.id) {
-                console.error('❌ No hay sesión activa');
-                return null;
-            }
-
-            const userId = session.user.id;
-
-            // Obtener cliente Supabase
-            const client = await window.getSupabaseClient();
-            if (!client) {
-                console.error('❌ Supabase no inicializado');
-                return null;
-            }
-
-            // Consultar public.users filtrando por id = auth.uid()
-            const { data, error } = await client
-                .from('users')
-                .select('*')
-                .eq('auth_id', userId)
-                .maybeSingle();
-
-            if (error) {
-                console.error('❌ Error obteniendo perfil:', error);
-                return null;
-            }
-
-            if (!data) {
-                console.warn('⚠️ Perfil no encontrado para auth_id:', userId);
-                return null;
-            }
-
-            currentProfile = data;
-            return currentProfile;
-        } catch (err) {
-            console.error('❌ Error inesperado en getMyProfile:', err);
+        const user = supabaseClient.auth.user();
+        if (!user) {
+            console.error("❌ No hay usuario autenticado");
             return null;
         }
+
+        const { data, error } = await supabaseClient
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+        if (error) {
+            console.error("❌ Error cargando perfil:", error);
+            return null;
+        }
+
+        return data;
     }
 
     /**
