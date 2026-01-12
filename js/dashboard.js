@@ -1090,65 +1090,33 @@ function nextMonth() {
 }
 
 // Initialize dashboard when DOM is loaded
+// NOTA CRÍTICA: dashboard-init.js MANEJA toda la lógica de sesión y redirecciones
+// Este archivo SOLO se ejecuta si la sesión ya es válida
 document.addEventListener('DOMContentLoaded', async function () {
-    const isInPagesFolder = window.location.pathname.includes('/pages/');
-    const loginPath = isInPagesFolder ? 'login.html' : 'pages/login.html';
-
     try {
-        let userData = getCurrentSession();
+        console.log('📊 dashboard.js: DOMContentLoaded - Asumiendo sesión válida...');
 
-        // Si no hay UI cacheado, intentar reconstruirlo desde Supabase
-        if (!userData && window.supabaseClientPromise) {
-            const supabase = await window.supabaseClientPromise;
-            if (supabase) {
-                const { data: { session }, error } = await supabase.auth.getSession();
-
-                if (!error && session?.user) {
-                    const { data: profile, error: profileError } = await supabase
-                        .from('users')
-                        .select('id, full_name, email, role, username, phone, groups')
-                        .eq('id', session.user.id)
-                        .maybeSingle();
-
-                    if (profileError) {
-                        console.error('Error cargando perfil en dashboard:', profileError);
-                    } else if (profile) {
-                        userData = {
-                            id: profile.id,
-                            name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
-                            email: profile.email || session.user?.email,
-                            role: profile.role || 'usuario',
-                            username: profile.username || session.user?.user_metadata?.username || null,
-                            phone: profile.phone ?? null,
-                            groups: Array.isArray(profile.groups)
-                                ? profile.groups
-                                : profile.groups
-                                    ? [profile.groups]
-                                    : []
-                        };
-                        setSessionWithExpiry(userData);
-                    }
-                }
-            }
+        // Obtener perfil del usuario (ya debe haber sesión)
+        const profile = window.currentUserProfile;
+        if (profile && profile.full_name) {
+            document.getElementById('welcomeText').textContent = `Bienvenido, ${profile.full_name}`;
         }
 
-        if (!userData) {
-            window.location.href = loginPath;
-            return;
-        }
+        // Aplicar restricciones por rol
+        const role = profile?.role || 'usuario';
+        applyRoleRestrictions(role);
 
-        document.getElementById('welcomeText').textContent = `Bienvenido, ${userData.name}`;
-        applyRoleRestrictions(userData.role);
+        // Inicializar dashboard
         initializeDashboard();
     } catch (error) {
-        console.error('Error verificando sesión en dashboard:', error);
-        window.location.href = loginPath;
+        console.error('❌ dashboard.js: Error en DOMContentLoaded:', error);
+        // NO redirigir aquí - dashboard-init.js maneja redirecciones
     }
 });
 
-// Navigation function for dashboard buttons (alternativa)
-// Esta función está duplicada - usar la de arriba que es más eficiente
-// La mantenemos por compatibilidad pero debería usar navigateTo() principal
+// Navigation function for dashboard buttons
+// Esta es la función principal - mantener como está
+
 
 // Logout function - clear session and redirect to login
 function logout() {

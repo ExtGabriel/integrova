@@ -1,14 +1,26 @@
-// Configuración de APIs de IA - CLIENTE SIDE
-// NOTA DE SEGURIDAD: Las API keys han sido movidas al servidor backend.
-// Ahora todas las llamadas a IA pasan por el proxy seguro en /api/ai/*
+/**
+ * CONFIGURACIÓN GLOBAL DE LA APLICACIÓN - VANILLA JS (SIN BUNDLERS)
+ * 
+ * Este archivo NO usa import.meta ni módulos ES6.
+ * Expone toda la configuración en window.APP_CONFIG
+ */
 
-const AI_CONFIG = {
+// Configuración global de la aplicación
+window.APP_CONFIG = {
+    ENV: 'production',
+    DEBUG: false,
+    API_BASE_URL: window.location.origin,
+};
+
+/**
+ * Configuración de APIs de IA - CLIENTE SIDE
+ * NOTA DE SEGURIDAD: Las API keys han sido movidas al servidor backend.
+ * Ahora todas las llamadas a IA pasan por el proxy seguro en /api/ai/*
+ */
+window.AI_CONFIG = {
     // Configuración del proxy backend
     proxy: {
-        baseUrl: `${(typeof window !== 'undefined' && window.API_BASE_URL) ||
-            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-            (typeof window !== 'undefined' ? window.location.origin : '')}/api/ai`,
+        baseUrl: (window.APP_CONFIG?.API_BASE_URL || window.location.origin) + '/api/ai',
         timeout: 30000, // Timeout en ms
         enabled: true
     },
@@ -27,12 +39,16 @@ const AI_CONFIG = {
     }
 };
 
-// Función para validar configuración del proxy
+/**
+ * Función para validar configuración del proxy
+ */
 function validateAIConfig() {
-    if (!AI_CONFIG.proxy.enabled) {
-        console.warn('Proxy de IA no habilitado. Las funcionalidades de IA estarán limitadas.');
+    if (!window.AI_CONFIG.proxy.enabled) {
+        console.warn('⚠️ Proxy de IA no habilitado. Las funcionalidades de IA estarán limitadas.');
         return false;
     }
     return true;
 }
+
+console.log('✅ config.js cargado (window.APP_CONFIG disponible)');
 

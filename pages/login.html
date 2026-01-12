@@ -48,35 +48,46 @@
         <p>&copy; 2025 Integrova. Sistema Integral de Gestión y Auditoría v2.0</p>
     </footer>
 
-    <!-- Scripts en orden correcto (SIN type="module") -->
-    <!-- 1. SDK Supabase v2 desde CDN -->
+    <!-- ========================================
+         SCRIPTS - ORDEN CRÍTICO
+         ======================================== -->
+
+    <!-- 1. SDK Supabase v2 PRIMERO (desde CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- 2. Configuración Supabase -->
+    <!-- 2. Configuración global (sin import.meta) -->
+    <script src="../js/config.js"></script>
+
+    <!-- 3. Configuración Supabase (inyecta window.SUPABASE_CONFIG) -->
     <script src="../js/config-supabase.js"></script>
 
-    <!-- 3. Cliente Supabase (vanilla JS) -->
+    <!-- 4. Cliente Supabase (crea window.supabaseClient) -->
     <script src="../js/supabaseClient.js"></script>
+
+    <!-- 5. API Client centralizado (crea window.API) -->
     <script src="../js/api-client.js"></script>
 
-    <!-- 3. Bootstrap -->
+    <!-- 6. Bootstrap JS (necesario para componentes) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 7. Crypto JS para funciones auxiliares -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
-    <!-- 4. Utilidades -->
+    <!-- 8. Utilidades globales -->
     <script src="../js/utils.js"></script>
 
-    <!-- 5. Lógica de login (vanilla JS) -->
+    <!-- 9. Lógica de login (vanilla JS) -->
     <script>
         (function () {
             'use strict';
+
+            console.log('📝 login.html: Inicializando formulario de login...');
 
             const form = document.getElementById('loginForm');
             const alertContainer = document.getElementById('alertContainer');
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
             const submitBtn = form.querySelector('button[type="submit"]');
-            let supabaseClient = null;
 
             const showAlert = (message, type = 'danger', timeout = 4000) => {
                 alertContainer.innerHTML = `
@@ -89,140 +100,95 @@
                 }
             };
 
-            async function storeUserProfile(session) {
+            // Validar que Supabase está disponible
+            async function initLogin() {
+                console.log('🔄 login.html: Esperando Supabase...');
+                const supabaseClient = await window.getSupabaseClient();
+
                 if (!supabaseClient) {
-                    showAlert('Supabase no está disponible');
-                    return null;
-                }
-
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('users')
-                        .select('id, full_name, email, role, username, phone')
-                        .eq('id', session.user.id)
-                        .maybeSingle();
-
-                    if (error) {
-                        console.error('❌ Error al obtener perfil:', error);
-                        showAlert('No se pudo obtener tu perfil. Contacta a un administrador.');
-                        return null;
-                    }
-
-                    if (!data) {
-                        showAlert('No se encontró tu perfil. Contacta a un administrador.');
-                        return null;
-                    }
-
-                    const uiData = {
-                        id: data.id,
-                        name: data.full_name || session.user?.user_metadata?.full_name || session.user?.email,
-                        email: data.email || session.user?.email || '',
-                        role: data.role || 'usuario',
-                        username: data.username || session.user?.user_metadata?.username || null,
-                        phone: data.phone ?? null,
-                        groups: Array.isArray(data.groups) ? data.groups : data.groups ? [data.groups] : []
-                    };
-
-                    sessionStorage.setItem('userUI', JSON.stringify(uiData));
-                    window.appSession = uiData;
-                    return uiData;
-                } catch (err) {
-                    console.error('❌ Error inesperado:', err);
-                    showAlert('Error procesando tu perfil');
-                    return null;
-                }
-            }
-
-            async function handleActiveSession(session) {
-                if (!session) return;
-                const uiData = await storeUserProfile(session);
-                if (!uiData) {
-                    if (supabaseClient) {
-                        await supabaseClient.auth.signOut();
-                    }
+                    console.error('❌ login.html: Supabase no disponible');
+                    showAlert('⚠️ Sistema no disponible. Contacta al administrador.', 'danger');
+                    submitBtn.disabled = true;
                     return;
                 }
-                showAlert('¡Bienvenido! Redirigiendo...', 'success', 1500);
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 800);
-            }
 
-            // Verificar sesión al cargar
-            window.addEventListener('DOMContentLoaded', async () => {
-                window.appSession = null;
-
-                // Obtener cliente Supabase
-                supabaseClient = await window.getSupabaseClient();
-                if (!supabaseClient) {
-                    showAlert('⚠️ Supabase no está configurado. Contacta al administrador.');
-                    return;
-                }
+                console.log('✅ login.html: Supabase disponible');
 
                 // Verificar si hay sesión activa
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session?.user) {
-                    await handleActiveSession(session);
+                    console.log('✅ login.html: Sesión activa detectada, redirigiendo...');
+                    window.location.href = 'dashboard.html';
                     return;
                 }
 
-                // Escuchar cambios de autenticación
-                supabaseClient.auth.onAuthStateChange(async (event, newSession) => {
-                    if (event === 'SIGNED_IN' && newSession?.user) {
-                        await handleActiveSession(newSession);
+                // Setup form submit
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const email = emailInput.value.trim();
+                    const password = passwordInput.value.trim();
+
+                    if (!email || !email.includes('@')) {
+                        showAlert('Ingresa un correo válido.', 'danger');
+                        return;
+                    }
+
+                    if (!password) {
+                        showAlert('Ingresa tu contraseña.', 'danger');
+                        return;
+                    }
+
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...';
+
+                    try {
+                        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+                        if (error) {
+                            throw error;
+                        }
+
+                        if (data?.session?.user) {
+                            console.log('✅ login.html: Login exitoso, redirigiendo...');
+                            showAlert('¡Bienvenido!', 'success', 1000);
+                            setTimeout(() => {
+                                window.location.href = 'dashboard.html';
+                            }, 1000);
+                        } else {
+                            throw new Error('No se estableció sesión');
+                        }
+                    } catch (error) {
+                        console.error('❌ login.html: Error en login:', error);
+                        const message = error.message?.includes('Invalid login credentials')
+                            ? 'Usuario o contraseña incorrectos.'
+                            : error.message || 'Error al iniciar sesión.';
+                        showAlert(message, 'danger');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
                     }
                 });
-            });
 
-            // Toggle password visibility
-            document.getElementById('togglePassword').addEventListener('click', function () {
-                const icon = this.querySelector('i');
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    icon.className = 'bi bi-eye-slash';
-                } else {
-                    passwordInput.type = 'password';
-                    icon.className = 'bi bi-eye';
-                }
-            });
-
-            // Manejar login
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = emailInput.value.trim();
-                const password = passwordInput.value.trim();
-
-                if (!email || !email.includes('@')) {
-                    showAlert('Ingresa un correo válido.');
-                    return;
-                }
-
-                if (!password) {
-                    showAlert('Ingresa tu contraseña.');
-                    return;
-                }
-
-                const originalText = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Iniciando sesión...';
-
-                try {
-                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-                    if (error) {
-                        throw error;
+                // Toggle password visibility
+                document.getElementById('togglePassword')?.addEventListener('click', function () {
+                    const icon = this.querySelector('i');
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        icon.className = 'bi bi-eye-slash';
+                    } else {
+                        passwordInput.type = 'password';
+                        icon.className = 'bi bi-eye';
                     }
+                });
+            }
 
-                    await handleActiveSession(data.session);
-                } catch (error) {
-                    console.error('❌ Error en login:', error);
-                    const message = error.message || 'Usuario o contraseña incorrectos.';
-                    showAlert(message);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                }
-            });
+            // Esperar DOMContentLoaded e iniciar
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initLogin);
+            } else {
+                initLogin();
+            }
         })();
     </script>
 </body>
