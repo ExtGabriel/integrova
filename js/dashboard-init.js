@@ -1,22 +1,31 @@
 /**
- * DASHBOARD INITIALIZATION - SEGURA Y DEFENSIVA
+ * DASHBOARD INITIALIZATION - FLUJO DE SESIÓN CON onAuthStateChange
  * 
  * Este archivo contiene la inicialización del dashboard con el flujo correcto:
  * 1. Verificar si window.API existe
- * 2. Obtener sesión desde Supabase
- * 3. Si no hay sesión → redirigir a login
- * 4. Obtener perfil del usuario desde public.users
- * 5. Si no hay perfil → mostrar error
+ * 2. Usar supabase.auth.onAuthStateChange para monitorear estado de sesión
+ * 3. SOLO redireccionar a login si event === 'SIGNED_OUT'
+ * 4. Esperar sesión válida antes de inicializar
+ * 5. Obtener perfil del usuario desde public.users
  * 6. Renderizar dashboard
+ * 7. Dashboard se inicializa UNA SOLA VEZ después de confirmar sesión activa
  */
 
 (function () {
     'use strict';
 
+    let dashboardInitialized = false;
+
     /**
-     * Flujo principal de inicialización del dashboard
+     * Configurar listener de cambios de autenticación
+     * Se ejecuta cuando:
+     * - event === 'INITIAL_SESSION': Al cargar la página (sesión actual)
+     * - event === 'USER_UPDATED': Cuando se actualiza el usuario
+     * - event === 'SIGNED_IN': Cuando inicia sesión
+     * - event === 'SIGNED_OUT': Cuando cierra sesión (redirigir a login)
+     * - event === 'TOKEN_REFRESHED': Cuando se refresca el token
      */
-    async function initDashboard() {
+    async function setupAuthStateListener() {
         try {
             // Paso 1: Verificar que window.API existe
             if (!window.API) {
@@ -27,22 +36,70 @@
 
             console.log('✅ window.API disponible');
 
-            // Mostrar indicador de carga
-            window.API.showLoading(true);
-
-            // Paso 2: Obtener sesión
-            console.log('🔄 Obteniendo sesión...');
-            const session = await window.API.getSession();
-
-            if (!session) {
-                console.warn('⚠️ No hay sesión activa');
-                redirectToLogin();
+            // Paso 2: Obtener cliente de Supabase
+            if (!window.API.supabase) {
+                console.error('❌ Supabase client no disponible');
+                showFatalError('Error de configuración: Supabase no disponible');
                 return;
             }
 
-            console.log('✅ Sesión obtenida:', session.user.id);
+            // Paso 3: Configurar listener de estado de autenticación
+            const { data: { subscription } } = window.API.supabase.auth.onAuthStateChange(
+                async (event, session) => {
+                    console.log(`🔐 Auth event: ${event}`, session ? '✅ Sesión activa' : '❌ Sin sesión');
 
-            // Paso 3: Obtener perfil del usuario
+                    // SOLO redirigir a login si SIGNED_OUT
+                    if (event === 'SIGNED_OUT') {
+                        console.warn('⚠️ Sesión cerrada por usuario o por inactividad');
+                        redirectToLogin();
+                        return;
+                    }
+
+                    // Si hay sesión válida (INITIAL_SESSION, USER_UPDATED, SIGNED_IN, TOKEN_REFRESHED)
+                    if (session && session.user) {
+                        console.log('✅ Sesión válida detectada:', session.user.id);
+
+                        // Inicializar dashboard SOLO UNA VEZ
+                        if (!dashboardInitialized) {
+                            dashboardInitialized = true;
+                            console.log('🔄 Inicializando dashboard (primera vez)...');
+                            await initDashboard(session);
+                        } else {
+                            // En otros eventos (TOKEN_REFRESHED, USER_UPDATED), solo actualizar datos
+                            console.log('🔄 Actualizando datos tras cambio de sesión...');
+                            await updateDashboardData(session);
+                        }
+                    } else {
+                        // Sin sesión pero no es SIGNED_OUT (ej: timeout esperando sesión inicial)
+                        if (event !== 'INITIAL_SESSION') {
+                            console.warn('⚠️ Sesión inválida sin evento SIGNED_OUT');
+                            redirectToLogin();
+                        }
+                    }
+                }
+            );
+
+            // Guardar subscription para limpiar si es necesario
+            window.authSubscription = subscription;
+
+        } catch (error) {
+            console.error('❌ Error configurando listener de autenticación:', error);
+            showFatalError('Error al configurar autenticación. Por favor, recarga la página.');
+        }
+    }
+
+    /**
+     * Flujo principal de inicialización del dashboard (ejecuta UNA sola vez)
+     */
+    async function initDashboard(session) {
+        try {
+            // Mostrar indicador de carga
+            window.API.showLoading(true);
+
+            // Guardar sesión
+            window.currentSession = session;
+
+            // Obtener perfil del usuario
             console.log('🔄 Obteniendo perfil...');
             const profile = await window.API.getMyProfile();
 
@@ -55,19 +112,18 @@
 
             console.log('✅ Perfil obtenido:', profile.id);
 
-            // Paso 4: Guardar datos en sesión
+            // Guardar perfil
             window.currentUserProfile = profile;
-            window.currentSession = session;
 
-            // Paso 5: Renderizar dashboard
+            // Renderizar dashboard
             console.log('🔄 Renderizando dashboard...');
             renderDashboard(profile);
 
-            // Paso 6: Cargar datos del dashboard
+            // Cargar datos del dashboard
             console.log('🔄 Cargando datos...');
             await loadDashboardData();
 
-            // Paso 7: Configurar event listeners
+            // Configurar event listeners
             setupEventListeners();
 
             console.log('✅ Dashboard inicializado correctamente');
@@ -77,6 +133,27 @@
             console.error('❌ Error iniciando dashboard:', error);
             window.API.showLoading(false);
             showFatalError('Error al cargar el dashboard. Por favor, recarga la página.');
+        }
+    }
+
+    /**
+     * Actualizar datos del dashboard sin reinicializar (para cambios de sesión)
+     */
+    async function updateDashboardData(session) {
+        try {
+            console.log('🔄 Actualizando datos del dashboard...');
+
+            // Actualizar perfil
+            const profile = await window.API.getMyProfile();
+            if (profile) {
+                window.currentUserProfile = profile;
+                window.currentSession = session;
+                console.log('✅ Datos actualizados');
+            }
+
+        } catch (error) {
+            console.error('⚠️ Error actualizando datos:', error);
+            // No redirigimos aquí, dejamos que onAuthStateChange maneje el caso
         }
     }
 
@@ -199,10 +276,26 @@
     }
 
     /**
-     * Exponer initDashboard globalmente
+     * PUNTO DE ENTRADA: Inicializar listener de autenticación
+     * Se llama cuando dashboard-init.js carga (después de que api-client.js esté listo)
      */
-    window.initDashboard = initDashboard;
+    console.log('⏳ dashboard-init.js cargado. Esperando window.API...');
 
-    console.log('✅ dashboard-init.js cargado (window.initDashboard disponible)');
+    // Esperar a que window.API esté disponible (cargado por api-client.js)
+    const maxAttempts = 50; // 5 segundos máximo
+    let attempts = 0;
+
+    const checkAPIAndInit = setInterval(() => {
+        attempts++;
+        if (window.API) {
+            clearInterval(checkAPIAndInit);
+            console.log('✅ window.API disponible. Configurando listener de autenticación...');
+            setupAuthStateListener();
+        } else if (attempts >= maxAttempts) {
+            clearInterval(checkAPIAndInit);
+            console.error('❌ window.API no se cargó en tiempo');
+            showFatalError('Error de configuración: API no disponible. Por favor, recarga la página.');
+        }
+    }, 100);
 
 })();
