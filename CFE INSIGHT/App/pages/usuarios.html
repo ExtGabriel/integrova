@@ -9,11 +9,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/usuarios.css">
-  <!-- SDK Supabase v1 desde CDN -->
-  <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
-  <!-- Configuración Supabase (debe cargarse ANTES del cliente) -->
-  <script src="../js/config-supabase.js"></script>
-
 </head>
 
 <body>
@@ -79,65 +74,36 @@
     <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
   </div>
 
-  <!-- Modal for Add/Edit User (deshabilitado en esta fase) -->
-  <div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="userModalLabel">Agregar Usuario</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="text-muted mb-0">Gestión de usuarios está en modo solo lectura.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="button" class="btn btn-primary" id="saveUserBtn" disabled>Guardar</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- ========================================
+       SCRIPTS - ORDEN CRÍTICO PARA ESTABILIDAD
+       ======================================== -->
 
-  <!-- Modal for Delete Confirmation (solo lectura) -->
-  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteModalLabel">
-            <i class="bi bi-exclamation-triangle text-warning"></i> Confirmar Eliminación
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p id="deleteModalMessage">¿Está seguro de eliminar al usuario?</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>Eliminar</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- 1. SDK Supabase v2 PRIMERO -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <!-- 2. Configuración global -->
+  <script src="../js/config.js"></script>
+
+  <!-- 3. Configuración Supabase -->
+  <script src="../js/config-supabase.js"></script>
+
+  <!-- 4. Cliente Supabase -->
+  <script src="../js/supabaseClient.js"></script>
+
+  <!-- 5. Utilidades globales (UI stubs) -->
   <script src="../js/utils.js"></script>
+
+  <!-- 6. API Client centralizado -->
+  <script src="../js/api-client.js"></script>
+
+  <!-- 7. Auth Guard -->
+  <script src="../js/auth-guard.js"></script>
+
+  <!-- 8. Script inline específico de usuarios -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script>
     let users = [];
     let visibleUsers = new Set();
-    let supabaseClientRef = null;
-    let currentSession = window.appSession || null;
-
-    async function getSupabase() {
-      if (supabaseClientRef) return supabaseClientRef;
-      if (window.supabaseClientPromise) {
-        supabaseClientRef = await window.supabaseClientPromise;
-      }
-      if (!supabaseClientRef) {
-        throw new Error('Supabase no está configurado en el frontend.');
-      }
-      return supabaseClientRef;
-    }
 
     function normalizeToArray(value) {
       if (!value) return [];
@@ -158,16 +124,20 @@
       }
     }
 
-    async function fetchUsers() {
+    async function loadUsers() {
       try {
-        const supabase = await getSupabase();
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, full_name, email, role, username, phone, groups');
+        showLoading(true);
+        const result = await API.Users.getAll();
 
-        if (error) throw error;
+        if (!result.success || !result.data) {
+          users = [];
+          console.warn('⚠️ No se pudieron cargar usuarios (tabla puede no existir)');
+          renderUsers();
+          showLoading(false);
+          return;
+        }
 
-        users = (data || []).map(u => ({
+        users = result.data.map(u => ({
           id: u.id,
           username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
           name: u.full_name || 'Sin nombre',
@@ -176,92 +146,19 @@
           phone: u.phone || 'No disponible',
           role: u.role || 'Sin rol',
           team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : 'Sin grupo',
-          active: true,
+          active: u.active !== false,
           password: '********',
-          created_at: null
+          created_at: u.created_at || null
         }));
 
         console.log(`✅ ${users.length} usuarios cargados desde Supabase:`, users);
         renderUsers();
+        showLoading(false);
       } catch (err) {
-        console.error('❌ Error al cargar usuarios desde Supabase:', err);
-        alert('Error al cargar usuarios: ' + (err.message || err));
-      }
-    }
-
-    async function fetchCurrentProfile(authId) {
-      const supabase = await getSupabase();
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name, email, role, username, phone, groups')
-        .eq('id', authId)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    }
-
-    async function checkAccess() {
-      try {
-        const supabase = await getSupabase();
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error || !session) {
-          window.location.href = 'login.html';
-          return false;
-        }
-
-        const cached = sessionStorage.getItem('userUI');
-        if (cached) {
-          try {
-            currentSession = JSON.parse(cached);
-          } catch (e) {
-            console.error('Error parsing cached session:', e);
-            currentSession = null;
-          }
-        }
-
-        if (!currentSession) {
-          const profile = await fetchCurrentProfile(session.user.id);
-          if (!profile) {
-            alert('No se encontró tu perfil en la tabla users. Contacta a un administrador.');
-            await supabase.auth.signOut();
-            window.location.href = 'login.html';
-            return false;
-          }
-
-          currentSession = {
-            id: profile.id,
-            name: profile.full_name || session.user?.user_metadata?.full_name || session.user?.email,
-            email: profile.email || session.user?.email,
-            role: profile.role || 'usuario',
-            username: profile.username || session.user?.user_metadata?.username || null,
-            phone: profile.phone ?? null,
-            groups: Array.isArray(profile.groups)
-              ? profile.groups
-              : profile.groups
-                ? [profile.groups]
-                : []
-          };
-
-          sessionStorage.setItem('userUI', JSON.stringify(currentSession));
-          window.appSession = currentSession;
-        }
-
-        if (!['administrador', 'programador', 'socio'].includes(currentSession.role)) {
-          alert('No tienes permisos para acceder a esta página');
-          window.location.href = 'dashboard.html';
-          return false;
-        }
-
-        return true;
-      } catch (e) {
-        console.error('Error verificando acceso:', e);
-        window.location.href = 'login.html';
-        return false;
+        console.error('❌ Error al cargar usuarios:', err);
+        users = [];
+        renderUsers();
+        showLoading(false);
       }
     }
 
@@ -273,7 +170,6 @@
       }
 
       tbody.innerHTML = '';
-
       const safeUsers = normalizeToArray(filteredUsers);
 
       safeUsers.forEach(user => {
@@ -377,18 +273,6 @@
       alert('Gestión de usuarios es solo lectura en esta fase.');
     }
 
-    function editUser() {
-      alert('Edición deshabilitada temporalmente (solo lectura).');
-    }
-
-    async function saveUser() {
-      alert('Crear/editar usuarios no está disponible en esta fase (solo lectura).');
-    }
-
-    function deleteUser() {
-      alert('Eliminación deshabilitada en esta fase (solo lectura).');
-    }
-
     function toggleUserVisibility(username) {
       if (visibleUsers.has(username)) {
         visibleUsers.delete(username);
@@ -398,57 +282,33 @@
       renderUsers();
     }
 
-    async function logout() {
-      sessionStorage.removeItem('userUI');
-      window.appSession = null;
-      try {
-        const supabase = await getSupabase();
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.error('Error al cerrar sesión en Supabase:', err);
-      }
-      window.location.href = 'login.html';
-    }
+    // Inicializar página protegida
+    window.protectPage(() => {
+      console.log('🎬 Usuarios: Ejecutando inicialización...');
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      const hasAccess = await checkAccess();
-      if (!hasAccess) return;
+      loadUsers();
+
+      const searchInput = document.getElementById('searchInput');
+      const roleFilter = document.getElementById('roleFilter');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => filterUsers(e.target.value));
+      }
+
+      if (roleFilter) {
+        roleFilter.addEventListener('change', () => filterUsers(document.getElementById('searchInput')?.value || ''));
+      }
 
       const addUserBtn = document.getElementById('addUserBtn');
       if (addUserBtn) {
         addUserBtn.disabled = true;
-        addUserBtn.title = 'Crear usuarios está deshabilitado en esta fase (solo lectura).';
-      }
-
-      await fetchUsers();
-
-      const searchInput = document.getElementById('searchInput');
-      const roleFilter = document.getElementById('roleFilter');
-      if (searchInput) searchInput.addEventListener('input', (e) => filterUsers(e.target.value));
-      if (roleFilter) roleFilter.addEventListener('change', () => filterUsers(document.getElementById('searchInput')?.value || ''));
-
-      const saveUserBtn = document.getElementById('saveUserBtn');
-      if (saveUserBtn) saveUserBtn.addEventListener('click', saveUser);
-
-      const togglePasswordBtn = document.getElementById('togglePasswordModal');
-      if (togglePasswordBtn) {
-        togglePasswordBtn.addEventListener('click', () => {
-          const passwordInput = document.getElementById('password');
-          passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
-        });
+        addUserBtn.title = 'Crear usuarios está deshabilitado (solo lectura).';
       }
     });
   </script>
 
-  <!-- Auth Guard -->
-  <script src="../js/auth-guard.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      if (typeof initAuthGuard === 'function') {
-        await initAuthGuard('logoutBtn');
-      }
-    });
-  </script>
+  <!-- 9. Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
