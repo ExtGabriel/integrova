@@ -100,7 +100,7 @@
   │
   ├─ PASO 4: Obtener perfil
   │  ├─ profile = await window.API.getMyProfile()
-  │  │  └─ (usa sesión.user.id para filtrar public.users por auth_id)
+  │  │  └─ (usa sesión.user.id para filtrar public.users por id)
   │  ├─ Si no perfil → showFatalError() → DETENER
   │  └─ Si perfil → ✅ Continuar
   │
@@ -178,7 +178,7 @@
   ❌ PROBLEMA: "Perfil no encontrado"
   ✅ SOLUCIÓN:
      1. Ver en Supabase > Editor > public.users
-     2. Verificar que existe usuario con auth_id = session.user.id
+     2. Verificar que existe usuario con id = session.user.id
      3. Verificar que el usuario tiene role asignado
 
   ❌ PROBLEMA: Dashboard se queda en "Cargando..."
@@ -194,7 +194,7 @@
      1. Verificar que config-supabase.js usa la URL correcta
      2. Verificar que anonKey es válida
      3. Verificar que table 'users' tiene RLS permitiendo SELECT
-        - RLS debe permitir: SELECT * FROM public.users WHERE auth.uid() = auth_id
+        - RLS debe permitir: SELECT * FROM public.users WHERE auth.uid() = id
 */
 
 // ============================================================
@@ -231,7 +231,7 @@
   □ ¿Se llama initDashboard() después de DOMContentLoaded?
   □ ¿Hay sesión activa (usuario logueado)?
   □ ¿Existe el usuario en public.users?
-  □ ¿El usuario tiene auth_id que coincide con session.user.id?
+  □ ¿El usuario tiene id que coincide con session.user.id?
   □ ¿RLS de la tabla users permite SELECT?
   □ ¿Los logs de consola son claros y descriptivos?
 */

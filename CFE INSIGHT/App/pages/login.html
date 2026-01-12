@@ -98,8 +98,8 @@
                 try {
                     const { data, error } = await supabaseClient
                         .from('users')
-                        .select('id, auth_id, full_name, email, role, username, phone')
-                        .eq('auth_id', session.user.id)
+                        .select('id, full_name, email, role, username, phone')
+                        .eq('id', session.user.id)
                         .maybeSingle();
 
                     if (error) {
@@ -115,7 +115,6 @@
 
                     const uiData = {
                         id: data.id,
-                        auth_id: data.auth_id,
                         name: data.full_name || session.user?.user_metadata?.full_name || session.user?.email,
                         email: data.email || session.user?.email || '',
                         role: data.role || 'usuario',

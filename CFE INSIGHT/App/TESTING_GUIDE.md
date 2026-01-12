@@ -186,7 +186,6 @@ console.log(profile);
 ```javascript
 ✅ {
     id: "...",
-    auth_id: "...",
     full_name: "Juan Pérez",
     email: "juan@ejemplo.com",
     role: "auditor",

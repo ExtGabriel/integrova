@@ -49,7 +49,7 @@ window.initDashboard = async function() { ... }
 window.API = {
   // === Autenticación y Perfil ===
   getSession()         // → Obtiene sesión desde Supabase
-  getMyProfile()       // → Obtiene perfil desde public.users filtrando por auth_id
+  getMyProfile()       // → Obtiene perfil desde public.users filtrando por id
   signOut()            // → Cierra sesión
 
   // === UI Helpers ===
@@ -73,7 +73,7 @@ window.API = {
 1. ✅ Verificar que window.API existe
 2. ✅ Obtener sesión desde Supabase
    ├─ Si no hay sesión → Redirigir a login
-3. ✅ Obtener perfil del usuario (public.users, filtrado por auth_id)
+3. ✅ Obtener perfil del usuario (public.users, filtrado por id)
    ├─ Si no hay perfil → Error fatal claro
 4. ✅ Renderizar dashboard con datos del perfil
 5. ✅ Cargar datos (compromisos, entidades, etc.)
