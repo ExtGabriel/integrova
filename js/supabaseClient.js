@@ -39,9 +39,13 @@
 
                 if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
                     console.error('❌ ERROR: Supabase SDK v1 no está disponible en window.supabase');
-                    console.error('❌ Verifica que el script se cargó: <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>');
+                    console.error('❌ Verifica que el script se cargó correctamente en el HTML:');
+                    console.error('   <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>');
+                    console.error('❌ El script debe cargarse ANTES de config-supabase.js y supabaseClient.js');
                     return null;
                 }
+
+                console.log('✅ Supabase SDK v1 cargado correctamente');
 
                 // Validar configuración
                 if (!SUPABASE_URL || !SUPABASE_ANON_KEY ||
