@@ -910,7 +910,9 @@ async function checkUpcomingCommitments() {
             return;
         }
 
-        const result = await API.Commitments.getAll();
+        const result = API?.Commitments?.getAll
+            ? await API.Commitments.getAll()
+            : { success: false, data: [] };
         if (!result.success || !result.data) {
             return;
         }

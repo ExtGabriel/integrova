@@ -44,18 +44,33 @@ async function loadDashboardData() {
         showLoading(true);
 
         // Load entities count
-        const entitiesResponse = await API.Entities.getAll();
+        const entitiesResponse = API?.Entities?.getAll
+            ? await API.Entities.getAll()
+            : { success: false, data: [] };
+        if (!entitiesResponse) {
+            console.warn('⚠️ API.Entities no disponible, usando fallback []');
+        }
         const totalEntities = entitiesResponse.success && entitiesResponse.data ? entitiesResponse.data.length : 0;
         document.getElementById('totalEntitiesCount').textContent = totalEntities;
 
         // Load commitments count
-        const commitmentsResponse = await API.Commitments.getAll();
+        const commitmentsResponse = API?.Commitments?.getAll
+            ? await API.Commitments.getAll()
+            : { success: false, data: [] };
+        if (!commitmentsResponse) {
+            console.warn('⚠️ API.Commitments no disponible, usando fallback []');
+        }
         const commitmentsData = commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
         const activeCommitments = commitmentsData.filter(c => c.status !== 'completed').length;
         document.getElementById('activeCommitmentsCount').textContent = activeCommitments;
 
-        // Load users count
-        const usersResponse = await API.Users.getAll();
+        // Load users count with defensive API access
+        const usersResponse = API?.Users?.getAll
+            ? await API.Users.getAll()
+            : { success: false, data: [] };
+        if (!usersResponse) {
+            console.warn('⚠️ API.Users.getAll() retornó undefined, usando fallback []');
+        }
         const usersData = usersResponse.success && Array.isArray(usersResponse.data) ? usersResponse.data : [];
         const activeUsers = usersData.filter(user => user.active !== false).length;
         const totalUsers = usersData.length;
@@ -407,9 +422,14 @@ async function generateRealNotifications() {
 
     try {
         // Get commitments from API for deadlines
-        const commitmentsResponse = await API.Commitments.getAll();
+        const commitmentsResponse = API?.Commitments?.getAll
+            ? await API.Commitments.getAll()
+            : { success: false, data: [] };
+        if (!commitmentsResponse) {
+            console.warn('⚠️ API.Commitments no disponible en generateRealNotifications, usando fallback []');
+        }
 
-        if (commitmentsResponse.success) {
+        if (commitmentsResponse?.success) {
             const commitmentsData = commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
 
             // Check for upcoming deadlines from real commitments data
@@ -459,8 +479,13 @@ async function generateRealNotifications() {
             });
         }
 
-        // Get entities from API for recent updates
-        const entitiesResponse = await API.Entities.getAll();
+        // Get entities from API for recent updates with defensive access
+        const entitiesResponse = API?.Entities?.getAll
+            ? await API.Entities.getAll()
+            : { success: false, data: [] };
+        if (!entitiesResponse) {
+            console.warn('⚠️ API.Entities.getAll() retornó undefined en notificaciones, usando fallback []');
+        }
 
         if (entitiesResponse.success) {
             const entitiesData = entitiesResponse.success && entitiesResponse.data && Array.isArray(entitiesResponse.data) ? entitiesResponse.data : [];
@@ -538,14 +563,19 @@ async function loadRecentActivities() {
     const activitiesList = document.getElementById('recentActivitiesList');
 
     try {
-        // Get recent records from API
-        const recordsResponse = await API.Records.getAll({ limit: 10, offset: 0 });
-
-        if (!recordsResponse.success) {
-            throw new Error('Error al cargar actividades recientes');
+        // Get recent records from API (with defensive check)
+        const recordsResponse = API?.Records?.getAll
+            ? await API.Records.getAll({ limit: 10, offset: 0 })
+            : { success: false, data: [] };
+        if (!recordsResponse) {
+            console.warn('⚠️ API.Records no disponible en loadRecentActivities, usando fallback []');
         }
 
-        const records = recordsResponse.success && recordsResponse.data && Array.isArray(recordsResponse.data) ? recordsResponse.data : [];
+        if (!recordsResponse?.success) {
+            console.warn('⚠️ Error al cargar actividades recientes, usando datos vacíos');
+        }
+
+        const records = recordsResponse?.success && recordsResponse?.data && Array.isArray(recordsResponse.data) ? recordsResponse.data : [];
 
         // Transform records to activities format
         const activities = records.map(record => {
@@ -654,14 +684,19 @@ async function loadUpcomingDeadlines() {
     const deadlinesList = document.getElementById('upcomingDeadlinesList');
 
     try {
-        // Get commitments from API
-        const commitmentsResponse = await API.Commitments.getAll();
-
-        if (!commitmentsResponse.success) {
-            throw new Error('Error al cargar compromisos');
+        // Get commitments from API (with defensive check)
+        const commitmentsResponse = API?.Commitments?.getAll
+            ? await API.Commitments.getAll()
+            : { success: false, data: [] };
+        if (!commitmentsResponse) {
+            console.warn('⚠️ API.Commitments no disponible en loadUpcomingDeadlines, usando fallback []');
         }
 
-        const commitments = commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
+        if (!commitmentsResponse?.success) {
+            console.warn('⚠️ Error al cargar compromisos, usando datos vacíos');
+        }
+
+        const commitments = commitmentsResponse?.success && commitmentsResponse?.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
 
         // Filter upcoming deadlines (next 30 days, not completed)
         const now = new Date();
@@ -745,14 +780,19 @@ async function loadCalendarEvents() {
     const eventsList = document.getElementById('calendarEvents');
 
     try {
-        // Get commitments from API for calendar events
-        const commitmentsResponse = await API.Commitments.getAll();
-
-        if (!commitmentsResponse.success) {
-            throw new Error('Error al cargar eventos del calendario');
+        // Get commitments from API for calendar events (with defensive check)
+        const commitmentsResponse = API?.Commitments?.getAll
+            ? await API.Commitments.getAll()
+            : { success: false, data: [] };
+        if (!commitmentsResponse) {
+            console.warn('⚠️ API.Commitments no disponible en loadCalendarEvents, usando fallback []');
         }
 
-        const commitments = commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
+        if (!commitmentsResponse?.success) {
+            console.warn('⚠️ Error al cargar eventos del calendario, usando datos vacíos');
+        }
+
+        const commitments = commitmentsResponse?.success && commitmentsResponse?.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
 
         // Get current month and year from display
         const currentMonthEl = document.getElementById('currentMonth');
@@ -850,13 +890,31 @@ async function loadAIInsights() {
 // Generate insights based on real database data
 async function generateDatabaseInsights() {
     try {
-        // Fetch real data from database
+        // Fetch real data from database with defensive API access
+        const entitiesCall = API?.Entities?.getAll ? API.Entities.getAll() : Promise.resolve({ success: false, data: [] });
+        const commitmentsCall = API?.Commitments?.getAll ? API.Commitments.getAll() : Promise.resolve({ success: false, data: [] });
+        const usersCall = API?.Users?.getAll ? API.Users.getAll() : Promise.resolve({ success: false, data: [] });
+        const recordsCall = API?.Records?.getAll ? API.Records.getAll({ limit: 50, offset: 0 }) : Promise.resolve({ success: false, data: [] });
+
         const [entitiesResponse, commitmentsResponse, usersResponse, recordsResponse] = await Promise.all([
-            API.Entities.getAll(),
-            API.Commitments.getAll(),
-            API.Users.getAll(),
-            API.Records.getAll({ limit: 50, offset: 0 })
+            entitiesCall,
+            commitmentsCall,
+            usersCall,
+            recordsCall
         ]);
+
+        if (!entitiesResponse) {
+            console.warn('⚠️ API.Entities.getAll() returned undefined, usando fallback []');
+        }
+        if (!commitmentsResponse) {
+            console.warn('⚠️ API.Commitments.getAll() returned undefined, usando fallback []');
+        }
+        if (!usersResponse) {
+            console.warn('⚠️ API.Users.getAll() returned undefined, usando fallback []');
+        }
+        if (!recordsResponse) {
+            console.warn('⚠️ API.Records.getAll() returned undefined, usando fallback []');
+        }
 
         const entities = entitiesResponse.success && entitiesResponse.data && Array.isArray(entitiesResponse.data) ? entitiesResponse.data : [];
         const commitments = commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data : [];
@@ -932,8 +990,14 @@ async function exportData(type) {
         let filename = '';
 
         if (type === 'commitments') {
-            // Export real commitments data from API
-            const commitmentsResponse = await API.Commitments.getAll();
+            // Export real commitments data from API with defensive access
+            const commitmentsResponse = API?.Commitments?.getAll
+                ? await API.Commitments.getAll()
+                : { success: false, data: [] };
+            if (!commitmentsResponse) {
+                console.warn('⚠️ API.Commitments.getAll() retornó undefined en exportData, usando fallback []');
+                commitmentsResponse = { success: false, data: [] };
+            }
             if (commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data)) {
                 data = commitmentsResponse.data.map(commitment => ({
                     id: commitment.id,
@@ -948,8 +1012,14 @@ async function exportData(type) {
             }
             filename = 'compromisos_cfe_insight.csv';
         } else if (type === 'entities') {
-            // Export entities data from API
-            const entitiesResponse = await API.Entities.getAll();
+            // Export entities data from API with defensive access
+            const entitiesResponse = API?.Entities?.getAll
+                ? await API.Entities.getAll()
+                : { success: false, data: [] };
+            if (!entitiesResponse) {
+                console.warn('⚠️ API.Entities.getAll() retornó undefined en exportData, usando fallback []');
+                entitiesResponse = { success: false, data: [] };
+            }
             if (entitiesResponse.success && entitiesResponse.data && Array.isArray(entitiesResponse.data)) {
                 data = entitiesResponse.data.map(entity => ({
                     id: entity.id,
