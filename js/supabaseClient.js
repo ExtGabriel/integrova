@@ -1,8 +1,8 @@
 /**
- * SUPABASE CLIENT - VANILLA JS v1 (SIN MÓDULOS ES6)
+ * SUPABASE CLIENT - VANILLA JS v2 (SIN MÓDULOS ES6)
  * 
- * ⚠️ REQUISITO: El script de Supabase v1 debe estar cargado ANTES de este archivo
- * <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
+ * ⚠️ REQUISITO: El script de Supabase v2 debe estar cargado ANTES de este archivo
+ * <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  * 
  * Este archivo inicializa el cliente Supabase usando la librería ya cargada en window.supabase.
  * Expone window.supabaseClient y funciones de helper para acceder a sesiones.
@@ -38,14 +38,17 @@
                 }
 
                 if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-                    console.error('❌ ERROR: Supabase SDK v1 no está disponible en window.supabase');
+                    console.error('❌ ERROR: Supabase SDK v2 no está disponible en window.supabase');
                     console.error('❌ Verifica que el script se cargó correctamente en el HTML:');
-                    console.error('   <script src="https://unpkg.com/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>');
+                    console.error('   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>');
                     console.error('❌ El script debe cargarse ANTES de config-supabase.js y supabaseClient.js');
+                    console.error('🔍 Verificando disponibilidad...');
+                    console.error('   window.supabase:', typeof window.supabase);
+                    console.error('   Object.keys(window):', Object.keys(window).filter(k => k.toLowerCase().includes('supabase')));
                     return null;
                 }
 
-                console.log('✅ Supabase SDK v1 cargado correctamente');
+                console.log('✅ Supabase SDK v2 cargado correctamente');
 
                 // Validar configuración
                 if (!SUPABASE_URL || !SUPABASE_ANON_KEY ||
@@ -68,7 +71,12 @@
                     console.error('❌ No se pudo crear cliente Supabase');
                     return null;
                 }
-
+                2 client inicializado correctamente');
+                console.log('📊 Configuración:', {
+                    url: SUPABASE_URL,
+                    hasAnonKey: !!SUPABASE_ANON_KEY,
+                    keyFormat: SUPABASE_ANON_KEY?.substring(0, 20) + '...'
+                }
                 // Exponer globalmente
                 window.supabaseClient = supabaseClient;
                 console.log('✅ Supabase v1 client inicializado correctamente');
