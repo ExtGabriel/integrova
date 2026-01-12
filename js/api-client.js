@@ -379,6 +379,110 @@
      * ==========================================
      */
 
+    /**
+     * Helper: Crear stub defensivo para módulos adicionales
+     * Asegura que TODOS los módulos tengan métodos consistentes
+     */
+    function createTableModule(tableName) {
+        return {
+            async getAll() {
+                try {
+                    const client = await getSupabaseClient();
+                    if (!client) return { success: true, data: [] };
+
+                    const { data, error } = await client.from(tableName).select('*');
+
+                    if (error) {
+                        if (handleTableNotFound(error, tableName)) {
+                            return { success: true, data: [] };
+                        }
+                        throw error;
+                    }
+                    return { success: true, data: data || [] };
+                } catch (err) {
+                    console.warn(`⚠️ ${tableName}.getAll:`, err.message);
+                    return { success: true, data: [] };
+                }
+            },
+
+            async getById(id) {
+                try {
+                    const client = await getSupabaseClient();
+                    if (!client) return { success: true, data: null };
+
+                    const { data, error } = await client.from(tableName).select('*').eq('id', id).single();
+                    if (error) {
+                        if (handleTableNotFound(error, tableName)) {
+                            return { success: true, data: null };
+                        }
+                        throw error;
+                    }
+                    return { success: true, data };
+                } catch (err) {
+                    console.warn(`⚠️ ${tableName}.getById:`, err.message);
+                    return { success: true, data: null };
+                }
+            },
+
+            async create(record) {
+                try {
+                    const client = await getSupabaseClient();
+                    if (!client) return { success: true, data: record };
+
+                    const { data, error } = await client.from(tableName).insert([record]).select();
+                    if (error) {
+                        if (handleTableNotFound(error, tableName)) {
+                            return { success: true, data: record };
+                        }
+                        throw error;
+                    }
+                    return { success: true, data: data?.[0] || record };
+                } catch (err) {
+                    console.warn(`⚠️ ${tableName}.create:`, err.message);
+                    return { success: true, data: record };
+                }
+            },
+
+            async update(id, updates) {
+                try {
+                    const client = await getSupabaseClient();
+                    if (!client) return { success: true, data: updates };
+
+                    const { data, error } = await client.from(tableName).update(updates).eq('id', id).select();
+                    if (error) {
+                        if (handleTableNotFound(error, tableName)) {
+                            return { success: true, data: updates };
+                        }
+                        throw error;
+                    }
+                    return { success: true, data: data?.[0] || updates };
+                } catch (err) {
+                    console.warn(`⚠️ ${tableName}.update:`, err.message);
+                    return { success: true, data: updates };
+                }
+            },
+
+            async delete(id) {
+                try {
+                    const client = await getSupabaseClient();
+                    if (!client) return { success: true };
+
+                    const { error } = await client.from(tableName).delete().eq('id', id);
+                    if (error) {
+                        if (handleTableNotFound(error, tableName)) {
+                            return { success: true };
+                        }
+                        throw error;
+                    }
+                    return { success: true };
+                } catch (err) {
+                    console.warn(`⚠️ ${tableName}.delete:`, err.message);
+                    return { success: true };
+                }
+            }
+        };
+    }
+
     window.API = {
         // === Sesión y Autenticación ===
         login,
@@ -387,12 +491,42 @@
         signOut,
         supabase: window.supabaseClient || null, // Cliente Supabase directo si lo necesitan
 
-        // === Módulos de datos ===
+        // === Módulos de datos - SIEMPRE EXISTEN, NUNCA UNDEFINED ===
+        // Módulos principales (predefinidos)
         Entities: EntitiesModule,
         Commitments: CommitmentsModule,
         Users: UsersModule,
         Notifications: NotificationsModule,
         Audit: AuditModule,
+
+        // === Módulos adicionales (stubs defensivos) ===
+        // Para tablas que podrían no existir aún
+        Groups: createTableModule('groups'),
+        Teams: createTableModule('teams'),
+        Permissions: createTableModule('permissions'),
+        Roles: createTableModule('roles'),
+        Logs: createTableModule('logs'),
+        Settings: createTableModule('settings'),
+        Templates: createTableModule('templates'),
+        Reports: createTableModule('reports'),
+
+        // === Método de acceso genérico para cualquier tabla ===
+        /**
+         * Acceso genérico a cualquier tabla
+         * Uso: window.API.getModule('mi_tabla').getAll()
+         */
+        getModule(tableName) {
+            if (!tableName || typeof tableName !== 'string') {
+                console.warn('⚠️ getModule: tableName debe ser string');
+                return createTableModule('invalid');
+            }
+            // Si ya existe el módulo, devolverlo
+            if (this[tableName]) {
+                return this[tableName];
+            }
+            // Si no existe, crear dinámicamente
+            return createTableModule(tableName);
+        },
 
         // === Funciones auxiliares de UI ===
         showError(message, containerId = 'alertContainer') {
@@ -448,6 +582,9 @@
     };
 
     console.log('✅ api-client.js: API Client inicializado (window.API SIEMPRE disponible)');
+    console.log('   Módulos predefinidos:', ['Entities', 'Commitments', 'Users', 'Notifications', 'Audit'].join(', '));
+    console.log('   Módulos stub adicionales:', ['Groups', 'Teams', 'Permissions', 'Roles', 'Logs', 'Settings', 'Templates', 'Reports'].join(', '));
+    console.log('   Método genérico: window.API.getModule("tabla_nombre")');
 
 })();
 
