@@ -58,12 +58,12 @@
                     return null;
                 }
 
-                // Crear instancia del cliente usando v1
+                // Crear instancia del cliente usando v2
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                     auth: {
                         autoRefreshToken: true,
                         persistSession: true,
-                        storageKey: 'cfe-insight-auth'
+                        storageKey: 'integrova-auth'
                     }
                 });
 
@@ -71,15 +71,15 @@
                     console.error('❌ No se pudo crear cliente Supabase');
                     return null;
                 }
-                2 client inicializado correctamente');
+
+                // Exponer globalmente
+                window.supabaseClient = supabaseClient;
+                console.log('✅ Supabase v2 client inicializado correctamente');
                 console.log('📊 Configuración:', {
                     url: SUPABASE_URL,
                     hasAnonKey: !!SUPABASE_ANON_KEY,
                     keyFormat: SUPABASE_ANON_KEY?.substring(0, 20) + '...'
-                }
-                // Exponer globalmente
-                window.supabaseClient = supabaseClient;
-                console.log('✅ Supabase v1 client inicializado correctamente');
+                });
 
                 return supabaseClient;
 
