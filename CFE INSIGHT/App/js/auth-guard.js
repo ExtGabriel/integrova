@@ -73,55 +73,6 @@
     }
 
     /**
-     * Cargar perfil del usuario desde tabla users
-     * Maneja gracefully si la tabla no existe aún
-     * @returns {Promise<object|null>} Datos de UI o null
-     */
-    async function loadUserProfile() {
-        try {
-            const client = await window.getSupabaseClient();
-            if (!client) {
-                console.warn('⚠️ Cliente Supabase no disponible para cargar perfil');
-                return null;
-            }
-
-            // Obtener usuario autenticado
-            const { data: { user }, error: userError } = await client.auth.getUser();
-            if (userError || !user) {
-                console.warn('⚠️ No hay usuario autenticado:', userError?.message);
-                return null;
-            }
-
-            // Intentar obtener perfil de users table
-            const { data, error } = await client
-                .from('users')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-            if (error) {
-                // Si la tabla no existe, crear un perfil básico desde el usuario de auth
-                console.warn('⚠️ Error cargando perfil (tabla users puede no existir):', error.message);
-                const fallbackProfile = {
-                    id: user.id,
-                    email: user.email,
-                    name: user.email?.split('@')[0] || 'Usuario',
-                    role: 'cliente'
-                };
-                sessionStorage.setItem(USER_UI_KEY, JSON.stringify(fallbackProfile));
-                return fallbackProfile;
-            }
-
-            // Guardar en sessionStorage
-            sessionStorage.setItem(USER_UI_KEY, JSON.stringify(data));
-            return data;
-        } catch (err) {
-            console.error('❌ Error en loadUserProfile:', err.message);
-            return null;
-        }
-    }
-
-    /**
      * ==========================================
      * FUNCIONES PÚBLICAS GLOBALES
      * ==========================================
@@ -152,10 +103,15 @@
             if (window.readNotificationsCache) {
                 window.readNotificationsCache = [];
             }
-            // Limpiar window.currentUser
+
+            // Limpiar window.currentUser y window.currentUserReady
             if (window.currentUser) {
                 window.currentUser = null;
                 console.log('🗑️ window.currentUser limpiado');
+            }
+            if (window.currentUserReady) {
+                window.currentUserReady = null;
+                console.log('🗑️ window.currentUserReady limpiado');
             }
 
             // PASO 4: Cerrar sesión en Supabase
@@ -230,30 +186,64 @@
 
             console.log('✅ protectPage: Sesión válida. Usuario autenticado.');
 
-            // PASO 3: Cargar perfil del usuario Y SETEAR window.currentUser
-            const userUI = await loadUserProfile();
-            if (userUI) {
-                console.log(`✅ protectPage: Perfil de usuario cargado: ${userUI.name}`);
-            }
+            // PASO 3: CARGAR USUARIO DE NEGOCIO (CENTRALIZADO AQUÍ)
+            // Esta es la ÚNICA ubicación donde se inicializa window.currentUser
+            console.log('🔄 protectPage: Cargando usuario de negocio (public.users)...');
 
-            // PASO 3.5: ASEGURAR que window.currentUser esté listo
-            // Esperar a que la API esté disponible y cargar currentUser
-            if (window.API && window.API.Users && window.API.Users.getCurrent) {
-                console.log('🔄 protectPage: Verificando window.currentUser...');
+            // Crear la promesa global UNA SOLA VEZ
+            if (!window.currentUserReady) {
+                window.currentUserReady = (async function loadCurrentUser() {
+                    try {
+                        // Esperar a que API esté disponible
+                        let attempts = 0;
+                        while (!window.API?.Users?.getCurrent && attempts < 50) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            attempts++;
+                        }
 
-                if (!window.currentUser) {
-                    const result = await window.API.Users.getCurrent();
-                    if (!result.success || !result.data) {
-                        console.error('❌ protectPage: Error cargando usuario actual:', result.error);
-                        alert(result.error || 'Error cargando datos de usuario. Por favor, recarga la página.');
-                        window.location.href = 'login.html';
-                        return;
+                        if (!window.API?.Users?.getCurrent) {
+                            throw new Error('API.Users.getCurrent no disponible después de esperar');
+                        }
+
+                        // Obtener usuario actual de public.users
+                        const result = await window.API.Users.getCurrent();
+
+                        if (!result.success || !result.data) {
+                            throw new Error(result.error || 'No se pudo cargar el usuario');
+                        }
+
+                        // Setear window.currentUser
+                        window.currentUser = result.data;
+                        console.log(`✅ window.currentUser seteado: ${result.data.name} (${result.data.role})`);
+
+                        return result.data;
+                    } catch (err) {
+                        console.error('❌ Error cargando currentUser:', err.message);
+                        window.currentUser = null;
+                        throw err;
                     }
-                }
-                console.log(`✅ window.currentUser listo: ${window.currentUser?.name} (${window.currentUser?.role})`);
-            } else {
-                console.warn('⚠️ protectPage: API.Users.getCurrent no disponible todavía');
+                })();
             }
+
+            // Esperar a que se resuelva
+            try {
+                await window.currentUserReady;
+            } catch (err) {
+                console.error('❌ protectPage: Error cargando usuario:', err.message);
+                alert('Error al cargar datos de usuario: ' + err.message);
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Verificar que currentUser esté disponible
+            if (!window.currentUser) {
+                console.error('❌ protectPage: window.currentUser es null después de cargar');
+                alert('Error: No se pudo cargar la información del usuario. Por favor, recarga la página.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            console.log(`✅ protectPage: Usuario listo - ${window.currentUser.name} (${window.currentUser.role})`);
 
             // PASO 4: Ejecutar callback UNA SOLA VEZ
             console.log('🎬 protectPage: Ejecutando callback de inicialización...');

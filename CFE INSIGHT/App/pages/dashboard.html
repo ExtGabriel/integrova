@@ -1354,11 +1354,14 @@
 
     <!-- 10. Inicialización del Dashboard (usa window.protectPage) -->
     <script>
-        // Proteger página y ejecutar inicialización SOLO UNA VEZ
-        window.protectPage(() => {
-            console.log('🎬 Dashboard: Ejecutando inicialización...');
-            initializeDashboard();
-        });
+        // Llamar a protectPage sin parámetro - la inicialización ya está en dashboard.js DOMContentLoaded
+        // window.protectPage valida sesión y carga window.currentUser
+        if (typeof window.protectPage === 'function') {
+            console.log('🎬 dashboard.html: Protegiendo página...');
+            window.protectPage(() => {
+                console.log('✅ dashboard.html: Página protegida correctamente');
+            });
+        }
     </script>
 
     <!-- 11. Bootstrap JS -->
