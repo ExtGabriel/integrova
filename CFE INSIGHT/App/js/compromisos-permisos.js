@@ -25,6 +25,21 @@
         try {
             console.log('🔐 Validando acceso a módulo de compromisos...');
 
+            // CRÍTICO: Esperar a que window.currentUser esté listo
+            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                console.log('⏳ Esperando a window.currentUserReady...');
+                await window.currentUserReady;
+            }
+
+            // Verificar que currentUser esté disponible
+            if (!window.currentUser) {
+                console.error('❌ window.currentUser no disponible en compromisos');
+                showAccessDeniedUI();
+                return;
+            }
+
+            console.log(`✅ Usuario cargado: ${window.currentUser.name} (${window.currentUser.role})`);
+
             // PASO 1: Verificar acceso al módulo completo
             const canAccess = await PermissionsHelper.canAccessModule('compromisos');
             if (!canAccess) {

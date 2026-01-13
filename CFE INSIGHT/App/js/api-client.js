@@ -455,6 +455,104 @@
         },
 
         /**
+         * MÉTODO CRÍTICO: Obtener usuario actual autenticado
+         * 
+         * Este método:
+         * 1. Lee auth.getUser() para obtener el uid
+         * 2. Consulta public.users para obtener el perfil completo
+         * 3. Normaliza el role (trim + lowercase)
+         * 4. Valida is_active
+         * 5. Setea window.currentUser
+         * 
+         * @returns {Promise<{success: boolean, data: object|null, error?: string}>}
+         */
+        async getCurrent() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    const error = 'Cliente Supabase no disponible';
+                    console.error('❌ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
+
+                // PASO 1: Obtener usuario autenticado de Supabase Auth
+                const { data: { user }, error: authError } = await client.auth.getUser();
+
+                if (authError) {
+                    console.error('❌ Users.getCurrent - Error de autenticación:', authError.message);
+                    return { success: false, data: null, error: authError.message };
+                }
+
+                if (!user || !user.id) {
+                    const error = 'No hay usuario autenticado';
+                    console.warn('⚠️ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
+
+                console.log(`🔍 Users.getCurrent: Buscando perfil para uid=${user.id}`);
+
+                // PASO 2: Consultar tabla public.users
+                const { data: profile, error: dbError } = await client
+                    .from('users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (dbError) {
+                    // Si la tabla no existe, crear perfil básico desde auth
+                    if (handleTableNotFound(dbError, 'users')) {
+                        const basicProfile = {
+                            id: user.id,
+                            email: user.email,
+                            name: user.email?.split('@')[0] || 'Usuario',
+                            role: 'cliente',
+                            is_active: true
+                        };
+                        console.warn('⚠️ Tabla users no existe, usando perfil básico');
+                        window.currentUser = basicProfile;
+                        return { success: true, data: basicProfile };
+                    }
+
+                    const error = `Usuario ${user.email} no existe en tabla public.users. Contacta al administrador.`;
+                    console.error('❌ Users.getCurrent:', error, dbError);
+                    return { success: false, data: null, error };
+                }
+
+                if (!profile) {
+                    const error = `Usuario ${user.email} no encontrado en base de datos. Contacta al administrador.`;
+                    console.error('❌ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
+
+                // PASO 3: Normalizar y validar role
+                if (!profile.role) {
+                    const error = 'Usuario sin rol asignado. Contacta al administrador.';
+                    console.error('❌ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
+
+                profile.role = String(profile.role).trim().toLowerCase();
+
+                // PASO 4: Validar is_active
+                if (profile.is_active === false) {
+                    const error = 'Usuario inactivo. Contacta al administrador.';
+                    console.error('❌ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
+
+                // PASO 5: Setear window.currentUser
+                window.currentUser = profile;
+                console.log(`✅ Users.getCurrent: Usuario cargado - ${profile.name} (${profile.role})`);
+
+                return { success: true, data: profile };
+            } catch (err) {
+                const error = `Error inesperado: ${err.message}`;
+                console.error('❌ Users.getCurrent excepción:', err);
+                return { success: false, data: null, error };
+            }
+        },
+
+        /**
          * Obtener lista de usuarios según permisos del usuario actual
          * Usuarios con rol admin ven todos los usuarios
          * Usuarios con otros roles ven solo usuarios de su grupo
@@ -886,6 +984,49 @@
     console.log('   Módulos stub adicionales:', ['Groups', 'Teams', 'Permissions', 'Roles', 'Logs', 'Settings', 'Templates', 'Reports'].join(', '));
     console.log('   Helpers de permisos:', ['hasRole()', 'canAccessUsers()', 'getCurrentRole()', 'getCurrentUserName()'].join(', '));
     console.log('   Métodos genéricos: window.API.getModule("tabla_nombre")');
+
+    /**
+     * ==========================================
+     * INICIALIZACIÓN AUTOMÁTICA DE window.currentUser
+     * ==========================================
+     * 
+     * GARANTÍA: window.currentUserReady es una promesa que se resuelve cuando:
+     * 1. El usuario está autenticado
+     * 2. window.currentUser está seteado con datos de public.users
+     * 3. El rol está normalizado y validado
+     * 
+     * Las páginas que validan permisos DEBEN:
+     *   await window.currentUserReady
+     * ANTES de usar hasRole() o cualquier validación de permisos
+     */
+    if (typeof window.currentUser === 'undefined') {
+        window.currentUser = null;
+    }
+
+    window.currentUserReady = (async function initializeCurrentUser() {
+        try {
+            console.log('🔄 Inicializando window.currentUser...');
+
+            // Esperar a que Supabase esté listo
+            await supabaseReady;
+
+            // Intentar cargar el usuario actual
+            const result = await window.API.Users.getCurrent();
+
+            if (result.success && result.data) {
+                console.log(`✅ window.currentUser inicializado: ${result.data.name} (${result.data.role})`);
+                return result.data;
+            } else {
+                console.warn('⚠️ No se pudo inicializar currentUser:', result.error || 'Sin sesión');
+                return null;
+            }
+        } catch (err) {
+            console.error('❌ Error inicializando currentUser:', err.message);
+            return null;
+        }
+    })();
+
+    console.log('✅ window.currentUserReady: Promesa creada');
 
 })();
 

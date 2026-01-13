@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFE Insight - Test de Permisos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .info-card {
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .permission-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .permission-yes {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .permission-no {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .test-section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title">CFE Insight - Test de Permisos</h1>
+        </div>
+        <div class="header-right">
+            <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Dashboard">
+                <i class="bi bi-house"></i>
+            </button>
+            <button class="header-btn" id="logoutBtn" onclick="logout()" title="Salir">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="container mt-4">
+        <!-- Status de Carga -->
+        <div class="test-section">
+            <h3><i class="bi bi-info-circle"></i> Estado del Sistema</h3>
+            <div id="systemStatus">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <span class="ms-2">Cargando sistema de permisos...</span>
+            </div>
+        </div>
+
+        <!-- Información del Usuario -->
+        <div class="test-section" id="userInfoSection" style="display: none;">
+            <h3><i class="bi bi-person-badge"></i> Usuario Actual</h3>
+            <div class="info-card">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>ID:</strong> <code id="userId"></code><br>
+                        <strong>Email:</strong> <code id="userEmail"></code><br>
+                        <strong>Nombre:</strong> <code id="userName"></code>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Rol:</strong> <span id="userRole" class="badge bg-primary"></span><br>
+                        <strong>Activo:</strong> <span id="userActive"></span><br>
+                        <strong>Origen:</strong> <code>window.currentUser</code>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="showRawUser()">
+                <i class="bi bi-code"></i> Ver JSON Completo
+            </button>
+        </div>
+
+        <!-- Test de Roles -->
+        <div class="test-section" id="rolesTestSection" style="display: none;">
+            <h3><i class="bi bi-shield-check"></i> Test de Roles</h3>
+            <p>Verificando si el usuario actual tiene estos roles:</p>
+            <div id="rolesTest"></div>
+        </div>
+
+        <!-- Test de Permisos por Módulo -->
+        <div class="test-section" id="permissionsTestSection" style="display: none;">
+            <h3><i class="bi bi-key"></i> Test de Permisos por Módulo</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Usuarios</h5>
+                    <div id="permissionsUsuarios"></div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Entidades</h5>
+                    <div id="permissionsEntidades"></div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h5>Compromisos</h5>
+                    <div id="permissionsCompromisos"></div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Reportes</h5>
+                    <div id="permissionsReportes"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test de Acceso a Módulos -->
+        <div class="test-section" id="modulesTestSection" style="display: none;">
+            <h3><i class="bi bi-grid-3x3"></i> Test de Acceso a Módulos</h3>
+            <div id="modulesTest"></div>
+        </div>
+
+        <!-- Consola de Debug -->
+        <div class="test-section">
+            <h3><i class="bi bi-terminal"></i> Consola de Debug</h3>
+            <p>Comandos útiles para ejecutar en la consola del navegador:</p>
+            <pre><code>// Ver usuario actual
+console.log(window.currentUser);
+
+// Ver promesa de currentUser
+await window.currentUserReady;
+
+// Verificar rol
+const isAdmin = await PermissionsHelper.hasRole('administrador');
+console.log('¿Es admin?', isAdmin);
+
+// Verificar permiso
+const canCreate = await PermissionsHelper.hasPermission('crear', 'usuarios');
+console.log('¿Puede crear usuarios?', canCreate);
+
+// Ver todos los permisos en un módulo
+const perms = await PermissionsHelper.getPermissions('usuarios');
+console.log('Permisos en usuarios:', perms);</code></pre>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/config-supabase.js"></script>
+    <script src="../js/supabaseClient.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/permissions-helpers.js"></script>
+    <script src="../js/auth-guard.js"></script>
+
+    <script>
+        // ==========================================
+        // TEST DE PERMISOS
+        // ==========================================
+
+        async function initializePage() {
+            try {
+                console.log('🧪 Iniciando test de permisos...');
+
+                // ✅ PASO CRÍTICO: Esperar a window.currentUserReady
+                if (window.currentUserReady) {
+                    console.log('⏳ Esperando a window.currentUserReady...');
+                    await window.currentUserReady;
+                }
+
+                // ✅ Verificar disponibilidad
+                if (!window.currentUser) {
+                    document.getElementById('systemStatus').innerHTML = `
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-triangle"></i>
+              <strong>Error:</strong> window.currentUser no está disponible.
+              Por favor, recarga la página.
+            </div>
+          `;
+                    return;
+                }
+
+                console.log('✅ window.currentUser disponible:', window.currentUser);
+
+                // Actualizar status
+                document.getElementById('systemStatus').innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle"></i>
+            <strong>Sistema listo:</strong> window.currentUser cargado correctamente
+          </div>
+        `;
+
+                // Mostrar información del usuario
+                showUserInfo();
+
+                // Ejecutar tests
+                await testRoles();
+                await testPermissions();
+                await testModules();
+
+                console.log('✅ Tests completados');
+
+            } catch (err) {
+                console.error('❌ Error en tests:', err);
+                document.getElementById('systemStatus').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Error:</strong> ${err.message}
+          </div>
+        `;
+            }
+        }
+
+        // Mostrar información del usuario
+        function showUserInfo() {
+            const user = window.currentUser;
+
+            document.getElementById('userId').textContent = user.id;
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userName').textContent = user.name || user.full_name;
+            document.getElementById('userRole').textContent = user.role.toUpperCase();
+            document.getElementById('userActive').innerHTML = user.is_active
+                ? '<span class="badge bg-success">Activo</span>'
+                : '<span class="badge bg-danger">Inactivo</span>';
+
+            document.getElementById('userInfoSection').style.display = 'block';
+        }
+
+        // Mostrar JSON del usuario
+        function showRawUser() {
+            const json = JSON.stringify(window.currentUser, null, 2);
+            alert('window.currentUser:\n\n' + json);
+        }
+
+        // Test de roles
+        async function testRoles() {
+            const roles = ['administrador', 'programador', 'socio', 'supervisor', 'auditor', 'auditor_senior', 'cliente'];
+            const container = document.getElementById('rolesTest');
+
+            let html = '<div class="d-flex flex-wrap">';
+
+            for (const role of roles) {
+                const hasRole = await PermissionsHelper.hasRole(role);
+                const badgeClass = hasRole ? 'permission-yes' : 'permission-no';
+                const icon = hasRole ? '✓' : '✗';
+                html += `<span class="permission-badge ${badgeClass}">${icon} ${role}</span>`;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+            document.getElementById('rolesTestSection').style.display = 'block';
+        }
+
+        // Test de permisos
+        async function testPermissions() {
+            const modules = ['usuarios', 'entidades', 'compromisos', 'reportes'];
+            const actions = ['ver', 'crear', 'editar', 'eliminar'];
+
+            for (const module of modules) {
+                const container = document.getElementById(`permissions${module.charAt(0).toUpperCase() + module.slice(1)}`);
+                if (!container) continue;
+
+                let html = '';
+                for (const action of actions) {
+                    const hasPermission = await PermissionsHelper.hasPermission(action, module);
+                    const badgeClass = hasPermission ? 'permission-yes' : 'permission-no';
+                    const icon = hasPermission ? '✓' : '✗';
+                    html += `<span class="permission-badge ${badgeClass}">${icon} ${action}</span>`;
+                }
+                container.innerHTML = html;
+            }
+
+            document.getElementById('permissionsTestSection').style.display = 'block';
+        }
+
+        // Test de acceso a módulos
+        async function testModules() {
+            const modules = ['usuarios', 'entidades', 'compromisos', 'reportes', 'auditoria', 'dashboard'];
+            const container = document.getElementById('modulesTest');
+
+            let html = '<div class="row">';
+
+            for (const module of modules) {
+                const canAccess = await PermissionsHelper.canAccessModule(module);
+                const badgeClass = canAccess ? 'bg-success' : 'bg-danger';
+                const icon = canAccess ? 'check-circle' : 'x-circle';
+
+                html += `
+          <div class="col-md-4 mb-3">
+            <div class="card ${canAccess ? 'border-success' : 'border-danger'}">
+              <div class="card-body">
+                <h6>
+                  <i class="bi bi-${icon}"></i>
+                  ${module.charAt(0).toUpperCase() + module.slice(1)}
+                </h6>
+                <span class="badge ${badgeClass}">
+                  ${canAccess ? 'Acceso permitido' : 'Acceso denegado'}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+            document.getElementById('modulesTestSection').style.display = 'block';
+        }
+
+        // ==========================================
+        // PROTEGER PÁGINA Y EJECUTAR
+        // ==========================================
+
+        window.protectPage(initializePage);
+
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -131,11 +131,28 @@
      */
 
     /**
-     * Obtener perfil actual (cached desde API)
+     * Obtener perfil actual (cached desde API o window.currentUser)
+     * PRIORIDAD: window.currentUser (ya seteado por api-client.js)
+     * FALLBACK: window.API.getMyProfile()
      * @returns {Promise<object|null>}
      */
     async function getMyProfile() {
         try {
+            // PRIORIDAD 1: Usar window.currentUser si ya está seteado
+            if (window.currentUser && window.currentUser.role) {
+                return window.currentUser;
+            }
+
+            // PRIORIDAD 2: Esperar a que currentUserReady se resuelva
+            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                console.log('⏳ Esperando window.currentUserReady...');
+                await window.currentUserReady;
+                if (window.currentUser && window.currentUser.role) {
+                    return window.currentUser;
+                }
+            }
+
+            // FALLBACK 3: Intentar cargar directamente desde API
             if (!window.API || !window.API.getMyProfile) {
                 console.warn('⚠️ API no disponible para getMyProfile');
                 return null;
@@ -199,20 +216,24 @@
          */
         async hasRole(roles) {
             try {
-                if (!window.API || !window.API.getMyProfile) {
-                    console.warn('⚠️ API no disponible para hasRole');
-                    return false;
-                }
+                // Obtener perfil (prioriza window.currentUser)
+                const profile = await getMyProfile();
 
-                const profile = await window.API.getMyProfile();
                 if (!profile || !profile.role) {
+                    console.warn('⚠️ PermissionsHelper.hasRole: No hay perfil válido');
                     return false;
                 }
 
                 const userRole = normalizeRole(profile.role);
                 const rolesToCheck = Array.isArray(roles) ? roles : [roles];
 
-                return rolesToCheck.some(r => normalizeRole(r) === userRole);
+                const hasPermission = rolesToCheck.some(r => normalizeRole(r) === userRole);
+
+                if (!hasPermission) {
+                    console.log(`🔒 hasRole: Usuario ${profile.name} (${userRole}) NO tiene rol(es): ${rolesToCheck.join(', ')}`);
+                }
+
+                return hasPermission;
             } catch (err) {
                 console.warn('⚠️ PermissionsHelper.hasRole:', err.message);
                 return false;
@@ -436,36 +457,36 @@
             }
         },
 
-    /**
-     * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
-     * 
-     * Uso:
-     *   const can = await checkPermissionOrFail('crear', 'usuarios', 
-     *     '❌ No tienes permiso para crear usuarios');
-     *   if (can) { hacer acción }
-     * @param { string } action
-     * @param { string } resource
-     * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
-     * @returns { Promise < boolean >} true si tiene permiso, false si no
-    **/
-    async checkPermissionOrFail(action, resource, errorMsg) {
-        try {
-            const hasPermission = await this.hasPermission(action, resource);
-            if (!hasPermission) {
-                console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
-                if (errorMsg && window.API?.showError) {
-                    window.API.showError(errorMsg);
-                } else if (errorMsg) {
-                    alert(errorMsg);
+        /**
+         * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
+         * 
+         * Uso:
+         *   const can = await checkPermissionOrFail('crear', 'usuarios', 
+         *     '❌ No tienes permiso para crear usuarios');
+         *   if (can) { hacer acción }
+         * @param { string } action
+         * @param { string } resource
+         * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
+         * @returns { Promise < boolean >} true si tiene permiso, false si no
+        **/
+        async checkPermissionOrFail(action, resource, errorMsg) {
+            try {
+                const hasPermission = await this.hasPermission(action, resource);
+                if (!hasPermission) {
+                    console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
+                    if (errorMsg && window.API?.showError) {
+                        window.API.showError(errorMsg);
+                    } else if (errorMsg) {
+                        alert(errorMsg);
+                    }
+                    return false;
                 }
+                return true;
+            } catch (err) {
+                console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
                 return false;
             }
-            return true;
-        } catch (err) {
-            console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
-            return false;
-        }
-    },
+        },
 
         /**
          * UTILIDAD: Mostrar "acceso denegado" si no tiene acceso al módulo
@@ -478,26 +499,26 @@
          * @param {string} containerId - ID del container para mostrar error
          * @returns {Promise<boolean>}
          */
-    async requireModuleAccess(module, containerId = 'alertContainer') {
-        try {
-            const hasAccess = await this.canAccessModule(module);
-            if (!hasAccess) {
-                console.error(`❌ Acceso denegado al módulo: ${module}`);
-                if (window.API?.showError) {
-                    window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+        async requireModuleAccess(module, containerId = 'alertContainer') {
+            try {
+                const hasAccess = await this.canAccessModule(module);
+                if (!hasAccess) {
+                    console.error(`❌ Acceso denegado al módulo: ${module}`);
+                    if (window.API?.showError) {
+                        window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+                    }
+                    return false;
                 }
+                return true;
+            } catch (err) {
+                console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
                 return false;
             }
-            return true;
-        } catch (err) {
-            console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
-            return false;
         }
-    }
-};
+    };
 
-console.log('✅ permissions-helpers.js: Sistema de permisos cargado (window.PermissionsHelper SIEMPRE disponible)');
-console.log('   Roles válidos:', Object.keys(VALID_ROLES).map(k => VALID_ROLES[k]).join(', '));
-console.log('   Métodos públicos:', ['hasRole()', 'hasPermission()', 'canAccessModule()', 'getCurrentRole()', 'disableIfNoPermission()', 'hideIfNoPermission()', 'checkPermissionOrFail()'].join(', '));
+    console.log('✅ permissions-helpers.js: Sistema de permisos cargado (window.PermissionsHelper SIEMPRE disponible)');
+    console.log('   Roles válidos:', Object.keys(VALID_ROLES).map(k => VALID_ROLES[k]).join(', '));
+    console.log('   Métodos públicos:', ['hasRole()', 'hasPermission()', 'canAccessModule()', 'getCurrentRole()', 'disableIfNoPermission()', 'hideIfNoPermission()', 'checkPermissionOrFail()'].join(', '));
 
-}) ();
+})();

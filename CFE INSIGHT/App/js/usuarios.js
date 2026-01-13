@@ -185,6 +185,22 @@
         try {
             console.log('🔐 Validando acceso al módulo de usuarios...');
 
+            // CRÍTICO: Esperar a que window.currentUser esté listo
+            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                console.log('⏳ Esperando a window.currentUserReady...');
+                await window.currentUserReady;
+            }
+
+            // Verificar que currentUser esté disponible
+            if (!window.currentUser) {
+                console.error('❌ window.currentUser no está disponible después de esperar');
+                showErrorMsg('❌ Error cargando datos de usuario. Por favor, recarga la página.');
+                disableUI();
+                return false;
+            }
+
+            console.log(`✅ window.currentUser disponible: ${window.currentUser.name} (${window.currentUser.role})`);
+
             // Verificar acceso básico
             hasAccessToUsers = await API.canAccessUsers();
             if (!hasAccessToUsers) {
