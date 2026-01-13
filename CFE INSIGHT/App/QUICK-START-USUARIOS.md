@@ -56,7 +56,7 @@ El módulo de usuarios ahora está **100% funcional para producción**.
 | `RESUMEN-FINAL-USUARIOS.md` | 📝 NUEVO | Documentación completa |
 | `USUARIOS-DEPLOYMENT-GUIDE.md` | 📝 NUEVO | Guía de despliegue |
 | `MODULO-USUARIOS-VERIFICACION.md` | 📝 NUEVO | Checklist de QA |
-| `usuarios-validation-script.js` | 📝 NUEVO | Script de validación automática |
+| `scripts/usuarios-validation-script.js` | 📝 NUEVO | Script de validación automática |
 
 ---
 

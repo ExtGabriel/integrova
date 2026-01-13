@@ -212,7 +212,7 @@ INDICE-RAPIDO.md
 ├─ Guía por rol
 └─ Para: Búsqueda rápida
 
-usuarios-validation-script.js
+scripts/usuarios-validation-script.js
 ├─ Script automático (40+ checks)
 └─ Para: Developers/QA
 ```

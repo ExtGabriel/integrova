@@ -149,7 +149,7 @@
 - Archivos implicados
 - Estado: LISTO PARA PRODUCCIÓN
 
-### 8. CREADO: `usuarios-validation-script.js` ⚙️
+### 8. CREADO: `scripts/usuarios-validation-script.js` ⚙️
 **Tamaño:** 300+ líneas
 
 **Contenido:**
@@ -323,7 +323,7 @@ Cambiar status:       < 2 segundos
 - ✅ `VERIFICACION-FINAL-USUARIOS.md` (verificación)
 
 ### Scripts
-- ✅ `usuarios-validation-script.js` (validación automática)
+- ✅ `scripts/usuarios-validation-script.js` (validación automática)
 
 ### Adicionales
 - ✅ Este archivo (resumen de sesión)

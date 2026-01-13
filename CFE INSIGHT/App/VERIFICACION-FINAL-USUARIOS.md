@@ -61,7 +61,7 @@ Contenedores: ✅ PRESENTES (alertContainer, loadingContainer)
 | RESUMEN-FINAL-USUARIOS.md | 600+ | ✅ COMPLETO |
 | USUARIOS-DEPLOYMENT-GUIDE.md | 500+ | ✅ COMPLETO |
 | MODULO-USUARIOS-VERIFICACION.md | 400+ | ✅ COMPLETO |
-| usuarios-validation-script.js | 300+ | ✅ COMPLETO |
+| scripts/usuarios-validation-script.js | 300+ | ✅ COMPLETO |
 
 **Total documentación:** 2500+ líneas
 **Cobertura:** 100% del módulo

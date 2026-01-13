@@ -84,7 +84,7 @@ initializePage()                // Inicialización principal
 - Performance checks
 - Security checks
 
-#### B) `usuarios-validation-script.js`
+#### B) `scripts/usuarios-validation-script.js`
 - Script de validación ejecutable en consola
 - 8 grupos de validaciones
 - 40+ checks automáticos
@@ -385,7 +385,7 @@ window.__usuariosDebug = {
 | Documento | Propósito | Audiencia |
 |-----------|-----------|-----------|
 | `MODULO-USUARIOS-VERIFICACION.md` | Checklist detallado | QA/Testing |
-| `usuarios-validation-script.js` | Script de validación | Developers |
+| `scripts/usuarios-validation-script.js` | Script de validación | Developers |
 | `USUARIOS-DEPLOYMENT-GUIDE.md` | Guía de despliegue | DevOps/Admins |
 | Este archivo | Resumen general | Todos |
 

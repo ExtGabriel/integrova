@@ -99,7 +99,7 @@ En la página de usuarios, copiar/pegar en consola:
 
 ```javascript
 // Abrir en nueva tab:
-// file:///C:/Users/.../App/usuarios-validation-script.js
+// file:///C:/Users/.../App/scripts/usuarios-validation-script.js
 // O copiar contenido completo y pegar en consola
 ```
 

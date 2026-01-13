@@ -103,7 +103,7 @@ SESION-RESUMEN-QUE-SE-LOGRO.md .......... Qué se logró en esta sesión
 
 ### Soy QA / TESTER
 1. Lee: MODULO-USUARIOS-VERIFICACION.md
-2. Ejecuta: usuarios-validation-script.js (en consola)
+2. Ejecuta: scripts/usuarios-validation-script.js (en consola)
 3. Resultado: Plan de testing completado ✅
 
 ### Soy DEVOPS / ADMIN
@@ -162,7 +162,7 @@ console.table({
 
 Si después de leer la documentación necesitas help:
 
-1. Ejecuta: `usuarios-validation-script.js` → Identifica problema
+1. Ejecuta: `scripts/usuarios-validation-script.js` → Identifica problema
 2. Revisa: Troubleshooting en DEPLOYMENT-GUIDE.md
 3. Consulta: Debug object en console `window.__usuariosDebug`
 

@@ -83,7 +83,7 @@
    ↓
 3. MODULO-USUARIOS-VERIFICACION.md (15 min) ← IMPORTANTE
    ↓
-4. Ejecuta: usuarios-validation-script.js (consola)
+4. Ejecuta: scripts/usuarios-validation-script.js (consola)
    ↓
 5. Sigue: 6 scenarios de prueba
    ↓
@@ -120,7 +120,7 @@
 ```
 1. QUICK-START-USUARIOS.md → Troubleshooting (2 min)
    ↓
-2. Ejecuta: usuarios-validation-script.js (auto-diagnosis)
+2. Ejecuta: scripts/usuarios-validation-script.js (auto-diagnosis)
    ↓
 3. Revisa: console.log en navegador (F12)
    ↓

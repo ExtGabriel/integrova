@@ -216,7 +216,7 @@ Mobile responsive:           Sí         ✅
 - 📑 RESUMEN-VISUAL-USUARIOS.md
 
 ### Tools
-- ⚙️ usuarios-validation-script.js (40+ checks)
+- ⚙️ scripts/usuarios-validation-script.js (40+ checks)
 
 ---
 

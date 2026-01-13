@@ -55,7 +55,7 @@ js/usuarios.js (1190 líneas)
 
 ### Verificación de Código (NUEVO)
 ```
-usuarios-validation-script.js
+scripts/usuarios-validation-script.js
 ├─ Script ejecutable en consola
 ├─ 40+ validaciones automáticas
 ├─ Reporta: Passed/Failed/Warnings
