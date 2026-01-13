@@ -1189,16 +1189,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 
 // Logout function - clear session and redirect to login
-// ✅ ACTUALIZADO: Usa window.logout() del auth-guard
+// ✅ DELEGADO: Usa window.logout() del auth-guard si existe
 function logout() {
-    // Si existe window.logout del auth-guard, usarlo
-    if (typeof window.logout === 'function') {
-        console.log('📤 Usando logout centralizado (auth-guard)...');
-        window.logout();
-        return;
-    }
-
-    // Fallback legacy (por compatibilidad)
     try {
         // Set manual logout flag
         window.__MANUAL_LOGOUT__ = true;
@@ -1209,6 +1201,17 @@ function logout() {
         sessionStorage.removeItem('userUI');
         window.appSession = null;
         window.readNotificationsCache = [];
+
+        // Si existe auth guard con signOut, úsalo
+        if (window.getSupabaseClient) {
+            window.getSupabaseClient().then(client => {
+                if (client) {
+                    client.auth.signOut().catch(err => {
+                        console.warn('⚠️ Error al signOut:', err.message);
+                    });
+                }
+            });
+        }
 
         // All pages are in /App/pages/, use simple redirect
         window.location.href = 'login.html';
