@@ -1160,41 +1160,53 @@ function nextMonth() {
     loadCalendarEvents(); // Reload events for new month
 }
 
-// Initialize dashboard when DOM is loaded
-// ✅ ACTUALIZADO: Espera a window.currentUserReady antes de usar datos del usuario
-document.addEventListener('DOMContentLoaded', async function () {
+// ==========================================
+// INICIALIZACIÓN DE DASHBOARD
+// ==========================================
+
+/**
+ * Inicializar dashboard DESPUÉS de que protectPage() cargue window.currentUser
+ * Esta función se ejecuta desde el callback de protectPage() en dashboard.html
+ */
+function initializeDashboardPage() {
     try {
-        console.log('📊 dashboard.js: DOMContentLoaded - Esperando usuario listo...');
+        console.log('📊 dashboard.js: initializeDashboardPage()');
 
-        // Esperar a que el usuario esté cargado desde auth-guard.js
-        if (window.currentUserReady) {
-            await window.currentUserReady;
+        // Verificar que currentUser esté disponible
+        // (Ya debe estar cargado por protectPage() en auth-guard.js)
+        if (!window.currentUser) {
+            console.warn('⚠️ dashboard.js: window.currentUser no disponible (esto es un error)');
+            showError('Error: Usuario no cargado. Por favor, recarga la página.');
+            return;
         }
 
-        // Usar window.currentUser directamente (ya está cargado por auth-guard.js)
-        if (window.currentUser) {
-            const userName = window.currentUser.name || 'Usuario';
-            const welcomeElement = document.getElementById('welcomeText');
-            if (welcomeElement) {
-                welcomeElement.textContent = `Bienvenido, ${userName}`;
-                console.log(`✅ dashboard.js: Usuario ${userName} cargado`);
-            }
-        } else {
-            console.warn('⚠️ dashboard.js: window.currentUser no disponible');
+        // Setear nombre de usuario
+        const userName = window.currentUser.name || 'Usuario';
+        const welcomeElement = document.getElementById('welcomeText');
+        if (welcomeElement) {
+            welcomeElement.textContent = `Bienvenido, ${userName}`;
+            console.log(`✅ dashboard.js: Usuario ${userName} cargado`);
         }
 
-        // Inicializar dashboard (SIN validaciones de rol)
+        // Inicializar dashboard
         console.log('🎬 dashboard.js: Inicializando dashboard...');
         initializeDashboard();
 
     } catch (error) {
-        console.error('❌ dashboard.js: Error en DOMContentLoaded:', error);
+        console.error('❌ dashboard.js: Error en initializeDashboardPage:', error);
         showError('Error al cargar el dashboard: ' + error.message);
     }
-});
+}
 
-// Navigation function for dashboard buttons
-// Esta es la función principal - mantener como está
+// ==========================================
+// COMPATIBILIDAD: Mantener DOMContentLoaded por si hay código que lo use
+// ==========================================
+
+// Nota: La inicialización REAL se hace en dashboard.html via protectPage(initializeDashboardPage)
+// DOMContentLoaded aquí es solo para verificar que el DOM esté listo
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('📊 dashboard.js: DOMContentLoaded (esperando protectPage callback)...');
+});
 
 
 // Logout function - delegado a auth-guard.js
