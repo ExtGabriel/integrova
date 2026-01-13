@@ -436,20 +436,19 @@
             }
         },
 
-        /**
-         * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
-         * 
-         * Uso:
-         *   const can = await checkPermissionOrFail('crear', 'usuarios', 
-         *     '❌ No tienes permiso para crear usuarios');
-         *   if (can) { /* hacer acción */ }
-        * 
-         * @param { string } action
-        * @param { string } resource
-            * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
-                * @returns { Promise < boolean >} true si tiene permiso, false si no
-                    */
-        async checkPermissionOrFail(action, resource, errorMsg) {
+    /**
+     * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
+     * 
+     * Uso:
+     *   const can = await checkPermissionOrFail('crear', 'usuarios', 
+     *     '❌ No tienes permiso para crear usuarios');
+     *   if (can) { hacer acción }
+     * @param { string } action
+     * @param { string } resource
+     * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
+     * @returns { Promise < boolean >} true si tiene permiso, false si no
+    **/
+    async checkPermissionOrFail(action, resource, errorMsg) {
         try {
             const hasPermission = await this.hasPermission(action, resource);
             if (!hasPermission) {
@@ -479,7 +478,7 @@
          * @param {string} containerId - ID del container para mostrar error
          * @returns {Promise<boolean>}
          */
-        async requireModuleAccess(module, containerId = 'alertContainer') {
+    async requireModuleAccess(module, containerId = 'alertContainer') {
         try {
             const hasAccess = await this.canAccessModule(module);
             if (!hasAccess) {
