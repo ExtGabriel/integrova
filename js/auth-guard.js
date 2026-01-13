@@ -152,6 +152,11 @@
             if (window.readNotificationsCache) {
                 window.readNotificationsCache = [];
             }
+            // Limpiar window.currentUser
+            if (window.currentUser) {
+                window.currentUser = null;
+                console.log('🗑️ window.currentUser limpiado');
+            }
 
             // PASO 4: Cerrar sesión en Supabase
             if (window.getSupabaseClient) {
@@ -225,10 +230,29 @@
 
             console.log('✅ protectPage: Sesión válida. Usuario autenticado.');
 
-            // PASO 3: Cargar perfil del usuario
+            // PASO 3: Cargar perfil del usuario Y SETEAR window.currentUser
             const userUI = await loadUserProfile();
             if (userUI) {
                 console.log(`✅ protectPage: Perfil de usuario cargado: ${userUI.name}`);
+            }
+
+            // PASO 3.5: ASEGURAR que window.currentUser esté listo
+            // Esperar a que la API esté disponible y cargar currentUser
+            if (window.API && window.API.Users && window.API.Users.getCurrent) {
+                console.log('🔄 protectPage: Verificando window.currentUser...');
+
+                if (!window.currentUser) {
+                    const result = await window.API.Users.getCurrent();
+                    if (!result.success || !result.data) {
+                        console.error('❌ protectPage: Error cargando usuario actual:', result.error);
+                        alert(result.error || 'Error cargando datos de usuario. Por favor, recarga la página.');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                }
+                console.log(`✅ window.currentUser listo: ${window.currentUser?.name} (${window.currentUser?.role})`);
+            } else {
+                console.warn('⚠️ protectPage: API.Users.getCurrent no disponible todavía');
             }
 
             // PASO 4: Ejecutar callback UNA SOLA VEZ
