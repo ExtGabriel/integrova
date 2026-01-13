@@ -837,215 +837,214 @@
                 return false;
             }
         },
-    },
 
         /**
          * Verificar si el usuario puede acceder a usuarios
          * @returns {Promise<boolean>}
          */
         async canAccessUsers() {
-        try {
-            // Esperar a que currentUser esté listo
-            if (window.currentUserReady) {
-                await window.currentUserReady;
-            }
+            try {
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
 
-            if (!window.currentUser || !window.currentUser.role) {
-                console.warn('⚠️ canAccessUsers: window.currentUser no disponible');
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.warn('⚠️ canAccessUsers: window.currentUser no disponible');
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                console.log(`🔍 canAccessUsers: Verificando rol "${userRole}"`);
+
+                // Roles que CAN acceder al módulo de usuarios
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
+                const hasAccess = accessRoles.includes(userRole);
+
+                console.log(`${hasAccess ? '✅' : '🔒'} canAccessUsers: ${hasAccess ? 'PERMITIDO' : 'DENEGADO'} para rol "${userRole}"`);
+
+                return hasAccess;
+            } catch (err) {
+                console.error('❌ API.canAccessUsers ERROR:', err);
                 return false;
             }
-
-            const userRole = window.currentUser.role.toLowerCase().trim();
-            console.log(`🔍 canAccessUsers: Verificando rol "${userRole}"`);
-
-            // Roles que CAN acceder al módulo de usuarios
-            const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
-            const hasAccess = accessRoles.includes(userRole);
-
-            console.log(`${hasAccess ? '✅' : '🔒'} canAccessUsers: ${hasAccess ? 'PERMITIDO' : 'DENEGADO'} para rol "${userRole}"`);
-
-            return hasAccess;
-        } catch (err) {
-            console.error('❌ API.canAccessUsers ERROR:', err);
-            return false;
-        }
-    },
+        },
 
         /**
          * Verificar si el usuario puede acceder a entidades
          * @returns {Promise<boolean>}
          */
         async canAccessEntities() {
-        try {
-            // Esperar a que currentUser esté listo
-            if (window.currentUserReady) {
-                await window.currentUserReady;
-            }
+            try {
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
 
-            if (!window.currentUser || !window.currentUser.role) {
-                console.warn('⚠️ canAccessEntities: window.currentUser no disponible');
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.warn('⚠️ canAccessEntities: window.currentUser no disponible');
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+
+                // Roles que CAN acceder al módulo de entidades
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+                return accessRoles.includes(userRole);
+            } catch (err) {
+                console.error('❌ API.canAccessEntities ERROR:', err);
                 return false;
             }
-
-            const userRole = window.currentUser.role.toLowerCase().trim();
-
-            // Roles que CAN acceder al módulo de entidades
-            const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-            return accessRoles.includes(userRole);
-        } catch (err) {
-            console.error('❌ API.canAccessEntities ERROR:', err);
-            return false;
-        }
-    },
+        },
 
         /**
          * Verificar si el usuario puede acceder a compromisos
          * @returns {Promise<boolean>}
          */
         async canAccessCommitments() {
-        try {
-            // Esperar a que currentUser esté listo
-            if (window.currentUserReady) {
-                await window.currentUserReady;
-            }
+            try {
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
 
-            if (!window.currentUser || !window.currentUser.role) {
-                console.warn('⚠️ canAccessCommitments: window.currentUser no disponible');
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.warn('⚠️ canAccessCommitments: window.currentUser no disponible');
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+
+                // Roles que CAN acceder al módulo de compromisos
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+                return accessRoles.includes(userRole);
+            } catch (err) {
+                console.error('❌ API.canAccessCommitments ERROR:', err);
                 return false;
             }
-
-            const userRole = window.currentUser.role.toLowerCase().trim();
+        },
+        try {
+            const profile = await getMyProfile();
+            if(!profile) return false;
 
             // Roles que CAN acceder al módulo de compromisos
             const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-            return accessRoles.includes(userRole);
-        } catch (err) {
-            console.error('❌ API.canAccessCommitments ERROR:', err);
+            return accessRoles.includes((profile.role || '').toLowerCase());
+        } catch(err) {
+            console.warn('⚠️ API.canAccessCommitments:', err.message);
             return false;
         }
     },
-    try {
-        const profile = await getMyProfile();
-        if (!profile) return false;
 
-        // Roles que CAN acceder al módulo de compromisos
-        const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-        return accessRoles.includes((profile.role || '').toLowerCase());
-    } catch (err) {
-        console.warn('⚠️ API.canAccessCommitments:', err.message);
-        return false;
-    }
-},
-
-    /**
-     * Verificar si el usuario puede acceder a un módulo específico
-     * @param {string} moduleName - Nombre del módulo (usuarios, entidades, compromisos, etc)
-     * @returns {Promise<boolean>}
-     */
-    async canAccessModule(moduleName) {
-    try {
-        if (!moduleName) return false;
-        const method = `canAccess${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}`;
-        if (this[method] && typeof this[method] === 'function') {
-            return await this[method]();
+        /**
+         * Verificar si el usuario puede acceder a un módulo específico
+         * @param {string} moduleName - Nombre del módulo (usuarios, entidades, compromisos, etc)
+         * @returns {Promise<boolean>}
+         */
+        async canAccessModule(moduleName) {
+        try {
+            if (!moduleName) return false;
+            const method = `canAccess${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}`;
+            if (this[method] && typeof this[method] === 'function') {
+                return await this[method]();
+            }
+            console.warn(`⚠️ Método ${method} no existe para validar acceso`);
+            return false;
+        } catch (err) {
+            console.warn(`⚠️ API.canAccessModule(${moduleName}):`, err.message);
+            return false;
         }
-        console.warn(`⚠️ Método ${method} no existe para validar acceso`);
-        return false;
-    } catch (err) {
-        console.warn(`⚠️ API.canAccessModule(${moduleName}):`, err.message);
-        return false;
-    }
-},
+    },
 
         /**
          * Obtener el rol actual del usuario
          * @returns {Promise<string|null>}
          */
         async getCurrentRole() {
-    try {
-        // Esperar a que currentUser esté listo
-        if (window.currentUserReady) {
-            await window.currentUserReady;
-        }
+        try {
+            // Esperar a que currentUser esté listo
+            if (window.currentUserReady) {
+                await window.currentUserReady;
+            }
 
-        return window.currentUser?.role || null;
-    } catch (err) {
-        console.error('❌ API.getCurrentRole ERROR:', err);
-        return null;
-    }
-},
+            return window.currentUser?.role || null;
+        } catch (err) {
+            console.error('❌ API.getCurrentRole ERROR:', err);
+            return null;
+        }
+    },
 
         /**
          * Obtener el nombre del usuario actual
          * @returns {Promise<string|null>}
          */
         async getCurrentUserName() {
-    try {
-        // Esperar a que currentUser esté listo
-        if (window.currentUserReady) {
-            await window.currentUserReady;
-        }
+        try {
+            // Esperar a que currentUser esté listo
+            if (window.currentUserReady) {
+                await window.currentUserReady;
+            }
 
-        if (!window.currentUser) {
-            return null;
-        }
+            if (!window.currentUser) {
+                return null;
+            }
 
-        return window.currentUser.full_name || window.currentUser.name || window.currentUser.email || null;
-    } catch (err) {
-        console.error('❌ API.getCurrentUserName ERROR:', err);
+            return window.currentUser.full_name || window.currentUser.name || window.currentUser.email || null;
+        } catch (err) {
+            console.error('❌ API.getCurrentUserName ERROR:', err);
      * Uso: window.API.getModule('mi_tabla').getAll()
-            */
-        getModule(tableName) {
-            if (!tableName || typeof tableName !== 'string') {
-                console.warn('⚠️ getModule: tableName debe ser string');
-                return createTableModule('invalid');
-            }
-            // Si ya existe el módulo, devolverlo
-            if (this[tableName]) {
-                return this[tableName];
-            }
-            // Si no existe, crear dinámicamente
-            return createTableModule(tableName);
-        },
+                */
+            getModule(tableName) {
+                if (!tableName || typeof tableName !== 'string') {
+                    console.warn('⚠️ getModule: tableName debe ser string');
+                    return createTableModule('invalid');
+                }
+                // Si ya existe el módulo, devolverlo
+                if (this[tableName]) {
+                    return this[tableName];
+                }
+                // Si no existe, crear dinámicamente
+                return createTableModule(tableName);
+            },
 
-        // === Funciones auxiliares de UI ===
-        showError(message, containerId = 'alertContainer') {
-            const container = document.getElementById(containerId);
-            if (!container) {
-                console.error('❌ Container no encontrado:', containerId);
-                alert(message);
-                return;
-            }
-            container.innerHTML = `
+            // === Funciones auxiliares de UI ===
+            showError(message, containerId = 'alertContainer') {
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.error('❌ Container no encontrado:', containerId);
+                    alert(message);
+                    return;
+                }
+                container.innerHTML = `
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="bi bi-exclamation-triangle"></i> ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             `;
-            setTimeout(() => { container.innerHTML = ''; }, 5000);
-        },
+                setTimeout(() => { container.innerHTML = ''; }, 5000);
+            },
 
-        showSuccess(message, containerId = 'alertContainer') {
-            const container = document.getElementById(containerId);
-            if (!container) {
-                console.error('❌ Container no encontrado:', containerId);
-                alert(message);
-                return;
-            }
-            container.innerHTML = `
+            showSuccess(message, containerId = 'alertContainer') {
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.error('❌ Container no encontrado:', containerId);
+                    alert(message);
+                    return;
+                }
+                container.innerHTML = `
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle"></i> ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             `;
-            setTimeout(() => { container.innerHTML = ''; }, 3000);
-        },
+                setTimeout(() => { container.innerHTML = ''; }, 3000);
+            },
 
-        showLoading(show, containerId = 'loadingContainer') {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            if (show) {
-                container.innerHTML = `
+            showLoading(show, containerId = 'loadingContainer') {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                if (show) {
+                    container.innerHTML = `
                     <div class="text-center my-4">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Cargando...</span>
@@ -1053,36 +1052,36 @@
                         <p class="mt-2">Cargando datos...</p>
                     </div>
                 `;
-                container.style.display = 'block';
-            } else {
-                container.innerHTML = '';
-                container.style.display = 'none';
+                    container.style.display = 'block';
+                } else {
+                    container.innerHTML = '';
+                    container.style.display = 'none';
+                }
             }
+        };
+
+        console.log('✅ api-client.js: API Client inicializado (window.API SIEMPRE disponible)');
+        console.log('   Módulos predefinidos:', ['Entities', 'Commitments', 'Users', 'Notifications', 'Audit'].join(', '));
+        console.log('   Módulos stub adicionales:', ['Groups', 'Teams', 'Permissions', 'Roles', 'Logs', 'Settings', 'Templates', 'Reports'].join(', '));
+        console.log('   Helpers de permisos:', ['hasRole()', 'canAccessUsers()', 'getCurrentRole()', 'getCurrentUserName()'].join(', '));
+        console.log('   Métodos genéricos: window.API.getModule("tabla_nombre")');
+
+        /**
+         * ==========================================
+         * INICIALIZACIÓN DE window.currentUser
+         * ==========================================
+         * 
+         * IMPORTANTE: window.currentUser y window.currentUserReady
+         * se inicializan EXCLUSIVAMENTE en auth-guard.js
+         * dentro de la función protectPage().
+         * 
+         * NO se inicializan automáticamente aquí para evitar
+         * condiciones de carrera y problemas de arquitectura.
+         */
+        if (typeof window.currentUser === 'undefined') {
+            window.currentUser = null;
         }
-    };
 
-    console.log('✅ api-client.js: API Client inicializado (window.API SIEMPRE disponible)');
-    console.log('   Módulos predefinidos:', ['Entities', 'Commitments', 'Users', 'Notifications', 'Audit'].join(', '));
-    console.log('   Módulos stub adicionales:', ['Groups', 'Teams', 'Permissions', 'Roles', 'Logs', 'Settings', 'Templates', 'Reports'].join(', '));
-    console.log('   Helpers de permisos:', ['hasRole()', 'canAccessUsers()', 'getCurrentRole()', 'getCurrentUserName()'].join(', '));
-    console.log('   Métodos genéricos: window.API.getModule("tabla_nombre")');
+        console.log('✅ api-client.js: Listo. window.currentUser se cargará desde auth-guard.js');
 
-    /**
-     * ==========================================
-     * INICIALIZACIÓN DE window.currentUser
-     * ==========================================
-     * 
-     * IMPORTANTE: window.currentUser y window.currentUserReady
-     * se inicializan EXCLUSIVAMENTE en auth-guard.js
-     * dentro de la función protectPage().
-     * 
-     * NO se inicializan automáticamente aquí para evitar
-     * condiciones de carrera y problemas de arquitectura.
-     */
-    if (typeof window.currentUser === 'undefined') {
-        window.currentUser = null;
-    }
-
-    console.log('✅ api-client.js: Listo. window.currentUser se cargará desde auth-guard.js');
-
-}) ();
+    }) ();
