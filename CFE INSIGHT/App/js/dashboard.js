@@ -1189,10 +1189,24 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 
 // Logout function - clear session and redirect to login
+// ✅ ACTUALIZADO: Usa window.logout() del auth-guard
 function logout() {
+    // Si existe window.logout del auth-guard, usarlo
+    if (typeof window.logout === 'function') {
+        console.log('📤 Usando logout centralizado (auth-guard)...');
+        window.logout();
+        return;
+    }
+
+    // Fallback legacy (por compatibilidad)
     try {
+        // Set manual logout flag
+        window.__MANUAL_LOGOUT__ = true;
+        console.log('🚫 Flag __MANUAL_LOGOUT__ activado');
+
         // Clear user session from sessionStorage
         sessionStorage.removeItem('userSession');
+        sessionStorage.removeItem('userUI');
         window.appSession = null;
         window.readNotificationsCache = [];
 
@@ -1200,6 +1214,8 @@ function logout() {
         window.location.href = 'login.html';
     } catch (error) {
         console.error('Error during logout:', error);
+        // Ensure flag is set even if there's an error
+        window.__MANUAL_LOGOUT__ = true;
         // Fallback: force redirect even if there's an error
         window.location.href = 'login.html';
     }
