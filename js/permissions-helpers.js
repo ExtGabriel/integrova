@@ -347,23 +347,23 @@
          * 
          * Uso:
          *   const perms = await getPermissions('entidades')
-         *   if (perms.includes('crear')) { /* mostrar botón crear */ }
-        * 
-         * @param { string } resource
-        * @returns { Promise < Array < string >>}
+         *   if (perms.includes('crear')) { mostrar botón crear }
+         * 
+         * @param {string} resource
+         * @returns {Promise<Array<string>>}
          */
         async getPermissions(resource) {
-        try {
-            const profile = await getMyProfile();
-            if (!profile || !profile.role) return [];
+            try {
+                const profile = await getMyProfile();
+                if (!profile || !profile.role) return [];
 
-            const userRole = normalizeRole(profile.role);
-            return getPermissionsForRole(userRole, resource);
-        } catch (err) {
-            console.warn(`⚠️ PermissionsHelper.getPermissions(${resource}):`, err.message);
-            return [];
-        }
-    },
+                const userRole = normalizeRole(profile.role);
+                return getPermissionsForRole(userRole, resource);
+            } catch (err) {
+                console.warn(`⚠️ PermissionsHelper.getPermissions(${resource}):`, err.message);
+                return [];
+            }
+        },
 
         /**
          * UTILIDAD: Deshabilitar elemento si NO tiene permiso
@@ -381,27 +381,27 @@
          * @param {string} tooltipText - Texto del tooltip al deshabilitar
          */
         async disableIfNoPermission(element, action, resource, tooltipText) {
-        try {
-            const el = typeof element === 'string'
-                ? document.getElementById(element)
-                : element;
+            try {
+                const el = typeof element === 'string'
+                    ? document.getElementById(element)
+                    : element;
 
-            if (!el) {
-                console.warn(`⚠️ Elemento no encontrado: ${element}`);
-                return;
-            }
+                if (!el) {
+                    console.warn(`⚠️ Elemento no encontrado: ${element}`);
+                    return;
+                }
 
-            const hasPermission = await this.hasPermission(action, resource);
-            if (!hasPermission) {
-                el.disabled = true;
-                el.title = tooltipText || `No tienes permiso para ${action}`;
-                el.style.opacity = '0.5';
-                el.style.cursor = 'not-allowed';
+                const hasPermission = await this.hasPermission(action, resource);
+                if (!hasPermission) {
+                    el.disabled = true;
+                    el.title = tooltipText || `No tienes permiso para ${action}`;
+                    el.style.opacity = '0.5';
+                    el.style.cursor = 'not-allowed';
+                }
+            } catch (err) {
+                console.warn('⚠️ PermissionsHelper.disableIfNoPermission:', err.message);
             }
-        } catch (err) {
-            console.warn('⚠️ PermissionsHelper.disableIfNoPermission:', err.message);
-        }
-    },
+        },
 
         /**
          * UTILIDAD: Ocultar elemento si NO tiene permiso
@@ -417,24 +417,24 @@
          * @param {string} resource - Recurso
          */
         async hideIfNoPermission(element, action, resource) {
-        try {
-            const el = typeof element === 'string'
-                ? document.getElementById(element)
-                : element;
+            try {
+                const el = typeof element === 'string'
+                    ? document.getElementById(element)
+                    : element;
 
-            if (!el) {
-                console.warn(`⚠️ Elemento no encontrado: ${element}`);
-                return;
-            }
+                if (!el) {
+                    console.warn(`⚠️ Elemento no encontrado: ${element}`);
+                    return;
+                }
 
-            const hasPermission = await this.hasPermission(action, resource);
-            if (!hasPermission) {
-                el.style.display = 'none';
+                const hasPermission = await this.hasPermission(action, resource);
+                if (!hasPermission) {
+                    el.style.display = 'none';
+                }
+            } catch (err) {
+                console.warn('⚠️ PermissionsHelper.hideIfNoPermission:', err.message);
             }
-        } catch (err) {
-            console.warn('⚠️ PermissionsHelper.hideIfNoPermission:', err.message);
-        }
-    },
+        },
 
         /**
          * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
@@ -443,30 +443,30 @@
          *   const can = await checkPermissionOrFail('crear', 'usuarios', 
          *     '❌ No tienes permiso para crear usuarios');
          *   if (can) { /* hacer acción */ }
-    * 
+        * 
          * @param { string } action
-    * @param { string } resource
-        * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
-            * @returns { Promise < boolean >} true si tiene permiso, false si no
-                */
+        * @param { string } resource
+            * @param { string } errorMsg - Mensaje a mostrar si NO tiene permiso
+                * @returns { Promise < boolean >} true si tiene permiso, false si no
+                    */
         async checkPermissionOrFail(action, resource, errorMsg) {
-    try {
-        const hasPermission = await this.hasPermission(action, resource);
-        if (!hasPermission) {
-            console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
-            if (errorMsg && window.API?.showError) {
-                window.API.showError(errorMsg);
-            } else if (errorMsg) {
-                alert(errorMsg);
+        try {
+            const hasPermission = await this.hasPermission(action, resource);
+            if (!hasPermission) {
+                console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
+                if (errorMsg && window.API?.showError) {
+                    window.API.showError(errorMsg);
+                } else if (errorMsg) {
+                    alert(errorMsg);
+                }
+                return false;
             }
+            return true;
+        } catch (err) {
+            console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
             return false;
         }
-        return true;
-    } catch (err) {
-        console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
-        return false;
-    }
-},
+    },
 
         /**
          * UTILIDAD: Mostrar "acceso denegado" si no tiene acceso al módulo
@@ -480,22 +480,22 @@
          * @returns {Promise<boolean>}
          */
         async requireModuleAccess(module, containerId = 'alertContainer') {
-    try {
-        const hasAccess = await this.canAccessModule(module);
-        if (!hasAccess) {
-            console.error(`❌ Acceso denegado al módulo: ${module}`);
-            if (window.API?.showError) {
-                window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+        try {
+            const hasAccess = await this.canAccessModule(module);
+            if (!hasAccess) {
+                console.error(`❌ Acceso denegado al módulo: ${module}`);
+                if (window.API?.showError) {
+                    window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+                }
+                return false;
             }
+            return true;
+        } catch (err) {
+            console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
             return false;
         }
-        return true;
-    } catch (err) {
-        console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
-        return false;
     }
-}
-    };
+};
 
 console.log('✅ permissions-helpers.js: Sistema de permisos cargado (window.PermissionsHelper SIEMPRE disponible)');
 console.log('   Roles válidos:', Object.keys(VALID_ROLES).map(k => VALID_ROLES[k]).join(', '));
