@@ -34,7 +34,7 @@
 
 | Archivo | 📝 Propósito |
 |---------|------------|
-| [`usuarios-validation-script.js`](./usuarios-validation-script.js) | Script de validación automática |
+| [`scripts/usuarios-validation-script.js`](./scripts/usuarios-validation-script.js) | Script de validación automática |
 
 ---
 

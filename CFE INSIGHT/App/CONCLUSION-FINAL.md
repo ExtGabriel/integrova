@@ -66,7 +66,7 @@
 ### Tools (1 archivo)
 | Archivo | Propósito |
 |---------|-----------|
-| `usuarios-validation-script.js` | 40+ validaciones automáticas |
+| `scripts/usuarios-validation-script.js` | 40+ validaciones automáticas |
 
 ---
 

@@ -89,7 +89,7 @@ window.__usuariosDebug.filterUsers('admin')
 ### Ejecutar validación:
 ```javascript
 // En la página de usuarios, abrir DevTools (F12)
-// Copiar TODO el contenido de: usuarios-validation-script.js
+// Copiar TODO el contenido de: scripts/usuarios-validation-script.js
 // Pegar en consola
 // Ejecutar
 

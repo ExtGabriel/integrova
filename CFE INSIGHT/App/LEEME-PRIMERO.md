@@ -83,8 +83,8 @@ VERIFICACION-FINAL-USUARIOS.md ..... Verificación final
 
 ### Tools
 ```
-usuarios-validation-script.js ....... Script de validación automática
-SESION-RESUMEN-QUE-SE-LOGRO.md ..... Qué se logró en esta sesión
+scripts/usuarios-validation-script.js ... Script de validación automática
+SESION-RESUMEN-QUE-SE-LOGRO.md .......... Qué se logró en esta sesión
 ```
 
 ---
