@@ -60,7 +60,7 @@ if (window.__MANUAL_LOGOUT__) {
 - [js/config-supabase.js](js/config-supabase.js) - Configuración Supabase
 - [js/supabaseClient.js](js/supabaseClient.js) - Cliente Supabase v2
 - [SOLUCION-LOGOUT-LOOP.md](SOLUCION-LOGOUT-LOOP.md) - Documentación técnica
-- [validate-logout-fix.js](validate-logout-fix.js) - Script de validación
+- [scripts/validate-logout-fix.js](scripts/validate-logout-fix.js) - Script de validación
 
 ### 🔄 MODIFICADOS
 - [pages/login.html](pages/login.html) - Limpia flag en login exitoso
@@ -95,7 +95,7 @@ console.log(window.__MANUAL_LOGOUT__); // false
 console.log(window.__MANUAL_LOGOUT__); // true
 
 // Validar todo el sistema
-<script src="validate-logout-fix.js"></script>
+<script src="scripts/validate-logout-fix.js"></script>
 ```
 
 ---
@@ -182,7 +182,7 @@ Login exitoso → Flag=false → Dashboard → INITIAL_SESSION permitido ✅
 ## 📖 DOCUMENTACIÓN ADICIONAL
 
 - [SOLUCION-LOGOUT-LOOP.md](SOLUCION-LOGOUT-LOOP.md) - Documentación técnica completa
-- Validación: Ejecutar `validate-logout-fix.js` en consola
+- Validación: Ejecutar `scripts/validate-logout-fix.js` en consola
 
 ---
 

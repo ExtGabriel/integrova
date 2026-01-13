@@ -50,7 +50,7 @@ js/
 docs/
 ├── README-LOGOUT-FIX.md ........ Resumen ejecutivo 📖
 ├── SOLUCION-LOGOUT-LOOP.md ..... Documentación técnica detallada 📖
-└── validate-logout-fix.js ...... Script de validación 🧪
+└── scripts/validate-logout-fix.js ...... Script de validación 🧪
 ```
 
 ### Archivos Modificados
@@ -93,7 +93,7 @@ console.log(window.__MANUAL_LOGOUT__);
 // Debe mostrar: true
 
 // Validar sistema completo
-// Copiar y pegar contenido de validate-logout-fix.js
+// Copiar y pegar contenido de scripts/validate-logout-fix.js
 ```
 
 ---
@@ -178,7 +178,7 @@ Redirige a dashboard ✅
   - Reglas de uso
 
 ### Para QA/Testing
-- [validate-logout-fix.js](validate-logout-fix.js) - Script de validación
+- [scripts/validate-logout-fix.js](scripts/validate-logout-fix.js) - Script de validación
   - Ejecutar en consola del navegador
   - Verifica todos los componentes
   - Muestra estado del sistema
@@ -255,7 +255,7 @@ Si experimentas algún problema:
 
 2. **Ejecutar validación** (F12 → Console):
    ```javascript
-   // Copiar contenido de validate-logout-fix.js
+   // Copiar contenido de scripts/validate-logout-fix.js
    ```
 
 3. **Verificar flag**:
