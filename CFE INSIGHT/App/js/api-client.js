@@ -728,6 +728,62 @@
         },
 
         /**
+         * Verificar si el usuario puede acceder a entidades
+         * @returns {Promise<boolean>}
+         */
+        async canAccessEntities() {
+            try {
+                const profile = await getMyProfile();
+                if (!profile) return false;
+
+                // Roles que CAN acceder al módulo de entidades
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+                return accessRoles.includes((profile.role || '').toLowerCase());
+            } catch (err) {
+                console.warn('⚠️ API.canAccessEntities:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Verificar si el usuario puede acceder a compromisos
+         * @returns {Promise<boolean>}
+         */
+        async canAccessCommitments() {
+            try {
+                const profile = await getMyProfile();
+                if (!profile) return false;
+
+                // Roles que CAN acceder al módulo de compromisos
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+                return accessRoles.includes((profile.role || '').toLowerCase());
+            } catch (err) {
+                console.warn('⚠️ API.canAccessCommitments:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Verificar si el usuario puede acceder a un módulo específico
+         * @param {string} moduleName - Nombre del módulo (usuarios, entidades, compromisos, etc)
+         * @returns {Promise<boolean>}
+         */
+        async canAccessModule(moduleName) {
+            try {
+                if (!moduleName) return false;
+                const method = `canAccess${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}`;
+                if (this[method] && typeof this[method] === 'function') {
+                    return await this[method]();
+                }
+                console.warn(`⚠️ Método ${method} no existe para validar acceso`);
+                return false;
+            } catch (err) {
+                console.warn(`⚠️ API.canAccessModule(${moduleName}):`, err.message);
+                return false;
+            }
+        },
+
+        /**
          * Obtener el rol actual del usuario
          * @returns {Promise<string|null>}
          */
