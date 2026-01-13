@@ -20,5 +20,5 @@ window.SUPABASE_CONFIG = {
     url: 'https://xtrsmplqcczubdygftfm.supabase.co',
 
     // Clave pública "anon" (segura para exponer en frontend)
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0cnNtcGxxY2N6dWJkeWdmdGZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcxNDYzNzksImV4cCI6MjA1MjcyMjM3OX0.xQoeBnlPAb_PpfR_nwFXEaAsgCATmROPMrOBjpXMpM4'
+    anonKey: 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z'
 };
