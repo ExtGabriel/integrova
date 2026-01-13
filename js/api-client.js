@@ -280,6 +280,7 @@
     /**
      * Módulo: Usuarios
      * ✅ Tolera tabla inexistente: retorna [] sin error
+     * ✅ Métodos defensivos para cambiar roles, estado, permisos
      */
     const UsersModule = {
         async getAll() {
@@ -318,6 +319,178 @@
             } catch (err) {
                 console.warn('⚠️ Users.getById:', err.message);
                 return { success: true, data: null };
+            }
+        },
+
+        /**
+         * Cambiar rol de un usuario
+         * @param {string} userId - ID del usuario
+         * @param {string} newRole - Nuevo rol (cliente, auditor, supervisor, etc.)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async updateRole(userId, newRole) {
+            try {
+                if (!userId || !newRole || typeof newRole !== 'string') {
+                    return {
+                        success: false,
+                        error: 'userId y newRole son requeridos y newRole debe ser string'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                const { data, error } = await client
+                    .from('users')
+                    .update({ role: newRole.toLowerCase() })
+                    .eq('id', userId)
+                    .select();
+
+                if (error) {
+                    // Manejo de errores específicos
+                    if (error.code === 'PGRST301') {
+                        return { success: false, error: '❌ Acceso denegado (403): No tienes permiso para cambiar roles' };
+                    }
+                    if (error.code === '401' || error.message?.includes('401')) {
+                        return { success: false, error: '❌ No autorizado (401): Necesitas autenticarte' };
+                    }
+                    if (error.message?.includes('PGRST205') || error.message?.includes('relation')) {
+                        return { success: false, error: '❌ Tabla de usuarios no existe' };
+                    }
+                    console.error('❌ Users.updateRole error:', error);
+                    return { success: false, error: error.message || 'Error al cambiar rol' };
+                }
+
+                console.log(`✅ Rol actualizado para usuario ${userId} → ${newRole}`);
+                return { success: true, data: data?.[0] || null };
+            } catch (err) {
+                console.error('❌ Users.updateRole excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Activar/desactivar usuario
+         * @param {string} userId - ID del usuario
+         * @param {boolean} isActive - true para activar, false para desactivar
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async toggleActive(userId, isActive) {
+            try {
+                if (!userId || typeof isActive !== 'boolean') {
+                    return {
+                        success: false,
+                        error: 'userId y isActive (boolean) son requeridos'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                const { data, error } = await client
+                    .from('users')
+                    .update({ active: isActive })
+                    .eq('id', userId)
+                    .select();
+
+                if (error) {
+                    if (error.code === 'PGRST301') {
+                        return { success: false, error: '❌ Acceso denegado (403): No tienes permiso para cambiar estado' };
+                    }
+                    if (error.code === '401' || error.message?.includes('401')) {
+                        return { success: false, error: '❌ No autorizado (401)' };
+                    }
+                    console.error('❌ Users.toggleActive error:', error);
+                    return { success: false, error: error.message || 'Error al cambiar estado' };
+                }
+
+                const status = isActive ? 'activado' : 'desactivado';
+                console.log(`✅ Usuario ${userId} ${status}`);
+                return { success: true, data: data?.[0] || null };
+            } catch (err) {
+                console.error('❌ Users.toggleActive excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Validar si el usuario actual puede cambiar roles
+         * Basado en su rol actual
+         * @returns {Promise<boolean>}
+         */
+        async canChangeRoles() {
+            try {
+                const profile = await getMyProfile();
+                if (!profile) return false;
+
+                // Roles que CAN cambiar otros roles
+                const adminRoles = ['administrador', 'programador', 'socio'];
+                return adminRoles.includes((profile.role || '').toLowerCase());
+            } catch (err) {
+                console.warn('⚠️ Users.canChangeRoles:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Validar si el usuario actual puede cambiar estado (activo/inactivo)
+         * @returns {Promise<boolean>}
+         */
+        async canChangeStatus() {
+            try {
+                const profile = await getMyProfile();
+                if (!profile) return false;
+
+                // Roles que CAN cambiar estado de usuarios
+                const adminRoles = ['administrador', 'programador', 'supervisor'];
+                return adminRoles.includes((profile.role || '').toLowerCase());
+            } catch (err) {
+                console.warn('⚠️ Users.canChangeStatus:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Obtener lista de usuarios según permisos del usuario actual
+         * Usuarios con rol admin ven todos los usuarios
+         * Usuarios con otros roles ven solo usuarios de su grupo
+         * @returns {Promise<{success: boolean, data: Array}>}
+         */
+        async getAccessibleUsers() {
+            try {
+                const allUsers = await this.getAll();
+                if (!allUsers.success) return allUsers;
+
+                const profile = await getMyProfile();
+                if (!profile) {
+                    console.warn('⚠️ Users.getAccessibleUsers: No hay perfil cargado');
+                    return allUsers; // Retornar todos si no hay perfil
+                }
+
+                // Administrador ve todos
+                if ((profile.role || '').toLowerCase() === 'administrador') {
+                    return allUsers;
+                }
+
+                // Otros roles ven solo su grupo (si aplica)
+                const userGroup = profile.groups?.[0] || profile.group;
+                if (!userGroup) {
+                    return allUsers; // Si no hay grupo, ver todos
+                }
+
+                const filtered = (allUsers.data || []).filter(u => {
+                    const uGroups = Array.isArray(u.groups) ? u.groups : (u.group ? [u.group] : []);
+                    return uGroups.includes(userGroup);
+                });
+
+                return { success: true, data: filtered };
+            } catch (err) {
+                console.error('❌ Users.getAccessibleUsers:', err.message);
+                return { success: true, data: [] };
             }
         }
     };
@@ -511,9 +684,79 @@
         Templates: createTableModule('templates'),
         Reports: createTableModule('reports'),
 
-        // === Método de acceso genérico para cualquier tabla ===
+        // === HELPERS DEFENSIVOS DE ROLES Y PERMISOS ===
         /**
-         * Acceso genérico a cualquier tabla
+         * Verificar si el usuario tiene un rol específico
+         * @param {string|Array} requiredRole - Rol o array de roles requeridos
+         * @returns {Promise<boolean>}
+         */
+        async hasRole(requiredRole) {
+            try {
+                const profile = await getMyProfile();
+                if (!profile || !profile.role) return false;
+
+                const userRole = profile.role.toLowerCase();
+                if (typeof requiredRole === 'string') {
+                    return userRole === requiredRole.toLowerCase();
+                }
+                if (Array.isArray(requiredRole)) {
+                    return requiredRole.some(r => userRole === r.toLowerCase());
+                }
+                return false;
+            } catch (err) {
+                console.warn('⚠️ API.hasRole:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Verificar si el usuario puede acceder a usuarios
+         * @returns {Promise<boolean>}
+         */
+        async canAccessUsers() {
+            try {
+                const profile = await getMyProfile();
+                if (!profile) return false;
+
+                // Roles que CAN acceder al módulo de usuarios
+                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
+                return accessRoles.includes((profile.role || '').toLowerCase());
+            } catch (err) {
+                console.warn('⚠️ API.canAccessUsers:', err.message);
+                return false;
+            }
+        },
+
+        /**
+         * Obtener el rol actual del usuario
+         * @returns {Promise<string|null>}
+         */
+        async getCurrentRole() {
+            try {
+                const profile = await getMyProfile();
+                return profile?.role || null;
+            } catch (err) {
+                console.warn('⚠️ API.getCurrentRole:', err.message);
+                return null;
+            }
+        },
+
+        /**
+         * Obtener el nombre del usuario actual
+         * @returns {Promise<string|null>}
+         */
+        async getCurrentUserName() {
+            try {
+                const profile = await getMyProfile();
+                return profile?.full_name || profile?.name || profile?.email || null;
+            } catch (err) {
+                console.warn('⚠️ API.getCurrentUserName:', err.message);
+                return null;
+            }
+        },
+
+        /**
+         * Método de acceso genérico para cualquier tabla
          * Uso: window.API.getModule('mi_tabla').getAll()
          */
         getModule(tableName) {
@@ -585,7 +828,8 @@
     console.log('✅ api-client.js: API Client inicializado (window.API SIEMPRE disponible)');
     console.log('   Módulos predefinidos:', ['Entities', 'Commitments', 'Users', 'Notifications', 'Audit'].join(', '));
     console.log('   Módulos stub adicionales:', ['Groups', 'Teams', 'Permissions', 'Roles', 'Logs', 'Settings', 'Templates', 'Reports'].join(', '));
-    console.log('   Método genérico: window.API.getModule("tabla_nombre")');
+    console.log('   Helpers de permisos:', ['hasRole()', 'canAccessUsers()', 'getCurrentRole()', 'getCurrentUserName()'].join(', '));
+    console.log('   Métodos genéricos: window.API.getModule("tabla_nombre")');
 
 })();
 
