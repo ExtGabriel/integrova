@@ -1354,12 +1354,18 @@
 
     <!-- 10. Inicialización del Dashboard (usa window.protectPage) -->
     <script>
-        // Llamar a protectPage sin parámetro - la inicialización ya está en dashboard.js DOMContentLoaded
-        // window.protectPage valida sesión y carga window.currentUser
+        // Proteger página y ejecutar inicialización del dashboard
+        // ✅ ACTUALIZADO: Usa callback para ejecutar DESPUÉS de cargar window.currentUser
         if (typeof window.protectPage === 'function') {
             console.log('🎬 dashboard.html: Protegiendo página...');
             window.protectPage(() => {
-                console.log('✅ dashboard.html: Página protegida correctamente');
+                console.log('✅ dashboard.html: Página protegida. Ejecutando initializeDashboardPage()...');
+                // window.currentUser ya está cargado por auth-guard.js
+                if (typeof initializeDashboardPage === 'function') {
+                    initializeDashboardPage();
+                } else {
+                    console.error('❌ initializeDashboardPage no está disponible');
+                }
             });
         }
     </script>

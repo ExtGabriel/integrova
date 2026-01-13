@@ -826,15 +826,17 @@
                 if (typeof requiredRole === 'string') {
                     return userRole === requiredRole.toLowerCase().trim();
                 }
-            }
+
                 if (Array.isArray(requiredRole)) {
-                return requiredRole.some(r => userRole === r.toLowerCase());
+                    return requiredRole.some(r => userRole === r.toLowerCase());
+                }
+
+                return false;
+            } catch (err) {
+                console.warn('⚠️ API.hasRole:', err.message);
+                return false;
             }
-            return false;
-        } catch(err) {
-            console.warn('⚠️ API.hasRole:', err.message);
-            return false;
-        }
+        },
     },
 
         /**
