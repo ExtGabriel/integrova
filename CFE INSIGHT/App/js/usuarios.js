@@ -1181,7 +1181,10 @@ window.protectPage(initializePage);
 window.__usuariosDebug = {
     allUsers: () => allUsers,
     currentUserProfile: () => currentUserProfile,
-    permisos: () => ({ canChangeRoles, canChangeStatus, hasAccessToUsers })
+    currentUserRole: () => currentUserRole,
+    permisos: () => ({ canChangeRoles, canChangeStatus, hasAccessToUsers }),
+    reloadUsers: () => loadUsers(),
+    filterUsers: (query) => filterUsers(query)
 };
 
 console.log('✅ usuarios.js: Módulo inicializado. Debug disponible en window.__usuariosDebug');
