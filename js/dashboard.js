@@ -1091,8 +1091,9 @@ async function sendIAChatMessage() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-        // Get AI response
-        const response = await intelligentChatResponse(message, [], getCurrentSession()?.role || 'cliente');
+        // Get AI response - usar role del usuario actual
+        const userRole = window.currentUser?.role || 'cliente';
+        const response = await intelligentChatResponse(message, [], userRole);
 
         // Remove typing indicator
         messagesContainer.removeChild(typingMessage);
@@ -1160,27 +1161,35 @@ function nextMonth() {
 }
 
 // Initialize dashboard when DOM is loaded
-// NOTA CRÍTICA: dashboard-init.js MANEJA toda la lógica de sesión y redirecciones
-// Este archivo SOLO se ejecuta si la sesión ya es válida
+// ✅ ACTUALIZADO: Espera a window.currentUserReady antes de usar datos del usuario
 document.addEventListener('DOMContentLoaded', async function () {
     try {
-        console.log('📊 dashboard.js: DOMContentLoaded - Asumiendo sesión válida...');
+        console.log('📊 dashboard.js: DOMContentLoaded - Esperando usuario listo...');
 
-        // Obtener perfil del usuario (ya debe haber sesión)
-        const profile = window.currentUserProfile;
-        if (profile && profile.full_name) {
-            document.getElementById('welcomeText').textContent = `Bienvenido, ${profile.full_name}`;
+        // Esperar a que el usuario esté cargado desde auth-guard.js
+        if (window.currentUserReady) {
+            await window.currentUserReady;
         }
 
-        // Aplicar restricciones por rol
-        const role = profile?.role || 'usuario';
-        applyRoleRestrictions(role);
+        // Usar window.currentUser directamente (ya está cargado por auth-guard.js)
+        if (window.currentUser) {
+            const userName = window.currentUser.name || 'Usuario';
+            const welcomeElement = document.getElementById('welcomeText');
+            if (welcomeElement) {
+                welcomeElement.textContent = `Bienvenido, ${userName}`;
+                console.log(`✅ dashboard.js: Usuario ${userName} cargado`);
+            }
+        } else {
+            console.warn('⚠️ dashboard.js: window.currentUser no disponible');
+        }
 
-        // Inicializar dashboard
+        // Inicializar dashboard (SIN validaciones de rol)
+        console.log('🎬 dashboard.js: Inicializando dashboard...');
         initializeDashboard();
+
     } catch (error) {
         console.error('❌ dashboard.js: Error en DOMContentLoaded:', error);
-        // NO redirigir aquí - dashboard-init.js maneja redirecciones
+        showError('Error al cargar el dashboard: ' + error.message);
     }
 });
 
@@ -1188,65 +1197,30 @@ document.addEventListener('DOMContentLoaded', async function () {
 // Esta es la función principal - mantener como está
 
 
-// Logout function - clear session and redirect to login
-// ✅ DELEGADO: Usa window.logout() del auth-guard si existe
+// Logout function - delegado a auth-guard.js
+// ✅ ACTUALIZADO: Usa window.logout() del auth-guard para logout consistente
 function logout() {
     try {
-        // Set manual logout flag
-        window.__MANUAL_LOGOUT__ = true;
-        console.log('🚫 Flag __MANUAL_LOGOUT__ activado');
+        console.log('🚪 dashboard.js: Llamando a window.logout()...');
 
-        // Clear user session from sessionStorage
-        sessionStorage.removeItem('userSession');
-        sessionStorage.removeItem('userUI');
-        window.appSession = null;
-        window.readNotificationsCache = [];
-
-        // Si existe auth guard con signOut, úsalo
-        if (window.getSupabaseClient) {
-            window.getSupabaseClient().then(client => {
-                if (client) {
-                    client.auth.signOut().catch(err => {
-                        console.warn('⚠️ Error al signOut:', err.message);
-                    });
-                }
-            });
+        // Usar logout() del auth-guard si existe
+        if (typeof window.logout === 'function') {
+            window.logout();
+        } else {
+            // Fallback si window.logout no está disponible
+            console.warn('⚠️ window.logout no disponible, usando fallback...');
+            window.__MANUAL_LOGOUT__ = true;
+            sessionStorage.removeItem('userSession');
+            sessionStorage.removeItem('userUI');
+            window.location.href = 'login.html';
         }
-
-        // All pages are in /App/pages/, use simple redirect
-        window.location.href = 'login.html';
     } catch (error) {
-        console.error('Error during logout:', error);
-        // Ensure flag is set even if there's an error
+        console.error('❌ Error durante logout:', error);
         window.__MANUAL_LOGOUT__ = true;
-        // Fallback: force redirect even if there's an error
         window.location.href = 'login.html';
     }
 }
 
-// Apply role-based restrictions to dashboard elements
-function applyRoleRestrictions(role) {
-    const actionBtns = document.querySelectorAll('.action-btn');
-
-    actionBtns.forEach(btn => {
-        const section = btn.onclick.toString().match(/'([^']+)'/)[1];
-
-        if (role === 'cliente') {
-            // Cliente solo puede ver compromisos
-            if (section !== 'Compromisos') {
-                btn.style.display = 'none';
-            }
-        } else if (role === 'auditor') {
-            // Auditor puede ver entidades y compromisos
-            if (!['Entidades', 'Compromisos'].includes(section)) {
-                btn.style.display = 'none';
-            }
-        } else if (role === 'auditor_senior') {
-            // Auditor senior puede ver todo menos usuarios
-            if (section === 'Usuarios') {
-                btn.style.display = 'none';
-            }
-        }
-        // Administrador y programador tienen acceso completo
-    });
-}
+// ✅ ELIMINADO: applyRoleRestrictions()
+// Las restricciones de rol se aplican ÚNICAMENTE en auth-guard.js y páginas específicas.
+// El dashboard carga para cualquier usuario autenticado activo sin validación adicional de rol.

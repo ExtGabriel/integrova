@@ -201,20 +201,26 @@
 
             console.log(`✅ window.currentUser disponible: ${window.currentUser.name} (${window.currentUser.role})`);
 
-            // Verificar acceso básico
-            hasAccessToUsers = await API.canAccessUsers();
-            if (!hasAccessToUsers) {
-                console.warn('⚠️ Usuario no tiene acceso a módulo de usuarios');
-                showErrorMsg('❌ No tienes permiso para acceder a la gestión de usuarios.');
+            // Validar acceso específico: SOLO admin y programador pueden entrar
+            // ✅ Usar hasRole() que soporta aliases ('admin' → 'administrador')
+            const isAdmin = window.hasRole && window.hasRole('admin');
+            const isProgrammer = window.hasRole && window.hasRole('programador');
+
+            if (!isAdmin && !isProgrammer) {
+                console.warn(`⚠️ Usuario ${window.currentUser.name} (${window.currentUser.role}) no tiene acceso`);
+                showErrorMsg('❌ No tienes permiso para acceder a la gestión de usuarios. Solo administradores y programadores pueden acceder.');
                 disableUI();
                 return false;
             }
 
+            console.log(`✅ Acceso permitido para ${window.currentUser.name} (${window.currentUser.role})`);
+
             // Cargar permisos específicos usando api-client
             canChangeRoles = await API.Users.canChangeRoles();
             canChangeStatus = await API.Users.canChangeStatus();
-            currentUserProfile = await API.getMyProfile();
-            currentUserRole = currentUserProfile?.role || 'desconocido';
+            currentUserProfile = window.currentUser;  // Ya está cargado por auth-guard
+            currentUserRole = window.currentUser.role;
+            hasAccessToUsers = true;  // Ya validamos arriba
 
             console.log('✅ Acceso validado:', {
                 role: currentUserRole,

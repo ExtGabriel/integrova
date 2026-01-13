@@ -1067,46 +1067,20 @@
 
     /**
      * ==========================================
-     * INICIALIZACIÓN AUTOMÁTICA DE window.currentUser
+     * INICIALIZACIÓN DE window.currentUser
      * ==========================================
      * 
-     * GARANTÍA: window.currentUserReady es una promesa que se resuelve cuando:
-     * 1. El usuario está autenticado
-     * 2. window.currentUser está seteado con datos de public.users
-     * 3. El rol está normalizado y validado
+     * IMPORTANTE: window.currentUser y window.currentUserReady
+     * se inicializan EXCLUSIVAMENTE en auth-guard.js
+     * dentro de la función protectPage().
      * 
-     * Las páginas que validan permisos DEBEN:
-     *   await window.currentUserReady
-     * ANTES de usar hasRole() o cualquier validación de permisos
+     * NO se inicializan automáticamente aquí para evitar
+     * condiciones de carrera y problemas de arquitectura.
      */
     if (typeof window.currentUser === 'undefined') {
         window.currentUser = null;
     }
 
-    window.currentUserReady = (async function initializeCurrentUser() {
-        try {
-            console.log('🔄 Inicializando window.currentUser...');
-
-            // Esperar a que Supabase esté listo
-            await supabaseReady;
-
-            // Intentar cargar el usuario actual
-            const result = await window.API.Users.getCurrent();
-
-            if (result.success && result.data) {
-                console.log(`✅ window.currentUser inicializado: ${result.data.name} (${result.data.role})`);
-                return result.data;
-            } else {
-                console.warn('⚠️ No se pudo inicializar currentUser:', result.error || 'Sin sesión');
-                return null;
-            }
-        } catch (err) {
-            console.error('❌ Error inicializando currentUser:', err.message);
-            return null;
-        }
-    })();
-
-    console.log('✅ window.currentUserReady: Promesa creada');
+    console.log('✅ api-client.js: Listo. window.currentUser se cargará desde auth-guard.js');
 
 }) ();
-

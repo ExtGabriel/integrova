@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Usuario Centralizado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <h1>🧪 Test de Usuario Centralizado</h1>
+        <p>Esta página verifica que <code>window.currentUser</code> se carga correctamente desde
+            <strong>auth-guard.js</strong></p>
+
+        <div id="statusContainer"></div>
+
+        <h2>Acciones de Test:</h2>
+        <button onclick="testCurrentUser()">✅ Verificar window.currentUser</button>
+        <button onclick="testHasRole()">🔑 Test hasRole('admin')</button>
+        <button onclick="testPermissions()">🛡️ Test Permisos API</button>
+        <button onclick="window.logout()">🚪 Logout</button>
+
+        <h2>Resultado:</h2>
+        <pre id="resultContainer">Esperando acciones...</pre>
+    </div>
+
+    <!-- Scripts en el orden correcto -->
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/permissions-helpers.js"></script>
+    <script src="js/auth-guard.js"></script>
+
+    <script>
+        const statusContainer = document.getElementById('statusContainer');
+        const resultContainer = document.getElementById('resultContainer');
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            statusContainer.appendChild(div);
+        }
+
+        function updateResult(data) {
+            resultContainer.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Inicializar página protegida
+        window.protectPage(function () {
+            addStatus('✅ Página protegida - Callback ejecutado', 'success');
+
+            // Verificar inmediatamente que currentUser esté disponible
+            if (window.currentUser) {
+                addStatus(`✅ window.currentUser disponible: ${window.currentUser.name} (${window.currentUser.role})`, 'success');
+                updateResult({
+                    status: 'READY',
+                    currentUser: window.currentUser,
+                    timestamp: new Date().toISOString()
+                });
+            } else {
+                addStatus('❌ window.currentUser NO está disponible', 'error');
+                updateResult({ error: 'window.currentUser es null' });
+            }
+        });
+
+        // Funciones de test
+        async function testCurrentUser() {
+            addStatus('🔍 Testeando window.currentUser...', 'info');
+
+            try {
+                // Verificar que currentUserReady esté disponible
+                if (!window.currentUserReady) {
+                    throw new Error('window.currentUserReady no existe');
+                }
+
+                // Esperar a la promesa
+                const userData = await window.currentUserReady;
+
+                const result = {
+                    currentUserReady: '✅ Promesa resuelta',
+                    windowCurrentUser: window.currentUser ? '✅ Disponible' : '❌ null',
+                    userData: userData,
+                    match: window.currentUser === userData ? '✅ Coinciden' : '❌ No coinciden'
+                };
+
+                addStatus('✅ Test completado', 'success');
+                updateResult(result);
+            } catch (err) {
+                addStatus(`❌ Error: ${err.message}`, 'error');
+                updateResult({ error: err.message });
+            }
+        }
+
+        async function testHasRole() {
+            addStatus('🔑 Testeando hasRole()...', 'info');
+
+            try {
+                await window.currentUserReady;
+
+                const tests = [
+                    { alias: 'admin', expected: window.currentUser.role === 'administrador' },
+                    { alias: 'administrador', expected: window.currentUser.role === 'administrador' },
+                    { alias: 'programmer', expected: window.currentUser.role === 'programador' },
+                    { alias: 'cliente', expected: window.currentUser.role === 'cliente' }
+                ];
+
+                const results = {};
+                for (const test of tests) {
+                    const result = window.hasRole(test.alias);
+                    results[test.alias] = {
+                        resultado: result,
+                        esperado: test.expected,
+                        correcto: result === test.expected ? '✅' : '❌'
+                    };
+                }
+
+                addStatus('✅ Test hasRole completado', 'success');
+                updateResult({
+                    currentRole: window.currentUser.role,
+                    tests: results
+                });
+            } catch (err) {
+                addStatus(`❌ Error: ${err.message}`, 'error');
+                updateResult({ error: err.message });
+            }
+        }
+
+        async function testPermissions() {
+            addStatus('🛡️ Testeando permisos API...', 'info');
+
+            try {
+                await window.currentUserReady;
+
+                const canAccessUsers = await window.API.Users.canAccessUsers();
+                const canAccessEntities = await window.API.Entities.canAccessEntities();
+                const canAccessCommitments = await window.API.Commitments.canAccessCommitments();
+
+                const result = {
+                    usuario: window.currentUser.name,
+                    role: window.currentUser.role,
+                    permisos: {
+                        usuarios: canAccessUsers ? '✅ Permitido' : '❌ Denegado',
+                        entidades: canAccessEntities ? '✅ Permitido' : '❌ Denegado',
+                        compromisos: canAccessCommitments ? '✅ Permitido' : '❌ Denegado'
+                    }
+                };
+
+                addStatus('✅ Test de permisos completado', 'success');
+                updateResult(result);
+            } catch (err) {
+                addStatus(`❌ Error: ${err.message}`, 'error');
+                updateResult({ error: err.message });
+            }
+        }
+    </script>
+</body>
+
+</html>
