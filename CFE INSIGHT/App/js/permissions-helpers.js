@@ -279,6 +279,10 @@
             } catch (err) {
                 console.error('❌ PermissionsHelper.hasRole ERROR:', err);
                 console.log('   window.currentUser:', window.currentUser);
+                return false;
+            }
+        },
+
         /**
          * Verificar si el usuario tiene TODOS estos roles (conjunción)
          * 
