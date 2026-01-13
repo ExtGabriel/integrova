@@ -424,14 +424,22 @@
          */
         async canChangeRoles() {
             try {
-                const profile = await getMyProfile();
-                if (!profile) return false;
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
 
                 // Roles que CAN cambiar otros roles
                 const adminRoles = ['administrador', 'programador', 'socio'];
-                return adminRoles.includes((profile.role || '').toLowerCase());
+                return adminRoles.includes(userRole);
             } catch (err) {
-                console.warn('⚠️ Users.canChangeRoles:', err.message);
+                console.error('❌ Users.canChangeRoles ERROR:', err);
                 return false;
             }
         },
@@ -442,14 +450,22 @@
          */
         async canChangeStatus() {
             try {
-                const profile = await getMyProfile();
-                if (!profile) return false;
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
 
                 // Roles que CAN cambiar estado de usuarios
                 const adminRoles = ['administrador', 'programador', 'supervisor'];
-                return adminRoles.includes((profile.role || '').toLowerCase());
+                return adminRoles.includes(userRole);
             } catch (err) {
-                console.warn('⚠️ Users.canChangeStatus:', err.message);
+                console.error('❌ Users.canChangeStatus ERROR:', err);
                 return false;
             }
         },
@@ -563,19 +579,25 @@
                 const allUsers = await this.getAll();
                 if (!allUsers.success) return allUsers;
 
-                const profile = await getMyProfile();
-                if (!profile) {
-                    console.warn('⚠️ Users.getAccessibleUsers: No hay perfil cargado');
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser) {
+                    console.warn('⚠️ Users.getAccessibleUsers: window.currentUser no disponible');
                     return allUsers; // Retornar todos si no hay perfil
                 }
 
+                const userRole = window.currentUser.role.toLowerCase().trim();
+
                 // Administrador ve todos
-                if ((profile.role || '').toLowerCase() === 'administrador') {
+                if (userRole === 'administrador') {
                     return allUsers;
                 }
 
                 // Otros roles ven solo su grupo (si aplica)
-                const userGroup = profile.groups?.[0] || profile.group;
+                const userGroup = window.currentUser.groups?.[0] || window.currentUser.group;
                 if (!userGroup) {
                     return allUsers; // Si no hay grupo, ver todos
                 }
@@ -790,129 +812,187 @@
          */
         async hasRole(requiredRole) {
             try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) return false;
+                // Esperar a que currentUser esté listo
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
 
-                const userRole = profile.role.toLowerCase();
+                if (!window.currentUser || !window.currentUser.role) {
+                    return false;
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+
                 if (typeof requiredRole === 'string') {
-                    return userRole === requiredRole.toLowerCase();
+                    return userRole === requiredRole.toLowerCase().trim();
                 }
-                if (Array.isArray(requiredRole)) {
-                    return requiredRole.some(r => userRole === r.toLowerCase());
-                }
-                return false;
-            } catch (err) {
-                console.warn('⚠️ API.hasRole:', err.message);
-                return false;
             }
-        },
+                if (Array.isArray(requiredRole)) {
+                return requiredRole.some(r => userRole === r.toLowerCase());
+            }
+            return false;
+        } catch(err) {
+            console.warn('⚠️ API.hasRole:', err.message);
+            return false;
+        }
+    },
 
         /**
          * Verificar si el usuario puede acceder a usuarios
          * @returns {Promise<boolean>}
          */
         async canAccessUsers() {
-            try {
-                const profile = await getMyProfile();
-                if (!profile) return false;
+        try {
+            // Esperar a que currentUser esté listo
+            if (window.currentUserReady) {
+                await window.currentUserReady;
+            }
 
-                // Roles que CAN acceder al módulo de usuarios
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
-                return accessRoles.includes((profile.role || '').toLowerCase());
-            } catch (err) {
-                console.warn('⚠️ API.canAccessUsers:', err.message);
+            if (!window.currentUser || !window.currentUser.role) {
+                console.warn('⚠️ canAccessUsers: window.currentUser no disponible');
                 return false;
             }
-        },
+
+            const userRole = window.currentUser.role.toLowerCase().trim();
+            console.log(`🔍 canAccessUsers: Verificando rol "${userRole}"`);
+
+            // Roles que CAN acceder al módulo de usuarios
+            const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
+            const hasAccess = accessRoles.includes(userRole);
+
+            console.log(`${hasAccess ? '✅' : '🔒'} canAccessUsers: ${hasAccess ? 'PERMITIDO' : 'DENEGADO'} para rol "${userRole}"`);
+
+            return hasAccess;
+        } catch (err) {
+            console.error('❌ API.canAccessUsers ERROR:', err);
+            return false;
+        }
+    },
 
         /**
          * Verificar si el usuario puede acceder a entidades
          * @returns {Promise<boolean>}
          */
         async canAccessEntities() {
-            try {
-                const profile = await getMyProfile();
-                if (!profile) return false;
+        try {
+            // Esperar a que currentUser esté listo
+            if (window.currentUserReady) {
+                await window.currentUserReady;
+            }
 
-                // Roles que CAN acceder al módulo de entidades
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-                return accessRoles.includes((profile.role || '').toLowerCase());
-            } catch (err) {
-                console.warn('⚠️ API.canAccessEntities:', err.message);
+            if (!window.currentUser || !window.currentUser.role) {
+                console.warn('⚠️ canAccessEntities: window.currentUser no disponible');
                 return false;
             }
-        },
+
+            const userRole = window.currentUser.role.toLowerCase().trim();
+
+            // Roles que CAN acceder al módulo de entidades
+            const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+            return accessRoles.includes(userRole);
+        } catch (err) {
+            console.error('❌ API.canAccessEntities ERROR:', err);
+            return false;
+        }
+    },
 
         /**
          * Verificar si el usuario puede acceder a compromisos
          * @returns {Promise<boolean>}
          */
         async canAccessCommitments() {
-            try {
-                const profile = await getMyProfile();
-                if (!profile) return false;
+        try {
+            // Esperar a que currentUser esté listo
+            if (window.currentUserReady) {
+                await window.currentUserReady;
+            }
 
-                // Roles que CAN acceder al módulo de compromisos
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-                return accessRoles.includes((profile.role || '').toLowerCase());
-            } catch (err) {
-                console.warn('⚠️ API.canAccessCommitments:', err.message);
+            if (!window.currentUser || !window.currentUser.role) {
+                console.warn('⚠️ canAccessCommitments: window.currentUser no disponible');
                 return false;
             }
-        },
 
-        /**
-         * Verificar si el usuario puede acceder a un módulo específico
-         * @param {string} moduleName - Nombre del módulo (usuarios, entidades, compromisos, etc)
-         * @returns {Promise<boolean>}
-         */
-        async canAccessModule(moduleName) {
-            try {
-                if (!moduleName) return false;
-                const method = `canAccess${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}`;
-                if (this[method] && typeof this[method] === 'function') {
-                    return await this[method]();
-                }
-                console.warn(`⚠️ Método ${method} no existe para validar acceso`);
-                return false;
-            } catch (err) {
-                console.warn(`⚠️ API.canAccessModule(${moduleName}):`, err.message);
-                return false;
-            }
-        },
+            const userRole = window.currentUser.role.toLowerCase().trim();
+
+            // Roles que CAN acceder al módulo de compromisos
+            const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+            return accessRoles.includes(userRole);
+        } catch (err) {
+            console.error('❌ API.canAccessCommitments ERROR:', err);
+            return false;
+        }
+    },
+    try {
+        const profile = await getMyProfile();
+        if (!profile) return false;
+
+        // Roles que CAN acceder al módulo de compromisos
+        const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
+        return accessRoles.includes((profile.role || '').toLowerCase());
+    } catch (err) {
+        console.warn('⚠️ API.canAccessCommitments:', err.message);
+        return false;
+    }
+},
+
+    /**
+     * Verificar si el usuario puede acceder a un módulo específico
+     * @param {string} moduleName - Nombre del módulo (usuarios, entidades, compromisos, etc)
+     * @returns {Promise<boolean>}
+     */
+    async canAccessModule(moduleName) {
+    try {
+        if (!moduleName) return false;
+        const method = `canAccess${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}`;
+        if (this[method] && typeof this[method] === 'function') {
+            return await this[method]();
+        }
+        console.warn(`⚠️ Método ${method} no existe para validar acceso`);
+        return false;
+    } catch (err) {
+        console.warn(`⚠️ API.canAccessModule(${moduleName}):`, err.message);
+        return false;
+    }
+},
 
         /**
          * Obtener el rol actual del usuario
          * @returns {Promise<string|null>}
          */
         async getCurrentRole() {
-            try {
-                const profile = await getMyProfile();
-                return profile?.role || null;
-            } catch (err) {
-                console.warn('⚠️ API.getCurrentRole:', err.message);
-                return null;
-            }
-        },
+    try {
+        // Esperar a que currentUser esté listo
+        if (window.currentUserReady) {
+            await window.currentUserReady;
+        }
+
+        return window.currentUser?.role || null;
+    } catch (err) {
+        console.error('❌ API.getCurrentRole ERROR:', err);
+        return null;
+    }
+},
 
         /**
          * Obtener el nombre del usuario actual
          * @returns {Promise<string|null>}
          */
         async getCurrentUserName() {
-            try {
-                const profile = await getMyProfile();
-                return profile?.full_name || profile?.name || profile?.email || null;
-            } catch (err) {
-                console.warn('⚠️ API.getCurrentUserName:', err.message);
-                return null;
-            }
-        },
+    try {
+        // Esperar a que currentUser esté listo
+        if (window.currentUserReady) {
+            await window.currentUserReady;
+        }
 
-        /**
-         * Método de acceso genérico para cualquier tabla
-         * Uso: window.API.getModule('mi_tabla').getAll()
-         */
+        if (!window.currentUser) {
+            return null;
+        }
+
+        return window.currentUser.full_name || window.currentUser.name || window.currentUser.email || null;
+    } catch (err) {
+        console.error('❌ API.getCurrentUserName ERROR:', err);
+     * Uso: window.API.getModule('mi_tabla').getAll()
+            */
         getModule(tableName) {
             if (!tableName || typeof tableName !== 'string') {
                 console.warn('⚠️ getModule: tableName debe ser string');
@@ -1028,5 +1108,5 @@
 
     console.log('✅ window.currentUserReady: Promesa creada');
 
-})();
+}) ();
 

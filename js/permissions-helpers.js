@@ -45,6 +45,21 @@
         CLIENTE: 'cliente'
     };
 
+    // Mapeo de alias de roles (para compatibilidad)
+    const ROLE_ALIASES = {
+        'admin': 'administrador',
+        'administrador': 'administrador',
+        'programmer': 'programador',
+        'programador': 'programador',
+        'auditor': 'auditor',
+        'auditor_senior': 'auditor_senior',
+        'supervisor': 'supervisor',
+        'socio': 'socio',
+        'partner': 'socio',
+        'cliente': 'cliente',
+        'client': 'cliente'
+    };
+
     // Jerarquía de roles (de mayor a menor permiso)
     const ROLE_HIERARCHY = {
         [VALID_ROLES.ADMIN]: 100,
@@ -131,47 +146,54 @@
      */
 
     /**
-     * Obtener perfil actual (cached desde API o window.currentUser)
-     * PRIORIDAD: window.currentUser (ya seteado por api-client.js)
-     * FALLBACK: window.API.getMyProfile()
+     * Obtener perfil actual (SIEMPRE desde window.currentUser)
+     * FUENTE DE VERDAD: window.currentUser
      * @returns {Promise<object|null>}
      */
     async function getMyProfile() {
         try {
-            // PRIORIDAD 1: Usar window.currentUser si ya está seteado
+            // PRIORIDAD 1: Si window.currentUser ya está disponible, usarlo directamente
             if (window.currentUser && window.currentUser.role) {
                 return window.currentUser;
             }
 
             // PRIORIDAD 2: Esperar a que currentUserReady se resuelva
             if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
-                console.log('⏳ Esperando window.currentUserReady...');
+                console.log('⏳ getMyProfile: Esperando window.currentUserReady...');
                 await window.currentUserReady;
+
                 if (window.currentUser && window.currentUser.role) {
                     return window.currentUser;
                 }
             }
 
-            // FALLBACK 3: Intentar cargar directamente desde API
-            if (!window.API || !window.API.getMyProfile) {
-                console.warn('⚠️ API no disponible para getMyProfile');
-                return null;
+            // ÚLTIMA OPCIÓN: Intentar cargar desde API
+            console.warn('⚠️ getMyProfile: window.currentUser no disponible, intentando cargar desde API...');
+            if (window.API && window.API.Users && window.API.Users.getCurrent) {
+                const result = await window.API.Users.getCurrent();
+                if (result.success && result.data) {
+                    return result.data;
+                }
             }
-            return await window.API.getMyProfile();
+
+            console.error('❌ getMyProfile: No se pudo obtener el perfil del usuario');
+            return null;
         } catch (err) {
-            console.warn('⚠️ Error obteniendo perfil:', err.message);
+            console.error('❌ getMyProfile ERROR:', err);
             return null;
         }
     }
 
     /**
-     * Normalizar nombre de rol (minúsculas, sin espacios)
+     * Normalizar nombre de rol (minúsculas, sin espacios) y resolver alias
      * @param {string} role
      * @returns {string}
      */
     function normalizeRole(role) {
         if (!role) return '';
-        return String(role).toLowerCase().trim();
+        const normalized = String(role).toLowerCase().trim();
+        // Resolver alias (ej: 'admin' -> 'administrador')
+        return ROLE_ALIASES[normalized] || normalized;
     }
 
     /**
@@ -207,7 +229,8 @@
          * Verificar si el usuario tiene UN O VARIOS de estos roles
          * 
          * Uso:
-         *   await hasRole('admin')
+         *   await hasRole('admin')          // soporta alias
+         *   await hasRole('administrador')  // nombre completo
          *   await hasRole(['admin', 'programador'])
          *   await hasRole('socio')
          * 
@@ -216,30 +239,46 @@
          */
         async hasRole(roles) {
             try {
-                // Obtener perfil (prioriza window.currentUser)
-                const profile = await getMyProfile();
+                // PASO 1: Obtener usuario actual (prioriza window.currentUser)
+                let currentUser = window.currentUser;
 
-                if (!profile || !profile.role) {
-                    console.warn('⚠️ PermissionsHelper.hasRole: No hay perfil válido');
+                // Si no está disponible, esperar a la promesa
+                if (!currentUser && window.currentUserReady) {
+                    console.log('⏳ hasRole: Esperando window.currentUserReady...');
+                    await window.currentUserReady;
+                    currentUser = window.currentUser;
+                }
+
+                // PASO 2: Validar que tengamos un usuario
+                if (!currentUser || !currentUser.role) {
+                    console.warn('⚠️ hasRole: window.currentUser no disponible o sin rol');
+                    console.log('   window.currentUser:', currentUser);
                     return false;
                 }
 
-                const userRole = normalizeRole(profile.role);
+                // PASO 3: Normalizar el rol del usuario (resuelve alias)
+                const userRole = normalizeRole(currentUser.role);
+                console.log(`🔍 hasRole: Usuario actual tiene rol: "${currentUser.role}" (normalizado: "${userRole}")`);
+
+                // PASO 4: Normalizar los roles a verificar
                 const rolesToCheck = Array.isArray(roles) ? roles : [roles];
+                const normalizedRolesToCheck = rolesToCheck.map(r => normalizeRole(r));
 
-                const hasPermission = rolesToCheck.some(r => normalizeRole(r) === userRole);
+                console.log(`🔍 hasRole: Verificando si "${userRole}" está en [${normalizedRolesToCheck.join(', ')}]`);
 
-                if (!hasPermission) {
-                    console.log(`🔒 hasRole: Usuario ${profile.name} (${userRole}) NO tiene rol(es): ${rolesToCheck.join(', ')}`);
+                // PASO 5: Verificar si el usuario tiene alguno de los roles
+                const hasPermission = normalizedRolesToCheck.includes(userRole);
+
+                if (hasPermission) {
+                    console.log(`✅ hasRole: Usuario ${currentUser.name} (${userRole}) TIENE rol requerido`);
+                } else {
+                    console.log(`🔒 hasRole: Usuario ${currentUser.name} (${userRole}) NO tiene rol(es): [${normalizedRolesToCheck.join(', ')}]`);
                 }
 
                 return hasPermission;
             } catch (err) {
-                console.warn('⚠️ PermissionsHelper.hasRole:', err.message);
-                return false;
-            }
-        },
-
+                console.error('❌ PermissionsHelper.hasRole ERROR:', err);
+                console.log('   window.currentUser:', window.currentUser);
         /**
          * Verificar si el usuario tiene TODOS estos roles (conjunción)
          * 
@@ -249,19 +288,19 @@
          * @returns {Promise<boolean>}
          */
         async hasAllRoles(roles) {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) return false;
+                    try {
+                        const profile = await getMyProfile();
+                        if (!profile || !profile.role) return false;
 
-                const userRole = normalizeRole(profile.role);
-                const rolesToCheck = Array.isArray(roles) ? roles : [roles];
+                        const userRole = normalizeRole(profile.role);
+                        const rolesToCheck = Array.isArray(roles) ? roles : [roles];
 
-                return rolesToCheck.every(r => normalizeRole(r) === userRole);
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.hasAllRoles:', err.message);
-                return false;
-            }
-        },
+                        return rolesToCheck.every(r => normalizeRole(r) === userRole);
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.hasAllRoles:', err.message);
+                        return false;
+                    }
+                },
 
         /**
          * Verificar si el usuario PUEDE hacer una acción en un recurso
@@ -276,22 +315,22 @@
          * @returns {Promise<boolean>}
          */
         async hasPermission(action, resource) {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) {
-                    console.warn('⚠️ No hay perfil para validar permiso');
-                    return false;
-                }
+                    try {
+                        const profile = await getMyProfile();
+                        if (!profile || !profile.role) {
+                            console.warn('⚠️ No hay perfil para validar permiso');
+                            return false;
+                        }
 
-                const userRole = normalizeRole(profile.role);
-                const perms = getPermissionsForRole(userRole, resource);
+                        const userRole = normalizeRole(profile.role);
+                        const perms = getPermissionsForRole(userRole, resource);
 
-                return perms.includes(action.toLowerCase());
-            } catch (err) {
-                console.warn(`⚠️ PermissionsHelper.hasPermission(${action}, ${resource}):`, err.message);
-                return false;
-            }
-        },
+                        return perms.includes(action.toLowerCase());
+                    } catch (err) {
+                        console.warn(`⚠️ PermissionsHelper.hasPermission(${action}, ${resource}):`, err.message);
+                        return false;
+                    }
+                },
 
         /**
          * Verificar si el usuario PUEDE acceder a un módulo completo
@@ -304,24 +343,24 @@
          * @returns {Promise<boolean>}
          */
         async canAccessModule(module) {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) return false;
+                    try {
+                        const profile = await getMyProfile();
+                        if (!profile || !profile.role) return false;
 
-                const userRole = normalizeRole(profile.role);
-                const moduleName = (module || '').toLowerCase();
+                        const userRole = normalizeRole(profile.role);
+                        const moduleName = (module || '').toLowerCase();
 
-                if (!MODULES_ACCESS[moduleName]) {
-                    console.warn(`⚠️ Módulo "${moduleName}" no definido`);
-                    return false;
-                }
+                        if (!MODULES_ACCESS[moduleName]) {
+                            console.warn(`⚠️ Módulo "${moduleName}" no definido`);
+                            return false;
+                        }
 
-                return MODULES_ACCESS[moduleName].includes(userRole);
-            } catch (err) {
-                console.warn(`⚠️ PermissionsHelper.canAccessModule(${module}):`, err.message);
-                return false;
-            }
-        },
+                        return MODULES_ACCESS[moduleName].includes(userRole);
+                    } catch (err) {
+                        console.warn(`⚠️ PermissionsHelper.canAccessModule(${module}):`, err.message);
+                        return false;
+                    }
+                },
 
         /**
          * Verificar si el rol es superior o igual a otro en la jerarquía
@@ -335,33 +374,33 @@
          * @returns {Promise<boolean>} true si role1 >= role2 en jerarquía
          */
         async isRoleHigherOrEqual(role1, role2) {
-            try {
-                const r1 = normalizeRole(role1);
-                const r2 = normalizeRole(role2);
+                    try {
+                        const r1 = normalizeRole(role1);
+                        const r2 = normalizeRole(role2);
 
-                const score1 = ROLE_HIERARCHY[r1] || 0;
-                const score2 = ROLE_HIERARCHY[r2] || 0;
+                        const score1 = ROLE_HIERARCHY[r1] || 0;
+                        const score2 = ROLE_HIERARCHY[r2] || 0;
 
-                return score1 >= score2;
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.isRoleHigherOrEqual:', err.message);
-                return false;
-            }
-        },
+                        return score1 >= score2;
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.isRoleHigherOrEqual:', err.message);
+                        return false;
+                    }
+                },
 
         /**
          * Obtener el rol actual del usuario
          * @returns {Promise<string|null>}
          */
         async getCurrentRole() {
-            try {
-                const profile = await getMyProfile();
-                return profile?.role || null;
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.getCurrentRole:', err.message);
-                return null;
-            }
-        },
+                    try {
+                        const profile = await getMyProfile();
+                        return profile?.role || null;
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.getCurrentRole:', err.message);
+                        return null;
+                    }
+                },
 
         /**
          * Obtener todos los permisos del usuario para un recurso
@@ -374,17 +413,17 @@
          * @returns {Promise<Array<string>>}
          */
         async getPermissions(resource) {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) return [];
+                    try {
+                        const profile = await getMyProfile();
+                        if (!profile || !profile.role) return [];
 
-                const userRole = normalizeRole(profile.role);
-                return getPermissionsForRole(userRole, resource);
-            } catch (err) {
-                console.warn(`⚠️ PermissionsHelper.getPermissions(${resource}):`, err.message);
-                return [];
-            }
-        },
+                        const userRole = normalizeRole(profile.role);
+                        return getPermissionsForRole(userRole, resource);
+                    } catch (err) {
+                        console.warn(`⚠️ PermissionsHelper.getPermissions(${resource}):`, err.message);
+                        return [];
+                    }
+                },
 
         /**
          * UTILIDAD: Deshabilitar elemento si NO tiene permiso
@@ -402,27 +441,27 @@
          * @param {string} tooltipText - Texto del tooltip al deshabilitar
          */
         async disableIfNoPermission(element, action, resource, tooltipText) {
-            try {
-                const el = typeof element === 'string'
-                    ? document.getElementById(element)
-                    : element;
+                    try {
+                        const el = typeof element === 'string'
+                            ? document.getElementById(element)
+                            : element;
 
-                if (!el) {
-                    console.warn(`⚠️ Elemento no encontrado: ${element}`);
-                    return;
-                }
+                        if (!el) {
+                            console.warn(`⚠️ Elemento no encontrado: ${element}`);
+                            return;
+                        }
 
-                const hasPermission = await this.hasPermission(action, resource);
-                if (!hasPermission) {
-                    el.disabled = true;
-                    el.title = tooltipText || `No tienes permiso para ${action}`;
-                    el.style.opacity = '0.5';
-                    el.style.cursor = 'not-allowed';
-                }
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.disableIfNoPermission:', err.message);
-            }
-        },
+                        const hasPermission = await this.hasPermission(action, resource);
+                        if (!hasPermission) {
+                            el.disabled = true;
+                            el.title = tooltipText || `No tienes permiso para ${action}`;
+                            el.style.opacity = '0.5';
+                            el.style.cursor = 'not-allowed';
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.disableIfNoPermission:', err.message);
+                    }
+                },
 
         /**
          * UTILIDAD: Ocultar elemento si NO tiene permiso
@@ -438,24 +477,24 @@
          * @param {string} resource - Recurso
          */
         async hideIfNoPermission(element, action, resource) {
-            try {
-                const el = typeof element === 'string'
-                    ? document.getElementById(element)
-                    : element;
+                    try {
+                        const el = typeof element === 'string'
+                            ? document.getElementById(element)
+                            : element;
 
-                if (!el) {
-                    console.warn(`⚠️ Elemento no encontrado: ${element}`);
-                    return;
-                }
+                        if (!el) {
+                            console.warn(`⚠️ Elemento no encontrado: ${element}`);
+                            return;
+                        }
 
-                const hasPermission = await this.hasPermission(action, resource);
-                if (!hasPermission) {
-                    el.style.display = 'none';
-                }
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.hideIfNoPermission:', err.message);
-            }
-        },
+                        const hasPermission = await this.hasPermission(action, resource);
+                        if (!hasPermission) {
+                            el.style.display = 'none';
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.hideIfNoPermission:', err.message);
+                    }
+                },
 
         /**
          * UTILIDAD: Verificar permiso y lanzar error si no lo tiene
@@ -470,23 +509,23 @@
          * @returns { Promise < boolean >} true si tiene permiso, false si no
         **/
         async checkPermissionOrFail(action, resource, errorMsg) {
-            try {
-                const hasPermission = await this.hasPermission(action, resource);
-                if (!hasPermission) {
-                    console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
-                    if (errorMsg && window.API?.showError) {
-                        window.API.showError(errorMsg);
-                    } else if (errorMsg) {
-                        alert(errorMsg);
+                    try {
+                        const hasPermission = await this.hasPermission(action, resource);
+                        if (!hasPermission) {
+                            console.warn(`🚫 Permiso denegado: ${action} en ${resource}`);
+                            if (errorMsg && window.API?.showError) {
+                                window.API.showError(errorMsg);
+                            } else if (errorMsg) {
+                                alert(errorMsg);
+                            }
+                            return false;
+                        }
+                        return true;
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
+                        return false;
                     }
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.checkPermissionOrFail:', err.message);
-                return false;
-            }
-        },
+                },
 
         /**
          * UTILIDAD: Mostrar "acceso denegado" si no tiene acceso al módulo
@@ -500,25 +539,25 @@
          * @returns {Promise<boolean>}
          */
         async requireModuleAccess(module, containerId = 'alertContainer') {
-            try {
-                const hasAccess = await this.canAccessModule(module);
-                if (!hasAccess) {
-                    console.error(`❌ Acceso denegado al módulo: ${module}`);
-                    if (window.API?.showError) {
-                        window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+                    try {
+                        const hasAccess = await this.canAccessModule(module);
+                        if (!hasAccess) {
+                            console.error(`❌ Acceso denegado al módulo: ${module}`);
+                            if (window.API?.showError) {
+                                window.API.showError(`❌ No tienes permiso para acceder a ${module}`, containerId);
+                            }
+                            return false;
+                        }
+                        return true;
+                    } catch (err) {
+                        console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
+                        return false;
                     }
-                    return false;
                 }
-                return true;
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.requireModuleAccess:', err.message);
-                return false;
-            }
-        }
-    };
+            };
 
-    console.log('✅ permissions-helpers.js: Sistema de permisos cargado (window.PermissionsHelper SIEMPRE disponible)');
-    console.log('   Roles válidos:', Object.keys(VALID_ROLES).map(k => VALID_ROLES[k]).join(', '));
-    console.log('   Métodos públicos:', ['hasRole()', 'hasPermission()', 'canAccessModule()', 'getCurrentRole()', 'disableIfNoPermission()', 'hideIfNoPermission()', 'checkPermissionOrFail()'].join(', '));
+            console.log('✅ permissions-helpers.js: Sistema de permisos cargado (window.PermissionsHelper SIEMPRE disponible)');
+            console.log('   Roles válidos:', Object.keys(VALID_ROLES).map(k => VALID_ROLES[k]).join(', '));
+            console.log('   Métodos públicos:', ['hasRole()', 'hasPermission()', 'canAccessModule()', 'getCurrentRole()', 'disableIfNoPermission()', 'hideIfNoPermission()', 'checkPermissionOrFail()'].join(', '));
 
-})();
+        })();
