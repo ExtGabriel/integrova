@@ -3,6 +3,12 @@
  * 
  * Verifica autenticación con Supabase y protege rutas de forma DEFENSIVA.
  * 
+ * ✅ CORRECCIÓN DEL LOOP DE LOGOUT:
+ * - Implementa flag window.__MANUAL_LOGOUT__ para bloquear rehidratación
+ * - SIGNED_OUT tiene prioridad absoluta
+ * - INITIAL_SESSION no reinyecta sesión después de logout manual
+ * - UNA SOLA llamada a onAuthStateChange en todo el proyecto
+ * 
  * REQUISITO: supabaseClient.js debe cargarse ANTES de este archivo
  * 
  * INTERFAZ PÚBLICA:
@@ -16,6 +22,12 @@
 
     const USER_UI_KEY = 'userUI';
     let authStateInitialized = false;
+
+    // 🔒 FLAG DE LOGOUT MANUAL - PREVIENE RE-LOGIN AUTOMÁTICO
+    // Este flag se setea antes de signOut() y bloquea cualquier rehidratación
+    if (typeof window.__MANUAL_LOGOUT__ === 'undefined') {
+        window.__MANUAL_LOGOUT__ = false;
+    }
 
     /**
      * ==========================================
@@ -41,7 +53,7 @@
 
             return data.session;
         } catch (err) {
-            console.warn('⚠️ Error obteniendo sesión silenciosamente:', err.message);
+            console.error('❌ Error obteniendo sesión:', err.message);
             return null;
         }
     }
@@ -67,58 +79,44 @@
      */
     async function loadUserProfile() {
         try {
-            // Verificar si ya está en sessionStorage (caché)
-            const cached = getUserUI();
-            if (cached && cached.id) {
-                return cached;
-            }
-
-            // Obtener sesión actual
-            const session = await getSessionSilent();
-            if (!session || !session.user) {
+            const client = await window.getSupabaseClient();
+            if (!client) {
+                console.warn('⚠️ Cliente Supabase no disponible para cargar perfil');
                 return null;
             }
 
-            // Intentar cargar desde tabla users (puede no existir aún)
-            if (!window.API || !window.API.Users || !window.API.Users.getById) {
-                console.warn('⚠️ API.Users no disponible');
-                // Retornar datos mínimos del usuario de Supabase
-                return {
-                    id: session.user.id,
-                    name: session.user.email || 'Usuario',
-                    email: session.user.email,
-                    role: 'usuario'
-                };
+            // Obtener usuario autenticado
+            const { data: { user }, error: userError } = await client.auth.getUser();
+            if (userError || !user) {
+                console.warn('⚠️ No hay usuario autenticado:', userError?.message);
+                return null;
             }
 
-            const result = await window.API.Users.getById(session.user.id);
-            if (!result.success || !result.data) {
-                // Tabla no existe o usuario no encontrado - retornar datos de Supabase
-                return {
-                    id: session.user.id,
-                    name: session.user.email || 'Usuario',
-                    email: session.user.email,
-                    role: 'usuario'
-                };
-            }
+            // Intentar obtener perfil de users table
+            const { data, error } = await client
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
 
-            // Construir datos de UI desde tabla users
-            const uiData = {
-                id: result.data.id,
-                name: result.data.full_name || session.user.email || 'Usuario',
-                email: result.data.email || session.user.email,
-                role: result.data.role || 'usuario',
-                username: result.data.username || null,
-                phone: result.data.phone || null,
-                groups: Array.isArray(result.data.groups) ? result.data.groups : []
-            };
+            if (error) {
+                // Si la tabla no existe, crear un perfil básico desde el usuario de auth
+                console.warn('⚠️ Error cargando perfil (tabla users puede no existir):', error.message);
+                const fallbackProfile = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.email?.split('@')[0] || 'Usuario',
+                    role: 'cliente'
+                };
+                sessionStorage.setItem(USER_UI_KEY, JSON.stringify(fallbackProfile));
+                return fallbackProfile;
+            }
 
             // Guardar en sessionStorage
-            sessionStorage.setItem(USER_UI_KEY, JSON.stringify(uiData));
-            return uiData;
-
+            sessionStorage.setItem(USER_UI_KEY, JSON.stringify(data));
+            return data;
         } catch (err) {
-            console.warn('⚠️ Error cargando perfil de usuario:', err.message);
+            console.error('❌ Error en loadUserProfile:', err.message);
             return null;
         }
     }
@@ -131,28 +129,48 @@
 
     /**
      * Cierra la sesión de Supabase y redirige a login
+     * ✅ CORRECCIÓN: Implementa flag de logout manual
      * Función global: window.logout()
      */
     async function logout() {
         try {
-            // Limpiar sessionStorage
-            sessionStorage.removeItem(USER_UI_KEY);
+            console.log('🔓 logout(): Iniciando cierre de sesión...');
 
-            // Cerrar sesión en Supabase
+            // 🔒 PASO 1: ACTIVAR FLAG DE LOGOUT MANUAL
+            // Este flag previene que INITIAL_SESSION reinyecte la sesión
+            window.__MANUAL_LOGOUT__ = true;
+            console.log('🚫 Flag __MANUAL_LOGOUT__ activado - Bloqueando rehidratación');
+
+            // PASO 2: Limpiar sessionStorage
+            sessionStorage.removeItem(USER_UI_KEY);
+            sessionStorage.removeItem('userSession');
+
+            // PASO 3: Limpiar estado del cliente
+            if (window.appSession) {
+                window.appSession = null;
+            }
+            if (window.readNotificationsCache) {
+                window.readNotificationsCache = [];
+            }
+
+            // PASO 4: Cerrar sesión en Supabase
             if (window.getSupabaseClient) {
                 const client = await window.getSupabaseClient();
                 if (client) {
+                    console.log('📤 Ejecutando client.auth.signOut()...');
                     await client.auth.signOut().catch(err => {
-                        console.warn('⚠️ Error al signOut:', err.message);
+                        console.warn('⚠️ Error al signOut (no crítico):', err.message);
                     });
                 }
             }
 
-            // Redirigir a login
+            // PASO 5: Redirigir a login
+            console.log('➡️ Redirigiendo a login...');
             window.location.href = 'login.html';
         } catch (error) {
             console.warn('⚠️ Error en logout:', error.message);
-            // Forzar redirección incluso si hay error
+            // Asegurar flag y redirección incluso si hay error
+            window.__MANUAL_LOGOUT__ = true;
             window.location.href = 'login.html';
         }
     }
@@ -181,6 +199,14 @@
 
         try {
             console.log('🔐 protectPage: Validando autenticación...');
+
+            // ✅ VERIFICAR FLAG DE LOGOUT MANUAL
+            // Si el usuario hizo logout manual, NO continuar con la página
+            if (window.__MANUAL_LOGOUT__) {
+                console.warn('🚫 protectPage: Logout manual detectado, redirigiendo...');
+                window.location.href = 'login.html';
+                return;
+            }
 
             // PASO 1: Esperar a que Supabase esté inicializado
             if (!window.getSupabaseClient) {
@@ -220,6 +246,7 @@
 
     /**
      * Configurar listener de cambios de estado de autenticación
+     * ✅ CORRECCIÓN: Respeta flag de logout manual
      * Redirige a login SOLO cuando el usuario hace logout
      */
     function setupAuthStateListener() {
@@ -238,15 +265,36 @@
             window.getSupabaseClient().then(client => {
                 if (!client) return;
 
-                // Escuchar eventos de autenticación
+                // 🎯 ÚNICA LLAMADA A onAuthStateChange EN TODO EL PROYECTO
                 client.auth.onAuthStateChange((event, session) => {
-                    console.log(`🔔 Auth State Changed: ${event}`, session ? '✅ Signed in' : '❌ Signed out');
+                    console.log(`🔔 Auth State Changed: ${event}`, session ? '✅ Con sesión' : '❌ Sin sesión');
 
-                    // SOLO redirigir cuando el evento es SIGNED_OUT
+                    // ✅ BLOQUEO 1: Si hay logout manual, ignorar INITIAL_SESSION
+                    if (window.__MANUAL_LOGOUT__) {
+                        if (event === 'INITIAL_SESSION') {
+                            console.log('🚫 INITIAL_SESSION ignorado - Logout manual activo');
+                            return; // NO hacer nada, el usuario cerró sesión manualmente
+                        }
+                    }
+
+                    // ✅ BLOQUEO 2: SIGNED_OUT tiene prioridad absoluta
                     if (event === 'SIGNED_OUT' || (event === 'USER_UPDATED' && !session)) {
-                        console.log('🔓 Usuario desconectado. Redirigiendo a login...');
+                        console.log('🔓 Usuario desconectado. Limpiando estado...');
+                        window.__MANUAL_LOGOUT__ = true; // Asegurar que está bloqueado
                         sessionStorage.removeItem(USER_UI_KEY);
-                        window.location.href = 'login.html';
+                        sessionStorage.removeItem('userSession');
+
+                        // Redirigir SOLO una vez
+                        if (window.location.pathname.toLowerCase().indexOf('login.html') === -1) {
+                            console.log('➡️ Redirigiendo a login...');
+                            window.location.href = 'login.html';
+                        }
+                    }
+
+                    // ✅ BLOQUEO 3: TOKEN_REFRESHED y USER_UPDATED no deben reloguear
+                    if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                        console.log(`ℹ️ Evento ${event} - No se requiere acción`);
+                        // NO redirigir, NO recargar página
                     }
                 });
 
@@ -319,6 +367,7 @@
     };
 
     console.log('✅ Auth Guard inicializado (vanilla JS)');
+    console.log('🔒 Logout loop protection: ACTIVADO');
     console.log('📌 Usar: window.protectPage(() => { initializePage(); })');
 
 })();

@@ -115,6 +115,12 @@
                 console.log('✅ login.html: Supabase disponible');
 
                 // Verificar si hay sesión activa
+                // ✅ CORRECCIÓN: No redirigir si hay logout manual
+                if (window.__MANUAL_LOGOUT__) {
+                    console.log('🚫 Logout manual detectado - No redirigir automáticamente');
+                    return;
+                }
+
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session?.user) {
                     console.log('✅ login.html: Sesión activa detectada, redirigiendo...');
@@ -151,6 +157,11 @@
 
                         if (data?.session?.user) {
                             console.log('✅ login.html: Login exitoso, redirigiendo...');
+
+                            // 🔓 Limpiar flag de logout manual (permitir sesión)
+                            window.__MANUAL_LOGOUT__ = false;
+                            console.log('✅ Flag __MANUAL_LOGOUT__ desactivado - Login permitido');
+
                             showAlert('¡Bienvenido!', 'success', 1000);
                             setTimeout(() => {
                                 window.location.href = 'dashboard.html';
