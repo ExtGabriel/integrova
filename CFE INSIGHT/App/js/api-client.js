@@ -45,6 +45,19 @@
 
     /**
      * ==========================================
+     * CONSTANTES GLOBALES - VALIDACIÓN DE ROLES
+     * ==========================================
+     * 
+     * Solo dos roles existen en public.users.role:
+     * - 'admin': Administrador del sistema
+     * - 'user': Usuario normal
+     * 
+     * NO hay roles legacy (administrador, socio, auditor, etc.)
+     */
+    const VALID_GLOBAL_ROLES = ['admin', 'user'];
+
+    /**
+     * ==========================================
      * HELPER: MÓDULOS SEGUROS - TOLERANCIA A TABLAS INEXISTENTES
      * ==========================================
      * 
@@ -593,8 +606,39 @@
     };
 
     /**
-     * Módulo: Entity Users (Usuarios asignados a entidades)
-     * ✅ Gestiona la tabla entity_users con RLS
+     * ==========================================
+     * MÓDULO: ENTITY USERS (Usuarios por Entidad)
+     * ==========================================
+     * 
+     * Gestiona la tabla public.entity_users
+     * ROLES PERMITIDOS: 'owner', 'auditor', 'viewer'
+     * 
+     * IMPORTANTE: 
+     * - Estos NO son roles globales (public.users.role)
+     * - Son roles POR ENTIDAD (asignaciones específicas)
+     * 
+     * ARQUITECTURA:
+     * - entity_users.role: 'owner' | 'auditor' | 'viewer'
+     * - users.role: 'admin' | 'user' (roles globales)
+     * 
+     * EJEMPLO DE USO:
+     * ```javascript
+     * // Asignar usuario como owner
+     * const result = await API.EntityUsers.assign('entity-123', 'user-456', 'owner');
+     * 
+     * // Cambiar rol a auditor
+     * await API.EntityUsers.updateRole('entity-123', 'user-456', 'auditor');
+     * 
+     * // Obtener rol actual
+     * const { data } = await API.EntityUsers.getUserRole('entity-123', 'user-456');
+     * console.log(data.role); // 'auditor'
+     * 
+     * // Listar todos los usuarios de una entidad
+     * const { data: users } = await API.EntityUsers.listByEntity('entity-123');
+     * 
+     * // Remover usuario
+     * await API.EntityUsers.remove('entity-123', 'user-456');
+     * ```
      */
     const ENTITY_USER_ROLES = ['owner', 'auditor', 'viewer'];
     const entityUserHooks = { assign: [], updateRole: [], remove: [] };
@@ -639,13 +683,34 @@
     }
 
     const EntityUsersModule = {
+        // Constantes públicas
         ALLOWED_ROLES: ENTITY_USER_ROLES,
+
+        // Sistema de hooks
         on: registerEntityUserHook,
 
         /**
          * Listar usuarios asignados a una entidad específica
+         * 
          * @param {string|number} entityId - ID de la entidad
          * @returns {Promise<{data: Array, error: null|string}>}
+         * 
+         * Formato de retorno:
+         * {
+         *   data: [
+         *     {
+         *       id: number,
+         *       entity_id: string,
+         *       user_id: string,
+         *       role: 'owner'|'auditor'|'viewer',
+         *       created_at: string,
+         *       user_name: string,
+         *       user_email: string,
+         *       user_role: 'admin'|'user'
+         *     }
+         *   ],
+         *   error: null
+         * }
          */
         async listByEntity(entityId) {
             try {
@@ -707,7 +772,17 @@
         },
 
         /**
-         * Asignar un usuario a una entidad (roles: owner | auditor | viewer)
+         * Asignar un usuario a una entidad
+         * 
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @param {string} role - Rol a asignar: 'owner' | 'auditor' | 'viewer'
+         * @returns {Promise<{data: object|null, error: string|null}>}
+         * 
+         * Validaciones:
+         * - Solo admins pueden asignar usuarios
+         * - Roles válidos: owner, auditor, viewer
+         * - NO usa users.role (usa entity_users.role)
          */
         async assign(entityId, userId, role) {
             try {
@@ -765,6 +840,15 @@
 
         /**
          * Actualizar rol de un usuario en una entidad
+         * 
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @param {string} role - Nuevo rol: 'owner' | 'auditor' | 'viewer'
+         * @returns {Promise<{data: object|null, error: string|null}>}
+         * 
+         * IMPORTANTE:
+         * - Cambia el rol en entity_users (NO en users)
+         * - Solo admins pueden cambiar roles
          */
         async updateRole(entityId, userId, role) {
             try {
@@ -808,6 +892,15 @@
 
         /**
          * Remover un usuario de una entidad
+         * 
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @returns {Promise<{data: object|null, error: string|null}>}
+         * 
+         * NOTA:
+         * - Elimina la relación en entity_users
+         * - NO afecta users.role (rol global)
+         * - Solo admins pueden remover usuarios
          */
         async remove(entityId, userId) {
             try {
@@ -838,6 +931,66 @@
                 return { data: { entity_id: entityId, user_id: userId }, error: null };
             } catch (err) {
                 console.error('❌ [EntityUsers.remove] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        /**
+         * Obtener el rol de un usuario en una entidad específica
+         * 
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @returns {Promise<{data: object|null, error: string|null}>}
+         * 
+         * Formato de retorno exitoso:
+         * {
+         *   data: {
+         *     role: 'owner'|'auditor'|'viewer',
+         *     entity_id: string,
+         *     user_id: string,
+         *     created_at: string
+         *   },
+         *   error: null
+         * }
+         * 
+         * Si no tiene rol asignado:
+         * { data: null, error: null }
+         */
+        async getUserRole(entityId, userId) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { data: null, error: 'Supabase no disponible' };
+                }
+
+                if (!entityId || !userId) {
+                    return { data: null, error: 'entityId y userId son requeridos' };
+                }
+
+                const { data, error } = await client
+                    .from('entity_users')
+                    .select('role, entity_id, user_id, created_at')
+                    .eq('entity_id', entityId)
+                    .eq('user_id', userId)
+                    .maybeSingle();
+
+                if (error) {
+                    // Tolerar tabla inexistente
+                    if (handleTableNotFound(error, 'entity_users')) {
+                        return { data: null, error: null };
+                    }
+                    console.error('❌ [EntityUsers.getUserRole] Error:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                // Si no hay asignación, retornar null sin error
+                if (!data) {
+                    return { data: null, error: null };
+                }
+
+                return { data, error: null };
+            } catch (err) {
+                console.error('❌ [EntityUsers.getUserRole] Excepción:', err);
                 return { data: null, error: err.message };
             }
         },
@@ -940,9 +1093,8 @@
                     return { success: false, error: 'Email, contraseña, nombre y rol son requeridos' };
                 }
 
-                const allowedRoles = ['admin', 'user'];
                 const normalizedRole = userData.role.toLowerCase();
-                if (!allowedRoles.includes(normalizedRole)) {
+                if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
                     return { success: false, error: 'Rol inválido. Solo se permiten roles globales: admin o user' };
                 }
 
@@ -997,12 +1149,19 @@
 
         /**
          * Cambiar rol de un usuario
+         * 
+         * VALIDACIONES:
+         * - Solo acepta 'admin' o 'user' (roles globales)
+         * - NO acepta roles de entidad (owner, auditor, viewer)
+         * - Valida antes de enviar a Supabase
+         * 
          * @param {string} userId - ID del usuario
          * @param {string} newRole - Nuevo rol (admin | user)
          * @returns {Promise<{success: boolean, data: *, error: *}>}
          */
         async updateRole(userId, newRole) {
             try {
+                // Validación de entrada
                 if (!userId || !newRole || typeof newRole !== 'string') {
                     return {
                         success: false,
@@ -1010,10 +1169,23 @@
                     };
                 }
 
-                const allowedRoles = ['admin', 'user'];
-                const normalizedRole = newRole.toLowerCase();
-                if (!allowedRoles.includes(normalizedRole)) {
-                    return { success: false, error: 'Rol inválido. Solo admin o user están permitidos' };
+                const normalizedRole = newRole.toLowerCase().trim();
+
+                // Validación contra VALID_GLOBAL_ROLES
+                if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
+                    return {
+                        success: false,
+                        error: `Rol inválido: "${normalizedRole}". Solo se permiten roles globales: ${VALID_GLOBAL_ROLES.join(', ')}`
+                    };
+                }
+
+                // Validar que NO sea un rol de entidad
+                const ENTITY_ROLES = ['owner', 'auditor', 'viewer'];
+                if (ENTITY_ROLES.includes(normalizedRole)) {
+                    return {
+                        success: false,
+                        error: `${normalizedRole} es un rol de entidad, no global. Use 'admin' o 'user'`
+                    };
                 }
 
                 const client = await getSupabaseClient();
@@ -1036,26 +1208,40 @@
                         hint: error.hint
                     });
 
-                    // Manejo de errores específicos
-                    if (error.code === 'PGRST301' || error.code === '42501') {
-                        return { success: false, error: '❌ Acceso denegado: No tienes permiso para cambiar roles' };
-                    }
-                    if (error.code === '401' || error.message?.includes('401')) {
-                        return { success: false, error: '❌ No autorizado: Necesitas autenticarte' };
-                    }
-                    if (error.code === 'PGRST116' || error.code === '42P01') {
-                        return { success: false, error: '❌ Tabla de usuarios no existe' };
-                    }
-                    // Error 400 - probablemente validación de datos
-                    if (error.code === '400' || error.message?.includes('400')) {
-                        return { success: false, error: `❌ Datos inválidos: ${error.message}` };
+                    // MANEJO DE ERRORES ESPECÍFICOS
+                    // Error 23514: Violación de constraint en BD
+                    if (error.code === '23514') {
+                        return {
+                            success: false,
+                            error: 'El rol no cumple con los constraints de BD. Asegúrate de usar solo: admin o user'
+                        };
                     }
 
-                    // Error genérico con mensaje real
+                    // Acceso denegado
+                    if (error.code === 'PGRST301' || error.code === '42501') {
+                        return { success: false, error: 'Acceso denegado: No tienes permiso para cambiar roles' };
+                    }
+
+                    // No autorizado
+                    if (error.code === '401' || error.message?.includes('401')) {
+                        return { success: false, error: 'No autorizado: Necesitas autenticarte' };
+                    }
+
+                    // Tabla no existe
+                    if (error.code === 'PGRST116' || error.code === '42P01') {
+                        return { success: false, error: 'Tabla de usuarios no existe' };
+                    }
+
+                    // Datos inválidos
+                    if (error.code === '400' || error.message?.includes('400')) {
+                        return { success: false, error: `Datos inválidos: ${error.message}` };
+                    }
+
+                    // Error genérico
                     return { success: false, error: error.message || 'Error al cambiar rol' };
                 }
 
-                console.log(`✅ Rol actualizado para usuario ${userId} → ${newRole}`);
+                console.log(`✅ Rol actualizado para usuario ${userId} → ${normalizedRole}`);
                 return { success: true, data: data?.[0] || null };
             } catch (err) {
                 console.error('❌ Users.updateRole excepción:', err.message);
@@ -1238,6 +1424,13 @@
                 }
 
                 profile.role = String(profile.role).trim().toLowerCase();
+
+                // VALIDAR que el rol sea válido (solo admin o user)
+                if (!VALID_GLOBAL_ROLES.includes(profile.role)) {
+                    const error = `Rol inválido en BD: "${profile.role}". Solo se permiten: ${VALID_GLOBAL_ROLES.join(', ')}`;
+                    console.error('❌ Users.getCurrent:', error);
+                    return { success: false, data: null, error };
+                }
 
                 // PASO 4: Validar is_active
                 if (profile.is_active === false) {
