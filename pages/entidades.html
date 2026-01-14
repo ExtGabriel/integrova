@@ -950,7 +950,7 @@
                 }
 
                 // Mostrar/ocultar botones de acción basados en rol de usuario
-                const userRole = userData.role;
+                const userRole = window.currentUser?.role;
                 const entityActions = document.getElementById('entityActions' + entityId);
                 if (entityActions) {
                     if (userRole === 'administrador' || userRole === 'programador') {
@@ -1427,14 +1427,14 @@
                 entityCard.onclick = (event) => showDetails(entityId, event);
 
                 let modifyButton = '';
-                if (userData.role === 'administrador' || userData.role === 'programador') {
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
                     modifyButton = `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); modifyEntity('${data.id}')" style="margin-left: 10px;">
                         <i class="bi bi-pencil"></i></button>`;
                 }
 
                 // Crear botones de acción visibles en el header para admin/programador
                 let actionButtons = '';
-                if (userData.role === 'administrador' || userData.role === 'programador') {
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
                     actionButtons = `
                         <div class="entity-header-actions">
                             <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); modifyEntity('${data.id}')" title="Modificar">
