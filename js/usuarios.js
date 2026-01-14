@@ -569,8 +569,105 @@
      * Abrir modal de agregar usuario
      */
     function openAddModal() {
-        showErrorMsg('La creación de usuarios no está disponible en esta fase.');
+        // Verificar permisos
+        if (!canChangeRoles) {
+            showErrorMsg('No tienes permisos para crear usuarios');
+            return;
+        }
+
+        // Limpiar formulario
+        const form = document.getElementById('createUserForm');
+        if (form) {
+            form.reset();
+        }
+
+        // Ocultar mensaje de error
+        const errorSection = document.getElementById('createUserError');
+        if (errorSection) {
+            errorSection.style.display = 'none';
+        }
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('createUserModal'));
+        modal.show();
     }
+
+    /**
+     * Confirmar y crear usuario
+     */
+    async function confirmCreateUser() {
+        const form = document.getElementById('createUserForm');
+        const errorSection = document.getElementById('createUserError');
+        const errorMessage = document.getElementById('createUserErrorMessage');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const userData = {
+            name: document.getElementById('createUserName').value.trim(),
+            email: document.getElementById('createUserEmail').value.trim(),
+            password: document.getElementById('createUserPassword').value,
+            role: document.getElementById('createUserRole').value,
+            phone: document.getElementById('createUserPhone').value.trim() || null,
+            team: document.getElementById('createUserTeam').value.trim() || null
+        };
+
+        // Validación adicional
+        if (!userData.name || !userData.email || !userData.password || !userData.role) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Todos los campos marcados con * son requeridos';
+            return;
+        }
+
+        if (userData.password.length < 6) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'La contraseña debe tener al menos 6 caracteres';
+            return;
+        }
+
+        try {
+            window.showLoading(true);
+            errorSection.style.display = 'none';
+
+            // Verificar que la API esté disponible
+            if (!window.API || !window.API.Users) {
+                throw new Error('API.Users no está disponible');
+            }
+
+            const response = await API.Users.create(userData);
+            console.log('✅ Respuesta de creación:', response);
+
+            if (!response.success) {
+                // Mostrar error
+                errorSection.style.display = 'block';
+                errorMessage.textContent = response.error || 'Error desconocido al crear usuario';
+                return;
+            }
+
+            // Éxito: cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createUserModal'));
+            if (modal) modal.hide();
+
+            // Recargar lista de usuarios
+            await loadUsers();
+
+            // Mostrar mensaje de éxito
+            showSuccessMsg(`Usuario ${userData.name} creado exitosamente`);
+
+        } catch (error) {
+            console.error('❌ Error creando usuario:', error);
+            errorSection.style.display = 'block';
+            errorMessage.textContent = error.message || 'Error desconocido al crear usuario';
+        } finally {
+            window.showLoading(false);
+        }
+    }
+
+    // Exponer función confirmCreateUser globalmente
+    window.confirmCreateUser = confirmCreateUser;
 
     // ==========================================
     // FILTRADO Y BÚSQUEDA
@@ -672,8 +769,9 @@
         filterUsers: (query) => filterUsers(query)
     };
 
-    // Exponer función openAddModal globalmente para el botón en HTML
+    // Exponer funciones globalmente para el HTML
     window.openAddModal = openAddModal;
+    window.confirmCreateUser = confirmCreateUser;
 
     console.log('✅ usuarios.js: Módulo inicializado. Debug disponible en window.__usuariosDebug');
 
