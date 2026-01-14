@@ -331,7 +331,7 @@
                 }
 
                 const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
 
                 if (!adminRoles.includes(userRole)) {
                     console.error('❌ [Entities.create] Permiso denegado. Rol:', userRole);
@@ -396,7 +396,7 @@
                 }
 
                 const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
 
                 if (!adminRoles.includes(userRole)) {
                     console.error('❌ [Entities.assignUser] Permiso denegado. Rol:', userRole);
