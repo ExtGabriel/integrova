@@ -1081,8 +1081,8 @@
                 const response = await API.Entities.create(newEntity);
                 console.log('📥 Respuesta de la API:', response);
 
-                // Verificar si la creación fue exitosa (error: null significa éxito)
-                if (!response.error && response.data) {
+                // En Supabase, CREATE exitoso tiene error === null
+                if (response && response.error === null) {
                     // Log de acción
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
                     logAction(window.currentUser?.name || 'Usuario', 'creo_entidad', name, null, timestamp);
@@ -1091,25 +1091,21 @@
                     const modal = bootstrap.Modal.getInstance(document.getElementById('createEntityModal'));
                     modal.hide();
 
-                    // Mostrar mensaje de éxito en modal después de un pequeño retraso para evitar problemas con el backdrop
+                    // Recargar entidades desde Supabase antes de mostrar el mensaje de éxito
+                    await loadEntitiesFromAPI();
+                    renderEntities();
+                    filterEntities();
+
+                    // Mostrar mensaje de éxito
                     setTimeout(() => {
                         document.getElementById('successMessage').textContent = 'Entidad creada exitosamente.';
                         const successModal = new bootstrap.Modal(document.getElementById('successModal'));
                         successModal.show();
-
-                        // Recargar entidades después de cerrar el modal de éxito
-                        document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
-                            loadEntitiesFromAPI().then(() => {
-                                renderEntities();
-                                filterEntities();
-                            });
-                        }, { once: true });
                     }, 100);
                 } else {
                     console.error('❌ Error creating entity:', response);
-                    const errorMsg = response.error || 'Error desconocido';
-                    const fieldErrors = response.fields ? '\n\nCampos con errores: ' + JSON.stringify(response.fields, null, 2) : '';
-                    alert('Error al crear la entidad: ' + errorMsg + fieldErrors);
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido';
+                    alert('Error al crear la entidad: ' + errorMsg);
                 }
             } catch (error) {
                 console.error('❌ Exception creating entity:', error);
@@ -1237,34 +1233,32 @@
                 API.showLoading(true);
                 const response = await API.Entities.update(entityId, updatedEntity);
                 console.log('📥 Respuesta de actualización:', response);
-                if (response.success) {
+
+                // En Supabase, UPDATE exitoso tiene error === null
+                if (response && response.error === null) {
                     // Log de acción
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
                     logAction(window.currentUser?.name || 'Usuario', 'modifico_entidad', name, null, timestamp);
 
-                    // Cerrar modal y mostrar éxito después de que se cierre completamente
+                    // Cerrar modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('modifyEntityModal'));
                     modal.hide();
 
-                    // Mostrar mensaje de éxito en modal después de un pequeño retraso para evitar problemas con el backdrop
+                    // Recargar entidades desde Supabase antes de mostrar el mensaje de éxito
+                    await loadEntitiesFromAPI();
+                    renderEntities();
+                    filterEntities();
+
+                    // Mostrar mensaje de éxito
                     setTimeout(() => {
                         document.getElementById('successMessage').textContent = 'Entidad modificada exitosamente.';
                         const successModal = new bootstrap.Modal(document.getElementById('successModal'));
                         successModal.show();
-
-                        // Recargar entidades después de cerrar el modal de éxito
-                        document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
-                            loadEntitiesFromAPI().then(() => {
-                                renderEntities();
-                                filterEntities();
-                            });
-                        }, { once: true });
                     }, 100);
                 } else {
                     console.error('❌ Error updating entity:', response);
-                    const errorMsg = response.error || response.message || 'Error desconocido';
-                    const fieldErrors = response.fields ? '\n\nCampos con errores: ' + JSON.stringify(response.fields, null, 2) : '';
-                    alert('Error al modificar la entidad: ' + errorMsg + fieldErrors);
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido';
+                    alert('Error al modificar la entidad: ' + errorMsg);
                 }
             } catch (error) {
                 console.error('❌ Exception updating entity:', error);
@@ -1316,7 +1310,8 @@
                 const response = await API.Entities.delete(entityId);
                 console.log('Respuesta de eliminación:', response);
 
-                if (response && response.success) {
+                // En Supabase, DELETE exitoso tiene error === null
+                if (response && response.error === null) {
                     // Log de acción
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
                     logAction(window.currentUser?.name || 'Usuario', 'elimino_entidad', entityName, null, timestamp);
@@ -1338,7 +1333,7 @@
                         });
                     }, { once: true });
                 } else {
-                    const errorMsg = response?.error || 'Error desconocido al eliminar la entidad';
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido al eliminar la entidad';
                     console.error('Error deleting entity:', errorMsg);
                     alert('Error al eliminar la entidad: ' + errorMsg + '\n\nPosibles causas:\n- La entidad tiene compromisos asociados\n- No tienes permisos suficientes\n- Problema de conexión con la base de datos');
 
