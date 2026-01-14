@@ -1648,15 +1648,29 @@
         window.protectPage(function () {
             console.log('✅ Entidades: Usuario autenticado:', window.currentUser?.email);
 
-            // Ocultar botón "Crear Entidad" según rol
+            // Mostrar/ocultar botón "Crear Entidad" según rol
             const createEntityBtn = document.getElementById('createEntityBtn');
             if (createEntityBtn && window.currentUser) {
                 const userRole = window.currentUser.role?.toLowerCase().trim();
                 const adminRoles = ['administrador', 'programador', 'socio'];
 
-                if (!adminRoles.includes(userRole)) {
+                console.log('🔐 Verificando permisos para crear entidades:', {
+                    userRole: userRole,
+                    isAdmin: adminRoles.includes(userRole),
+                    adminRoles: adminRoles
+                });
+
+                if (adminRoles.includes(userRole)) {
+                    // Usuario es admin: mostrar botón
+                    createEntityBtn.style.display = 'block';
+                    console.log('✅ Botón "Crear Entidad" VISIBLE');
+                } else {
+                    // Usuario no es admin: ocultar botón
                     createEntityBtn.style.display = 'none';
+                    console.log('🔒 Botón "Crear Entidad" OCULTO (permiso denegado)');
                 }
+            } else {
+                console.warn('⚠️ Botón o usuario no disponible');
             }
 
             // Cargar entidades desde API (ahora que API está disponible)
