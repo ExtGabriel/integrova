@@ -472,6 +472,69 @@
         },
 
         /**
+         * Actualizar una entidad existente (solo admins)
+         * @param {string|number} entityId - ID de la entidad
+         * @param {Object} updates - Datos a actualizar
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async update(entityId, updates) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Entities.update] Supabase no disponible');
+                    return { data: null, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.error('❌ [Entities.update] Usuario no autenticado');
+                    return { data: null, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                if (!adminRoles.includes(userRole)) {
+                    console.error('❌ [Entities.update] Permiso denegado. Rol:', userRole);
+                    return { data: null, error: 'Solo administradores pueden actualizar entidades' };
+                }
+
+                // Validar parámetros
+                if (!entityId) {
+                    console.error('❌ [Entities.update] ID es requerido');
+                    return { data: null, error: 'El ID de la entidad es requerido' };
+                }
+
+                if (!updates || typeof updates !== 'object') {
+                    console.error('❌ [Entities.update] Datos de actualización inválidos');
+                    return { data: null, error: 'Datos de actualización inválidos' };
+                }
+
+                const { data, error } = await client
+                    .from('entities')
+                    .update(updates)
+                    .eq('id', entityId)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [Entities.update] Error Supabase:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                console.log('✅ [Entities.update] Entidad actualizada:', data);
+                return { data: data, error: null };
+            } catch (err) {
+                console.error('❌ [Entities.update] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        /**
          * Eliminar una entidad (solo admins)
          * @param {string} entityId - ID de la entidad
          * @returns {Promise<{data: Object|null, error: null|string}>}
