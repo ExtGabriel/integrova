@@ -1081,7 +1081,9 @@
                 API.showLoading(true);
                 const response = await API.Entities.create(newEntity);
                 console.log('📥 Respuesta de la API:', response);
-                if (response.success) {
+
+                // Verificar si la creación fue exitosa (error: null significa éxito)
+                if (!response.error && response.data) {
                     // Log de acción
                     const currentUser = JSON.parse(localStorage.getItem(userKey));
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
@@ -1107,7 +1109,7 @@
                     }, 100);
                 } else {
                     console.error('❌ Error creating entity:', response);
-                    const errorMsg = response.error || response.message || 'Error desconocido';
+                    const errorMsg = response.error || 'Error desconocido';
                     const fieldErrors = response.fields ? '\n\nCampos con errores: ' + JSON.stringify(response.fields, null, 2) : '';
                     alert('Error al crear la entidad: ' + errorMsg + fieldErrors);
                 }
