@@ -183,51 +183,45 @@
      */
     async function validateAccess() {
         try {
-            console.log('🔐 Validando acceso al módulo de usuarios...');
+            console.log('🔐 usuarios.js: Validando acceso...');
 
-            // CRÍTICO: Esperar a que window.currentUser esté listo
-            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
-                console.log('⏳ Esperando a window.currentUserReady...');
-                await window.currentUserReady;
-            }
+            // 🎯 ESPERAR A QUE EL USUARIO ESTÉ COMPLETAMENTE CARGADO
+            console.log('⏳ usuarios.js: Esperando window.currentUserReady...');
+            await window.currentUserReady;
+            console.log('✅ usuarios.js: window.currentUserReady resuelto');
 
             // Verificar que currentUser esté disponible
             if (!window.currentUser) {
-                console.error('❌ window.currentUser no está disponible después de esperar');
+                console.error('❌ window.currentUser no disponible después de esperar');
                 showErrorMsg('❌ Error cargando datos de usuario. Por favor, recarga la página.');
                 disableUI();
                 return false;
             }
 
-            console.log(`✅ window.currentUser disponible: ${window.currentUser.name} (${window.currentUser.role})`);
+            console.log(`✅ Usuario: ${window.currentUser.name} (${window.currentUser.role})`);
 
-            // Validar acceso específico: SOLO admin y programador pueden entrar
-            // ✅ Usar hasRole() que soporta aliases ('admin' → 'administrador')
-            const isAdmin = window.hasRole && window.hasRole('admin');
-            const isProgrammer = window.hasRole && window.hasRole('programador');
+            // 🔒 VALIDAR SOLO ROLE = 'admin'
+            const userRole = window.currentUser.role;
 
-            if (!isAdmin && !isProgrammer) {
-                console.warn(`⚠️ Usuario ${window.currentUser.name} (${window.currentUser.role}) no tiene acceso`);
-                showErrorMsg('❌ No tienes permiso para acceder a la gestión de usuarios. Solo administradores y programadores pueden acceder.');
+            if (userRole !== 'admin') {
+                console.warn(`⚠️ Acceso denegado - Role: ${userRole}`);
+                showErrorMsg('❌ Acceso denegado. Solo administradores pueden gestionar usuarios.');
                 disableUI();
                 return false;
             }
 
-            console.log(`✅ Acceso permitido para ${window.currentUser.name} (${window.currentUser.role})`);
+            console.log(`✅ Acceso permitido - Admin: ${window.currentUser.name}`);
 
-            // Cargar permisos específicos usando api-client
+            // Setear variables de módulo
+            currentUserProfile = window.currentUser;
+            currentUserRole = window.currentUser.role;
+            hasAccessToUsers = true;
+
+            // Cargar permisos específicos
             canChangeRoles = await API.Users.canChangeRoles();
             canChangeStatus = await API.Users.canChangeStatus();
-            currentUserProfile = window.currentUser;  // Ya está cargado por auth-guard
-            currentUserRole = window.currentUser.role;
-            hasAccessToUsers = true;  // Ya validamos arriba
 
-            console.log('✅ Acceso validado:', {
-                role: currentUserRole,
-                canChangeRoles,
-                canChangeStatus,
-                hasAccessToUsers
-            });
+            console.log('✅ Permisos cargados:', { canChangeRoles, canChangeStatus });
 
             return true;
         } catch (err) {
