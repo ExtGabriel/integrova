@@ -878,9 +878,8 @@
                 if (!data) return;
 
                 // Log the action
-                const currentUser = JSON.parse(localStorage.getItem(userKey));
                 const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                logAction(currentUser.username, 'visualizo_detalles_entidad', data.name, null, timestamp);
+                logAction(window.currentUser?.name || 'Usuario', 'visualizo_detalles_entidad', data.name, null, timestamp);
 
                 // Mostrar la sección específica de detalles
                 const detailsSection = document.getElementById('detailsSection' + entityId);
@@ -1085,9 +1084,8 @@
                 // Verificar si la creación fue exitosa (error: null significa éxito)
                 if (!response.error && response.data) {
                     // Log de acción
-                    const currentUser = JSON.parse(localStorage.getItem(userKey));
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                    logAction(currentUser.username, 'creo_entidad', name, null, timestamp);
+                    logAction(window.currentUser?.name || 'Usuario', 'creo_entidad', name, null, timestamp);
 
                     // Cerrar modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('createEntityModal'));
@@ -1241,9 +1239,8 @@
                 console.log('📥 Respuesta de actualización:', response);
                 if (response.success) {
                     // Log de acción
-                    const currentUser = JSON.parse(localStorage.getItem(userKey));
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                    logAction(currentUser.username, 'modifico_entidad', name, null, timestamp);
+                    logAction(window.currentUser?.name || 'Usuario', 'modifico_entidad', name, null, timestamp);
 
                     // Cerrar modal y mostrar éxito después de que se cierre completamente
                     const modal = bootstrap.Modal.getInstance(document.getElementById('modifyEntityModal'));
@@ -1321,9 +1318,8 @@
 
                 if (response && response.success) {
                     // Log de acción
-                    const currentUser = JSON.parse(localStorage.getItem(userKey));
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                    logAction(currentUser.username, 'elimino_entidad', entityName, null, timestamp);
+                    logAction(window.currentUser?.name || 'Usuario', 'elimino_entidad', entityName, null, timestamp);
 
                     // Cerrar modal de confirmación
                     const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEntityModal'));
@@ -1371,7 +1367,6 @@
         }
 
         function logout() {
-            localStorage.removeItem(userKey);
             window.location.href = 'login.html';
         }
 
