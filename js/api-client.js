@@ -330,10 +330,10 @@
                     return { data: null, error: 'Usuario no autenticado' };
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const userRole = window.currentUser.role;
 
-                if (!adminRoles.includes(userRole)) {
+                // Solo admins pueden crear entidades
+                if (userRole !== 'admin') {
                     console.error('❌ [Entities.create] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden crear entidades' };
                 }
@@ -395,10 +395,10 @@
                     return { data: null, error: 'Usuario no autenticado' };
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const userRole = window.currentUser.role;
 
-                if (!adminRoles.includes(userRole)) {
+                // Solo admins pueden asignar usuarios
+                if (userRole !== 'admin') {
                     console.error('❌ [Entities.assignUser] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden asignar usuarios' };
                 }
@@ -495,10 +495,10 @@
                     return { data: null, error: 'Usuario no autenticado' };
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const userRole = window.currentUser.role;
 
-                if (!adminRoles.includes(userRole)) {
+                // Solo admins pueden actualizar entidades
+                if (userRole !== 'admin') {
                     console.error('❌ [Entities.update] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden actualizar entidades' };
                 }
@@ -557,10 +557,10 @@
                     return { data: null, error: 'Usuario no autenticado' };
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const userRole = window.currentUser.role;
 
-                if (!adminRoles.includes(userRole)) {
+                // Solo admins pueden eliminar entidades
+                if (userRole !== 'admin') {
                     console.error('❌ [Entities.delete] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden eliminar entidades' };
                 }
@@ -596,7 +596,52 @@
      * Módulo: Entity Users (Usuarios asignados a entidades)
      * ✅ Gestiona la tabla entity_users con RLS
      */
+    const ENTITY_USER_ROLES = ['owner', 'auditor', 'viewer'];
+    const entityUserHooks = { assign: [], updateRole: [], remove: [] };
+
+    function emitEntityUserHook(event, payload) {
+        const handlers = entityUserHooks[event] || [];
+        handlers.forEach(fn => {
+            try { fn(payload); } catch (err) { console.warn(`⚠️ EntityUsers hook error (${event}):`, err); }
+        });
+    }
+
+    function registerEntityUserHook(event, handler) {
+        if (!entityUserHooks[event] || typeof handler !== 'function') {
+            console.warn(`⚠️ EntityUsers.on: evento inválido (${event}) o handler no es función`);
+            return () => { };
+        }
+        entityUserHooks[event].push(handler);
+        return () => {
+            const idx = entityUserHooks[event].indexOf(handler);
+            if (idx >= 0) entityUserHooks[event].splice(idx, 1);
+        };
+    }
+
+    function normalizeEntityRole(role) {
+        return String(role || '').toLowerCase().trim();
+    }
+
+    async function ensureAdminRole() {
+        if (window.currentUserReady) {
+            await window.currentUserReady;
+        }
+
+        if (!window.currentUser || !window.currentUser.role) {
+            return { ok: false, error: 'Usuario no autenticado' };
+        }
+
+        if (window.currentUser.role !== 'admin') {
+            return { ok: false, error: 'Solo administradores pueden gestionar roles por entidad' };
+        }
+
+        return { ok: true };
+    }
+
     const EntityUsersModule = {
+        ALLOWED_ROLES: ENTITY_USER_ROLES,
+        on: registerEntityUserHook,
+
         /**
          * Listar usuarios asignados a una entidad específica
          * @param {string|number} entityId - ID de la entidad
@@ -662,13 +707,9 @@
         },
 
         /**
-         * Asignar un usuario a una entidad
-         * @param {string|number} entityId - ID de la entidad
-         * @param {string} userId - ID del usuario
-         * @param {string} role - Rol del usuario en la entidad (ej: 'admin', 'member', 'viewer')
-         * @returns {Promise<{data: Object|null, error: null|string}>}
+         * Asignar un usuario a una entidad (roles: owner | auditor | viewer)
          */
-        async create(entityId, userId, role = 'member') {
+        async assign(entityId, userId, role) {
             try {
                 const client = await getSupabaseClient();
                 if (!client) {
@@ -682,29 +723,24 @@
                     return { data: null, error: 'entityId y userId son requeridos' };
                 }
 
+                const normalizedRole = normalizeEntityRole(role);
+                if (!ENTITY_USER_ROLES.includes(normalizedRole)) {
+                    console.error('❌ [EntityUsers.assign] Rol inválido:', role);
+                    return { data: null, error: 'Rol inválido. Usa owner, auditor o viewer' };
+                }
+
                 // Verificar permisos de administrador
-                if (window.currentUserReady) {
-                    await window.currentUserReady;
-                }
-
-                if (!window.currentUser || !window.currentUser.role) {
-                    console.error('❌ [EntityUsers.create] Usuario no autenticado');
-                    return { data: null, error: 'Usuario no autenticado' };
-                }
-
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
-
-                if (!adminRoles.includes(userRole)) {
-                    console.error('❌ [EntityUsers.create] Permiso denegado. Rol:', userRole);
-                    return { data: null, error: 'Solo administradores pueden asignar usuarios' };
+                const adminCheck = await ensureAdminRole();
+                if (!adminCheck.ok) {
+                    console.error('❌ [EntityUsers.assign] Permiso denegado');
+                    return { data: null, error: adminCheck.error };
                 }
 
                 // Insertar en entity_users
                 const assignmentData = {
                     entity_id: entityId,
                     user_id: userId,
-                    role: role
+                    role: normalizedRole
                 };
 
                 const { data, error } = await client
@@ -718,12 +754,97 @@
                     return { data: null, error: error.message };
                 }
 
-                console.log('✅ [EntityUsers.create] Usuario asignado:', data);
+                console.log('✅ [EntityUsers.assign] Usuario asignado:', data);
+                emitEntityUserHook('assign', { entityId, userId, role: normalizedRole, record: data });
                 return { data: data, error: null };
             } catch (err) {
-                console.error('❌ [EntityUsers.create] Excepción:', err);
+                console.error('❌ [EntityUsers.assign] Excepción:', err);
                 return { data: null, error: err.message };
             }
+        },
+
+        /**
+         * Actualizar rol de un usuario en una entidad
+         */
+        async updateRole(entityId, userId, role) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { data: null, error: 'Supabase no disponible' };
+
+                if (!entityId || !userId) {
+                    return { data: null, error: 'entityId y userId son requeridos' };
+                }
+
+                const normalizedRole = normalizeEntityRole(role);
+                if (!ENTITY_USER_ROLES.includes(normalizedRole)) {
+                    return { data: null, error: 'Rol inválido. Usa owner, auditor o viewer' };
+                }
+
+                const adminCheck = await ensureAdminRole();
+                if (!adminCheck.ok) {
+                    return { data: null, error: adminCheck.error };
+                }
+
+                const { data, error } = await client
+                    .from('entity_users')
+                    .update({ role: normalizedRole })
+                    .eq('entity_id', entityId)
+                    .eq('user_id', userId)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [EntityUsers.updateRole] Error:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                emitEntityUserHook('updateRole', { entityId, userId, role: normalizedRole, record: data });
+                return { data, error: null };
+            } catch (err) {
+                console.error('❌ [EntityUsers.updateRole] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        /**
+         * Remover un usuario de una entidad
+         */
+        async remove(entityId, userId) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { data: null, error: 'Supabase no disponible' };
+
+                if (!entityId || !userId) {
+                    return { data: null, error: 'entityId y userId son requeridos' };
+                }
+
+                const adminCheck = await ensureAdminRole();
+                if (!adminCheck.ok) {
+                    return { data: null, error: adminCheck.error };
+                }
+
+                const { error } = await client
+                    .from('entity_users')
+                    .delete()
+                    .eq('entity_id', entityId)
+                    .eq('user_id', userId);
+
+                if (error) {
+                    console.error('❌ [EntityUsers.remove] Error:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                emitEntityUserHook('remove', { entityId, userId });
+                return { data: { entity_id: entityId, user_id: userId }, error: null };
+            } catch (err) {
+                console.error('❌ [EntityUsers.remove] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        // Compatibilidad hacia atrás (create → assign)
+        async create(entityId, userId, role = 'owner') {
+            return this.assign(entityId, userId, role);
         }
     };
 
@@ -807,10 +928,10 @@
                     return { success: false, error: 'Usuario no autenticado' };
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const userRole = window.currentUser.role;
 
-                if (!adminRoles.includes(userRole)) {
+                // Solo admins pueden crear usuarios
+                if (userRole !== 'admin') {
                     return { success: false, error: 'Solo administradores pueden crear usuarios' };
                 }
 
@@ -877,7 +998,7 @@
         /**
          * Cambiar rol de un usuario
          * @param {string} userId - ID del usuario
-         * @param {string} newRole - Nuevo rol (cliente, auditor, supervisor, etc.)
+         * @param {string} newRole - Nuevo rol (admin | user)
          * @returns {Promise<{success: boolean, data: *, error: *}>}
          */
         async updateRole(userId, newRole) {
@@ -1004,11 +1125,10 @@
                     return false;
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
 
-                // Roles que CAN cambiar otros roles
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
-                return adminRoles.includes(userRole);
+                // Solo admins pueden cambiar roles
+                return userRole === 'admin';
             } catch (err) {
                 console.error('❌ Users.canChangeRoles ERROR:', err);
                 return false;
@@ -1030,11 +1150,10 @@
                     return false;
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
 
-                // Roles que CAN cambiar estado de usuarios
-                const adminRoles = ['administrador', 'programador', 'supervisor', 'admin'];
-                return adminRoles.includes(userRole);
+                // Solo admins pueden cambiar estado
+                return userRole === 'admin';
             } catch (err) {
                 console.error('❌ Users.canChangeStatus ERROR:', err);
                 return false;
@@ -1092,7 +1211,7 @@
                             id: user.id,
                             email: user.email,
                             name: user.email?.split('@')[0] || 'Usuario',
-                            role: 'cliente',
+                            role: 'user',
                             is_active: true
                         };
                         console.warn('⚠️ Tabla users no existe, usando perfil básico');
@@ -1164,10 +1283,10 @@
                     return allUsers; // Retornar todos si no hay perfil
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
 
                 // Administrador ve todos
-                if (userRole === 'administrador') {
+                if (userRole === 'admin') {
                     return allUsers;
                 }
 
@@ -1430,12 +1549,11 @@
                     return false;
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
                 console.log(`🔍 canAccessUsers: Verificando rol "${userRole}"`);
 
-                // Roles que CAN acceder al módulo de usuarios
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio'];
-                const hasAccess = accessRoles.includes(userRole);
+                // Solo admin puede acceder al módulo de usuarios
+                const hasAccess = userRole === 'admin';
 
                 console.log(`${hasAccess ? '✅' : '🔒'} canAccessUsers: ${hasAccess ? 'PERMITIDO' : 'DENEGADO'} para rol "${userRole}"`);
 
@@ -1462,11 +1580,10 @@
                     return false;
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
 
-                // Roles que CAN acceder al módulo de entidades
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-                return accessRoles.includes(userRole);
+                // Admin y user pueden acceder al módulo de entidades (RLS filtra)
+                return userRole === 'admin' || userRole === 'user';
             } catch (err) {
                 console.error('❌ API.canAccessEntities ERROR:', err);
                 return false;
@@ -1489,11 +1606,10 @@
                     return false;
                 }
 
-                const userRole = window.currentUser.role.toLowerCase().trim();
+                const userRole = window.currentUser.role;
 
-                // Roles que CAN acceder al módulo de compromisos
-                const accessRoles = ['administrador', 'programador', 'supervisor', 'socio', 'auditor', 'auditor_senior', 'cliente'];
-                return accessRoles.includes(userRole);
+                // Admin y user pueden acceder al módulo de compromisos (RLS filtra)
+                return userRole === 'admin' || userRole === 'user';
             } catch (err) {
                 console.error('❌ API.canAccessCommitments ERROR:', err);
                 return false;

@@ -46,19 +46,19 @@ const API_BASE_URL = window.location.origin;
 // ============================================
 
 /**
- * Verifica si el usuario actual es socio
+ * Verifica si el usuario es admin
  */
 function isSocio() {
     const session = getCurrentSession();
-    return session && session.role === 'socio';
+    return session && session.role === 'admin';
 }
 
 /**
- * Verifica si el usuario es socio o administrador
+ * Verifica si el usuario es admin (alias)
  */
 function isSocioOrAdmin() {
     const session = getCurrentSession();
-    return session && ['socio', 'administrador', 'programador'].includes(session.role);
+    return session && session.role === 'admin';
 }
 
 /**
@@ -66,15 +66,11 @@ function isSocioOrAdmin() {
  */
 function toggleSocioUI() {
     const socioElements = document.querySelectorAll('[data-role="socio"]');
-    const isSocioUser = isSocio();
-    const isSocioOrAdminUser = isSocioOrAdmin();
+    const isAdmin = isSocio();
 
     socioElements.forEach(element => {
-        if (element.dataset.roleRequirement === 'socio-only') {
-            element.style.display = isSocioUser ? 'block' : 'none';
-        } else if (element.dataset.roleRequirement === 'socio-or-admin') {
-            element.style.display = isSocioOrAdminUser ? 'block' : 'none';
-        }
+        // Solo admins pueden ver elementos de socio
+        element.style.display = isAdmin ? 'block' : 'none';
     });
 }
 
@@ -551,8 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Si es socio, cargar dashboard
     if (isSocio()) {
-        console.log('Usuario con rol de Socio detectado');
-        // Cargar datos específicos de socio
+        console.log('Usuario admin habilitado para secciones de socio');
+        // Cargar datos específicos si aplica
     }
 });
 

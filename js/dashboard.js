@@ -1092,7 +1092,7 @@ async function sendIAChatMessage() {
 
     try {
         // Get AI response - usar role del usuario actual
-        const userRole = window.currentUser?.role || 'cliente';
+        const userRole = window.currentUser?.role || 'user';
         const response = await intelligentChatResponse(message, [], userRole);
 
         // Remove typing indicator
