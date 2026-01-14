@@ -1236,5 +1236,3 @@ function logout() {
 // ✅ ELIMINADO: applyRoleRestrictions()
 // Las restricciones de rol se aplican ÚNICAMENTE en auth-guard.js y páginas específicas.
 // El dashboard carga para cualquier usuario autenticado activo sin validación adicional de rol.
-
-

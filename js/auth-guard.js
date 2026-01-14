@@ -17,6 +17,17 @@
  * - window.getUserUI()             → Obtener datos de UI del usuario
  */
 
+// 🎯 PROMESA GLOBAL DE USUARIO - CREADA AL INICIO
+// Esta promesa se crea UNA SOLA VEZ cuando se carga el script
+// Se resuelve cuando se carga el usuario de negocio (public.users)
+if (!window.currentUserReady) {
+    window.currentUserReady = new Promise((resolve, reject) => {
+        window.__resolveCurrentUser = resolve;
+        window.__rejectCurrentUser = reject;
+    });
+    console.log('🎯 window.currentUserReady creada - Lista para resolver cuando se cargue el usuario');
+}
+
 (function () {
     'use strict';
 
@@ -109,10 +120,16 @@
                 window.currentUser = null;
                 console.log('🗑️ window.currentUser limpiado');
             }
-            if (window.currentUserReady) {
-                window.currentUserReady = null;
-                console.log('🗑️ window.currentUserReady limpiado');
-            }
+
+            // Resetear flag de carga
+            window.__currentUserLoading = false;
+
+            // 🔄 RECREAR LA PROMESA para futuras sesiones
+            window.currentUserReady = new Promise((resolve, reject) => {
+                window.__resolveCurrentUser = resolve;
+                window.__rejectCurrentUser = reject;
+            });
+            console.log('🔄 window.currentUserReady recreada para próxima sesión');
 
             // PASO 4: Cerrar sesión en Supabase
             if (window.getSupabaseClient) {
@@ -190,10 +207,16 @@
             // Esta es la ÚNICA ubicación donde se inicializa window.currentUser
             console.log('🔄 protectPage: Cargando usuario de negocio (public.users)...');
 
-            // Crear la promesa global UNA SOLA VEZ
-            if (!window.currentUserReady) {
-                window.currentUserReady = (async function loadCurrentUser() {
+            // 🎯 CARGAR USUARIO UNA SOLA VEZ
+            // La promesa ya existe desde el inicio del script
+            // Solo necesitamos iniciar la carga si aún no se ha hecho
+            if (!window.currentUser && !window.__currentUserLoading) {
+                window.__currentUserLoading = true;
+
+                (async function loadCurrentUser() {
                     try {
+                        console.log('🔄 Iniciando carga de usuario de negocio...');
+
                         // Esperar a que API esté disponible
                         let attempts = 0;
                         while (!window.API?.Users?.getCurrent && attempts < 50) {
@@ -206,28 +229,38 @@
                         }
 
                         // Obtener usuario actual de public.users
+                        console.log('📡 Llamando API.Users.getCurrent()...');
                         const result = await window.API.Users.getCurrent();
 
                         if (!result.success || !result.data) {
                             throw new Error(result.error || 'No se pudo cargar el usuario');
                         }
 
-                        // Setear window.currentUser
+                        // ✅ PASO CRÍTICO: Asignar ANTES de resolver
                         window.currentUser = result.data;
-                        console.log(`✅ window.currentUser seteado: ${result.data.name} (${result.data.role})`);
+                        console.log(`✅ window.currentUser asignado: ${result.data.name} (${result.data.role})`);
 
-                        return result.data;
+                        // ✅ RESOLVER LA PROMESA GLOBAL
+                        window.__resolveCurrentUser(result.data);
+                        console.log('✅ window.currentUserReady RESUELTA');
+
                     } catch (err) {
                         console.error('❌ Error cargando currentUser:', err.message);
                         window.currentUser = null;
-                        throw err;
+                        window.__currentUserLoading = false;
+
+                        // ❌ RECHAZAR LA PROMESA GLOBAL
+                        window.__rejectCurrentUser(err);
+                        console.error('❌ window.currentUserReady RECHAZADA');
                     }
                 })();
             }
 
-            // Esperar a que se resuelva
+            // Esperar a que se resuelva la promesa global
             try {
-                await window.currentUserReady;
+                console.log('⏳ Esperando window.currentUserReady...');
+                const user = await window.currentUserReady;
+                console.log(`✅ Usuario obtenido de currentUserReady: ${user?.name}`);
             } catch (err) {
                 console.error('❌ protectPage: Error cargando usuario:', err.message);
                 alert('Error al cargar datos de usuario: ' + err.message);
