@@ -364,6 +364,50 @@
                                     seleccionada</small>
                             </div>
                         </div>
+
+                        <!-- Sección de Usuarios Asignados -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-people-fill"></i> Usuarios Asignados a esta Entidad
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-success" id="btnAssignUser"
+                                    onclick="openAssignUserModal()" style="display: none;">
+                                    <i class="bi bi-person-plus"></i> Asignar Usuario
+                                </button>
+                            </div>
+                            <div id="entityUsersLoadingSection" style="display: none;">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <span class="ms-2 text-muted">Cargando usuarios...</span>
+                                </div>
+                            </div>
+                            <div id="entityUsersErrorSection" class="alert alert-warning" style="display: none;">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <span id="entityUsersErrorMessage">Error al cargar usuarios</span>
+                            </div>
+                            <div id="entityUsersTableSection" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Nombre</th>
+                                                <th>Email</th>
+                                                <th>Rol en la Entidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="entityUsersTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="entityUsersEmptySection" class="text-muted text-center py-3"
+                                style="display: none;">
+                                <i class="bi bi-inbox"></i> No hay usuarios asignados a esta entidad
+                            </div>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -390,6 +434,56 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-success" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Asignar Usuario a Entidad -->
+    <div class="modal fade" id="assignUserModal" tabindex="-1" aria-labelledby="assignUserModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignUserModalLabel">
+                        <i class="bi bi-person-plus"></i> Asignar Usuario a Entidad
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignUserForm">
+                        <input type="hidden" id="assignUserEntityId">
+
+                        <div class="mb-3">
+                            <label for="assignUserSelect" class="form-label">Seleccionar Usuario *</label>
+                            <select class="form-select" id="assignUserSelect" required>
+                                <option value="">-- Seleccione un usuario --</option>
+                            </select>
+                            <small class="text-muted">Solo usuarios con roles de administración o auditoría</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assignUserRole" class="form-label">Rol en la Entidad *</label>
+                            <select class="form-select" id="assignUserRole" required>
+                                <option value="">-- Seleccione un rol --</option>
+                                <option value="admin">Administrador</option>
+                                <option value="member">Miembro</option>
+                                <option value="viewer">Observador</option>
+                            </select>
+                            <small class="text-muted">Define los permisos del usuario en esta entidad</small>
+                        </div>
+
+                        <div id="assignUserError" class="alert alert-danger" style="display: none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span id="assignUserErrorMessage"></span>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAssignUser()">
+                        <i class="bi bi-check-lg"></i> Asignar
+                    </button>
                 </div>
             </div>
         </div>
@@ -825,9 +919,245 @@
             await populateEncargadoSelect('modifyEntityEncargado');
             document.getElementById('modifyEntityEncargado').value = data.encargado || '';
 
+            // Cargar usuarios asignados a la entidad
+            await loadEntityUsers(data.id);
+
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('modifyEntityModal'));
             modal.show();
+        }
+
+        // Variable global para almacenar el ID de la entidad actual
+        let currentEntityId = null;
+
+        /**
+         * Cargar y mostrar usuarios asignados a una entidad
+         * @param {number} entityId - ID de la entidad
+         */
+        async function loadEntityUsers(entityId) {
+            // Guardar el ID de la entidad actual
+            currentEntityId = entityId;
+
+            // Mostrar/ocultar botón de asignar según permisos
+            checkAssignUserPermissions();
+            // Mostrar sección de carga
+            document.getElementById('entityUsersLoadingSection').style.display = 'block';
+            document.getElementById('entityUsersErrorSection').style.display = 'none';
+            document.getElementById('entityUsersTableSection').style.display = 'none';
+            document.getElementById('entityUsersEmptySection').style.display = 'none';
+
+            try {
+                // Verificar que la API esté disponible
+                if (!window.API || !window.API.EntityUsers) {
+                    throw new Error('API.EntityUsers no está disponible');
+                }
+
+                const response = await API.EntityUsers.listByEntity(entityId);
+                console.log('👥 Usuarios asignados:', response);
+
+                // Ocultar loading
+                document.getElementById('entityUsersLoadingSection').style.display = 'none';
+
+                if (response.error) {
+                    // Mostrar error
+                    document.getElementById('entityUsersErrorSection').style.display = 'block';
+                    document.getElementById('entityUsersErrorMessage').textContent = response.error;
+                    return;
+                }
+
+                const users = response.data || [];
+
+                if (users.length === 0) {
+                    // Mostrar mensaje de vacío
+                    document.getElementById('entityUsersEmptySection').style.display = 'block';
+                    return;
+                }
+
+                // Renderizar tabla de usuarios
+                const tbody = document.getElementById('entityUsersTableBody');
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sanitizeHTML(user.user_name)}</td>
+                        <td>${sanitizeHTML(user.user_email)}</td>
+                        <td><span class="badge bg-info">${sanitizeHTML(user.role || 'member')}</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('entityUsersTableSection').style.display = 'block';
+            } catch (error) {
+                console.error('❌ Error cargando usuarios asignados:', error);
+                document.getElementById('entityUsersLoadingSection').style.display = 'none';
+                document.getElementById('entityUsersErrorSection').style.display = 'block';
+                document.getElementById('entityUsersErrorMessage').textContent = error.message || 'Error desconocido';
+            }
+        }
+
+        /**
+         * Sanitizar HTML para prevenir XSS
+         */
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        /**
+         * Verificar permisos para mostrar el botón de asignar usuarios
+         */
+        function checkAssignUserPermissions() {
+            const btnAssignUser = document.getElementById('btnAssignUser');
+            if (!btnAssignUser) return;
+
+            // Verificar si el usuario actual tiene permisos
+            if (window.currentUser && window.currentUser.role) {
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                if (adminRoles.includes(userRole)) {
+                    btnAssignUser.style.display = 'inline-block';
+                } else {
+                    btnAssignUser.style.display = 'none';
+                }
+            } else {
+                btnAssignUser.style.display = 'none';
+            }
+        }
+
+        /**
+         * Abrir modal para asignar usuario
+         */
+        async function openAssignUserModal() {
+            if (!currentEntityId) {
+                alert('Error: No se pudo identificar la entidad');
+                return;
+            }
+
+            // Limpiar formulario
+            document.getElementById('assignUserForm').reset();
+            document.getElementById('assignUserEntityId').value = currentEntityId;
+            document.getElementById('assignUserError').style.display = 'none';
+
+            // Cargar lista de usuarios
+            await loadUsersForAssignment();
+
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('assignUserModal'));
+            modal.show();
+        }
+
+        /**
+         * Cargar usuarios disponibles para asignar
+         */
+        async function loadUsersForAssignment() {
+            const select = document.getElementById('assignUserSelect');
+            select.innerHTML = '<option value="">-- Cargando usuarios... --</option>';
+
+            try {
+                if (!window.API || !window.API.Users) {
+                    throw new Error('API.Users no está disponible');
+                }
+
+                const response = await API.Users.getAll();
+
+                if (!response.success || !response.data) {
+                    throw new Error('Error al cargar usuarios');
+                }
+
+                const users = response.data;
+                select.innerHTML = '<option value="">-- Seleccione un usuario --</option>';
+
+                // Filtrar solo usuarios con roles permitidos
+                const allowedRoles = ['socio', 'administrador', 'supervisor', 'auditor_senior', 'auditor senior', 'admin', 'programador'];
+
+                users.forEach(user => {
+                    const userRole = user.role ? user.role.toLowerCase().trim() : '';
+                    if (allowedRoles.includes(userRole)) {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        const userName = user.name || user.full_name || user.username || 'Sin nombre';
+                        const userEmail = user.email || '';
+                        option.textContent = `${userName} (${userRole})${userEmail ? ' - ' + userEmail : ''}`;
+                        select.appendChild(option);
+                    }
+                });
+
+                if (select.options.length === 1) {
+                    select.innerHTML = '<option value="">-- No hay usuarios disponibles --</option>';
+                }
+            } catch (error) {
+                console.error('❌ Error cargando usuarios:', error);
+                select.innerHTML = '<option value="">-- Error al cargar usuarios --</option>';
+            }
+        }
+
+        /**
+         * Confirmar y ejecutar asignación de usuario
+         */
+        async function confirmAssignUser() {
+            const form = document.getElementById('assignUserForm');
+            const errorSection = document.getElementById('assignUserError');
+            const errorMessage = document.getElementById('assignUserErrorMessage');
+
+            // Validar formulario
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const entityId = document.getElementById('assignUserEntityId').value;
+            const userId = document.getElementById('assignUserSelect').value;
+            const role = document.getElementById('assignUserRole').value;
+
+            // Validación adicional
+            if (!entityId || !userId || !role) {
+                errorSection.style.display = 'block';
+                errorMessage.textContent = 'Todos los campos son requeridos';
+                return;
+            }
+
+            try {
+                API.showLoading(true);
+                errorSection.style.display = 'none';
+
+                // Verificar que la API esté disponible
+                if (!window.API || !window.API.EntityUsers) {
+                    throw new Error('API.EntityUsers no está disponible');
+                }
+
+                const response = await API.EntityUsers.create(entityId, userId, role);
+                console.log('✅ Respuesta de asignación:', response);
+
+                if (response.error) {
+                    // Mostrar error
+                    errorSection.style.display = 'block';
+                    errorMessage.textContent = response.error;
+                    return;
+                }
+
+                // Éxito: cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('assignUserModal'));
+                if (modal) modal.hide();
+
+                // Recargar lista de usuarios asignados
+                await loadEntityUsers(entityId);
+
+                // Mostrar mensaje de éxito
+                document.getElementById('successMessage').textContent = 'Usuario asignado exitosamente a la entidad.';
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+
+            } catch (error) {
+                console.error('❌ Error asignando usuario:', error);
+                errorSection.style.display = 'block';
+                errorMessage.textContent = error.message || 'Error desconocido al asignar usuario';
+            } finally {
+                API.showLoading(false);
+            }
         }
 
         // Función para abrir modal de eliminación de entidad

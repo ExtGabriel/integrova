@@ -593,6 +593,141 @@
     };
 
     /**
+     * Módulo: Entity Users (Usuarios asignados a entidades)
+     * ✅ Gestiona la tabla entity_users con RLS
+     */
+    const EntityUsersModule = {
+        /**
+         * Listar usuarios asignados a una entidad específica
+         * @param {string|number} entityId - ID de la entidad
+         * @returns {Promise<{data: Array, error: null|string}>}
+         */
+        async listByEntity(entityId) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [EntityUsers.listByEntity] Supabase no disponible');
+                    return { data: [], error: 'Supabase no disponible' };
+                }
+
+                if (!entityId) {
+                    console.error('❌ [EntityUsers.listByEntity] entityId es requerido');
+                    return { data: [], error: 'entityId es requerido' };
+                }
+
+                // Unir entity_users con users para obtener información completa
+                const { data, error } = await client
+                    .from('entity_users')
+                    .select(`
+                        id,
+                        entity_id,
+                        user_id,
+                        role,
+                        created_at,
+                        users:user_id (
+                            id,
+                            name,
+                            email,
+                            role
+                        )
+                    `)
+                    .eq('entity_id', entityId);
+
+                if (error) {
+                    // Tolerar tabla inexistente
+                    if (handleTableNotFound(error, 'entity_users')) {
+                        return { data: [], error: null };
+                    }
+                    console.error('❌ [EntityUsers.listByEntity] Error Supabase:', error.message);
+                    return { data: [], error: error.message };
+                }
+
+                // Transformar datos para compatibilidad
+                const transformedData = (data || []).map(item => ({
+                    id: item.id,
+                    entity_id: item.entity_id,
+                    user_id: item.user_id,
+                    role: item.role,
+                    created_at: item.created_at,
+                    user_name: item.users?.name || 'Usuario desconocido',
+                    user_email: item.users?.email || '',
+                    user_role: item.users?.role || ''
+                }));
+
+                return { data: transformedData, error: null };
+            } catch (err) {
+                console.error('❌ [EntityUsers.listByEntity] Excepción:', err);
+                return { data: [], error: err.message };
+            }
+        },
+
+        /**
+         * Asignar un usuario a una entidad
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @param {string} role - Rol del usuario en la entidad (ej: 'admin', 'member', 'viewer')
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async create(entityId, userId, role = 'member') {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [EntityUsers.create] Supabase no disponible');
+                    return { data: null, error: 'Supabase no disponible' };
+                }
+
+                // Validar parámetros
+                if (!entityId || !userId) {
+                    console.error('❌ [EntityUsers.create] entityId y userId son requeridos');
+                    return { data: null, error: 'entityId y userId son requeridos' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.error('❌ [EntityUsers.create] Usuario no autenticado');
+                    return { data: null, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                if (!adminRoles.includes(userRole)) {
+                    console.error('❌ [EntityUsers.create] Permiso denegado. Rol:', userRole);
+                    return { data: null, error: 'Solo administradores pueden asignar usuarios' };
+                }
+
+                // Insertar en entity_users
+                const assignmentData = {
+                    entity_id: entityId,
+                    user_id: userId,
+                    role: role
+                };
+
+                const { data, error } = await client
+                    .from('entity_users')
+                    .insert(assignmentData)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [EntityUsers.create] Error Supabase:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                console.log('✅ [EntityUsers.create] Usuario asignado:', data);
+                return { data: data, error: null };
+            } catch (err) {
+                console.error('❌ [EntityUsers.create] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        }
+    };
+
+    /**
      * Módulo: Compromisos
      * ✅ Tolera tabla inexistente: retorna { success, data: [] }
      * ✅ GARANTÍA: window.API.Commitments SIEMPRE existe, nunca undefined
@@ -1114,6 +1249,7 @@
         // === Módulos de datos - SIEMPRE EXISTEN, NUNCA UNDEFINED ===
         // Módulos principales (predefinidos)
         Entities: EntitiesModule,
+        EntityUsers: EntityUsersModule,
         Commitments: CommitmentsModule,
         Users: UsersModule,
         Notifications: NotificationsModule,
