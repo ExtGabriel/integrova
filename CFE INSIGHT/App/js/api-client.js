@@ -819,6 +819,12 @@
                     return { success: false, error: 'Email, contraseña, nombre y rol son requeridos' };
                 }
 
+                const allowedRoles = ['admin', 'user'];
+                const normalizedRole = userData.role.toLowerCase();
+                if (!allowedRoles.includes(normalizedRole)) {
+                    return { success: false, error: 'Rol inválido. Solo se permiten roles globales: admin o user' };
+                }
+
                 // Crear usuario en Auth
                 const { data: authData, error: authError } = await client.auth.signUp({
                     email: userData.email,
@@ -827,7 +833,7 @@
                         emailRedirectTo: window.location.origin,
                         data: {
                             name: userData.name,
-                            role: userData.role
+                            role: normalizedRole
                         }
                     }
                 });
@@ -842,7 +848,7 @@
                     id: authData.user.id,
                     email: userData.email,
                     name: userData.name,
-                    role: userData.role.toLowerCase(),
+                    role: normalizedRole,
                     phone: userData.phone || null,
                     team: userData.team || null,
                     active: true,
@@ -883,6 +889,12 @@
                     };
                 }
 
+                const allowedRoles = ['admin', 'user'];
+                const normalizedRole = newRole.toLowerCase();
+                if (!allowedRoles.includes(normalizedRole)) {
+                    return { success: false, error: 'Rol inválido. Solo admin o user están permitidos' };
+                }
+
                 const client = await getSupabaseClient();
                 if (!client) {
                     return { success: false, error: 'Supabase no disponible' };
@@ -890,7 +902,7 @@
 
                 const { data, error } = await client
                     .from('users')
-                    .update({ role: newRole.toLowerCase() })
+                    .update({ role: normalizedRole })
                     .eq('id', userId)
                     .select();
 
