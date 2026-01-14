@@ -537,17 +537,14 @@ function getAIUsageStats() {
 }
 
 // Función para chat inteligente con contexto histórico
-async function intelligentChatResponse(message, chatHistory = [], userRole = 'cliente') {
+async function intelligentChatResponse(message, chatHistory = [], userRole = 'user') {
     const historyText = chatHistory.slice(-5).map(msg =>
         `${msg.role === 'user' ? 'Usuario' : 'Asistente'}: ${msg.message}`
     ).join('\n');
 
     const roleContext = {
-        'cliente': 'El usuario es un cliente que necesita soporte técnico.',
-        'auditor': 'El usuario es un auditor que necesita análisis detallados.',
-        'auditor_senior': 'El usuario es un auditor senior con experiencia avanzada.',
-        'administrador': 'El usuario es administrador del sistema.',
-        'programador': 'El usuario es programador con conocimientos técnicos.'
+        'user': 'El usuario es un usuario estándar que necesita soporte técnico.',
+        'admin': 'El usuario es administrador del sistema con acceso completo.'
     };
 
     const prompt = `Contexto: ${roleContext[userRole] || 'Usuario general'}\n\nHistorial de conversación:\n${historyText}\n\nMensaje actual: ${message}\n\nResponde de manera útil y profesional. Si la consulta es muy técnica o requiere acción humana, sugiere escalar a soporte humano.`;

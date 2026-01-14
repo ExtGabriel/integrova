@@ -424,23 +424,19 @@ async function createUserRoleChart() {
         const labels = Object.keys(roleCount);
         const data = Object.values(roleCount);
 
-        // Colores por rol
+        // Colores por rol (solo admin y user)
         const colors = labels.map(role => {
             switch (role.toLowerCase()) {
-                case 'administrador': return 'rgba(244, 67, 54, 0.7)';
-                case 'auditor': return 'rgba(76, 175, 80, 0.7)';
-                case 'programador': return 'rgba(33, 150, 243, 0.7)';
-                case 'socio': return 'rgba(156, 39, 176, 0.7)';
+                case 'admin': return 'rgba(244, 67, 54, 0.7)';
+                case 'user': return 'rgba(33, 150, 243, 0.7)';
                 default: return 'rgba(158, 158, 158, 0.7)';
             }
         });
 
         const borderColors = labels.map(role => {
             switch (role.toLowerCase()) {
-                case 'administrador': return 'rgba(244, 67, 54, 1)';
-                case 'auditor': return 'rgba(76, 175, 80, 1)';
-                case 'programador': return 'rgba(33, 150, 243, 1)';
-                case 'socio': return 'rgba(156, 39, 176, 1)';
+                case 'admin': return 'rgba(244, 67, 54, 1)';
+                case 'user': return 'rgba(33, 150, 243, 1)';
                 default: return 'rgba(158, 158, 158, 1)';
             }
         });
