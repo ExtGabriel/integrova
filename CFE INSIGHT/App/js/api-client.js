@@ -801,7 +801,7 @@
                 }
 
                 const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
 
                 if (!adminRoles.includes(userRole)) {
                     return { success: false, error: 'Solo administradores pueden crear usuarios' };
@@ -975,7 +975,7 @@
                 const userRole = window.currentUser.role.toLowerCase().trim();
 
                 // Roles que CAN cambiar otros roles
-                const adminRoles = ['administrador', 'programador', 'socio'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
                 return adminRoles.includes(userRole);
             } catch (err) {
                 console.error('❌ Users.canChangeRoles ERROR:', err);
@@ -1001,7 +1001,7 @@
                 const userRole = window.currentUser.role.toLowerCase().trim();
 
                 // Roles que CAN cambiar estado de usuarios
-                const adminRoles = ['administrador', 'programador', 'supervisor'];
+                const adminRoles = ['administrador', 'programador', 'supervisor', 'admin'];
                 return adminRoles.includes(userRole);
             } catch (err) {
                 console.error('❌ Users.canChangeStatus ERROR:', err);
