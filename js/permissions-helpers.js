@@ -1,19 +1,22 @@
 /**
- * CFE INSIGHT - SISTEMA DE PERMISOS Y ROLES (VANILLA JS) v2
+ * CFE INSIGHT - SISTEMA DE PERMISOS Y ROLES (VANILLA JS) v3
  * 
- * ARQUITECTURA FINAL:
- * - Roles globales: 'admin', 'user'
- * - Roles por entidad: 'owner', 'auditor', 'viewer'
+ * ARQUITECTURA SIMPLIFICADA:
+ * - Solo dos roles globales: 'admin', 'user'
+ * - Fuente de verdad: public.users.role en BD
+ * - No hay legacy roles ni entity_users en este archivo
  * 
  * PRINCIPIOS:
- * ✅ Fuente de verdad: BD (window.currentUser)
- * ✅ No usar localStorage ni sessionStorage para roles
- * ✅ Frontend defensivo (UX + bloqueo de acciones)
- * ✅ Backend (RLS) es el verdadero guardián
+ * ✅ Fuente de verdad: window.currentUser (sincronizado con BD)
+ * ✅ Lógica simple: 2 roles, sin complejidad innecesaria
+ * ✅ Frontend defensivo (UX + bloqueo)
+ * ✅ Backend (RLS) es el guardián real
  * 
- * INTERFAZ PÚBLICA (window.PermissionsHelper):
- * - isAdmin()                         → ¿Es admin?
- * - isUser()                          → ¿Es user?
+ * INTERFAZ PÚBLICA:
+ * - isAdmin(user?)                    → ¿Es admin?
+ * - isUser(user?)                     → ¿Es user normal?
+ * - requireAdmin(user?)               → Lanzar error si NO es admin
+ * - hasPermission(permission, user?)  → Admins siempre true
  * - getCurrentRole()                  → Obtener rol actual
  * - getMyProfile()                    → Obtener perfil completo
  */
@@ -21,19 +24,18 @@
 (function () {
     'use strict';
 
-    console.log('🔐 permissions-helpers.js v2: Inicializando con arquitectura final...');
+    console.log('🔐 permissions-helpers.js v3: Inicializando con arquitectura simplificada...');
 
     /**
      * ==========================================
-     * DEFINICIÓN DE ROLES (ARQUITECTURA FINAL)
+     * DEFINICIÓN DE ROLES
      * ==========================================
      */
 
-    // ROLES GLOBALES - Solo estos existen en users.role
-    const GLOBAL_ROLES = ['admin', 'user'];
-
-    // ROLES POR ENTIDAD - Solo en entity_users.role
-    const ENTITY_ROLES = ['owner', 'auditor', 'viewer'];
+    const GLOBAL_ROLES = {
+        ADMIN: 'admin',
+        USER: 'user'
+    };
 
     /**
      * ==========================================
@@ -42,125 +44,136 @@
      */
 
     /**
-     * Obtener perfil actual (SIEMPRE desde window.currentUser)
-     * FUENTE DE VERDAD: window.currentUser
-     * @returns {Promise<object|null>}
+     * Obtener perfil actual del usuario
+     * FUENTE DE VERDAD: window.currentUser (sincronizado con BD)
+     * 
+     * @param {object|undefined} user - Usuario a verificar (si no se proporciona, usa window.currentUser)
+     * @returns {object|null} - Objeto usuario o null
      */
-    async function getMyProfile() {
-        try {
-            // PRIORIDAD 1: Si window.currentUser ya está disponible, usarlo directamente
-            if (window.currentUser && window.currentUser.role) {
-                return window.currentUser;
-            }
-
-            // PRIORIDAD 2: Esperar a que currentUserReady se resuelva
-            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
-                console.log('⏳ getMyProfile: Esperando window.currentUserReady...');
-                await window.currentUserReady;
-
-                if (window.currentUser && window.currentUser.role) {
-                    return window.currentUser;
-                }
-            }
-
-            // ÚLTIMA OPCIÓN: Intentar cargar desde API
-            console.warn('⚠️ getMyProfile: window.currentUser no disponible, intentando cargar desde API...');
-            if (window.API && window.API.Users && window.API.Users.getCurrent) {
-                const result = await window.API.Users.getCurrent();
-                if (result.success && result.data) {
-                    return result.data;
-                }
-            }
-
-            console.error('❌ getMyProfile: No se pudo obtener el perfil del usuario');
-            return null;
-        } catch (err) {
-            console.error('❌ getMyProfile ERROR:', err);
-            return null;
+    function getProfile(user) {
+        // Si se proporciona un usuario específico, usarlo
+        if (user && typeof user === 'object') {
+            return user;
         }
+
+        // Si no, usar window.currentUser (debería estar siempre disponible)
+        if (window.currentUser && typeof window.currentUser === 'object') {
+            return window.currentUser;
+        }
+
+        return null;
+    }
+
+    /**
+     * Validar que el rol sea válido
+     * @param {string} role - Rol a validar
+     * @returns {boolean}
+     */
+    function isValidRole(role) {
+        return role === GLOBAL_ROLES.ADMIN || role === GLOBAL_ROLES.USER;
     }
 
 
     /**
      * ==========================================
-     * HELPERS PÚBLICOS (window.PermissionsHelper)
+     * HELPERS PÚBLICOS
      * ==========================================
      */
 
     window.PermissionsHelper = {
-        // === CONSTANTES ÚTILES ===
+        // === CONSTANTES ===
         GLOBAL_ROLES: GLOBAL_ROLES,
-        ENTITY_ROLES: ENTITY_ROLES,
 
         /**
-         * Verificar si el usuario es admin
-         * @returns {Promise<boolean>}
+         * ¿Es el usuario admin?
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
          */
-        async isAdmin() {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) {
-                    console.warn('⚠️ isAdmin: No hay perfil disponible');
-                    return false;
-                }
-
-                const isAdmin = profile.role === 'admin';
-                console.log(`🔍 isAdmin: Usuario ${profile.name} (${profile.role}) → ${isAdmin}`);
-                return isAdmin;
-            } catch (err) {
-                console.error('❌ PermissionsHelper.isAdmin ERROR:', err);
+        isAdmin(user) {
+            const profile = getProfile(user);
+            if (!profile || !profile.role) {
                 return false;
             }
+            return profile.role === GLOBAL_ROLES.ADMIN;
         },
 
         /**
-         * Verificar si el usuario es user
-         * @returns {Promise<boolean>}
+         * ¿Es el usuario user normal?
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
          */
-        async isUser() {
-            try {
-                const profile = await getMyProfile();
-                if (!profile || !profile.role) {
-                    console.warn('⚠️ isUser: No hay perfil disponible');
-                    return false;
-                }
-
-                const isUser = profile.role === 'user';
-                console.log(`🔍 isUser: Usuario ${profile.name} (${profile.role}) → ${isUser}`);
-                return isUser;
-            } catch (err) {
-                console.error('❌ PermissionsHelper.isUser ERROR:', err);
+        isUser(user) {
+            const profile = getProfile(user);
+            if (!profile || !profile.role) {
                 return false;
             }
+            return profile.role === GLOBAL_ROLES.USER;
+        },
+
+        /**
+         * Requiere que sea admin, si no lanza error o retorna false
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @param {boolean} throwError - Si true, lanza error; si false, retorna boolean (default: false)
+         * @returns {boolean} - true si es admin
+         * @throws {Error} - Si throwError=true y NO es admin
+         */
+        requireAdmin(user, throwError = false) {
+            const isAdmin = this.isAdmin(user);
+
+            if (!isAdmin && throwError) {
+                throw new Error('Acceso denegado: Se requieren permisos de administrador');
+            }
+
+            return isAdmin;
+        },
+
+        /**
+         * Verificar permisos
+         * NOTA: Si el usuario es admin, siempre retorna true
+         * @param {string} permission - Nombre del permiso (para uso futuro)
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
+         */
+        hasPermission(permission, user) {
+            const profile = getProfile(user);
+
+            if (!profile || !profile.role) {
+                return false;
+            }
+
+            // Los admins siempre tienen todos los permisos
+            if (profile.role === GLOBAL_ROLES.ADMIN) {
+                return true;
+            }
+
+            // Por ahora, los users normales NO tienen permisos especiales
+            // Esta lógica se expandirá cuando se implemente entity_users
+            return false;
         },
 
         /**
          * Obtener el rol actual del usuario
-         * @returns {Promise<string|null>}
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {string|null} - Rol del usuario o null
          */
-        async getCurrentRole() {
-            try {
-                const profile = await getMyProfile();
-                return profile?.role || null;
-            } catch (err) {
-                console.warn('⚠️ PermissionsHelper.getCurrentRole:', err.message);
-                return null;
-            }
+        getCurrentRole(user) {
+            const profile = getProfile(user);
+            return profile?.role || null;
         },
 
         /**
-         * Obtener perfil completo del usuario
-         * @returns {Promise<object|null>}
+         * Obtener perfil completo del usuario actual
+         * @returns {object|null} - Perfil completo o null
          */
-        async getMyProfile() {
-            return await getMyProfile();
+        getMyProfile() {
+            return window.currentUser || null;
         }
     };
 
-    console.log('✅ permissions-helpers.js v2: Sistema de permisos cargado');
-    console.log('   Roles globales:', GLOBAL_ROLES.join(', '));
-    console.log('   Roles por entidad:', ENTITY_ROLES.join(', '));
-    console.log('   Métodos públicos: isAdmin(), isUser(), getCurrentRole(), getMyProfile()');
+    console.log('✅ permissions-helpers.js v3: Sistema de permisos cargado');
+    console.log('   Roles soportados:', Object.values(GLOBAL_ROLES).join(', '));
+    console.log('   Métodos públicos: isAdmin(), isUser(), requireAdmin(), hasPermission(), getCurrentRole(), getMyProfile()');
+    console.log('   NOTA: No hay roles legacy, arquitectura simplificada a 2 roles');
 
 })();
 
