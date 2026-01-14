@@ -1,30 +1,36 @@
 /**
- * CFE INSIGHT - SISTEMA DE PERMISOS Y ROLES (VANILLA JS) v3
+ * CFE INSIGHT - SISTEMA DE PERMISOS Y ROLES (VANILLA JS) v4
  * 
- * ARQUITECTURA SIMPLIFICADA:
- * - Solo dos roles globales: 'admin', 'user'
- * - Fuente de verdad: public.users.role en BD
- * - No hay legacy roles ni entity_users en este archivo
+ * ARQUITECTURA:
+ * - Roles globales: 'admin', 'user' (public.users.role)
+ * - Roles por entidad: 'owner', 'auditor', 'viewer' (public.entity_users.role)
  * 
  * PRINCIPIOS:
- * ✅ Fuente de verdad: window.currentUser (sincronizado con BD)
- * ✅ Lógica simple: 2 roles, sin complejidad innecesaria
- * ✅ Frontend defensivo (UX + bloqueo)
- * ✅ Backend (RLS) es el guardián real
+ * ✅ Permisos globales: basados en users.role
+ * ✅ Permisos por entidad: basados en entity_users.role
+ * ✅ Admins: siempre acceso total
+ * ✅ Helpers puros: sin efectos secundarios
+ * ✅ Sin roles legacy
  * 
- * INTERFAZ PÚBLICA:
+ * INTERFAZ PÚBLICA (GLOBAL):
  * - isAdmin(user?)                    → ¿Es admin?
  * - isUser(user?)                     → ¿Es user normal?
  * - requireAdmin(user?)               → Lanzar error si NO es admin
  * - hasPermission(permission, user?)  → Admins siempre true
  * - getCurrentRole()                  → Obtener rol actual
  * - getMyProfile()                    → Obtener perfil completo
+ * 
+ * INTERFAZ PÚBLICA (POR ENTIDAD):
+ * - canViewEntity(entityRole, user?)  → ¿Ver entidad?
+ * - canEditEntity(entityRole, user?)  → ¿Editar entidad?
+ * - canCreateCommitment(entityRole, user?)  → ¿Crear compromisos?
+ * - canAudit(entityRole, user?)       → ¿Auditar?
  */
 
 (function () {
     'use strict';
 
-    console.log('🔐 permissions-helpers.js v3: Inicializando con arquitectura simplificada...');
+    console.log('🔐 permissions-helpers.js v4: Inicializando con permisos globales y por entidad...');
 
     /**
      * ==========================================
@@ -35,6 +41,18 @@
     const GLOBAL_ROLES = {
         ADMIN: 'admin',
         USER: 'user'
+    };
+
+    /**
+     * ==========================================
+     * ROLES POR ENTIDAD
+     * ==========================================
+     * Definidos en public.entity_users.role
+     */
+    const ENTITY_ROLES = {
+        OWNER: 'owner',
+        AUDITOR: 'auditor',
+        VIEWER: 'viewer'
     };
 
     /**
@@ -73,6 +91,96 @@
         return role === GLOBAL_ROLES.ADMIN || role === GLOBAL_ROLES.USER;
     }
 
+    /**
+     * ==========================================
+     * HELPERS DE PERMISOS POR ENTIDAD
+     * ==========================================
+     * Estos helpers validan permisos basados en el rol del usuario DENTRO de una entidad
+     * Reglas:
+     * - Si user.role === 'admin' → SIEMPRE true (acceso total)
+     * - owner → acceso completo (ver, editar, auditar, crear compromisos)
+     * - auditor → ver + auditar (no editar ni crear)
+     * - viewer → solo ver (lectura)
+     * - null (sin asignación) → false (excepto para admins)
+     */
+
+    /**
+     * ¿Puede el usuario ver una entidad?
+     * @param {string|null} entityRole - Rol del usuario en la entidad ('owner'|'auditor'|'viewer'|null)
+     * @param {object|undefined} user - Usuario a verificar (opcional, usa window.currentUser si no se proporciona)
+     * @returns {boolean}
+     */
+    function canViewEntity(entityRole, user) {
+        const profile = getProfile(user);
+
+        // Admins siempre pueden ver
+        if (profile && profile.role === GLOBAL_ROLES.ADMIN) {
+            return true;
+        }
+
+        // Si entityRole es null, no tiene acceso
+        if (!entityRole) {
+            return false;
+        }
+
+        // owner, auditor, viewer pueden ver
+        return [ENTITY_ROLES.OWNER, ENTITY_ROLES.AUDITOR, ENTITY_ROLES.VIEWER].includes(entityRole);
+    }
+
+    /**
+     * ¿Puede el usuario editar una entidad?
+     * @param {string|null} entityRole - Rol del usuario en la entidad
+     * @param {object|undefined} user - Usuario a verificar (opcional)
+     * @returns {boolean}
+     */
+    function canEditEntity(entityRole, user) {
+        const profile = getProfile(user);
+
+        // Admins siempre pueden editar
+        if (profile && profile.role === GLOBAL_ROLES.ADMIN) {
+            return true;
+        }
+
+        // Solo owner puede editar
+        return entityRole === ENTITY_ROLES.OWNER;
+    }
+
+    /**
+     * ¿Puede el usuario crear compromisos en una entidad?
+     * @param {string|null} entityRole - Rol del usuario en la entidad
+     * @param {object|undefined} user - Usuario a verificar (opcional)
+     * @returns {boolean}
+     */
+    function canCreateCommitment(entityRole, user) {
+        const profile = getProfile(user);
+
+        // Admins siempre pueden crear
+        if (profile && profile.role === GLOBAL_ROLES.ADMIN) {
+            return true;
+        }
+
+        // Solo owner puede crear compromisos
+        return entityRole === ENTITY_ROLES.OWNER;
+    }
+
+    /**
+     * ¿Puede el usuario auditar una entidad?
+     * @param {string|null} entityRole - Rol del usuario en la entidad
+     * @param {object|undefined} user - Usuario a verificar (opcional)
+     * @returns {boolean}
+     */
+    function canAudit(entityRole, user) {
+        const profile = getProfile(user);
+
+        // Admins siempre pueden auditar
+        if (profile && profile.role === GLOBAL_ROLES.ADMIN) {
+            return true;
+        }
+
+        // owner y auditor pueden auditar
+        return [ENTITY_ROLES.OWNER, ENTITY_ROLES.AUDITOR].includes(entityRole);
+    }
+
 
     /**
      * ==========================================
@@ -83,6 +191,7 @@
     window.PermissionsHelper = {
         // === CONSTANTES ===
         GLOBAL_ROLES: GLOBAL_ROLES,
+        ENTITY_ROLES: ENTITY_ROLES,
 
         /**
          * ¿Es el usuario admin?
@@ -167,13 +276,91 @@
          */
         getMyProfile() {
             return window.currentUser || null;
+        },
+
+        // ===================================================
+        // PERMISOS POR ENTIDAD (entity_users.role)
+        // ===================================================
+
+        /**
+         * ¿Puede el usuario ver una entidad?
+         * 
+         * Reglas:
+         * - admin → SIEMPRE true
+         * - owner → true
+         * - auditor → true
+         * - viewer → true
+         * - null → false
+         * 
+         * @param {string|null} entityRole - Rol en la entidad ('owner'|'auditor'|'viewer'|null)
+         * @param {object|undefined} user - Usuario (opcional, usa window.currentUser)
+         * @returns {boolean}
+         */
+        canViewEntity(entityRole, user) {
+            return canViewEntity(entityRole, user);
+        },
+
+        /**
+         * ¿Puede el usuario editar una entidad?
+         * 
+         * Reglas:
+         * - admin → SIEMPRE true
+         * - owner → true
+         * - auditor → false
+         * - viewer → false
+         * - null → false
+         * 
+         * @param {string|null} entityRole - Rol en la entidad
+         * @param {object|undefined} user - Usuario (opcional)
+         * @returns {boolean}
+         */
+        canEditEntity(entityRole, user) {
+            return canEditEntity(entityRole, user);
+        },
+
+        /**
+         * ¿Puede el usuario crear compromisos en una entidad?
+         * 
+         * Reglas:
+         * - admin → SIEMPRE true
+         * - owner → true
+         * - auditor → false
+         * - viewer → false
+         * - null → false
+         * 
+         * @param {string|null} entityRole - Rol en la entidad
+         * @param {object|undefined} user - Usuario (opcional)
+         * @returns {boolean}
+         */
+        canCreateCommitment(entityRole, user) {
+            return canCreateCommitment(entityRole, user);
+        },
+
+        /**
+         * ¿Puede el usuario auditar una entidad?
+         * 
+         * Reglas:
+         * - admin → SIEMPRE true
+         * - owner → true
+         * - auditor → true
+         * - viewer → false
+         * - null → false
+         * 
+         * @param {string|null} entityRole - Rol en la entidad
+         * @param {object|undefined} user - Usuario (opcional)
+         * @returns {boolean}
+         */
+        canAudit(entityRole, user) {
+            return canAudit(entityRole, user);
         }
     };
 
-    console.log('✅ permissions-helpers.js v3: Sistema de permisos cargado');
-    console.log('   Roles soportados:', Object.values(GLOBAL_ROLES).join(', '));
-    console.log('   Métodos públicos: isAdmin(), isUser(), requireAdmin(), hasPermission(), getCurrentRole(), getMyProfile()');
-    console.log('   NOTA: No hay roles legacy, arquitectura simplificada a 2 roles');
+    console.log('✅ permissions-helpers.js v4: Sistema de permisos cargado');
+    console.log('   Roles globales:', Object.values(GLOBAL_ROLES).join(', '));
+    console.log('   Roles por entidad:', Object.values(ENTITY_ROLES).join(', '));
+    console.log('   Métodos globales: isAdmin(), isUser(), requireAdmin(), hasPermission(), getCurrentRole(), getMyProfile()');
+    console.log('   Métodos por entidad: canViewEntity(), canEditEntity(), canCreateCommitment(), canAudit()');
+    console.log('   NOTA: Permisos por entidad basados en entity_users.role');
 
 })();
 
