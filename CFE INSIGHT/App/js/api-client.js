@@ -1,5 +1,5 @@
 /**
- * CFE INSIGHT - API CLIENT (VANILLA JS) - ESTABILIZADO
+ * CFE INSIGHT - API CLIENT (VANILLA JS) - ESTABILIZADO v2
  * 
  * Cliente centralizado DEFENSIVO para Supabase + APIs.
  * Expone window.API con métodos seguros.
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    console.log('⏳ api-client.js: Inicializando...');
+    console.log('⏳ api-client.js v2: Inicializando con API.Entities.delete()...');
 
     /**
      * ==========================================
