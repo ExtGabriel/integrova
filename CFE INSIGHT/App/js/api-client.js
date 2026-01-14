@@ -751,11 +751,18 @@
                     if (handleTableNotFound(error, 'users')) {
                         return { success: true, data: [] };
                     }
+                    // Log más detallado del error
+                    console.error('❌ Users.getAll error:', {
+                        message: error.message,
+                        code: error.code,
+                        details: error.details,
+                        hint: error.hint
+                    });
                     throw error;
                 }
                 return { success: true, data: data || [] };
             } catch (err) {
-                console.warn('⚠️ Users.getAll:', err.message);
+                console.error('⚠️ Users.getAll excepción:', err.message, err);
                 return { success: true, data: [] };
             }
         },
@@ -888,17 +895,30 @@
                     .select();
 
                 if (error) {
+                    // Log detallado del error
+                    console.error('❌ Users.updateRole error completo:', {
+                        message: error.message,
+                        code: error.code,
+                        details: error.details,
+                        hint: error.hint
+                    });
+
                     // Manejo de errores específicos
-                    if (error.code === 'PGRST301') {
-                        return { success: false, error: '❌ Acceso denegado (403): No tienes permiso para cambiar roles' };
+                    if (error.code === 'PGRST301' || error.code === '42501') {
+                        return { success: false, error: '❌ Acceso denegado: No tienes permiso para cambiar roles' };
                     }
                     if (error.code === '401' || error.message?.includes('401')) {
-                        return { success: false, error: '❌ No autorizado (401): Necesitas autenticarte' };
+                        return { success: false, error: '❌ No autorizado: Necesitas autenticarte' };
                     }
-                    if (error.message?.includes('PGRST205') || error.message?.includes('relation')) {
+                    if (error.code === 'PGRST116' || error.code === '42P01') {
                         return { success: false, error: '❌ Tabla de usuarios no existe' };
                     }
-                    console.error('❌ Users.updateRole error:', error);
+                    // Error 400 - probablemente validación de datos
+                    if (error.code === '400' || error.message?.includes('400')) {
+                        return { success: false, error: `❌ Datos inválidos: ${error.message}` };
+                    }
+
+                    // Error genérico con mensaje real
                     return { success: false, error: error.message || 'Error al cambiar rol' };
                 }
 
