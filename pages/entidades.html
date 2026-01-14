@@ -457,6 +457,9 @@
         // Array para almacenar entidades desde la API
         let entitiesData = [];
 
+        // Array en memoria para logs de acciones (sin persistencia)
+        let actionRecords = [];
+
         // Función para cargar entidades desde la API
         async function loadEntitiesFromAPI() {
             try {
@@ -1354,11 +1357,11 @@
             }
         }
 
-        // Función para log de acciones
+        // Función para log de acciones (solo en memoria, sin persistencia)
         function logAction(username, action, entity, commitment, timestamp) {
-            const records = getSecureItem('appRecords') || [];
-            records.push({ id: Date.now(), username, action, entity, commitment, timestamp });
-            setSecureItem('appRecords', records);
+            actionRecords.push({ id: Date.now(), username, action, entity, commitment, timestamp });
+            // Los logs se mantienen solo mientras la sesión esté activa
+            console.log('📝 Acción registrada:', { username, action, entity, timestamp });
         }
 
         function logout() {
