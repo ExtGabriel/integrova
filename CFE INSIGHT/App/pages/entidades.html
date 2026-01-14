@@ -1374,10 +1374,10 @@
             window.location.href = 'login.html';
         }
 
-        // Cargar entidades al iniciar
-        loadEntitiesFromAPI().then(() => {
-            renderEntities();
-        });
+        // Cargar entidades al iniciar - MOVIDO a window.protectPage() al final
+        // loadEntitiesFromAPI().then(() => {
+        //     renderEntities();
+        // });
 
         // Función para filtrar entidades (búsqueda + estado) - Con fix: toLowerCase() y trim() para match exacto en "activa"/"inactiva"
         function filterEntities() {
@@ -1658,6 +1658,15 @@
                     createEntityBtn.style.display = 'none';
                 }
             }
+
+            // Cargar entidades desde API (ahora que API está disponible)
+            console.log('🔄 Iniciando carga de entidades...');
+            loadEntitiesFromAPI().then(() => {
+                console.log('✅ Entidades cargadas, renderizando...');
+                renderEntities();
+            }).catch(err => {
+                console.error('❌ Error al cargar entidades:', err);
+            });
         });
     </script>
 </body>
