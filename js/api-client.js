@@ -1,5 +1,5 @@
 /**
- * CFE INSIGHT - API CLIENT (VANILLA JS) - ESTABILIZADO
+ * CFE INSIGHT - API CLIENT (VANILLA JS) - ESTABILIZADO v2
  * 
  * Cliente centralizado DEFENSIVO para Supabase + APIs.
  * Expone window.API con métodos seguros.
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    console.log('⏳ api-client.js: Inicializando...');
+    console.log('⏳ api-client.js v2: Inicializando con API.Entities.delete()...');
 
     /**
      * ==========================================
@@ -473,15 +473,15 @@
 
         /**
          * Eliminar una entidad (solo admins)
-         * @param {string} id - ID de la entidad
-         * @returns {Promise<{success: boolean, error: null|string}>}
+         * @param {string} entityId - ID de la entidad
+         * @returns {Promise<{data: Object|null, error: null|string}>}
          */
-        async delete(id) {
+        async delete(entityId) {
             try {
                 const client = await getSupabaseClient();
                 if (!client) {
                     console.error('❌ [Entities.delete] Supabase no disponible');
-                    return { success: false, error: 'Supabase no disponible' };
+                    return { data: null, error: 'Supabase no disponible' };
                 }
 
                 // Verificar permisos de administrador
@@ -491,7 +491,7 @@
 
                 if (!window.currentUser || !window.currentUser.role) {
                     console.error('❌ [Entities.delete] Usuario no autenticado');
-                    return { success: false, error: 'Usuario no autenticado' };
+                    return { data: null, error: 'Usuario no autenticado' };
                 }
 
                 const userRole = window.currentUser.role.toLowerCase().trim();
@@ -499,30 +499,32 @@
 
                 if (!adminRoles.includes(userRole)) {
                     console.error('❌ [Entities.delete] Permiso denegado. Rol:', userRole);
-                    return { success: false, error: 'Solo administradores pueden eliminar entidades' };
+                    return { data: null, error: 'Solo administradores pueden eliminar entidades' };
                 }
 
                 // Validar ID
-                if (!id) {
+                if (!entityId) {
                     console.error('❌ [Entities.delete] ID es requerido');
-                    return { success: false, error: 'El ID de la entidad es requerido' };
+                    return { data: null, error: 'El ID de la entidad es requerido' };
                 }
 
-                const { error } = await client
+                const { data, error } = await client
                     .from('entities')
                     .delete()
-                    .eq('id', id);
+                    .eq('id', entityId)
+                    .select()
+                    .single();
 
                 if (error) {
                     console.error('❌ [Entities.delete] Error Supabase:', error.message);
-                    return { success: false, error: error.message };
+                    return { data: null, error: error.message };
                 }
 
-                console.log('✅ [Entities.delete] Entidad eliminada:', id);
-                return { success: true, error: null };
+                console.log('✅ [Entities.delete] Entidad eliminada:', entityId);
+                return { data: data || { id: entityId }, error: null };
             } catch (err) {
                 console.error('❌ [Entities.delete] Excepción:', err);
-                return { success: false, error: err.message };
+                return { data: null, error: err.message };
             }
         }
     };
