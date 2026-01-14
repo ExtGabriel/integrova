@@ -1185,7 +1185,7 @@ async function initializeDashboardPage() {
         }
 
         // Setear nombre de usuario
-        const userName = window.currentUser.name || 'Usuario';
+        const userName = window.currentUser.name || window.currentUser.full_name || window.currentUser.username || 'Usuario';
         const welcomeElement = document.getElementById('welcomeText');
         if (welcomeElement) {
             welcomeElement.textContent = `Bienvenido, ${userName}`;
