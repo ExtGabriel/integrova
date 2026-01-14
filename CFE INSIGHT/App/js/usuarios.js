@@ -672,6 +672,9 @@
         filterUsers: (query) => filterUsers(query)
     };
 
+    // Exponer función openAddModal globalmente para el botón en HTML
+    window.openAddModal = openAddModal;
+
     console.log('✅ usuarios.js: Módulo inicializado. Debug disponible en window.__usuariosDebug');
 
 })();
