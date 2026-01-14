@@ -265,10 +265,212 @@
 
     /**
      * Módulo: Entidades
-     * ✅ Tolera tabla inexistente: retorna { success, data: [] }
+     * ✅ Implementación completa con RLS activo
+     * ✅ list(), create(), assignUser()
+     * ✅ Patrón defensivo: verifica permisos y disponibilidad
      * ✅ GARANTÍA: window.API.Entities SIEMPRE existe, nunca undefined
      */
-    const EntitiesModule = createSafeModule('entities');
+    const EntitiesModule = {
+        /**
+         * Listar todas las entidades visibles para el usuario actual
+         * RLS filtra automáticamente según permisos
+         * @returns {Promise<{data: Array, error: null|string}>}
+         */
+        async list() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Entities.list] Supabase no disponible');
+                    return { data: [], error: 'Supabase no disponible' };
+                }
+
+                // RLS aplica automáticamente los filtros
+                const { data, error } = await client
+                    .from('entities')
+                    .select('*')
+                    .order('name', { ascending: true });
+
+                if (error) {
+                    // Tolerar tabla inexistente en desarrollo
+                    if (handleTableNotFound(error, 'entities')) {
+                        return { data: [], error: null };
+                    }
+                    console.error('❌ [Entities.list] Error Supabase:', error.message);
+                    return { data: [], error: error.message };
+                }
+
+                // Garantizar que siempre retornamos un array
+                return { data: data || [], error: null };
+            } catch (err) {
+                console.error('❌ [Entities.list] Excepción:', err);
+                return { data: [], error: err.message };
+            }
+        },
+
+        /**
+         * Crear una nueva entidad (solo admins)
+         * @param {Object} data - { name: string, responsible: string }
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async create(data) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Entities.create] Supabase no disponible');
+                    return { data: null, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.error('❌ [Entities.create] Usuario no autenticado');
+                    return { data: null, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio'];
+
+                if (!adminRoles.includes(userRole)) {
+                    console.error('❌ [Entities.create] Permiso denegado. Rol:', userRole);
+                    return { data: null, error: 'Solo administradores pueden crear entidades' };
+                }
+
+                // Validar datos requeridos
+                if (!data || !data.name) {
+                    console.error('❌ [Entities.create] Nombre es requerido');
+                    return { data: null, error: 'El nombre de la entidad es requerido' };
+                }
+
+                // Preparar datos para inserción
+                const entityData = {
+                    name: data.name,
+                    responsible: data.responsible || null
+                    // created_by se llena automáticamente por trigger
+                };
+
+                const { data: newEntity, error } = await client
+                    .from('entities')
+                    .insert(entityData)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [Entities.create] Error Supabase:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                console.log('✅ [Entities.create] Entidad creada:', newEntity);
+                return { data: newEntity, error: null };
+            } catch (err) {
+                console.error('❌ [Entities.create] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        /**
+         * Asignar un usuario a una entidad (solo admins)
+         * @param {string|number} entityId - ID de la entidad
+         * @param {string} userId - ID del usuario
+         * @param {string} role - Rol del usuario en la entidad
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async assignUser(entityId, userId, role = 'member') {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Entities.assignUser] Supabase no disponible');
+                    return { data: null, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.error('❌ [Entities.assignUser] Usuario no autenticado');
+                    return { data: null, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio'];
+
+                if (!adminRoles.includes(userRole)) {
+                    console.error('❌ [Entities.assignUser] Permiso denegado. Rol:', userRole);
+                    return { data: null, error: 'Solo administradores pueden asignar usuarios' };
+                }
+
+                // Validar parámetros
+                if (!entityId || !userId) {
+                    console.error('❌ [Entities.assignUser] entityId y userId son requeridos');
+                    return { data: null, error: 'entityId y userId son requeridos' };
+                }
+
+                // Insertar en entity_users
+                const assignmentData = {
+                    entity_id: entityId,
+                    user_id: userId,
+                    role: role
+                };
+
+                const { data: assignment, error } = await client
+                    .from('entity_users')
+                    .insert(assignmentData)
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [Entities.assignUser] Error Supabase:', error.message);
+                    return { data: null, error: error.message };
+                }
+
+                console.log('✅ [Entities.assignUser] Usuario asignado:', assignment);
+                return { data: assignment, error: null };
+            } catch (err) {
+                console.error('❌ [Entities.assignUser] Excepción:', err);
+                return { data: null, error: err.message };
+            }
+        },
+
+        // Mantener compatibilidad con el patrón anterior
+        async getAll() {
+            const result = await this.list();
+            return { success: !result.error, data: result.data };
+        },
+
+        async getById(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: true, data: null };
+
+                const { data, error } = await client
+                    .from('entities')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) {
+                    const isTableNotFound =
+                        error.message?.includes('PGRST205') ||
+                        error.message?.includes('404') ||
+                        error.message?.includes('relation');
+
+                    if (!isTableNotFound) {
+                        console.warn('⚠️ [Entities.getById] Error:', error.message);
+                    }
+                    return { success: true, data: null };
+                }
+
+                return { success: true, data };
+            } catch (err) {
+                console.warn('⚠️ [Entities.getById] Excepción:', err.message);
+                return { success: true, data: null };
+            }
+        }
+    };
 
     /**
      * Módulo: Compromisos
