@@ -300,13 +300,10 @@
 
     async function handleEditEntity(entityId, entityName) {
         // VALIDACIÓN: Verificar permiso antes de proceder
-        const canEdit = await PermissionsHelper.checkPermissionOrFail(
-            'editar',
-            'entidades',
-            '❌ No tienes permiso para editar entidades'
-        );
-
-        if (!canEdit) return; // Bloqueado
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('❌ No tienes permiso para editar entidades. Solo administradores pueden hacerlo.');
+            return;
+        }
 
         console.log(`✏️ Editando entidad ${entityName}...`);
         // Aquí iría la lógica real de edición
@@ -315,13 +312,10 @@
 
     async function handleDeleteEntity(entityId, entityName) {
         // VALIDACIÓN: Verificar permiso
-        const canDelete = await PermissionsHelper.checkPermissionOrFail(
-            'eliminar',
-            'entidades',
-            '❌ No tienes permiso para eliminar entidades'
-        );
-
-        if (!canDelete) return;
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('❌ No tienes permiso para eliminar entidades. Solo administradores pueden hacerlo.');
+            return;
+        }
 
         // Confirmación adicional para operación destructiva
         if (!confirm(`¿Estás seguro de que deseas ELIMINAR "${entityName}"? Esta acción no se puede deshacer.`)) {

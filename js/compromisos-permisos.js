@@ -241,13 +241,10 @@
 
     async function handleEditCommitment(commitmentId) {
         // VALIDACIÓN: Verificar permiso antes de proceder
-        const canEdit = await PermissionsHelper.checkPermissionOrFail(
-            'editar',
-            'compromisos',
-            '❌ No tienes permiso para editar compromisos'
-        );
-
-        if (!canEdit) return; // Bloqueado
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('❌ No tienes permiso para editar compromisos. Solo administradores pueden hacerlo.');
+            return;
+        }
 
         console.log(`✏️ Editando compromiso ${commitmentId}...`);
         // Aquí iría la lógica real de edición
@@ -255,26 +252,20 @@
     }
 
     async function handleChangeState(commitmentId) {
-        const canChange = await PermissionsHelper.checkPermissionOrFail(
-            'cambiar_estado',
-            'compromisos',
-            '❌ No tienes permiso para cambiar estado de compromisos'
-        );
-
-        if (!canChange) return;
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('❌ No tienes permiso para cambiar estado de compromisos. Solo administradores pueden hacerlo.');
+            return;
+        }
 
         console.log(`🔄 Cambiando estado de compromiso ${commitmentId}...`);
         alert(`Cambiar estado de compromiso ${commitmentId}`);
     }
 
     async function handleDeleteCommitment(commitmentId) {
-        const canDelete = await PermissionsHelper.checkPermissionOrFail(
-            'eliminar',
-            'compromisos',
-            '❌ No tienes permiso para eliminar compromisos'
-        );
-
-        if (!canDelete) return;
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('❌ No tienes permiso para eliminar compromisos. Solo administradores pueden hacerlo.');
+            return;
+        }
 
         // Confirmación extra para eliminación
         if (!confirm(`¿Estás seguro de que deseas eliminar este compromiso?`)) {
