@@ -32,6 +32,7 @@
     let canChangeRoles = false;
     let canChangeStatus = false;
     let hasAccessToUsers = false;
+    const ALLOWED_GLOBAL_ROLES = ['admin', 'user'];
 
     // ==========================================
     // UTILIDADES DEFENSIVAS
@@ -377,13 +378,12 @@
             if (canChangeRoles) {
                 const select = document.createElement('select');
                 select.className = 'form-select form-select-sm';
-                select.value = user.role || '';
+                select.value = (user.role || '').toLowerCase();
 
-                const roles = ['cliente', 'auditor', 'auditor_senior', 'supervisor', 'socio', 'administrador', 'programador'];
-                roles.forEach(r => {
+                ALLOWED_GLOBAL_ROLES.forEach(r => {
                     const option = document.createElement('option');
                     option.value = r;
-                    option.textContent = r.charAt(0).toUpperCase() + r.slice(1);
+                    option.textContent = r === 'admin' ? 'Administrador' : 'Usuario';
                     select.appendChild(option);
                 });
 
@@ -483,10 +483,17 @@
             );
             if (!canProceed) return;
 
-            showLoading(true);
-            console.log(`🔄 Cambiando rol de usuario ${userId} a ${newRole}...`);
+            const normalizedRole = newRole.toLowerCase();
+            if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
+                showErrorMsg('Rol inválido. Solo se permiten roles globales: admin o user');
+                loadUsers();
+                return;
+            }
 
-            const result = await API.Users.updateRole(userId, newRole);
+            showLoading(true);
+            console.log(`🔄 Cambiando rol de usuario ${userId} a ${normalizedRole}...`);
+
+            const result = await API.Users.updateRole(userId, normalizedRole);
             showLoading(false);
 
             if (!result.success) {
@@ -497,7 +504,7 @@
                 return;
             }
 
-            showSuccessMsg(`✅ Rol actualizado correctamente a: ${newRole}`);
+            showSuccessMsg(`✅ Rol actualizado correctamente a: ${normalizedRole}`);
             loadUsers();
         } catch (err) {
             showLoading(false);
@@ -627,6 +634,14 @@
             errorMessage.textContent = 'La contraseña debe tener al menos 6 caracteres';
             return;
         }
+
+        const normalizedRole = userData.role.toLowerCase();
+        if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Rol inválido. Solo se permiten roles globales: admin o user';
+            return;
+        }
+        userData.role = normalizedRole;
 
         try {
             window.showLoading(true);
