@@ -1181,7 +1181,7 @@ function initializeDashboardPage() {
         }
 
         // Setear nombre de usuario
-        const userName = window.currentUser.name /*|| 'Usuario'*/;
+        const userName = window.currentUser.name || 'Usuario';
         const welcomeElement = document.getElementById('welcomeText');
         if (welcomeElement) {
             welcomeElement.textContent = `Bienvenido, ${userName}`;
@@ -1236,4 +1236,5 @@ function logout() {
 // ✅ ELIMINADO: applyRoleRestrictions()
 // Las restricciones de rol se aplican ÚNICAMENTE en auth-guard.js y páginas específicas.
 // El dashboard carga para cualquier usuario autenticado activo sin validación adicional de rol.
+
 
