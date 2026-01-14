@@ -475,13 +475,11 @@
                 return;
             }
 
-            // Validar permiso antes
-            const canProceed = await PermissionsHelper.checkPermissionOrFail(
-                'cambiar_rol',
-                'usuarios',
-                '🚫 No tienes permiso para cambiar roles'
-            );
-            if (!canProceed) return;
+            // Validar que sea administrador
+            if (!PermissionsHelper.isAdmin()) {
+                showErrorMsg('No tienes permiso para cambiar roles. Solo administradores pueden hacerlo.');
+                return;
+            }
 
             const normalizedRole = newRole.toLowerCase();
             if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
@@ -525,13 +523,11 @@
                 return;
             }
 
-            // Validar permiso
-            const canProceed = await PermissionsHelper.checkPermissionOrFail(
-                'activar_desactivar',
-                'usuarios',
-                '🚫 No tienes permiso para cambiar estado de usuarios'
-            );
-            if (!canProceed) return;
+            // Validar que sea administrador
+            if (!PermissionsHelper.isAdmin()) {
+                showErrorMsg('No tienes permiso para cambiar estado. Solo administradores pueden hacerlo.');
+                return;
+            }
 
             const status = isActive ? 'activar' : 'desactivar';
             showLoading(true);
