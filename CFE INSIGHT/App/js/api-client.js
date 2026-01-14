@@ -780,6 +780,88 @@
         },
 
         /**
+         * Crear un nuevo usuario
+         * @param {Object} userData - { email, password, name, role, phone, team }
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async create(userData) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio'];
+
+                if (!adminRoles.includes(userRole)) {
+                    return { success: false, error: 'Solo administradores pueden crear usuarios' };
+                }
+
+                // Validar datos requeridos
+                if (!userData.email || !userData.password || !userData.name || !userData.role) {
+                    return { success: false, error: 'Email, contraseña, nombre y rol son requeridos' };
+                }
+
+                // Crear usuario en Auth
+                const { data: authData, error: authError } = await client.auth.signUp({
+                    email: userData.email,
+                    password: userData.password,
+                    options: {
+                        emailRedirectTo: window.location.origin,
+                        data: {
+                            name: userData.name,
+                            role: userData.role
+                        }
+                    }
+                });
+
+                if (authError) {
+                    console.error('❌ Users.create auth error:', authError);
+                    return { success: false, error: authError.message || 'Error al crear usuario en Auth' };
+                }
+
+                // Insertar/actualizar en tabla users
+                const userRecord = {
+                    id: authData.user.id,
+                    email: userData.email,
+                    name: userData.name,
+                    role: userData.role.toLowerCase(),
+                    phone: userData.phone || null,
+                    team: userData.team || null,
+                    active: true,
+                    username: userData.email.split('@')[0]
+                };
+
+                const { data: dbData, error: dbError } = await client
+                    .from('users')
+                    .upsert(userRecord)
+                    .select()
+                    .single();
+
+                if (dbError) {
+                    console.error('❌ Users.create DB error:', dbError);
+                    return { success: false, error: dbError.message || 'Error al guardar usuario en BD' };
+                }
+
+                console.log('✅ Usuario creado exitosamente:', dbData);
+                return { success: true, data: dbData };
+            } catch (err) {
+                console.error('❌ Users.create excepción:', err);
+                return { success: false, error: err.message || 'Error desconocido al crear usuario' };
+            }
+        },
+
+        /**
          * Cambiar rol de un usuario
          * @param {string} userId - ID del usuario
          * @param {string} newRole - Nuevo rol (cliente, auditor, supervisor, etc.)
