@@ -1168,14 +1168,18 @@ function nextMonth() {
  * Inicializar dashboard DESPUÉS de que protectPage() cargue window.currentUser
  * Esta función se ejecuta desde el callback de protectPage() en dashboard.html
  */
-function initializeDashboardPage() {
+async function initializeDashboardPage() {
     try {
         console.log('📊 dashboard.js: initializeDashboardPage()');
 
+        // 🎯 ESPERAR A QUE EL USUARIO ESTÉ COMPLETAMENTE CARGADO
+        console.log('⏳ dashboard.js: Esperando window.currentUserReady...');
+        await window.currentUserReady;
+        console.log('✅ dashboard.js: window.currentUserReady resuelto');
+
         // Verificar que currentUser esté disponible
-        // (Ya debe estar cargado por protectPage() en auth-guard.js)
         if (!window.currentUser) {
-            console.warn('⚠️ dashboard.js: window.currentUser no disponible (esto es un error)');
+            console.error('❌ dashboard.js: window.currentUser es null después de esperar');
             showError('Error: Usuario no cargado. Por favor, recarga la página.');
             return;
         }
