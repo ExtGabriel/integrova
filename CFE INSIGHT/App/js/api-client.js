@@ -469,6 +469,61 @@
                 console.warn('⚠️ [Entities.getById] Excepción:', err.message);
                 return { success: true, data: null };
             }
+        },
+
+        /**
+         * Eliminar una entidad (solo admins)
+         * @param {string} id - ID de la entidad
+         * @returns {Promise<{success: boolean, error: null|string}>}
+         */
+        async delete(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Entities.delete] Supabase no disponible');
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    console.error('❌ [Entities.delete] Usuario no autenticado');
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                if (!adminRoles.includes(userRole)) {
+                    console.error('❌ [Entities.delete] Permiso denegado. Rol:', userRole);
+                    return { success: false, error: 'Solo administradores pueden eliminar entidades' };
+                }
+
+                // Validar ID
+                if (!id) {
+                    console.error('❌ [Entities.delete] ID es requerido');
+                    return { success: false, error: 'El ID de la entidad es requerido' };
+                }
+
+                const { error } = await client
+                    .from('entities')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error('❌ [Entities.delete] Error Supabase:', error.message);
+                    return { success: false, error: error.message };
+                }
+
+                console.log('✅ [Entities.delete] Entidad eliminada:', id);
+                return { success: true, error: null };
+            } catch (err) {
+                console.error('❌ [Entities.delete] Excepción:', err);
+                return { success: false, error: err.message };
+            }
         }
     };
 
