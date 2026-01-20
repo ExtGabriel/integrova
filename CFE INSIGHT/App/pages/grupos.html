@@ -222,6 +222,21 @@
     <script src="../js/utils.js"></script>
     <script src="../js/api-client.js"></script>
     <script>
+        const USER_KEY = 'userUI';
+
+        function getCurrentSession() {
+            if (window.currentUser) return window.currentUser;
+            try {
+                const sessionUser = sessionStorage.getItem(USER_KEY);
+                if (sessionUser) return JSON.parse(sessionUser);
+            } catch (e) { }
+            try {
+                const localUser = localStorage.getItem(USER_KEY);
+                if (localUser) return JSON.parse(localUser);
+            } catch (e) { }
+            return null;
+        }
+
         let groups = [];
         let users = [];
         let commitments = [];
@@ -235,7 +250,7 @@
                 showLoading(true);
 
                 // Load groups from API
-                const groupsResponse = await API.WorkGroups.getAll();
+                const groupsResponse = await API.Groups.getAll();
                 if (groupsResponse.success && groupsResponse.data) {
                     const apiGroups = Array.isArray(groupsResponse.data) ? groupsResponse.data :
                         (groupsResponse.data.data ? groupsResponse.data.data : []);
@@ -252,7 +267,7 @@
                 }
 
                 // Load users from API
-                const usersResponse = await API.Usuarios.getAll();
+                const usersResponse = await API.Users.getAll();
                 if (usersResponse.success && usersResponse.data) {
                     users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
                 } else {
@@ -281,7 +296,7 @@
             }
         }
 
-        // Check access (only administrators and programmers)
+        // Check access
         function checkAccess() {
             const userData = getCurrentSession();
             if (!userData) {
@@ -289,8 +304,8 @@
                 return;
             }
             const role = userData.role;
-            if (role !== 'administrador' && role !== 'programador' && role !== 'socio') {
-                alert('Acceso denegado. Solo administradores, programadores y socios pueden gestionar equipos.');
+            if (role !== 'admin' && role !== 'user') {
+                alert('Acceso denegado.');
                 window.location.href = 'dashboard.html';
                 return;
             }
@@ -517,9 +532,9 @@
                 let response;
 
                 if (editingGroup) {
-                    response = await API.WorkGroups.update(editingGroup.id, groupData);
+                    response = await API.Groups.update(editingGroup.id, groupData);
                 } else {
-                    response = await API.WorkGroups.create(groupData);
+                    response = await API.Groups.create(groupData);
                 }
 
                 if (response.success) {
@@ -550,7 +565,7 @@
                 const handleConfirm = async function () {
                     try {
                         showLoading(true);
-                        const response = await API.WorkGroups.delete(id);
+                        const response = await API.Groups.delete(id);
 
                         if (response.success) {
                             showSuccess('Equipo eliminado');
@@ -618,9 +633,19 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', async function () {
-            checkAccess();
-            await initializeData();
-            renderGroups();
+            const initGroups = async function () {
+                checkAccess();
+                await initializeData();
+                renderGroups();
+            };
+
+            if (typeof window.protectPage === 'function') {
+                window.protectPage(() => {
+                    initGroups();
+                });
+            } else {
+                initGroups();
+            }
 
             document.getElementById('searchInput').addEventListener('input', function () {
                 clearTimeout(this.timeout);

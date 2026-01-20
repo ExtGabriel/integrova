@@ -1213,29 +1213,9 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-// Logout function - delegado a auth-guard.js
-// ✅ ACTUALIZADO: Usa window.logout() del auth-guard para logout consistente
-function logout() {
-    try {
-        console.log('🚪 dashboard.js: Llamando a window.logout()...');
-
-        // Usar logout() del auth-guard si existe
-        if (typeof window.logout === 'function') {
-            window.logout();
-        } else {
-            // Fallback si window.logout no está disponible
-            console.warn('⚠️ window.logout no disponible, usando fallback...');
-            window.__MANUAL_LOGOUT__ = true;
-            sessionStorage.removeItem('userSession');
-            sessionStorage.removeItem('userUI');
-            window.location.href = 'login.html';
-        }
-    } catch (error) {
-        console.error('❌ Error durante logout:', error);
-        window.__MANUAL_LOGOUT__ = true;
-        window.location.href = 'login.html';
-    }
-}
+// ✅ Logout delegado a auth-guard.js
+// La función window.logout() está definida en auth-guard.js
+// No duplicar aquí para evitar conflictos de scope
 
 // ✅ ELIMINADO: applyRoleRestrictions()
 // Las restricciones de rol se aplican ÚNICAMENTE en auth-guard.js y páginas específicas.

@@ -37,7 +37,7 @@
             <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Regresar">
                 <i class="bi bi-arrow-left"></i>
             </button>
-            <button class="header-btn" onclick="logout()" title="Salir">
+            <button class="header-btn" onclick="logoutLocal()" title="Salir">
                 <i class="bi bi-box-arrow-right"></i>
             </button>
         </div>
@@ -103,6 +103,19 @@
     <script>
         // Constante para Sesión (Unificada con login/dashboard)
         const USER_KEY = 'userUI';
+
+        function getCurrentSession() {
+            if (window.currentUser) return window.currentUser;
+            try {
+                const sessionUser = sessionStorage.getItem(USER_KEY);
+                if (sessionUser) return JSON.parse(sessionUser);
+            } catch (e) { }
+            try {
+                const localUser = localStorage.getItem(USER_KEY);
+                if (localUser) return JSON.parse(localUser);
+            } catch (e) { }
+            return null;
+        }
 
         // Array de Compromisos (inicialmente vacío)
         let allCommitments = [];
@@ -180,15 +193,25 @@
         function createCommitmentCard(commitment) {
             const statusClass = `status-${commitment.status}`;
             const statusText = commitment.status.charAt(0).toUpperCase() + commitment.status.slice(1);
-            const dates = `${new Date(commitment.start_date).toLocaleDateString('es-ES')} - ${new Date(commitment.end_date).toLocaleDateString('es-ES')}`;
+            const title = commitment.name || commitment.description || 'Compromiso sin nombre';
+
+            const startDate = commitment.start_date ? new Date(commitment.start_date) : null;
+            const endDate = commitment.end_date ? new Date(commitment.end_date) : null;
+            const deadlineDate = commitment.deadline ? new Date(commitment.deadline) : null;
+
+            const dates = (startDate && endDate)
+                ? `${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`
+                : (deadlineDate ? `Vence: ${deadlineDate.toLocaleDateString('es-ES')}` : '');
+
             // Usar la entidad del objeto commitment si existe, sino buscar en allEntities
             const entityName = commitment.entities ? commitment.entities.name :
-                (allEntities[commitment.entity_id] ? allEntities[commitment.entity_id].name : 'Entidad no encontrada');
+                (commitment.entity ? commitment.entity :
+                    (allEntities[commitment.entity_id] ? allEntities[commitment.entity_id].name : 'Entidad no encontrada'));
 
             return `
                 <div class="commitment-card" data-status="${commitment.status}" data-entity="${entityName.toLowerCase()}">
                     <div class="commitment-main">
-                        <h3>${commitment.name}</h3>
+                        <h3>${title}</h3>
                         <span class="commitment-entity">${entityName}</span>
                         <span class="commitment-dates">${dates}</span>
                         <span class="status-badge ${statusClass}">${statusText}</span>
@@ -229,10 +252,16 @@
             if (!userData) return allCommitments;
 
             const userRole = userData.role;
-            const username = userData.username;
+            const username = userData.username || userData.email || userData.name;
 
             // Administradores ven todos los compromisos
             if (userRole === 'admin') {
+                return allCommitments;
+            }
+
+            // Si no hay información suficiente para filtrar por grupos, no filtrar aquí.
+            // Dejar que RLS en Supabase determine qué registros puede ver el usuario.
+            if (!username || !Array.isArray(workGroupsData) || workGroupsData.length === 0) {
                 return allCommitments;
             }
 
@@ -287,6 +316,7 @@
             container.innerHTML = commitments.map(createCommitmentCard).join('');
             console.log('Cards rendered, applying filters...');
             filterCommitments(); // Aplica filtros iniciales
+            saveFilters(); // Guardar filtros
         }
 
         // Función para Filtrar Compromisos
@@ -408,59 +438,58 @@
             console.log('API object exists:', typeof window.API !== 'undefined');
             console.log('API.Commitments exists:', typeof window.API?.Commitments !== 'undefined');
 
-            // Chequeo de Sesión con expiración
-            const userData = getCurrentSession();
-            if (!userData) {
-                console.log('No user session found, redirecting to login');
-                window.location.href = 'login.html';
-                return;
-            }
-            console.log('User session found:', userData);
+            const initCompromisos = function () {
+                const userData = window.currentUser;
 
-            // Hide "Crear Compromiso" link based on role
-            const createCommitmentBtn = document.getElementById('createCommitmentBtn');
-            if (userData.role !== 'admin') {
-                if (createCommitmentBtn) createCommitmentBtn.style.display = 'none';
-            }
-
-            // Cargar filtros guardados
-            loadFilters();
-
-            // Carga inicial de datos desde API
-            initializeData().then(filteredCommitments => {
-                loadCommitments(filteredCommitments);
-            }).catch(error => {
-                console.error('Error initializing data:', error);
-                // Mostrar mensaje de error al usuario
-                const container = document.getElementById('commitmentsList');
-                container.innerHTML = `
-                    <div style="padding: 2rem; text-align: center; color: #d32f2f;">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
-                        <p>Error al cargar los compromisos. Por favor, verifica la conexión con el servidor.</p>
-                    </div>
-                `;
-            });
-
-            // Búsqueda en tiempo real con sanitización
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', function () {
-                    // Sanitize search input
-                    this.value = sanitizeInput(this.value);
-                    filterCommitments();
-                    saveFilters(); // Guardar filtros
-                });
-            }
-
-            // Configura select inicial
-            if (selectSelected) {
-                const statusText = currentValue === 'todos' ? 'Todos' :
-                    currentValue === 'activo' ? 'Activo' :
-                        currentValue === 'pendiente' ? 'Pendiente' : 'Completado';
-                selectSelected.textContent = statusText;
-                if (currentValue !== 'todos') {
-                    selectSelected.classList.add('selected');
+                // Hide "Crear Compromiso" link based on role
+                const createCommitmentBtn = document.getElementById('createCommitmentBtn');
+                if (userData && userData.role !== 'admin') {
+                    if (createCommitmentBtn) createCommitmentBtn.style.display = 'none';
                 }
+
+                // Cargar filtros guardados
+                loadFilters();
+
+                // Carga inicial de datos desde API
+                initializeData().then(filteredCommitments => {
+                    loadCommitments(filteredCommitments);
+                }).catch(error => {
+                    console.error('Error initializing data:', error);
+                    // Mostrar mensaje de error al usuario
+                    const container = document.getElementById('commitmentsList');
+                    container.innerHTML = `
+                        <div style="padding: 2rem; text-align: center; color: #d32f2f;">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+                            <p>Error al cargar los compromisos. Por favor, verifica la conexión con el servidor.</p>
+                        </div>
+                    `;
+                });
+
+                // Búsqueda en tiempo real con sanitización
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function () {
+                        // Sanitize search input
+                        this.value = sanitizeInput(this.value);
+                        filterCommitments();
+                        saveFilters(); // Guardar filtros
+                    });
+                }
+
+                // Configura select inicial
+                if (selectSelected) {
+                    const statusText = currentValue === 'todos' ? 'Todos' :
+                        currentValue === 'activo' ? 'Activo' :
+                            currentValue === 'pendiente' ? 'Pendiente' : 'Completado';
+                    selectSelected.textContent = statusText;
+                    if (currentValue !== 'todos') {
+                        selectSelected.classList.add('selected');
+                    }
+                }
+            };
+
+            if (typeof window.protectPage === 'function') {
+                window.protectPage(initCompromisos);
             }
         });
 
@@ -1069,12 +1098,15 @@
         }
 
         // Función logout (Corregida, consistente)
-        function logout() {
+        function logoutLocal() {
+            if (typeof window.logout === 'function') {
+                window.logout();
+                return;
+            }
             try {
                 if (localStorage.getItem(USER_KEY)) {
                     localStorage.removeItem(USER_KEY);
                 }
-                // Opcional: No limpia logs aquí para persistir
                 window.location.href = 'login.html';
                 console.log('Sesión cerrada exitosamente');
             } catch (error) {
