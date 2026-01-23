@@ -322,14 +322,15 @@
             background: none;
             border: 1px solid rgba(76, 175, 80, 0.2);
             color: #2E7D32;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: 0.8rem;
         }
 
         .btn-icon:hover {
@@ -342,21 +343,87 @@
             color: #2E7D32;
             flex: 1;
             text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            padding: 8px;
+            background: rgba(76, 175, 80, 0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .calendar-day-header {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            padding: 4px 2px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.65rem;
+            border-radius: 4px;
+        }
+
+        .calendar-day {
+            background: white;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #2E7D32;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            border: 1px solid rgba(76, 175, 80, 0.1);
+        }
+
+        .calendar-day:hover {
+            background: rgba(76, 175, 80, 0.1);
+            transform: scale(1.05);
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+        }
+
+        .calendar-day.other-month {
+            background: rgba(200, 200, 200, 0.3);
+            color: #999;
+        }
+
+        .calendar-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            width: 4px;
+            height: 4px;
+            background: #FFC107;
+            border-radius: 50%;
         }
 
         .calendar-events {
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
+            padding: 0 8px 8px 8px;
         }
 
         .calendar-event {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 24px;
+            gap: 8px;
+            padding: 6px 8px;
             border-bottom: 1px solid rgba(76, 175, 80, 0.1);
             transition: background 0.3s ease;
             cursor: pointer;
+            font-size: 0.8rem;
         }
 
         .calendar-event:hover {
@@ -368,16 +435,16 @@
         }
 
         .event-date {
-            width: 40px;
-            height: 40px;
+            width: 24px;
+            height: 24px;
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
             color: white;
-            border-radius: 8px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.7rem;
         }
 
         .event-content {
@@ -387,11 +454,12 @@
         .event-title {
             font-weight: 500;
             color: #2E7D32;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
+            font-size: 0.8rem;
         }
 
         .event-time {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: #666;
         }
 
@@ -1062,7 +1130,6 @@
         }
 
         .floating-help-btn:hover {
-            transform: scale(1.1);
             box-shadow: 0 6px 16px rgba(255, 193, 7, 0.5);
             background: linear-gradient(135deg, #FFB300, #FF8F00);
         }
@@ -1070,12 +1137,262 @@
         .floating-help-btn:active {
             transform: scale(0.95);
         }
+
+        /* Calendar Event Modal Styles */
+        .calendar-event-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-event-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            position: relative;
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .calendar-event-modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+        }
+
+        .modal-header h4 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .event-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .event-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .event-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .event-action-btn.active {
+            background: linear-gradient(135deg, #45a049, #2E7D32);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .event-action-btn i {
+            font-size: 1.2rem;
+        }
+
+        .events-list, .create-event-form {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .events-list h5, .create-event-form h5 {
+            margin: 0 0 16px 0;
+            color: #2E7D32;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .events-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .event-time {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .event-title {
+            font-weight: 600;
+            color: #2E7D32;
+            margin-bottom: 4px;
+        }
+
+        .event-description {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .no-events {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #2E7D32;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid rgba(76, 175, 80, 0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-cancel, .btn-save {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-cancel:hover {
+            background: #dee2e6;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        /* No Events Message */
+        .no-events-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .no-events-message i {
+            font-size: 2rem;
+            color: #ccc;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .no-events-message p {
+            margin: 0;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 
 <body>
     <header class="header-dashboard">
-        <!-- Columna 1: Mensaje de Bienvenida -->
         <div class="header-col header-col-1">
             <h1 class="welcome-text" id="welcomeText">Bienvenido</h1>
         </div>
@@ -1204,6 +1521,10 @@
                                 <i class="bi bi-clipboard-check"></i>
                                 <span>Compromisos</span>
                             </a>
+                            <a class="action-btn" href="formularios.html" role="button">
+                                <i class="bi bi-file-earmark-text"></i>
+                                <span>Formularios</span>
+                            </a>
                             <a class="action-btn" href="usuarios.html" role="button">
                                 <i class="bi bi-person-plus"></i>
                                 <span>Usuarios</span>
@@ -1212,10 +1533,10 @@
                                 <i class="bi bi-people-fill"></i>
                                 <span>Gestionar Grupos</span>
                             </a>
-                            <button type="button" class="action-btn" onclick="navigateTo('Registro')">
+                            <a class="action-btn" href="registros.html" role="button">
                                 <i class="bi bi-graph-up"></i>
                                 <span>Ver Reportes</span>
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -1228,17 +1549,6 @@
                     </div>
                     <div class="card-content" id="recentActivitiesList">
                         <!-- Activities loaded dynamically -->
-                    </div>
-                </div>
-
-                <!-- Upcoming Deadlines -->
-                <div class="content-card">
-                    <div class="card-header">
-                        <h3><i class="bi bi-calendar-event"></i> Próximas Fechas Límite</h3>
-                        <button class="btn-link" onclick="navigateTo('Calendario')">Ver calendario</button>
-                    </div>
-                    <div class="card-content" id="upcomingDeadlinesList">
-                        <!-- Deadlines loaded dynamically -->
                     </div>
                 </div>
 
@@ -1257,6 +1567,9 @@
                         </div>
                     </div>
                     <div class="card-content">
+                        <div class="calendar-grid" id="dashboardCalendarGrid">
+                            <!-- Calendar will be generated here -->
+                        </div>
                         <div id="calendarContainer">
                             <div class="calendar-events" id="calendarEvents">
                                 <!-- Calendar events loaded dynamically -->

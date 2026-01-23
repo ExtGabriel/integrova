@@ -89,6 +89,22 @@
             transform: scale(1.02);
         }
 
+        .calendar-day.today {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .calendar-day.today .day-number {
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.today .event-item {
+            background: rgba(255, 255, 255, 0.9);
+            color: #2E7D32;
+        }
+
         .calendar-day.other-month {
             background: rgba(200, 200, 200, 0.3);
             color: #999;
@@ -362,6 +378,7 @@
         let currentDate = new Date();
         let allCommitments = [];
         let allEntities = {};
+        let calendarEvents = [];
 
         // Load data from localStorage
         function loadData() {
@@ -379,9 +396,20 @@
                 allCommitments = JSON.parse(commitmentsData);
             }
 
+            // Load calendar events
+            const eventsData = localStorage.getItem('calendarEvents');
+            if (eventsData) {
+                calendarEvents = JSON.parse(eventsData);
+            }
+
             hideLoading();
             renderCalendar();
             renderEventsList();
+        }
+
+        // Save calendar events to localStorage
+        function saveCalendarEvents() {
+            localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents));
         }
 
         // Show loading overlay
@@ -425,9 +453,16 @@
 
             // Generate calendar days
             const currentDay = new Date(startDate);
+            const today = new Date();
+            
             for (let i = 0; i < 42; i++) { // 6 weeks * 7 days
                 const dayElement = document.createElement('div');
                 dayElement.className = 'calendar-day';
+
+                // Check if it's today
+                if (currentDay.toDateString() === today.toDateString()) {
+                    dayElement.classList.add('today');
+                }
 
                 if (currentDay.getMonth() !== month) {
                     dayElement.classList.add('other-month');
@@ -448,9 +483,42 @@
                     dayElement.appendChild(eventElement);
                 });
 
+                // Add click event for adding new events
+                dayElement.addEventListener('click', function() {
+                    handleDayClick(currentDay);
+                });
+
                 calendarGrid.appendChild(dayElement);
                 currentDay.setDate(currentDay.getDate() + 1);
             }
+        }
+
+        // Handle day click to add events
+        function handleDayClick(date) {
+            const dateStr = date.toLocaleDateString('es-ES');
+            const title = prompt(`Agregar evento para ${dateStr}:`);
+            
+            if (title) {
+                addCalendarEvent(date, title);
+            }
+        }
+
+        // Add new calendar event
+        function addCalendarEvent(date, title) {
+            const event = {
+                id: Date.now(),
+                date: date.toISOString().split('T')[0],
+                title: title,
+                type: 'meeting',
+                createdAt: new Date().toISOString()
+            };
+            
+            calendarEvents.push(event);
+            saveCalendarEvents();
+            renderCalendar();
+            renderEventsList();
+            
+            alert(`Evento "${title}" agregado para ${date.toLocaleDateString('es-ES')}`);
         }
 
         // Get events for a specific day
@@ -473,6 +541,19 @@
                         description: `${commitment.description} - ${entityName}`,
                         date: dateStr,
                         commitment: commitment
+                    });
+                }
+            });
+
+            // Check custom calendar events
+            calendarEvents.forEach(event => {
+                if (event.date === dateStr) {
+                    events.push({
+                        type: event.type || 'meeting',
+                        title: event.title,
+                        description: 'Evento personalizado',
+                        date: dateStr,
+                        event: event
                     });
                 }
             });

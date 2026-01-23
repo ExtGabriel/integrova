@@ -4,9 +4,12 @@
 
 // Navigation function for dashboard buttons
 function navigateTo(page) {
-    // All pages are in /App/pages/, use simple relative paths
+    console.log('🔍 Navegando a:', page);
+    
+    // All pages are in the same directory as dashboard.html
     const pageMap = {
         'Registro': 'registros.html',
+        'Reportes': 'registros.html',
         'Calendario': 'calendario.html',
         'Entidades': 'entidades.html',
         'Usuarios': 'usuarios.html',
@@ -17,9 +20,19 @@ function navigateTo(page) {
     };
 
     if (pageMap[page]) {
-        window.location.href = pageMap[page];
+        console.log('🎯 Ruta encontrada:', pageMap[page]);
+        console.log('📍 URL actual:', window.location.href);
+        
+        // Try different navigation methods
+        try {
+            window.location.href = pageMap[page];
+        } catch (error) {
+            console.error('❌ Error en navegación:', error);
+            // Fallback: try with full path
+            window.location.href = window.location.origin + '/pages/' + pageMap[page];
+        }
     } else {
-        console.warn('Página no encontrada:', page);
+        console.warn('❌ Página no encontrada:', page);
     }
 }
 
@@ -79,9 +92,6 @@ async function loadDashboardData() {
 
         // Load recent activities
         await loadRecentActivities();
-
-        // Load upcoming deadlines
-        await loadUpcomingDeadlines();
 
         // Load calendar events
         await loadCalendarEvents();
@@ -679,7 +689,8 @@ async function loadRecentActivities() {
     }
 }
 
-// Load upcoming deadlines from API
+// Load upcoming deadlines from API - DESACTIVADA (elemento HTML eliminado)
+/*
 async function loadUpcomingDeadlines() {
     const deadlinesList = document.getElementById('upcomingDeadlinesList');
 
@@ -774,6 +785,7 @@ async function loadUpcomingDeadlines() {
         `;
     }
 }
+*/
 
 // Load calendar events from API
 async function loadCalendarEvents() {
@@ -1210,6 +1222,323 @@ async function initializeDashboardPage() {
 // DOMContentLoaded aquí es solo para verificar que el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     console.log('📊 dashboard.js: DOMContentLoaded (esperando protectPage callback)...');
+});
+
+// Calendar functionality for dashboard
+let calendarCurrentDate = new Date();
+let selectedDate = null;
+let calendarEvents = JSON.parse(localStorage.getItem('dashboardCalendarEvents')) || [];
+
+// Show events in calendar events section
+function showCalendarEvents() {
+    const calendarEventsContainer = document.getElementById('calendarEvents');
+    if (!calendarEventsContainer) return;
+    
+    // Get current month events
+    const year = calendarCurrentDate.getFullYear();
+    const month = calendarCurrentDate.getMonth();
+    
+    const currentMonthEvents = calendarEvents.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate.getFullYear() === year && eventDate.getMonth() === month;
+    });
+    
+    // Sort events by date and time
+    currentMonthEvents.sort((a, b) => {
+        const dateCompare = new Date(a.date) - new Date(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return (a.time || '').localeCompare(b.time || '');
+    });
+    
+    if (currentMonthEvents.length === 0) {
+        calendarEventsContainer.innerHTML = `
+            <div class="no-events-message">
+                <i class="bi bi-calendar-x"></i>
+                <p>No hay eventos este mes</p>
+            </div>
+        `;
+    } else {
+        calendarEventsContainer.innerHTML = currentMonthEvents.map(event => `
+            <div class="calendar-event">
+                <div class="event-date">${new Date(event.date).getDate()}</div>
+                <div class="event-content">
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time">${event.time || 'Todo el día'}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+// Initialize small calendar
+function initializeSmallCalendar() {
+    // Load events from localStorage
+    calendarEvents = JSON.parse(localStorage.getItem('dashboardCalendarEvents')) || [];
+    console.log('📅 Eventos cargados:', calendarEvents);
+    
+    renderSmallCalendar();
+    showCalendarEvents();
+}
+
+// Render small calendar
+function renderSmallCalendar() {
+    const calendarGrid = document.getElementById('dashboardCalendarGrid');
+    if (!calendarGrid) return;
+    
+    const year = calendarCurrentDate.getFullYear();
+    const month = calendarCurrentDate.getMonth();
+
+    // Update month display
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    document.getElementById('currentMonth').textContent = `${months[month]} ${year}`;
+
+    // Clear previous calendar
+    calendarGrid.innerHTML = '';
+
+    // Add day headers
+    const daysOfWeek = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    daysOfWeek.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        calendarGrid.appendChild(header);
+    });
+
+    // Get first day of month and last day
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+    // Generate calendar days
+    const currentDay = new Date(startDate);
+    const today = new Date();
+    
+    for (let i = 0; i < 35; i++) { // 5 weeks * 7 days
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+
+        // Check if it's today
+        if (currentDay.toDateString() === today.toDateString()) {
+            dayElement.classList.add('today');
+        }
+
+        // Check if it's other month
+        if (currentDay.getMonth() !== month) {
+            dayElement.classList.add('other-month');
+        }
+
+        // Check if has events
+        const dayEvents = getSmallCalendarEventsForDay(currentDay);
+        if (dayEvents.length > 0) {
+            dayElement.classList.add('has-event');
+        }
+
+        // Add day number
+        dayElement.textContent = currentDay.getDate();
+
+        // Add click event - capture the specific date for this day
+        const dayDate = new Date(currentDay); // Create a copy of the current date
+        dayElement.addEventListener('click', function() {
+            handleSmallCalendarDayClick(dayDate);
+        });
+
+        calendarGrid.appendChild(dayElement);
+        currentDay.setDate(currentDay.getDate() + 1);
+    }
+}
+
+// Handle calendar day click
+function handleSmallCalendarDayClick(date) {
+    selectedDate = date;
+    console.log('📅 Fecha seleccionada:', date);
+    console.log('📅 Fecha formateada:', formatDateLocal(date));
+    
+    const dateStr = date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    console.log('📅 Fecha en español:', dateStr);
+    
+    const dayEvents = getSmallCalendarEventsForDay(date);
+    
+    // Create modal content
+    const modalHtml = `
+        <div class="calendar-event-modal" id="calendarEventModal">
+            <div class="modal-backdrop" onclick="closeCalendarEventModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4>${dateStr}</h4>
+                    <button class="close-btn" onclick="closeCalendarEventModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="event-actions">
+                        <button class="event-action-btn" onclick="showDayEvents()">
+                            <i class="bi bi-calendar-event"></i>
+                            <span>Ver Eventos</span>
+                        </button>
+                        <button class="event-action-btn" onclick="showCreateEventForm()">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>Crear Evento</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Events List (hidden by default) -->
+                    <div id="eventsList" class="events-list" style="display: none;">
+                        <h5>Eventos del día</h5>
+                        <div class="events-container">
+                            ${dayEvents.length > 0 ? dayEvents.map(event => `
+                                <div class="event-item">
+                                    <div class="event-time">${event.time || 'Todo el día'}</div>
+                                    <div class="event-title">${event.title}</div>
+                                    <div class="event-description">${event.description || ''}</div>
+                                </div>
+                            `).join('') : '<p class="no-events">No hay eventos para este día</p>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Create Event Form (hidden by default) -->
+                    <div id="createEventForm" class="create-event-form" style="display: none;">
+                        <h5>Crear Nuevo Evento</h5>
+                        <form id="newEventForm" onsubmit="saveNewEvent(event)">
+                            <div class="form-group">
+                                <label for="eventTitle">Título del Evento</label>
+                                <input type="text" id="eventTitle" required placeholder="Ej: Reunión importante">
+                            </div>
+                            <div class="form-group">
+                                <label for="eventTime">Hora</label>
+                                <input type="time" id="eventTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="eventDescription">Descripción (opcional)</label>
+                                <textarea id="eventDescription" rows="3" placeholder="Agregar detalles..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-cancel" onclick="closeCalendarEventModal()">Cancelar</button>
+                                <button type="submit" class="btn-save">Guardar Evento</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('calendarEventModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal with animation
+    setTimeout(() => {
+        document.getElementById('calendarEventModal').classList.add('show');
+    }, 10);
+}
+
+// Show events list
+function showDayEvents() {
+    document.getElementById('eventsList').style.display = 'block';
+    document.getElementById('createEventForm').style.display = 'none';
+    document.querySelectorAll('.event-action-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.closest('.event-action-btn').classList.add('active');
+}
+
+// Show create event form
+function showCreateEventForm() {
+    document.getElementById('eventsList').style.display = 'none';
+    document.getElementById('createEventForm').style.display = 'block';
+    document.querySelectorAll('.event-action-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.closest('.event-action-btn').classList.add('active');
+}
+
+// Close calendar event modal
+function closeCalendarEventModal() {
+    const modal = document.getElementById('calendarEventModal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 300);
+    }
+}
+
+// Save new event
+function saveNewEvent(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('eventTitle').value;
+    const time = document.getElementById('eventTime').value;
+    const description = document.getElementById('eventDescription').value;
+    
+    console.log('📅 selectedDate al guardar:', selectedDate);
+    console.log('📅 selectedDate formateada:', selectedDate ? formatDateLocal(selectedDate) : 'NULL');
+    
+    const newEvent = {
+        id: Date.now().toString(),
+        date: formatDateLocal(selectedDate),
+        title: title,
+        time: time,
+        description: description,
+        createdAt: new Date().toISOString()
+    };
+    
+    console.log('📅 Evento a guardar:', newEvent);
+    
+    // Add to calendar events
+    calendarEvents.push(newEvent);
+    
+    // Save to localStorage
+    localStorage.setItem('dashboardCalendarEvents', JSON.stringify(calendarEvents));
+    
+    // Refresh calendar
+    renderSmallCalendar();
+    showCalendarEvents();
+    
+    // Close modal
+    closeCalendarEventModal();
+    
+    // Show success message
+    showSuccess('Evento creado exitosamente');
+}
+
+// Format date to local YYYY-MM-DD (preserves local timezone)
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Get events for day
+function getSmallCalendarEventsForDay(date) {
+    const dateStr = formatDateLocal(date);
+    return calendarEvents.filter(event => event.date === dateStr);
+}
+
+// Navigation functions
+function previousMonth() {
+    calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() - 1);
+    renderSmallCalendar();
+    showCalendarEvents();
+}
+
+function nextMonth() {
+    calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + 1);
+    renderSmallCalendar();
+    showCalendarEvents();
+}
+
+// Initialize calendar when dashboard loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        initializeSmallCalendar();
+    }, 1000);
 });
 
 

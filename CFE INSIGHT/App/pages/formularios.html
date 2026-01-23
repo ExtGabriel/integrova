@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Formulario</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/formularios.css">
+</head>
+
+<body>
+    <!-- Header con 3 columnas -->
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> Formulario</h1>
+        </div>
+        <div class="header-center">
+            <!-- Vacío - sin buscador -->
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="header-btn" title="Regresar">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <button class="header-btn" onclick="logoutLocal()" title="Cerrar Sesión">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="formularios-container">
+            <!-- Contenedor para Entidad Padre y Entidad Hijo lado a lado -->
+            <div class="entidades-row">
+                <!-- Sección de Entidad Padre -->
+                <div class="form-section entidad-block">
+                    <div class="section-header">
+                        <h3><i class="bi bi-building"></i> Entidad Padre</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="entidadPadre">Seleccionar Entidad Padre</label>
+                        <input type="hidden" id="entidadPadre" name="entidadPadre" value="">
+                        <div class="entity-select-container">
+                            <div class="custom-select" id="entidadPadreSelect">
+                                <div class="select-selected" id="entidadPadreSelected">Entidad padre...</div>
+                                <i class="bi bi-chevron-down custom-arrow"></i>
+                                <div class="select-items" id="entidadPadreItems">
+                                    <div data-value="">Entidad padre...</div>
+                                    <div data-value="entidad1">Dirección General</div>
+                                    <div data-value="entidad2">Subdirección Administrativa</div>
+                                    <div data-value="entidad3">Subdirección Técnica</div>
+                                    <div data-value="entidad4">Subdirección Financiera</div>
+                                </div>
+                            </div>
+                            <div class="search-input">
+                                <i class="bi bi-search"></i>
+                                <input id="entidadPadreSearch" type="text" placeholder="Buscar..." onkeyup="handleEntitySearch('padre', event)">
+                                <button class="btn-clear-search" onclick="clearEntitySearch('padre')" title="Limpiar búsqueda">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de Entidad Hijo -->
+                <div class="form-section entidad-block">
+                    <div class="section-header">
+                        <h3><i class="bi bi-diagram-3"></i> Entidad Hijo</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="entidadHijo">Seleccionar Entidad Hijo</label>
+                        <input type="hidden" id="entidadHijo" name="entidadHijo" value="">
+                        <div class="entity-select-container">
+                            <div class="custom-select" id="entidadHijoSelect">
+                                <div class="select-selected" id="entidadHijoSelected">Entidad hija...</div>
+                                <i class="bi bi-chevron-down custom-arrow"></i>
+                                <div class="select-items" id="entidadHijoItems">
+                                    <div data-value="">Entidad hija...</div>
+                                    <div data-value="hijo1">Departamento de Recursos Humanos</div>
+                                    <div data-value="hijo2">Departamento de TI</div>
+                                    <div data-value="hijo3">Departamento de Contabilidad</div>
+                                    <div data-value="hijo4">Departamento de Operaciones</div>
+                                </div>
+                            </div>
+                            <div class="search-input">
+                                <i class="bi bi-search"></i>
+                                <input id="entidadHijoSearch" type="text" placeholder="Buscar..." onkeyup="handleEntitySearch('hijo', event)">
+                                <button class="btn-clear-search" onclick="clearEntitySearch('hijo')" title="Limpiar búsqueda">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Generar Formularios -->
+            <div class="form-section">
+                <div class="button-container">
+                    <button type="button" class="btn btn-primary btn-large" onclick="mostrarFormularios()">
+                        <i class="bi bi-file-earmark-plus"></i> Generar Formularios
+                    </button>
+                </div>
+            </div>
+
+            <!-- Opciones de Formularios (inicialmente oculto) -->
+            <div id="opcionesFormularios" class="formularios-grid" style="display: none;">
+                <div class="form-card" onclick="abrirFormulario('evaluacion')">
+                    <div class="form-icon">
+                        <i class="bi bi-clipboard-data"></i>
+                    </div>
+                    <div class="form-title">Evaluación de Desempeño</div>
+                    <div class="form-description">Formulario para evaluar el desempeño del personal</div>
+                </div>
+
+                <div class="form-card" onclick="abrirFormulario('solicitud')">
+                    <div class="form-icon">
+                        <i class="bi bi-file-earmark-plus"></i>
+                    </div>
+                    <div class="form-title">Solicitud de Recursos</div>
+                    <div class="form-description">Solicitar recursos para proyectos</div>
+                </div>
+
+                <div class="form-card" onclick="abrirFormulario('reporte')">
+                    <div class="form-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div class="form-title">Reporte de Avances</div>
+                    <div class="form-description">Reportar avances de proyectos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+
+        // ==========================================
+        // FUNCIONES PARA MENÚS DESPLEGABLES CON BÚSQUEDA
+        // ==========================================
+
+        // Variables globales para entidades - inicializadas con datos estáticos
+        let entidadesPadreOriginales = [
+            { value: '', text: 'Entidad padre...' },
+            { value: 'entidad1', text: 'Dirección General' },
+            { value: 'entidad2', text: 'Subdirección Administrativa' },
+            { value: 'entidad3', text: 'Subdirección Técnica' },
+            { value: 'entidad4', text: 'Subdirección Financiera' },
+            { value: 'entidad5', text: 'Dirección de Recursos Humanos' },
+            { value: 'entidad6', text: 'Dirección de Finanzas' },
+            { value: 'entidad7', text: 'Dirección de Operaciones' },
+            { value: 'entidad8', text: 'Dirección de TI' }
+        ];
+
+        let entidadesHijoOriginales = [
+            { value: '', text: 'Entidad hija...' },
+            { value: 'hijo1', text: 'Departamento de Recursos Humanos' },
+            { value: 'hijo2', text: 'Departamento de TI' },
+            { value: 'hijo3', text: 'Departamento de Contabilidad' },
+            { value: 'hijo4', text: 'Departamento de Operaciones' },
+            { value: 'hijo5', text: 'Departamento de Compras' },
+            { value: 'hijo6', text: 'Departamento de Ventas' },
+            { value: 'hijo7', text: 'Departamento de Marketing' },
+            { value: 'hijo8', text: 'Departamento de Logística' }
+        ];
+
+        // Inicializar menús desplegables
+        function initializeCustomSelects() {
+            // Menú desplegable Entidad Padre
+            const padreSelect = document.getElementById('entidadPadreSelect');
+            const padreSelected = document.getElementById('entidadPadreSelected');
+            const padreItems = document.getElementById('entidadPadreItems');
+            const padreArrow = padreSelect.querySelector('.custom-arrow');
+
+            // Solo manejar apertura/cierre del menú principal, no selección
+            padreSelected.addEventListener('click', function () {
+                const isOpen = padreItems.classList.contains('show');
+                
+                // Cerrar ambos menús primero
+                document.getElementById('entidadPadreItems').classList.remove('show');
+                document.getElementById('entidadHijoItems').classList.remove('show');
+                document.querySelector('#entidadPadreSelect .custom-arrow').classList.remove('rotate');
+                document.querySelector('#entidadHijoSelect .custom-arrow').classList.remove('rotate');
+                
+                // Abrir este menú si estaba cerrado
+                if (!isOpen) {
+                    padreItems.classList.add('show');
+                    padreArrow.classList.add('rotate');
+                    
+                    // Forzar scroll
+                    setTimeout(() => {
+                        padreItems.style.overflowY = 'auto';
+                        padreItems.style.maxHeight = '250px';
+                        padreItems.offsetHeight;
+                    }, 10);
+                }
+            });
+
+            // Menú desplegable Entidad Hijo
+            const hijoSelect = document.getElementById('entidadHijoSelect');
+            const hijoSelected = document.getElementById('entidadHijoSelected');
+            const hijoItems = document.getElementById('entidadHijoItems');
+            const hijoArrow = hijoSelect.querySelector('.custom-arrow');
+
+            // Solo manejar apertura/cierre del menú principal, no selección
+            hijoSelected.addEventListener('click', function () {
+                const isOpen = hijoItems.classList.contains('show');
+                
+                // Cerrar ambos menús primero
+                document.getElementById('entidadPadreItems').classList.remove('show');
+                document.getElementById('entidadHijoItems').classList.remove('show');
+                document.querySelector('#entidadPadreSelect .custom-arrow').classList.remove('rotate');
+                document.querySelector('#entidadHijoSelect .custom-arrow').classList.remove('rotate');
+                
+                // Abrir este menú si estaba cerrado
+                if (!isOpen) {
+                    hijoItems.classList.add('show');
+                    hijoArrow.classList.add('rotate');
+                    
+                    // Forzar scroll
+                    setTimeout(() => {
+                        hijoItems.style.overflowY = 'auto';
+                        hijoItems.style.maxHeight = '250px';
+                        hijoItems.offsetHeight;
+                    }, 10);
+                }
+            });
+
+            // Cerrar menús al hacer clic fuera
+            document.addEventListener('click', function (e) {
+                if (!padreSelect.contains(e.target)) {
+                    padreItems.classList.remove('show');
+                    padreArrow.classList.remove('rotate');
+                }
+                if (!hijoSelect.contains(e.target)) {
+                    hijoItems.classList.remove('show');
+                    hijoArrow.classList.remove('rotate');
+                }
+            });
+        }
+
+        // Función para manejar búsqueda de entidades
+        function handleEntitySearch(type, event) {
+            const searchValue = event.target.value.trim();
+            const searchInput = event.target;
+            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
+            
+            // Abrir automáticamente el menú desplegable al buscar
+            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
+            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const arrow = document.querySelector(`#entidad${type === 'padre' ? 'Padre' : 'Hijo'}Select .custom-arrow`);
+            
+            // Abrir menú si hay texto de búsqueda
+            if (searchValue) {
+                items.classList.add('show');
+                arrow.classList.add('rotate');
+                clearBtn.classList.add('visible');
+            } else {
+                // Cerrar menú si no hay búsqueda
+                items.classList.remove('show');
+                arrow.classList.remove('rotate');
+                clearBtn.classList.remove('visible');
+            }
+
+            // Realizar búsqueda
+            performEntitySearch(type, searchValue);
+        }
+
+        // Función para limpiar búsqueda
+        function clearEntitySearch(type) {
+            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
+            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
+            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+
+            // Restaurar todas las opciones
+            restoreOriginalOptions(type);
+        }
+
+        // Función principal de búsqueda
+        function performEntitySearch(type, searchTerm) {
+            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const originalOptions = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+
+            console.log(`Buscando "${searchTerm}" en ${type}, opciones disponibles:`, originalOptions.length);
+
+            if (!searchTerm) {
+                restoreOriginalOptions(type);
+                return;
+            }
+
+            const term = searchTerm.toLowerCase();
+            const filteredOptions = originalOptions.filter(option =>
+                option.text.toLowerCase().includes(term)
+            );
+
+            console.log(`Resultados encontrados: ${filteredOptions.length}`, filteredOptions);
+
+            // Actualizar opciones visibles con eventos onclick directos
+            if (filteredOptions.length > 0) {
+                items.innerHTML = filteredOptions.map(option =>
+                    `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${option.text.replace(/'/g, "\\'")}')">${option.text}</div>`
+                ).join('');
+            } else {
+                items.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No se encontraron resultados</div>';
+            }
+
+            // Asegurar que el menú se muestre correctamente
+            items.style.display = 'block';
+            items.classList.add('show');
+            items.style.overflowY = 'auto';
+            items.style.maxHeight = '250px';
+
+            // Forzar scroll y visibilidad
+            setTimeout(() => {
+                items.offsetHeight; // Forzar repaint
+            }, 10);
+        }
+
+        // Función directa para seleccionar opción y cerrar menú
+        function selectOption(type, value, text) {
+            console.log(`Seleccionando: ${text} (${value})`);
+            
+            // Actualizar el texto seleccionado
+            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
+            selected.textContent = text;
+            selected.classList.add('selected');
+            
+            // Actualizar valor oculto
+            const hiddenInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}`);
+            if (hiddenInput) hiddenInput.value = value;
+
+            // Limpiar búsqueda
+            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
+            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+
+            // Cerrar todos los menús de forma agresiva
+            closeAllDropdowns();
+            
+            // Restaurar opciones después de un breve retraso
+            setTimeout(() => {
+                restoreOriginalOptions(type);
+            }, 100);
+            
+            return false;
+        }
+
+        // Función para cerrar todos los menús agresivamente
+        function closeAllDropdowns() {
+            // Cerrar menú padre
+            const padreItems = document.getElementById('entidadPadreItems');
+            const padreArrow = document.querySelector('#entidadPadreSelect .custom-arrow');
+            if (padreItems) {
+                padreItems.style.display = 'none';
+                padreItems.classList.remove('show');
+            }
+            if (padreArrow) padreArrow.classList.remove('rotate');
+            
+            // Cerrar menú hijo
+            const hijoItems = document.getElementById('entidadHijoItems');
+            const hijoArrow = document.querySelector('#entidadHijoSelect .custom-arrow');
+            if (hijoItems) {
+                hijoItems.style.display = 'none';
+                hijoItems.classList.remove('show');
+            }
+            if (hijoArrow) hijoArrow.classList.remove('rotate');
+            
+            // Forzar cierre con múltiples métodos
+            setTimeout(() => {
+                if (padreItems) {
+                    padreItems.style.display = 'none';
+                    padreItems.classList.remove('show');
+                }
+                if (hijoItems) {
+                    hijoItems.style.display = 'none';
+                    hijoItems.classList.remove('show');
+                }
+            }, 10);
+        }
+        function reassignClickEvents(type) {
+            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
+            const selectItems = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const arrow = document.querySelector(`#entidad${type === 'padre' ? 'Padre' : 'Hijo'}Select .custom-arrow`);
+            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
+            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
+            const hiddenInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}`);
+
+            // Remover eventos anteriores
+            items.removeEventListener('click', handleOptionClick);
+            
+            function handleOptionClick(e) {
+                if (e.target && e.target.matches('div')) {
+                    const value = e.target.getAttribute('data-value');
+                    const text = e.target.textContent;
+
+                    // Actualizar el texto seleccionado
+                    selected.textContent = text;
+                    selected.classList.add('selected');
+                    
+                    // Actualizar valor oculto
+                    if (hiddenInput) hiddenInput.value = value;
+
+                    // Cerrar el menú desplegable
+                    selectItems.classList.remove('show');
+                    arrow.classList.remove('rotate');
+
+                    // Limpiar el campo de búsqueda
+                    searchInput.value = '';
+                    clearBtn.classList.remove('visible');
+
+                    // Restaurar todas las opciones originales
+                    setTimeout(() => {
+                        restoreOriginalOptions(type);
+                    }, 100);
+                }
+            }
+
+            // Agregar nuevo evento de clic
+            items.addEventListener('click', handleOptionClick);
+        }
+
+        // Función para restaurar opciones originales
+        function restoreOriginalOptions(type) {
+            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const originalOptions = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+
+            items.innerHTML = originalOptions.map(option =>
+                `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${option.text.replace(/'/g, "\\'")}')">${option.text}</div>`
+            ).join('');
+        }
+
+        // Función actualizada para cargar entidades con menús personalizados
+        async function cargarEntidadesConCustomSelects() {
+            try {
+                // Cargar entidades padre
+                const entidadesResponse = await API.Entities.getAll();
+                if (entidadesResponse.success && entidadesResponse.data) {
+                    entidadesPadreOriginales = [
+                        { value: '', text: 'Entidad padre...' },
+                        ...entidadesResponse.data.map(entidad => ({
+                            value: entidad.id,
+                            text: entidad.name
+                        }))
+                    ];
+
+                    // Actualizar menú desplegable
+                    const padreItems = document.getElementById('entidadPadreItems');
+                    if (padreItems) {
+                        padreItems.innerHTML = entidadesPadreOriginales.map(option =>
+                            `<div data-value="${option.value}">${option.text}</div>`
+                        ).join('');
+                    }
+                }
+
+                // Cargar entidades hijas (si hay una tabla separada o las mismas)
+                const hijasResponse = await API.Entities.getAll();
+                if (hijasResponse.success && hijasResponse.data) {
+                    entidadesHijoOriginales = [
+                        { value: '', text: 'Entidad hija...' },
+                        ...hijasResponse.data.map(entidad => ({
+                            value: entidad.id,
+                            text: entidad.name
+                        }))
+                    ];
+
+                    // Actualizar menú desplegable
+                    const hijoItems = document.getElementById('entidadHijoItems');
+                    if (hijoItems) {
+                        hijoItems.innerHTML = entidadesHijoOriginales.map(option =>
+                            `<div data-value="${option.value}">${option.text}</div>`
+                        ).join('');
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error cargando entidades:', error);
+                // Mantener opciones estáticas como fallback
+                entidadesPadreOriginales = [
+                    { value: '', text: 'Entidad padre...' },
+                    { value: 'entidad1', text: 'Dirección General' },
+                    { value: 'entidad2', text: 'Subdirección Administrativa' },
+                    { value: 'entidad3', text: 'Subdirección Técnica' },
+                    { value: 'entidad4', text: 'Subdirección Financiera' },
+                    { value: 'entidad5', text: 'Dirección de Recursos Humanos' },
+                    { value: 'entidad6', text: 'Dirección de Finanzas' },
+                    { value: 'entidad7', text: 'Dirección de Operaciones' },
+                    { value: 'entidad8', text: 'Dirección de TI' }
+                ];
+
+                entidadesHijoOriginales = [
+                    { value: '', text: 'Entidad hija...' },
+                    { value: 'hijo1', text: 'Departamento de Recursos Humanos' },
+                    { value: 'hijo2', text: 'Departamento de TI' },
+                    { value: 'hijo3', text: 'Departamento de Contabilidad' },
+                    { value: 'hijo4', text: 'Departamento de Operaciones' },
+                    { value: 'hijo5', text: 'Departamento de Compras' },
+                    { value: 'hijo6', text: 'Departamento de Ventas' },
+                    { value: 'hijo7', text: 'Departamento de Marketing' },
+                    { value: 'hijo8', text: 'Departamento de Logística' }
+                ];
+                
+                // Actualizar menús con datos estáticos
+                restoreOriginalOptions('padre');
+                restoreOriginalOptions('hijo');
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function () {
+            // Inicializar menús desplegables personalizados
+            initializeCustomSelects();
+            
+            // Cargar datos iniciales inmediatamente
+            restoreOriginalOptions('padre');
+            restoreOriginalOptions('hijo');
+            
+            // Intentar cargar desde API (opcional)
+            setTimeout(() => {
+                if (window.API && window.API.Entities) {
+                    cargarEntidadesConCustomSelects();
+                }
+            }, 1000);
+        });
+
+        // Constante para Sesión (Unificada con login/dashboard)
+        const USER_KEY = 'userUI';
+
+        function getCurrentSession() {
+            if (window.currentUser) return window.currentUser;
+            try {
+                const sessionUser = sessionStorage.getItem(USER_KEY);
+                if (sessionUser) return JSON.parse(sessionUser);
+            } catch (e) { }
+            try {
+                const localUser = localStorage.getItem(USER_KEY);
+                if (localUser) return JSON.parse(localUser);
+            } catch (e) { }
+            return null;
+        }
+
+        function logoutLocal() {
+            if (typeof window.logout === 'function') {
+                window.logout();
+                return;
+            }
+            try {
+                if (localStorage.getItem(USER_KEY)) {
+                    localStorage.removeItem(USER_KEY);
+                }
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada exitosamente');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Función para mostrar/ocultar las opciones de formularios
+        function mostrarFormularios() {
+            const opcionesDiv = document.getElementById('opcionesFormularios');
+            const entidadPadre = document.getElementById('entidadPadre').value;
+            const entidadHijo = document.getElementById('entidadHijo').value;
+            
+            // Validar que se hayan seleccionado ambas entidades
+            if (!entidadPadre || !entidadHijo) {
+                alert('Por favor seleccione tanto la Entidad Padre como la Entidad Hijo antes de generar formularios.');
+                return;
+            }
+            
+            // Mostrar las opciones de formularios con animación
+            if (opcionesDiv.style.display === 'none') {
+                opcionesDiv.style.display = 'grid';
+                opcionesDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                opcionesDiv.style.display = 'none';
+            }
+        }
+
+        // Función para abrir formularios específicos
+        function abrirFormulario(tipo) {
+            // Aquí puedes agregar la lógica para cada tipo de formulario
+            console.log('Abriendo formulario:', tipo);
+            
+            // Por ahora, mostramos un alerta con el tipo de formulario
+            alert(`Abriendo formulario: ${tipo}\n\nEsta función aún está en desarrollo.`);
+            
+            // Ejemplo de cómo podrías redirigir a formularios específicos:
+            // switch(tipo) {
+            //     case 'evaluacion':
+            //         window.location.href = 'formularios/evaluacion-desempeno.html';
+            //         break;
+            //     case 'solicitud':
+            //         window.location.href = 'formularios/solicitud-recursos.html';
+            //         break;
+            //     // ... otros casos
+            // }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const initFormularios = function () {
+                const userData = getCurrentSession();
+                if (!userData) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                // Cargar entidades desde la API
+                cargarEntidades();
+
+                // Aquí puedes agregar más inicialización específica de la página
+                console.log('Página de formularios inicializada');
+            };
+
+            if (typeof window.protectPage === 'function') {
+                window.protectPage(initFormularios);
+            } else {
+                initFormularios();
+            }
+        });
+
+        // Función para cargar entidades desde la API
+        async function cargarEntidades() {
+            try {
+                // Cargar entidades padre
+                const entidadesResponse = await API.Entities.getAll();
+                if (entidadesResponse.success && entidadesResponse.data) {
+                    const selectPadre = document.getElementById('entidadPadre');
+                    selectPadre.innerHTML = '<option value="">Seleccione una entidad padre...</option>';
+                    
+                    entidadesResponse.data.forEach(entidad => {
+                        const option = document.createElement('option');
+                        option.value = entidad.id;
+                        option.textContent = entidad.name;
+                        selectPadre.appendChild(option);
+                    });
+                }
+
+                // Cargar entidades hijas (si hay una tabla separada o las mismas)
+                const hijasResponse = await API.Entities.getAll();
+                if (hijasResponse.success && hijasResponse.data) {
+                    const selectHijo = document.getElementById('entidadHijo');
+                    selectHijo.innerHTML = '<option value="">Seleccione una entidad hija...</option>';
+                    
+                    hijasResponse.data.forEach(entidad => {
+                        const option = document.createElement('option');
+                        option.value = entidad.id;
+                        option.textContent = entidad.name;
+                        selectHijo.appendChild(option);
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error cargando entidades:', error);
+                // Si hay error, mantener las opciones por defecto
+                console.log('Usando entidades por defecto');
+            }
+        }
+    </script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/auth-guard.js"></script>
+</body>
+
+</html>
