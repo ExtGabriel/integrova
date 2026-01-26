@@ -79,6 +79,12 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.categoria-header:hover {
+    background: linear-gradient(135deg, #45a049, #2E7D32);
 }
 
 .categoria-header h3 {
@@ -93,6 +99,12 @@
 .categoria-header i {
     font-size: 1.4rem;
     opacity: 0.9;
+}
+
+/* Dropdown arrow styles */
+.dropdown-arrow {
+    transition: transform 0.3s ease;
+    font-size: 1.2rem !important;
 }
 
 /* ----- Grid de formularios dentro de cada categoría ----- */
@@ -165,7 +177,118 @@
     line-height: 1.4;
 }
 
-/* ----- Animaciones ----- */
+/* ----- Form Actions Buttons ----- */
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.action-btn {
+    background: none;
+    border: 2px solid rgba(76, 175, 80, 0.2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4CAF50;
+    font-size: 1rem;
+    min-width: 36px;
+    height: 36px;
+}
+
+.action-btn:hover {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: #4CAF50;
+    transform: scale(1.05);
+}
+
+.visibility-btn:hover {
+    color: #2196F3;
+    border-color: #2196F3;
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.reviewed-btn:hover {
+    color: #FF9800;
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.1);
+}
+
+.accepted-btn:hover {
+    color: #4CAF50;
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.more-options-btn:hover {
+    color: #607D8B;
+    border-color: #607D8B;
+    background: rgba(96, 125, 139, 0.1);
+}
+
+/* Dropdown for more options */
+.more-options-dropdown {
+    position: relative;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    margin-bottom: 10px;
+    background: white;
+    min-width: 150px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    z-index: 1000;
+    overflow: hidden;
+    transform-origin: bottom right;
+}
+
+.dropdown-content.show {
+    display: block;
+    animation: slideUp 0.2s ease-out;
+}
+
+/* New animation for slideUp */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdown-content a {
+    display: block;
+    padding: 12px 16px;
+    color: #37474F;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(76, 175, 80, 0.1);
+}
+
+.dropdown-content a:last-child {
+    border-bottom: none;
+}
+
+.dropdown-content a:hover {
+    background: rgba(76, 175, 80, 0.1);
+    color: #2E7D32;
+}
+
+/* Animations */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -173,6 +296,19 @@
     }
     to {
         opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
         transform: translateY(0);
     }
 }
