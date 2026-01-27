@@ -14,7 +14,7 @@ const FORM_RELATIONSHIPS = {
 
     // A100 - Pregunta 2: ¿Usar solo el sistema de consultas?
     'q2_consultas': {
-        'si': [], // OCULTAR: A200, A300, A400, A500, B100, B200, B300, B400, B450, C100, D100, D200, D500, D600
+        'si': [], // OCULTAR: A200, A300, A400, A500, B100, B200, B300, B400, B450, C100, D100, D200, D350, D500, D600
         'no': ['C145']
     },
 
@@ -115,7 +115,7 @@ const FORM_RELATIONSHIPS = {
     // C160 - Pregunta sobre ajustes
     'ajustes': {
         'sin_excepciones': ['D500'],
-        'con_excepciones': ['D100', 'D500', 'D600'],
+        'con_excepciones': ['D100', 'D200', 'D500', 'D600'],
         'na': []
     }
 };
@@ -180,17 +180,19 @@ const FORM_NAMES = {
     'C180': 'Formulario C180',
     'C190': 'Formulario C190',
     'C195': 'Formulario C195',
-    'D100': 'Documentación Base',
+    'D100': 'Evaluación de incorrecciones identificadas',
     'D120': 'Formulario D120',
     'D140': 'Formulario D140',
     'D160': 'Formulario D160',
+    'D200': 'Resumen de incorrecciones',
     'D245L': 'Formulario D245L',
+    'D350': 'Resumen del socio y el gerente',
     'D450L': 'Formulario D450L',
-    'D500': 'Documentación Complementaria',
+    'D500': 'Comunicaciones con la gerencia / encargados de la dirección',
     'D500Q': 'Formulario D500Q',
     'D540Q': 'Formulario D540Q',
     'D545L': 'Formulario D545L',
-    'D600': 'Archivos de Respaldo',
+    'D600': 'Cierre de auditoría',
     'D630Q': 'Formulario D630Q',
     'D800': 'Formulario D800'
 };
