@@ -131,12 +131,23 @@
                                         <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A100')" title="Revisado por"><i class="bi bi-person-check"></i></button>
                                         <button class="action-btn observations-btn" onclick="showObservations(event, 'A100')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                         <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'A100')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                        <div class="more-options-dropdown">
-                                            <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'A100')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                            <div class="dropdown-content" id="dropdown-A100">
-                                                <a href="#" onclick="sendMessage(event, 'A100')">Mensaje</a>
-                                                <a href="#" onclick="confirmForm(event, 'A100')">Confirmar</a>
-                                                <a href="#" onclick="editForm(event, 'A100')">Editar</a>
+                                        <div class="dropdown">
+                                            <button class="action-btn more-btn" onclick="toggleMoreMenu(event, 'A100')" title="Más opciones">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <div class="more-menu" id="more-menu-A100">
+                                                <a href="#" class="menu-item" onclick="moveForm(event, 'A100')">
+                                                    <i class="bi bi-arrows-move"></i> Mover
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="editProperties(event, 'A100')">
+                                                    <i class="bi bi-pencil-square"></i> Editar propiedades
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="editVisibility(event, 'A100')">
+                                                    <i class="bi bi-eye-slash"></i> Editar visibilidad
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="saveToCloud(event, 'A100')">
+                                                    <i class="bi bi-cloud-upload"></i> Guardar en la nube
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -144,10 +155,10 @@
                             </div>
                         </div>
 
-                        <!-- Subcategoría: Aceptación/continuidad del cliente -->
+                        <!-- Subcategoría: Aceptación y continuidad del cliente -->
                         <div class="subcategoria-section">
                             <div class="subcategoria-header" onclick="toggleSubcategoriaDropdown('aceptacion')">
-                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="aceptacion-arrow"></i> Aceptación/continuidad del cliente</h4>
+                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="aceptacion-arrow"></i> Aceptación y continuidad del cliente</h4>
                             </div>
                             <div class="subcategoria-lista" id="aceptacion-content">
                                 <div class="form-item-lista" onclick="abrirFormulario('A200')">
@@ -160,12 +171,23 @@
                                         <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A200')" title="Revisado por"><i class="bi bi-person-check"></i></button>
                                         <button class="action-btn observations-btn" onclick="showObservations(event, 'A200')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                         <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'A200')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                        <div class="more-options-dropdown">
-                                            <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'A200')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                            <div class="dropdown-content" id="dropdown-A200">
-                                                <a href="#" onclick="sendMessage(event, 'A200')">Mensaje</a>
-                                                <a href="#" onclick="confirmForm(event, 'A200')">Confirmar</a>
-                                                <a href="#" onclick="editForm(event, 'A200')">Editar</a>
+                                        <div class="dropdown">
+                                            <button class="action-btn more-btn" onclick="toggleMoreMenu(event, 'A200')" title="Más opciones">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <div class="more-menu" id="more-menu-A200">
+                                                <a href="#" class="menu-item" onclick="moveForm(event, 'A200')">
+                                                    <i class="bi bi-arrows-move"></i> Mover
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="editProperties(event, 'A200')">
+                                                    <i class="bi bi-pencil-square"></i> Editar propiedades
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="editVisibility(event, 'A200')">
+                                                    <i class="bi bi-eye-slash"></i> Editar visibilidad
+                                                </a>
+                                                <a href="#" class="menu-item" onclick="saveToCloud(event, 'A200')">
+                                                    <i class="bi bi-cloud-upload"></i> Guardar en la nube
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -1361,80 +1383,643 @@
         // Función para mostrar auditor que revisó
         function showReviewedAuditor(event, formId) {
             event.stopPropagation();
-            // Simulación de datos - en producción vendría de API
-            const auditors = {
-                // Formularios D - Documentos de cierre
-                'D100': 'Carlos Rodríguez',
-                'D200': 'María González',
-                'D350': 'Juan Pérez',
-                'D500': 'Ana Martínez',
-                'D600': 'Luis Sánchez',
-                // Formularios A - Planificación
-                'A100': 'Roberto Díaz',
-                'A200': 'Laura Torres',
-                'A300': 'Miguel Ángel',
-                'A360': 'Patricia López',
-                'A400': 'Francisco Jiménez',
-                'A500': 'Carmen Sánchez',
-                // Formularios B - Evaluación de riesgo
-                'B100': 'José Martínez',
-                'B200': 'Ana Gómez',
-                'B300': 'Luis Fernández',
-                'B335': 'María López',
-                'B350': 'Carlos Ruiz',
-                'B400': 'Elena Díaz',
-                'B450': 'Antonio Pérez',
-                'B500': 'Sofía Martín',
-                'B510': 'Diego Sánchez',
-                'B600': 'Lucía García',
-                // Formularios C - Respuesta al riesgo
-                'C100': 'Juan Carlos',
-                'C160': 'Margarita Ruiz',
-                'C165': 'Alberto Jiménez'
-            };
             
-            const auditorName = auditors[formId] || 'Auditor no asignado';
-            showNotification(`Revisado por: ${auditorName}`, 'warning');
+            // Obtener datos guardados o usar datos de ejemplo
+            const savedData = localStorage.getItem(`reviewedBy_${formId}`);
+            let data;
+            
+            if (savedData) {
+                data = JSON.parse(savedData);
+            } else {
+                // Datos de ejemplo para todos los formularios
+                const exampleData = {
+                    'D100': { name: 'Carlos Rodríguez', position: 'Auditor Principal', date: '2026-01-16 14:30:00' },
+                    'D200': { name: 'María González', position: 'Supervisora Senior', date: '2026-01-16 15:15:00' },
+                    'D350': { name: 'Juan Pérez', position: 'Revisor Especialista', date: '2026-01-16 16:00:00' },
+                    'D500': { name: 'Ana Martínez', position: 'Auditor de Control', date: '2026-01-17 08:30:00' },
+                    'D600': { name: 'Luis Sánchez', position: 'Coordinador de Revisión', date: '2026-01-17 09:15:00' },
+                    'A100': { name: 'Roberto Díaz', position: 'Auditor Junior', date: '2026-01-17 10:00:00' },
+                    'A200': { name: 'Laura Torres', position: 'Analista Principal', date: '2026-01-17 10:45:00' },
+                    'A300': { name: 'Miguel Ángel', position: 'Supervisor de Calidad', date: '2026-01-17 11:30:00' },
+                    'A360': { name: 'Patricia López', position: 'Revisora de Modificaciones', date: '2026-01-17 14:00:00' },
+                    'A400': { name: 'Francisco Jiménez', position: 'Auditor de Comunicaciones', date: '2026-01-17 14:45:00' },
+                    'A500': { name: 'Carmen Sánchez', position: 'Coordinadora de Comité', date: '2026-01-17 15:30:00' },
+                    'B100': { name: 'José Martínez', position: 'Evaluador de Riesgos', date: '2026-01-18 08:00:00' },
+                    'B200': { name: 'Ana Gómez', position: 'Analista de Evaluación', date: '2026-01-18 08:45:00' },
+                    'B300': { name: 'Luis Fernández', position: 'Especialista en Respuesta', date: '2026-01-18 09:30:00' },
+                    'B335': { name: 'María López', position: 'Revisora de Deficiencias', date: '2026-01-18 10:15:00' },
+                    'B350': { name: 'Carlos Ruiz', position: 'Auditor de Materialidad', date: '2026-01-18 11:00:00' },
+                    'B400': { name: 'Elena Díaz', position: 'Analista de Información', date: '2026-01-18 14:30:00' },
+                    'B450': { name: 'Antonio Pérez', position: 'Evaluador de Informes', date: '2026-01-18 15:15:00' },
+                    'B500': { name: 'Sofía Martín', position: 'Auditor Senior', date: '2026-01-19 08:30:00' },
+                    'B510': { name: 'Diego Sánchez', position: 'Revisor de Suficiencia', date: '2026-01-19 09:15:00' },
+                    'B600': { name: 'Lucía García', position: 'Especialista en Presentación', date: '2026-01-19 10:00:00' },
+                    'C100': { name: 'Juan Carlos', position: 'Evaluador Principal', date: '2026-01-19 10:45:00' },
+                    'C160': { name: 'Margarita Ruiz', position: 'Diseñadora de Controles', date: '2026-01-19 11:30:00' },
+                    'C165': { name: 'Alberto Jiménez', position: 'Implementador Senior', date: '2026-01-19 14:00:00' }
+                };
+                data = exampleData[formId] || { name: 'Auditor no asignado', position: 'Posición por defecto', date: new Date().toISOString().slice(0, 19).replace('T', ' ') };
+            }
+            
+            // Formatear fecha y hora
+            const dateTime = new Date(data.date);
+            const formattedDate = dateTime.toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+            const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.className = 'reviewed-modal';
+            modal.innerHTML = `
+                <div class="reviewed-content">
+                    <div class="reviewed-header">
+                        <h4><i class="bi bi-person-check"></i> Revisado por - ${formId}</h4>
+                        <button class="close-btn" onclick="closeReviewedModal()">&times;</button>
+                    </div>
+                    <div class="reviewed-body">
+                        <div class="reviewed-info">
+                            <div class="info-row">
+                                <i class="bi bi-person-fill"></i>
+                                <div class="info-content">
+                                    <strong>Nombre:</strong> ${data.name}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-briefcase-fill"></i>
+                                <div class="info-content">
+                                    <strong>Cargo:</strong> ${data.position}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-calendar-fill"></i>
+                                <div class="info-content">
+                                    <strong>Fecha:</strong> ${formattedDate}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-clock-fill"></i>
+                                <div class="info-content">
+                                    <strong>Hora:</strong> ${formattedTime}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar modal al body
+            document.body.appendChild(modal);
+            
+            // Mostrar modal con animación
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
         }
 
         // Función para mostrar quién preparó el formulario
         function showPreparedBy(event, formId) {
             event.stopPropagation();
-            // Simulación de datos - en producción vendría de API
-            const preparers = {
-                // Formularios D - Documentos de cierre
-                'D100': 'Roberto Díaz',
-                'D200': 'Laura Torres',
-                'D350': 'Miguel Ángel',
-                'D500': 'Patricia López',
-                'D600': 'Francisco Jiménez',
-                // Formularios A - Planificación
-                'A100': 'Carmen Rodríguez',
-                'A200': 'Diego González',
-                'A300': 'Sofía Pérez',
-                'A360': 'Lucía Martínez',
-                'A400': 'Carlos Sánchez',
-                'A500': 'Ana Fernández',
-                // Formularios B - Evaluación de riesgo
-                'B100': 'José Luis',
-                'B200': 'María Carmen',
-                'B300': 'Antonio Ruiz',
-                'B335': 'Elena Pérez',
-                'B350': 'Francisco Díaz',
-                'B400': 'Margarita López',
-                'B450': 'Alberto Martín',
-                'B500': 'Juan Carlos',
-                'B510': 'Carmen García',
-                'B600': 'Sofía Ruiz',
-                // Formularios C - Respuesta al riesgo
-                'C100': 'Diego Sánchez',
-                'C160': 'Lucía Jiménez',
-                'C165': 'Carlos Martínez'
-            };
             
-            const preparerName = preparers[formId] || 'Preparador no asignado';
-            showNotification(`Preparado por: ${preparerName}`, 'info');
+            // Obtener datos guardados o usar datos de ejemplo
+            const savedData = localStorage.getItem(`preparedBy_${formId}`);
+            let data;
+            
+            if (savedData) {
+                data = JSON.parse(savedData);
+            } else {
+                // Datos de ejemplo para todos los formularios
+                const exampleData = {
+                    'D100': { name: 'Roberto Díaz', position: 'Preparador Principal', date: '2026-01-15 09:30:00' },
+                    'D200': { name: 'Laura Torres', position: 'Analista de Documentos', date: '2026-01-15 10:15:00' },
+                    'D350': { name: 'Miguel Ángel', position: 'Especialista en Representaciones', date: '2026-01-15 11:00:00' },
+                    'D500': { name: 'Patricia López', position: 'Coordinadora de Control', date: '2026-01-15 11:45:00' },
+                    'D600': { name: 'Francisco Jiménez', position: 'Comunicador Principal', date: '2026-01-15 14:20:00' },
+                    'A100': { name: 'Carmen Rodríguez', position: 'Planificadora Junior', date: '2026-01-15 15:10:00' },
+                    'A200': { name: 'Diego González', position: 'Analista de Planificación', date: '2026-01-16 08:45:00' },
+                    'A300': { name: 'Sofía Pérez', position: 'Coordinadora de Planes', date: '2026-01-16 09:30:00' },
+                    'A360': { name: 'Lucía Martínez', position: 'Especialista en Modificaciones', date: '2026-01-16 10:15:00' },
+                    'A400': { name: 'Carlos Sánchez', position: 'Comunicador con Dirección', date: '2026-01-16 11:00:00' },
+                    'A500': { name: 'Ana Fernández', position: 'Coordinadora de Comité', date: '2026-01-16 11:45:00' },
+                    'B100': { name: 'José Luis', position: 'Identificador de Riesgos', date: '2026-01-16 14:30:00' },
+                    'B200': { name: 'María Carmen', position: 'Evaluadora Principal', date: '2026-01-16 15:15:00' },
+                    'B300': { name: 'Antonio Ruiz', position: 'Especialista en Respuesta', date: '2026-01-17 08:00:00' },
+                    'B335': { name: 'Elena Pérez', position: 'Analista de Deficiencias', date: '2026-01-17 08:45:00' },
+                    'B350': { name: 'Francisco Díaz', position: 'Auditor de Materialidad', date: '2026-01-17 09:30:00' },
+                    'B400': { name: 'Margarita López', position: 'Analista de Información', date: '2026-01-17 10:15:00' },
+                    'B450': { name: 'Alberto Martín', position: 'Evaluador de Informes', date: '2026-01-17 11:00:00' },
+                    'B500': { name: 'Juan Carlos', position: 'Auditor Senior', date: '2026-01-17 14:30:00' },
+                    'B510': { name: 'Carmen García', position: 'Revisora de Suficiencia', date: '2026-01-17 15:15:00' },
+                    'B600': { name: 'Sofía Ruiz', position: 'Especialista en Presentación', date: '2026-01-18 08:30:00' },
+                    'C100': { name: 'Diego Sánchez', position: 'Evaluador de Control', date: '2026-01-18 09:15:00' },
+                    'C160': { name: 'Lucía Jiménez', position: 'Diseñadora Principal', date: '2026-01-18 10:00:00' },
+                    'C165': { name: 'Carlos Martínez', position: 'Implementador Senior', date: '2026-01-18 10:45:00' }
+                };
+                data = exampleData[formId] || { name: 'Preparador no asignado', position: 'Posición por defecto', date: new Date().toISOString().slice(0, 19).replace('T', ' ') };
+            }
+            
+            // Formatear fecha y hora
+            const dateTime = new Date(data.date);
+            const formattedDate = dateTime.toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+            const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.className = 'prepared-modal';
+            modal.innerHTML = `
+                <div class="prepared-content">
+                    <div class="prepared-header">
+                        <h4><i class="bi bi-person-plus"></i> Preparado por - ${formId}</h4>
+                        <button class="close-btn" onclick="closePreparedModal()">&times;</button>
+                    </div>
+                    <div class="prepared-body">
+                        <div class="prepared-info">
+                            <div class="info-row">
+                                <i class="bi bi-person-fill"></i>
+                                <div class="info-content">
+                                    <strong>Nombre:</strong> ${data.name}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-briefcase-fill"></i>
+                                <div class="info-content">
+                                    <strong>Cargo:</strong> ${data.position}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-calendar-fill"></i>
+                                <div class="info-content">
+                                    <strong>Fecha:</strong> ${formattedDate}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-clock-fill"></i>
+                                <div class="info-content">
+                                    <strong>Hora:</strong> ${formattedTime}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar modal al body
+            document.body.appendChild(modal);
+            
+            // Mostrar modal con animación
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
         }
+
+        // Función para cerrar modal de "Preparado por"
+        function closePreparedModal() {
+            const modal = document.querySelector('.prepared-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para cerrar modal de "Revisado por"
+        function closeReviewedModal() {
+            const modal = document.querySelector('.reviewed-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para editar "Preparado por"
+        function editPreparedBy(formId) {
+            // Aquí puedes agregar la lógica para editar
+            showNotification('Función de edición en desarrollo', 'info');
+        }
+
+        // Función para guardar "Preparado por"
+        function savePreparedBy(formId) {
+            // Aquí puedes agregar la lógica para guardar
+            showNotification('Datos guardados correctamente', 'success');
+            closePreparedModal();
+        }
+
+        // Función para editar "Revisado por"
+        function editReviewedBy(formId) {
+            // Aquí puedes agregar la lógica para editar
+            showNotification('Función de edición en desarrollo', 'info');
+        }
+
+        // Función para guardar "Revisado por"
+        function saveReviewedBy(formId) {
+            // Aquí puedes agregar la lógica para guardar
+            showNotification('Datos guardados correctamente', 'success');
+            closeReviewedModal();
+        }
+
+        // ----- FUNCIONES PARA FORMULARIOS -----
+        
+        // Función para abrir el formulario A100
+        function abrirFormulario(formId) {
+            if (formId === 'A100') {
+                mostrarFormularioA100();
+            } else {
+                showNotification(`Formulario ${formId} no disponible aún`, 'info');
+            }
+        }
+        
+        // Función para mostrar el formulario A100
+        function mostrarFormularioA100() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>Lista de verificación del Optimizador - Decisiones iniciales de compromiso</h2>
+                                <span class="codigo-formulario">A100</span>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="imprimirFormulario()" title="Imprimir">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Imprimir</span>
+                                </button>
+                                <button class="header-btn" onclick="editarPreguntas()" title="Editar Preguntas">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                                <button class="header-btn" onclick="colapsarFormulario()" title="Colapsar">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                    <span>Colapsar</span>
+                                </button>
+                                <div class="header-dropdown">
+                                    <button class="header-btn dropdown-toggle" onclick="toggleHeaderDropdown()" title="Más opciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <div class="header-dropdown-menu" id="headerDropdownMenu">
+                                        <a href="#" onclick="exportarFormulario(); return false;">
+                                            <i class="bi bi-download"></i> Exportar
+                                        </a>
+                                        <a href="#" onclick="compartirFormulario(); return false;">
+                                            <i class="bi bi-share"></i> Compartir
+                                        </a>
+                                        <a href="#" onclick="duplicarFormulario(); return false;">
+                                            <i class="bi bi-files"></i> Duplicar
+                                        </a>
+                                        <a href="#" onclick="eliminarFormulario(); return false;">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
+                                </div>
+                                <button class="header-btn" onclick="mostrarPreparadoRevisado()" title="Preparado y Revisado por">
+                                    <i class="bi bi-person-check"></i>
+                                    <span>Preparado y Revisado por</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioA100()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <!-- Sección: Preguntas generales -->
+                        <div class="formulario-section">
+                            <h3>Preguntas generales</h3>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">1. ¿Qué nivel de colaboración en línea es aplicable para este cliente?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q1_alto" name="a100_q1" value="alto">
+                                            <label for="a100_q1_alto">Alto</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q1_limitado" name="a100_q1" value="limitado">
+                                            <label for="a100_q1_limitado">Limitado</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q1_ninguno" name="a100_q1" value="ninguno">
+                                            <label for="a100_q1_ninguno">Ninguno</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">2. ¿Usar solo el sistema de consultas?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q2_si" name="a100_q2" value="si">
+                                            <label for="a100_q2_si">Sí</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q2_no" name="a100_q2" value="no">
+                                            <label for="a100_q2_no">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">3. ¿Usar analítica integrada?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q3_si" name="a100_q3" value="si">
+                                            <label for="a100_q3_si">Sí</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q3_no" name="a100_q3" value="no">
+                                            <label for="a100_q3_no">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">4. ¿Es este un compromiso de primer año o un compromiso de continuación?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q4_primer" name="a100_q4" value="primer año">
+                                            <label for="a100_q4_primer">Primer año</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q4_continuacion" name="a100_q4" value="continuación">
+                                            <label for="a100_q4_continuacion">Continuación</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">5. ¿Cuál es la estructura de la entidad?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q5_compañia" name="a100_q5" value="compañía">
+                                            <label for="a100_q5_compañia">Compañía</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q5_sociedad" name="a100_q5" value="sociedad">
+                                            <label for="a100_q5_sociedad">Sociedad</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">6. ¿El compromiso es una auditoría de estados financieros preparados de acuerdo con un marco de propósito especial (efectivo, impuestos, reglamentos, contratos u otra base de contabilidad)?</div>
+                                    <div class="pregunta-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q6_si" name="a100_q6" value="si">
+                                            <label for="a100_q6_si">Sí</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a100_q6_no" name="a100_q6" value="no">
+                                            <label for="a100_q6_no">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario A100 - Decisiones iniciales de compromiso
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA100()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioA100()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+        
+        // Función para cerrar el formulario A100
+        function cerrarFormularioA100() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+        
+        // Función para guardar el formulario A100
+        function guardarFormularioA100() {
+            // Recopilar todas las respuestas
+            const respuestas = {};
+            for (let i = 1; i <= 6; i++) {
+                const pregunta = document.querySelector(`input[name="a100_q${i}"]:checked`);
+                respuestas[`q${i}`] = pregunta ? pregunta.value : 'no_respondido';
+            }
+            
+            console.log('Respuestas del formulario A100:', respuestas);
+            showNotification('Formulario A100 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioA100();
+        }
+        
+        // Función para abrir observaciones
+        function abrirObservaciones() {
+            showNotification('Abriendo panel de observaciones...', 'info');
+            // Aquí puedes agregar la lógica para abrir un modal de observaciones
+        }
+        
+        // Función para imprimir formulario
+        function imprimirFormulario() {
+            window.print();
+            showNotification('Preparando impresión del formulario...', 'info');
+        }
+        
+        // Función para editar preguntas
+        function editarPreguntas() {
+            showNotification('Modo de edición de preguntas activado', 'info');
+            // Aquí puedes agregar la lógica para hacer las preguntas editables
+        }
+        
+        // Función para colapsar formulario
+        function colapsarFormulario() {
+            const body = document.querySelector('.formulario-body');
+            const footer = document.querySelector('.formulario-footer');
+            const btn = document.querySelector('[onclick="colapsarFormulario()"]');
+            
+            if (body.style.display === 'none') {
+                body.style.display = 'block';
+                footer.style.display = 'flex';
+                btn.innerHTML = '<i class="bi bi-arrows-collapse"></i><span>Colapsar</span>';
+            } else {
+                body.style.display = 'none';
+                footer.style.display = 'none';
+                btn.innerHTML = '<i class="bi bi-arrows-expand"></i><span>Expandir</span>';
+            }
+        }
+        
+        // Función para toggle del dropdown del header
+        function toggleHeaderDropdown() {
+            const dropdown = document.getElementById('headerDropdownMenu');
+            dropdown.classList.toggle('show');
+            
+            // Cerrar dropdown si se hace clic fuera
+            document.addEventListener('click', function closeDropdown(e) {
+                if (!e.target.closest('.header-dropdown')) {
+                    dropdown.classList.remove('show');
+                    document.removeEventListener('click', closeDropdown);
+                }
+            });
+        }
+        
+        // Función para mostrar preparado y revisado por
+        function mostrarPreparadoRevisado() {
+            showNotification('Abriendo información de preparado y revisado por...', 'info');
+            // Aquí puedes agregar la lógica para mostrar un modal con esa información
+        }
+        
+        // Funciones del dropdown
+        function exportarFormulario() {
+            showNotification('Exportando formulario...', 'info');
+        }
+        
+        function compartirFormulario() {
+            showNotification('Abriendo opciones para compartir...', 'info');
+        }
+        
+        function duplicarFormulario() {
+            showNotification('Duplicando formulario...', 'info');
+        }
+        
+        function eliminarFormulario() {
+            if (confirm('¿Está seguro de que desea eliminar este formulario?')) {
+                showNotification('Formulario eliminado', 'success');
+                cerrarFormularioA100();
+            }
+        }
+        
+        // Función simple para abrir/cerrar el menú
+        function toggleMoreMenu(event, formId) {
+            event.stopPropagation();
+            
+            // Cerrar todos los demás menús
+            document.querySelectorAll('.more-menu').forEach(menu => {
+                if (menu.id !== `more-menu-${formId}`) {
+                    menu.classList.remove('show');
+                }
+            });
+            
+            // Abrir/cerrar el menú actual
+            const menu = document.getElementById(`more-menu-${formId}`);
+            const button = event.currentTarget;
+            
+            if (menu) {
+                // Si se va a abrir, posicionarlo
+                if (!menu.classList.contains('show')) {
+                    const rect = button.getBoundingClientRect();
+                    menu.style.left = (rect.right - 200) + 'px'; // 200px es el ancho del menú
+                    menu.style.top = (rect.bottom + 5) + 'px'; // 5px abajo del botón
+                }
+                
+                menu.classList.toggle('show');
+            }
+        }
+        
+        // Función para mover formulario
+        function moveForm(event, formId) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAllMoreMenus();
+            showNotification(`Moviendo formulario ${formId}...`, 'info');
+            // Aquí puedes agregar la lógica para mover el formulario
+        }
+        
+        // Función para editar propiedades
+        function editProperties(event, formId) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAllMoreMenus();
+            showNotification(`Editando propiedades del formulario ${formId}...`, 'info');
+            // Aquí puedes agregar la lógica para editar propiedades
+        }
+        
+        // Función para editar visibilidad
+        function editVisibility(event, formId) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAllMoreMenus();
+            showNotification(`Editando visibilidad del formulario ${formId}...`, 'info');
+            // Aquí puedes agregar la lógica para editar visibilidad
+        }
+        
+        // Función para guardar en la nube
+        function saveToCloud(event, formId) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeAllMoreMenus();
+            showNotification(`Guardando formulario ${formId} en la nube...`, 'success');
+            // Aquí puedes agregar la lógica para guardar en la nube
+        }
+        
+        // Función para cerrar todos los menús
+        function closeAllMoreMenus() {
+            document.querySelectorAll('.more-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        }
+        
+        // Cerrar menús al hacer clic fuera - simple y directo
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.dropdown')) {
+                closeAllMoreMenus();
+            }
+        });
 
         // Función para mostrar observaciones
         function showObservations(event, formId) {
@@ -2434,24 +3019,8 @@
         }
 
         // Función para abrir formularios específicos
-        function abrirFormulario(tipo) {
-            // Aquí puedes agregar la lógica para cada tipo de formulario
-            console.log('Abriendo formulario:', tipo);
-            
-            // Por ahora, mostramos un alerta con el tipo de formulario
-            alert(`Abriendo formulario: ${tipo}\n\nEsta función aún está en desarrollo.`);
-            
-            // Ejemplo de cómo podrías redirigir a formularios específicos:
-            // switch(tipo) {
-            //     case 'evaluacion':
-            //         window.location.href = 'formularios/evaluacion-desempeno.html';
-            //         break;
-            //     case 'solicitud':
-            //         window.location.href = 'formularios/solicitud-recursos.html';
-            //         break;
-            //     // ... otros casos
-            // }
-        }
+        // NOTA: Esta función fue eliminada porque causaba conflicto con la función abrirFormulario(formId) del A100
+        // La función correcta está definida arriba en la sección "FUNCIONES PARA FORMULARIOS"
 
         document.addEventListener('DOMContentLoaded', function () {
             const initFormularios = function () {
