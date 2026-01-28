@@ -1640,6 +1640,8 @@
         function abrirFormulario(formId) {
             if (formId === 'A100') {
                 mostrarFormularioA100();
+            } else if (formId === 'A200') {
+                mostrarFormularioA200();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -1867,6 +1869,836 @@
             
             // Cerrar el modal
             cerrarFormularioA100();
+        }
+        
+        // Función para mostrar el formulario A200
+        function mostrarFormularioA200() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>A200 – Actividades preliminares del compromiso</h2>
+                                <span class="codigo-formulario">A200</span>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="imprimirFormulario()" title="Imprimir">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Imprimir</span>
+                                </button>
+                                <button class="header-btn" onclick="editarPreguntas()" title="Editar Preguntas">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                                <button class="header-btn" onclick="colapsarFormulario()" title="Colapsar">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                    <span>Colapsar</span>
+                                </button>
+                                <div class="header-dropdown">
+                                    <button class="header-btn dropdown-toggle" onclick="toggleHeaderDropdown()" title="Más opciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <div class="header-dropdown-menu" id="headerDropdownMenu">
+                                        <a href="#" onclick="exportarFormulario(); return false;">
+                                            <i class="bi bi-download"></i> Exportar
+                                        </a>
+                                        <a href="#" onclick="compartirFormulario(); return false;">
+                                            <i class="bi bi-share"></i> Compartir
+                                        </a>
+                                        <a href="#" onclick="duplicarFormulario(); return false;">
+                                            <i class="bi bi-files"></i> Duplicar
+                                        </a>
+                                        <a href="#" onclick="eliminarFormulario(); return false;">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
+                                </div>
+                                <button class="header-btn" onclick="mostrarPreparadoRevisado()" title="Preparado y Revisado por">
+                                    <i class="bi bi-person-check"></i>
+                                    <span>Preparado y Revisado por</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="btn-cerrar-modal" onclick="cerrarFormularioA200()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <!-- Contenido principal -->
+                        <div>
+                            <div style="padding: 30px;">
+                                <!-- Título principal -->
+                                <div style="margin-bottom: 25px;">
+                                    <h2 style="color: #37474F; font-size: 1.5rem; font-weight: 600; margin: 0;">Actividades preliminares del compromiso</h2>
+                                </div>
+                                
+                                <!-- Descripción del compromiso -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Descripción del compromiso</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 1 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">1. Naturaleza de la asignación básica</label>
+                                            <textarea id="a200_q1_naturaleza" name="a200_q1_naturaleza" rows="4" placeholder="Describa la naturaleza de la asignación básica..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                        </div>
+                                        
+                                        <!-- Pregunta 2 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">2. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px; flex-wrap: wrap;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q2_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500; box-sizing: border-box;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q2_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500; box-sizing: border-box;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q2_doc" name="a200_q2_doc" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 3 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">3. Fecha límite para completar la auditoría</label>
+                                            <input type="date" id="a200_q3_fecha" name="a200_q3_fecha" style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; transition: all 0.3s ease; box-sizing: border-box;">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Evaluación de riesgo (preguntas 4-7) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Evaluación de riesgo</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 4 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">4. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q4_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q4_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q4_doc" name="a200_q4_doc" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 5 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">5. Factores de riesgo del compromiso</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿Existen factores de riesgo del compromiso que requieran consideración especial?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q5_riesgo" value="si" onchange="document.getElementById('a200_q5_riesgo').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q5_riesgo" value="no" onchange="document.getElementById('a200_q5_riesgo').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q5_riesgo" value="na" onchange="document.getElementById('a200_q5_riesgo').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q5_riesgo" name="a200_q5_riesgo" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 6 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">6. Evaluación de la auditoría del grupo</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿Este compromiso es una auditoría de grupo basada en el entendimiento inicial de la organización?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q6_grupo" value="si" onchange="document.getElementById('a200_q6_grupo').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q6_grupo" value="no" onchange="document.getElementById('a200_q6_grupo').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q6_grupo" value="na" onchange="document.getElementById('a200_q6_grupo').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q6_grupo" name="a200_q6_grupo" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 7 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">7. Auditores de componente</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿Son necesarias personas de otra firma para obtener evidencia de auditoría suficiente y apropiada?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q7_auditores" value="si" onchange="document.getElementById('a200_q7_auditores').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q7_auditores" value="no" onchange="document.getElementById('a200_q7_auditores').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q7_auditores" value="na" onchange="document.getElementById('a200_q7_auditores').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q7_auditores" name="a200_q7_auditores" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cumplimiento de los requisitos éticos (preguntas 8-12) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Cumplimiento de los requisitos éticos relevantes, incluida la independencia</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 8 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">8. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q8_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q8_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q8_doc" name="a200_q8_doc" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 9 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">9. Políticas de aceptación/continuación de clientes de la firma</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿No existe violación de las políticas de aceptación/continuación de clientes de la firma?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q9_politicas" value="si" onchange="document.getElementById('a200_q9_politicas').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q9_politicas" value="no" onchange="document.getElementById('a200_q9_politicas').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q9_politicas" value="na" onchange="document.getElementById('a200_q9_politicas').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q9_politicas" name="a200_q9_politicas" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 10 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">10. Integridad de la Administración</label>
+                                            <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">¿Está satisfecho con la integridad, reputación y valores éticos de la Administración y los que tienen a cargo el gobierno corporativo?</p>
+                                            <p style="margin: 0 0 15px 0; color: #37474F; font-size: 0.85rem; font-style: italic;">(Si la respuesta es No, se requiere investigación y consulta adicional)</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q10_integridad" value="si" onchange="document.getElementById('a200_q10_integridad').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q10_integridad" value="no" onchange="document.getElementById('a200_q10_integridad').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q10_integridad" value="na" onchange="document.getElementById('a200_q10_integridad').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q10_integridad" name="a200_q10_integridad" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 11 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">11. Restricciones éticas (incluyendo la independencia)</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿No existen prohibiciones éticas o normativas, incluida la independencia, que pudieran impedir a la firma, a la red empresarial o a cualquier miembro del personal ejecutar el compromiso?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q11_restricciones" value="si" onchange="document.getElementById('a200_q11_restricciones').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q11_restricciones" value="no" onchange="document.getElementById('a200_q11_restricciones').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q11_restricciones" value="na" onchange="document.getElementById('a200_q11_restricciones').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q11_restricciones" name="a200_q11_restricciones" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 12 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">12. Amenazas a la independencia</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">¿No hay "amenazas" significativas a la independencia?</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q12_amenazas" value="si" onchange="document.getElementById('a200_q12_amenazas').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q12_amenazas" value="no" onchange="document.getElementById('a200_q12_amenazas').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q12_amenazas" value="na" onchange="document.getElementById('a200_q12_amenazas').value='na'">
+                                                    <span>N/A</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q12_amenazas" name="a200_q12_amenazas" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Competencias de la firma (preguntas 13-16) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Competencias de la firma</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 13 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">13. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q13_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q13_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q13_doc" name="a200_q13_doc" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 14 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">14. Consulta</label>
+                                            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9rem;">El compromiso requiere que se documente la naturaleza de la consulta.</p>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q14_consulta" value="si" onchange="document.getElementById('a200_q14_consulta').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                    <input type="radio" name="a200_q14_consulta" value="no" onchange="document.getElementById('a200_q14_consulta').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_q14_consulta" name="a200_q14_consulta" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 15 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">15. Competencias de la firma</label>
+                                            
+                                            <!-- Pregunta a -->
+                                            <div style="margin-bottom: 15px;">
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">a. ¿La firma cuenta con los recursos disponibles necesarios para completar el compromiso de manera oportuna?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15a_recursos" value="si" onchange="document.getElementById('a200_q15a_recursos').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15a_recursos" value="no" onchange="document.getElementById('a200_q15a_recursos').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15a_recursos" value="na" onchange="document.getElementById('a200_q15a_recursos').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q15a_recursos" name="a200_q15a_recursos" value="">
+                                            </div>
+                                            
+                                            <!-- Pregunta b -->
+                                            <div style="margin-bottom: 15px;">
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">b. ¿El equipo del compromiso tiene las competencias y habilidades adecuadas, incluido tiempo suficiente, para realizar el compromiso de auditoría?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15b_equipo" value="si" onchange="document.getElementById('a200_q15b_equipo').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15b_equipo" value="no" onchange="document.getElementById('a200_q15b_equipo').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15b_equipo" value="na" onchange="document.getElementById('a200_q15b_equipo').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q15b_equipo" name="a200_q15b_equipo" value="">
+                                            </div>
+                                            
+                                            <!-- Pregunta c -->
+                                            <div>
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">c. ¿Tienen los expertos externos del auditor, que proporcionan asistencia directa y que no son parte del equipo del compromiso, las competencias y capacidades adecuadas, incluido el tiempo suficiente, para realizar el compromiso de auditoría?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15c_expertos" value="si" onchange="document.getElementById('a200_q15c_expertos').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15c_expertos" value="no" onchange="document.getElementById('a200_q15c_expertos').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q15c_expertos" value="na" onchange="document.getElementById('a200_q15c_expertos').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q15c_expertos" name="a200_q15c_expertos" value="">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Pregunta 16 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">16. Competencias del auditor del componente</label>
+                                            
+                                            <!-- Pregunta a -->
+                                            <div style="margin-bottom: 15px;">
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">a. ¿Cuenta el auditor del componente y cualquier experto externo del auditor del componente que no sea integrante del equipo del compromiso, en conjunto, con las competencias y las capacidades adecuadas para ejecutar el compromiso de auditoría de acuerdo con los estándares profesionales y los requisitos legales y normativos aplicables?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16a_competencias" value="si" onchange="document.getElementById('a200_q16a_competencias').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16a_competencias" value="no" onchange="document.getElementById('a200_q16a_competencias').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16a_competencias" value="na" onchange="document.getElementById('a200_q16a_competencias').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q16a_competencias" name="a200_q16a_competencias" value="">
+                                            </div>
+                                            
+                                            <!-- Pregunta b -->
+                                            <div>
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">b. ¿Cuenta el auditor del componente y cualquier experto externo del auditor del componente que no sea integrante del equipo del compromiso, en conjunto, con las competencias y las capacidades adecuadas para ejecutar el compromiso de auditoría de acuerdo con los estándares profesionales y los requisitos legales y normativos aplicables, y permite un informe del auditor que es apropiado a las circunstancias?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16b_informe" value="si" onchange="document.getElementById('a200_q16b_informe').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16b_informe" value="no" onchange="document.getElementById('a200_q16b_informe').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q16b_informe" value="na" onchange="document.getElementById('a200_q16b_informe').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q16b_informe" name="a200_q16b_informe" value="">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Condiciones previas del compromiso (preguntas 17-18) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Condiciones previas del compromiso</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 17 -->
+                                        <div style="margin-bottom: 20px;">
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">17. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q17_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q17_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q17_doc" name="a200_q17_doc" value="">
+                                        </div>
+                                        
+                                        <!-- Pregunta 18 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">18. Condiciones previas del compromiso</label>
+                                            
+                                            <!-- Pregunta a -->
+                                            <div style="margin-bottom: 15px;">
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">a. ¿Es aceptable el marco de información financiera que se aplicará en la preparación de los estados financieros?</p>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18a_marco" value="si" onchange="document.getElementById('a200_q18a_marco').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18a_marco" value="no" onchange="document.getElementById('a200_q18a_marco').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18a_marco" value="na" onchange="document.getElementById('a200_q18a_marco').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q18a_marco" name="a200_q18a_marco" value="">
+                                            </div>
+                                            
+                                            <!-- Pregunta b -->
+                                            <div style="margin-bottom: 15px;">
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">b. ¿Ha reconocido la gerencia su entendimiento y responsabilidad por lo siguiente?</p>
+                                                <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.85rem; color: #495057;">
+                                                    <p style="margin: 0 0 8px 0; font-weight: 600;">La preparación de los estados financieros de conformidad con el marco de información financiera aplicable, incluyendo, cuando sea relevante, su presentación razonable.</p>
+                                                    <p style="margin: 0 0 8px 0;">Dicho control interno, tal como lo determina la gerencia, debería permitir la preparación de los estados financieros libres de incorrección material, ya sea debido a fraude o error.</p>
+                                                    <p style="margin: 0 0 8px 0; font-weight: 600;">Les proporciona a los auditores:</p>
+                                                    <ul style="margin: 0; padding-left: 20px;">
+                                                        <li>Acceso a toda la información relevante para la preparación de los estados financieros.</li>
+                                                        <li>Información adicional que podemos solicitar a la Administración a los fines de la auditoría.</li>
+                                                        <li>Acceso no restringido a personal de la entidad para obtener evidencia de auditoría.</li>
+                                                    </ul>
+                                                </div>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18b_gerencia" value="si" onchange="document.getElementById('a200_q18b_gerencia').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18b_gerencia" value="no" onchange="document.getElementById('a200_q18b_gerencia').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18b_gerencia" value="na" onchange="document.getElementById('a200_q18b_gerencia').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q18b_gerencia" name="a200_q18b_gerencia" value="">
+                                            </div>
+                                            
+                                            <!-- Pregunta c -->
+                                            <div>
+                                                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9rem;">c. ¿Ha reconocido la dirección también su responsabilidad por lo siguiente?</p>
+                                                <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.85rem; color: #495057;">
+                                                    <p style="margin: 0;">Proporcionar a los auditores acceso a la información de los componentes contabilizados por el método del patrimonio en los estados financieros.</p>
+                                                </div>
+                                                <div style="display: flex; gap: 15px; margin-bottom: 5px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18c_direccion" value="si" onchange="document.getElementById('a200_q18c_direccion').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18c_direccion" value="no" onchange="document.getElementById('a200_q18c_direccion').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #495057;">
+                                                        <input type="radio" name="a200_q18c_direccion" value="na" onchange="document.getElementById('a200_q18c_direccion').value='na'">
+                                                        <span>N/A</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_q18c_direccion" name="a200_q18c_direccion" value="">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Condiciones del compromiso/carta de compromiso (pregunta 19) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Condiciones del compromiso/carta de compromiso</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 19 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">19. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q19_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q19_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q19_doc" name="a200_q19_doc" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Riesgos de incorrección material (pregunta 20) -->
+                                <div style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">Riesgos de incorrección material</h3>
+                                        <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                    </div>
+                                    <div style="padding: 20px; background: white; display: block;">
+                                        <!-- Pregunta 20 -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 8px; color: #37474F; font-weight: 500; font-size: 0.95rem;">20. Documentación preferida</label>
+                                            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q20_doc').value='narrativa';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-file-text"></i> Narrativa
+                                                </button>
+                                                <button type="button" onclick="this.style.background='#4CAF50'; this.style.color='white'; this.style.borderColor='#4CAF50'; document.getElementById('a200_q20_doc').value='procedimientos';" style="background: white; border: 2px solid #e9ecef; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #6c757d; font-weight: 500;">
+                                                    <i class="bi bi-list-check"></i> Procedimientos
+                                                </button>
+                                            </div>
+                                            <input type="hidden" id="a200_q20_doc" name="a200_q20_doc" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sección: Conclusión sobre la aceptación/continuación del compromiso -->
+                                <div style="margin-bottom: 25px; border: 2px solid #4CAF50; border-radius: 8px; background: #f8fff8;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; border-radius: 6px 6px 0 0;">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">CONCLUSIÓN SOBRE LA ACEPTACIÓN/CONTINUACIÓN DEL COMPROMISO</h3>
+                                    </div>
+                                    <div style="padding: 20px; background: white;">
+                                        <!-- Nombre de la entidad -->
+                                        <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                            <label style="display: block; margin-bottom: 8px; color: #2E7D32; font-weight: 600; font-size: 0.95rem;">Nombre de la entidad</label>
+                                            <div style="position: relative;">
+                                                <input type="text" id="a200_entidad" name="a200_entidad" placeholder="Ingrese el nombre de la entidad" style="width: 100%; padding: 12px 16px; border: 2px solid #4CAF50; border-radius: 8px; font-size: 0.9rem; color: #2E7D32; background: white; transition: all 0.3s ease; box-sizing: border-box;">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Factores de riesgo -->
+                                        <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                            <label style="display: block; margin-bottom: 8px; color: #2E7D32; font-weight: 600; font-size: 0.95rem;">¿Existen factores de riesgo de compromiso?</label>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                    <input type="radio" name="a200_riesgo_compromiso" value="si_doc" onchange="document.getElementById('a200_riesgo_compromiso').value='si_doc'">
+                                                    <span>Sí (Documentación opcional)</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                    <input type="radio" name="a200_riesgo_compromiso" value="si" onchange="document.getElementById('a200_riesgo_compromiso').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                    <input type="radio" name="a200_riesgo_compromiso" value="no" onchange="document.getElementById('a200_riesgo_compromiso').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_riesgo_compromiso" name="a200_riesgo_compromiso" value="">
+                                        </div>
+                                        
+                                        <!-- Evaluación del riesgo -->
+                                        <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                            <label style="display: block; margin-bottom: 8px; color: #2E7D32; font-weight: 600; font-size: 0.95rem;">Según la información y los factores de riesgo identificados anteriormente, este compromiso se evalúa de la siguiente manera:</label>
+                                            <div style="position: relative;">
+                                                <select id="a200_evaluacion_riesgo" name="a200_evaluacion_riesgo" style="width: 100%; padding: 12px 16px; border: 2px solid #4CAF50; border-radius: 8px; font-size: 0.9rem; color: #2E7D32; background: white; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box;">
+                                                    <option value="">Seleccione una opción</option>
+                                                    <option value="riesgo_bajo">Riesgo bajo</option>
+                                                    <option value="riesgo_moderado">Riesgo moderado</option>
+                                                    <option value="riesgo_alto">Riesgo alto</option>
+                                                    <option value="no_aceptado">No aceptado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Requiere RCC -->
+                                        <div style="padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                            <label style="display: block; margin-bottom: 8px; color: #2E7D32; font-weight: 600; font-size: 0.95rem;">¿Se requiere un RCC para este compromiso?</label>
+                                            <div style="display: flex; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                    <input type="radio" name="a200_rcc_requerido" value="si" onchange="document.getElementById('a200_rcc_requerido').value='si'">
+                                                    <span>Sí</span>
+                                                </label>
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                    <input type="radio" name="a200_rcc_requerido" value="no" onchange="document.getElementById('a200_rcc_requerido').value='no'">
+                                                    <span>No</span>
+                                                </label>
+                                            </div>
+                                            <input type="hidden" id="a200_rcc_requerido" name="a200_rcc_requerido" value="">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sección: Certificación del socio -->
+                                <div style="margin-bottom: 25px; border: 2px solid #4CAF50; border-radius: 8px; background: #f8fff8;">
+                                    <div style="background: #4CAF50; color: white; padding: 12px 20px; border-radius: 6px 6px 0 0;">
+                                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">CERTIFICACIÓN DEL SOCIO</h3>
+                                    </div>
+                                    <div style="padding: 20px; background: white;">
+                                        <div style="margin-bottom: 20px;">
+                                            <p style="margin: 0 0 15px 0; color: #2E7D32; font-weight: 600; font-size: 0.95rem;">Declaración:</p>
+                                            <p style="margin: 0 0 20px 0; color: #2E7D32; font-size: 0.9rem; line-height: 1.4;">He leído las respuestas a las preguntas que anteceden y al firmar este documento reconozco que:</p>
+                                            
+                                            <!-- Declaración 1 -->
+                                            <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                                <p style="margin: 0 0 10px 0; color: #2E7D32; font-size: 0.9rem; line-height: 1.4;">Estoy de acuerdo con la evaluación de riesgo anterior.</p>
+                                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert1_evaluacion" value="si" onchange="document.getElementById('a200_cert1_evaluacion').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert1_evaluacion" value="no" onchange="document.getElementById('a200_cert1_evaluacion').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_cert1_evaluacion" name="a200_cert1_evaluacion" value="">
+                                            </div>
+                                            
+                                            <!-- Declaración 2 -->
+                                            <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                                <p style="margin: 0 0 10px 0; color: #2E7D32; font-size: 0.9rem; line-height: 1.4;">He aplicado mi entendimiento de los requisitos éticos relevantes, lo que incluye aquellos relacionados con la independencia, y las políticas y procedimientos de la firma para identificar y evaluar amenazas al cumplimiento de los requisitos éticos relevantes.</p>
+                                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert2_etica" value="si" onchange="document.getElementById('a200_cert2_etica').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert2_etica" value="no" onchange="document.getElementById('a200_cert2_etica').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_cert2_etica" name="a200_cert2_etica" value="">
+                                            </div>
+                                            
+                                            <!-- Declaración 3 -->
+                                            <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                                <p style="margin: 0 0 10px 0; color: #2E7D32; font-size: 0.9rem; line-height: 1.4;">No conozco ninguna otra prohibición ética, amenazas a la independencia o factores de riesgo no mitigados que pudieran impedir que la firma o cualquier miembro del equipo de trabajo ejecutar esta asignación.</p>
+                                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert3_prohibiciones" value="si" onchange="document.getElementById('a200_cert3_prohibiciones').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert3_prohibiciones" value="no" onchange="document.getElementById('a200_cert3_prohibiciones').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_cert3_prohibiciones" name="a200_cert3_prohibiciones" value="">
+                                            </div>
+                                            
+                                            <!-- Declaración 4 -->
+                                            <div style="padding: 15px; background: #e8f5e8; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                                                <p style="margin: 0 0 10px 0; color: #2E7D32; font-size: 0.9rem; line-height: 1.4;">Me consta que se han seguido los procedimientos apropiados respecto a la continuidad de la relación de este cliente y el compromiso de auditoría, y se determinó que las conclusiones a las que se llegó en este sentido son adecuadas.</p>
+                                                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert4_continuidad" value="si" onchange="document.getElementById('a200_cert4_continuidad').value='si'">
+                                                        <span>Sí</span>
+                                                    </label>
+                                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: #2E7D32; font-weight: 500;">
+                                                        <input type="radio" name="a200_cert4_continuidad" value="no" onchange="document.getElementById('a200_cert4_continuidad').value='no'">
+                                                        <span>No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" id="a200_cert4_continuidad" name="a200_cert4_continuidad" value="">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario A200 - Actividades preliminares del compromiso
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA200()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioA200()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+        
+        // Función para cerrar el formulario A200
+        function cerrarFormularioA200() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+        
+        // Función para guardar el formulario A200
+        function guardarFormularioA200() {
+            // Recopilar todas las respuestas
+            const respuestas = {
+                q1_naturaleza: document.getElementById('a200_q1_naturaleza').value,
+                q2_doc: document.getElementById('a200_q2_doc').value,
+                q3_fecha: document.getElementById('a200_q3_fecha').value,
+                q4_doc: document.getElementById('a200_q4_doc').value,
+                q5_riesgo: document.getElementById('a200_q5_riesgo').value,
+                q6_grupo: document.getElementById('a200_q6_grupo').value,
+                q7_auditores: document.getElementById('a200_q7_auditores').value,
+                q8_doc: document.getElementById('a200_q8_doc').value,
+                q9_politicas: document.getElementById('a200_q9_politicas').value,
+                q10_integridad: document.getElementById('a200_q10_integridad').value,
+                q11_restricciones: document.getElementById('a200_q11_restricciones').value,
+                q12_amenazas: document.getElementById('a200_q12_amenazas').value,
+                q13_doc: document.getElementById('a200_q13_doc').value,
+                q14_consulta: document.getElementById('a200_q14_consulta').value,
+                q15a_recursos: document.getElementById('a200_q15a_recursos').value,
+                q15b_equipo: document.getElementById('a200_q15b_equipo').value,
+                q15c_expertos: document.getElementById('a200_q15c_expertos').value,
+                q16a_competencias: document.getElementById('a200_q16a_competencias').value,
+                q16b_informe: document.getElementById('a200_q16b_informe').value,
+                q17_doc: document.getElementById('a200_q17_doc').value,
+                q18a_marco: document.getElementById('a200_q18a_marco').value,
+                q18b_gerencia: document.getElementById('a200_q18b_gerencia').value,
+                q18c_direccion: document.getElementById('a200_q18c_direccion').value,
+                q19_doc: document.getElementById('a200_q19_doc').value,
+                q20_doc: document.getElementById('a200_q20_doc').value,
+                // Sección de Conclusión
+                entidad: document.getElementById('a200_entidad').value,
+                riesgo_compromiso: document.getElementById('a200_riesgo_compromiso').value,
+                evaluacion_riesgo: document.getElementById('a200_evaluacion_riesgo').value,
+                rcc_requerido: document.getElementById('a200_rcc_requerido').value,
+                // Sección de Certificación
+                cert1_evaluacion: document.getElementById('a200_cert1_evaluacion').value,
+                cert2_etica: document.getElementById('a200_cert2_etica').value,
+                cert3_prohibiciones: document.getElementById('a200_cert3_prohibiciones').value,
+                cert4_continuidad: document.getElementById('a200_cert4_continuidad').value
+            };
+            
+            console.log('Respuestas del formulario A200:', respuestas);
+            showNotification('Formulario A200 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioA200();
         }
         
         // Función para abrir observaciones
