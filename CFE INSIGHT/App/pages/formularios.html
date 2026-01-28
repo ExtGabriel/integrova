@@ -1642,6 +1642,8 @@
                 mostrarFormularioA100();
             } else if (formId === 'A200') {
                 mostrarFormularioA200();
+            } else if (formId === 'A300') {
+                mostrarFormularioA300();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -2699,6 +2701,578 @@
             
             // Cerrar el modal
             cerrarFormularioA200();
+        }
+        
+        // Función para mostrar el formulario A300
+        function mostrarFormularioA300() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>A300 Estrategia general de auditoría</h2>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="imprimirFormulario()" title="Imprimir">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Imprimir</span>
+                                </button>
+                                <button class="header-btn" onclick="editarPreguntas()" title="Editar Preguntas">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                                <button class="header-btn" onclick="colapsarFormulario()" title="Colapsar">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                    <span>Colapsar</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioA300()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <div class="formulario-tabs">
+                            <button class="tab-button active" onclick="openTab(event, 'ProcedimientosA300')">Procedimientos</button>
+                            <button class="tab-button" onclick="openTab(event, 'GuiaOrientativaA300')">Guía orientativa</button>
+                        </div>
+
+                        <div id="ProcedimientosA300" class="tab-content active">
+                            <div class="formulario-seccion">
+                                <div class="seccion-header" onclick="toggleSection('estrategia-general')">
+                                    <h3>ESTRATEGIA GENERAL DE AUDITORÍA</h3>
+                                    <i class="bi bi-chevron-down toggle-icon" id="estrategia-general-icon"></i>
+                                </div>
+                                <div class="seccion-content" id="estrategia-general-content">
+                            
+                            <div class="formulario-section">
+                                <h3>Características del compromiso, incluidos cambios significativos en el período</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">1. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q1_narrativa" name="a300_q1" value="narrativa">
+                                                <label for="a300_q1_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q1_procedimientos" name="a300_q1" value="procedimientos">
+                                                <label for="a300_q1_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">2. Factores a considerar en la auditoría</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>Manteniendo una actitud de escepticismo profesional y aplicando el juicio profesional, identificar las áreas clave que se deben abordar, incluidas las características del compromiso que definen su alcance y respuesta de la auditoría propuesta, a fin de obtener evidencia de auditoría suficiente y apropiada para reducir el riesgo hasta un nivel bajo aceptable. Considerar:</p>
+                                            <ul class="factores-lista">
+                                                <li>Impacto de los cambios en las normas contables</li>
+                                                <li>Impacto de los cambios operativos importantes, incluido el control interno</li>
+                                                <li>Múltiples dependencias incluidas en el alcance del compromiso</li>
+                                                <li>Integrantes principales de la gerencia y sus datos de contacto</li>
+                                                <li>Usuarios de los estados financieros</li>
+                                                <li>Toda necesidad de requisitos de auditoría legales y normativos, así como las fechas de entrega previstas y las comunicaciones con terceros.</li>
+                                                <li>Necesidad de estado financiero auditado independiente de subsidiarias</li>
+                                                <li>¿Ha habido alguna combinación de negocios en el período en curso?</li>
+                                            </ul>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q2_completado" name="a300_q2" value="completado_sin_excepciones">
+                                                <label for="a300_q2_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q2_excepciones" name="a300_q2" value="completado_con_excepciones">
+                                                <label for="a300_q2_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q2_na" name="a300_q2" value="na">
+                                                <label for="a300_q2_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Momento de realización del compromiso, incluidos los cambios significativos en la supervisión y revisión planificada del trabajo realizado</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">3. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q3_narrativa" name="a300_q3" value="narrativa">
+                                                <label for="a300_q3_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q3_procedimientos" name="a300_q3" value="procedimientos">
+                                                <label for="a300_q3_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Asuntos de compromisos anteriores</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">4. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q4_narrativa" name="a300_q4" value="narrativa">
+                                                <label for="a300_q4_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q4_procedimientos" name="a300_q4" value="procedimientos">
+                                                <label for="a300_q4_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">5. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q5_narrativa" name="a300_q5" value="narrativa">
+                                                <label for="a300_q5_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q5_procedimientos" name="a300_q5" value="procedimientos">
+                                                <label for="a300_q5_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">6. Factores a considerar en la auditoría de compromisos anteriores</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>Mientras mantiene una actitud de escepticismo profesional y utiliza su juicio profesional, identifique las áreas clave que se tratarán, incluidas las características del trabajo que definen su alcance y la respuesta de auditoría propuesta, para obtener evidencia de auditoría suficiente y adecuada para reducir el riesgo a un nivel aceptablemente bajo. Considerar temas tomados en cuenta de la experiencia previa.</p>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q6_completado" name="a300_q6" value="completado_sin_excepciones">
+                                                <label for="a300_q6_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q6_excepciones" name="a300_q6" value="completado_con_excepciones">
+                                                <label for="a300_q6_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q6_na" name="a300_q6" value="na">
+                                                <label for="a300_q6_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Nombres y naturaleza de las partes relacionadas</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">7. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q7_narrativa" name="a300_q7" value="narrativa">
+                                                <label for="a300_q7_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q7_procedimientos" name="a300_q7" value="procedimientos">
+                                                <label for="a300_q7_procedimientos">Procedimientos</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q7_na" name="a300_q7" value="na">
+                                                <label for="a300_q7_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Procedimientos de evaluación de riesgo y enfoque de auditoría propuestos</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">8. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q8_narrativa" name="a300_q8" value="narrativa">
+                                                <label for="a300_q8_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q8_procedimientos" name="a300_q8" value="procedimientos">
+                                                <label for="a300_q8_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">9. Factores a considerar en la auditoría relacionada con la evaluación de riesgos</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>Manteniendo una actitud de escepticismo profesional y aplicando el juicio profesional, identificar las áreas clave que se deben abordar, incluidas las características del compromiso que definen su alcance y respuesta de la auditoría propuesta, a fin de obtener evidencia de auditoría suficiente y apropiada para reducir el riesgo hasta un nivel bajo aceptable. Considerar:</p>
+                                            <ul>
+                                                <li>Balances contables materiales, clases de transacciones, revelaciones y procesos (control interno) de negocios relacionados</li>
+                                                <li>Riesgos significativos (fraude y error) e incertidumbres del negocio en marcha</li>
+                                                <li>Utilización de técnicas informatizadas de auditoría. Documentado en: A405 Preparación de los procedimientos de evaluación de riesgo.</li>
+                                                <li>Uso de otra información adicional: ¿prevé el auditor esperar el uso de evidencia obtenida en auditorías anteriores (pruebas de controles, TI, etc.)?</li>
+                                                <li>Si se está confiando en pruebas de controles realizadas en una auditoría anterior, la eficacia de los controles sobre los riesgos significativos debe probarse en el período en curso.</li>
+                                            </ul>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q9_completado" name="a300_q9" value="completado_sin_excepciones">
+                                                <label for="a300_q9_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q9_na" name="a300_q9" value="na">
+                                                <label for="a300_q9_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Uso de una organización de servicios</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">10. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q10_narrativa" name="a300_q10" value="narrativa">
+                                                <label for="a300_q10_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q10_procedimiento" name="a300_q10" value="procedimiento">
+                                                <label for="a300_q10_procedimiento">Procedimiento</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q10_na" name="a300_q10" value="na">
+                                                <label for="a300_q10_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Recursos y presupuestos del equipo de trabajo</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">11. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q11_narrativa" name="a300_q11" value="narrativa">
+                                                <label for="a300_q11_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q11_procedimientos" name="a300_q11" value="procedimientos">
+                                                <label for="a300_q11_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Uso de un experto de auditoría</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">12. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q12_narrativa" name="a300_q12" value="narrativa">
+                                                <label for="a300_q12_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q12_procedimiento" name="a300_q12" value="procedimiento">
+                                                <label for="a300_q12_procedimiento">Procedimiento</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q12_na" name="a300_q12" value="na">
+                                                <label for="a300_q12_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Uso del trabajo de auditores internos</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">13. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q13_narrativa" name="a300_q13" value="narrativa">
+                                                <label for="a300_q13_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q13_procedimiento" name="a300_q13" value="procedimiento">
+                                                <label for="a300_q13_procedimiento">Procedimiento</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q13_na" name="a300_q13" value="na">
+                                                <label for="a300_q13_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">14. Factores a considerar en la auditoría relacionada con los auditores internos</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>Manteniendo una actitud de escepticismo profesional y aplicando el juicio profesional, identificar las áreas clave que se deben abordar, incluidas las características del compromiso que definen su alcance y respuesta de la auditoría propuesta, a fin de obtener evidencia de auditoría suficiente y apropiada para reducir el riesgo hasta un nivel bajo aceptable. Considerar:</p>
+                                            <ul>
+                                                <li>Si la entidad cuenta con una función de auditoría interna, determinar su probabilidad de ser relevante para la auditoría mediante el análisis de cómo se ajusta a la estructura de la organización, y qué hace</li>
+                                                <li>Documentado en A320 Hoja de trabajo - Comprensión y evaluación de la función de auditoría interna.</li>
+                                            </ul>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q14_completado" name="a300_q14" value="completado_sin_excepciones">
+                                                <label for="a300_q14_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q14_excepciones" name="a300_q14" value="completado_con_excepciones">
+                                                <label for="a300_q14_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q14_na" name="a300_q14" value="na">
+                                                <label for="a300_q14_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="formulario-section">
+                                <h3>Comunicación de la estrategia general de auditoría</h3>
+                                
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">15. Documentación preferida</div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q15_narrativa" name="a300_q15" value="narrativa">
+                                                <label for="a300_q15_narrativa">Narrativa</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q15_procedimientos" name="a300_q15" value="procedimientos">
+                                                <label for="a300_q15_procedimientos">Procedimientos</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">16. Carta de planificación</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>¿Se enviará una carta de planificación de auditoría sobre este compromiso?</p>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q16_si" name="a300_q16" value="si">
+                                                <label for="a300_q16_si">Sí</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q16_no" name="a300_q16" value="no">
+                                                <label for="a300_q16_no">No</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pregunta-item">
+                                    <div class="pregunta-contenido">
+                                        <div class="pregunta-texto">17. Cambios posteriores en la estrategia</div>
+                                        <div class="pregunta-descripcion">
+                                            <p>Actualizar este formulario para todos los cambios significativos realizados como resultado de la ejecución de procedimientos o de la obtención de información nueva.</p>
+                                        </div>
+                                        <div class="pregunta-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q17_completado" name="a300_q17" value="completado_sin_excepciones">
+                                                <label for="a300_q17_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q17_excepciones" name="a300_q17" value="completado_con_excepciones">
+                                                <label for="a300_q17_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a300_q17_na" name="a300_q17" value="na">
+                                                <label for="a300_q17_na">N/A</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+
+                        <div id="GuiaOrientativaA300" class="tab-content">
+                            <div class="formulario-seccion">
+                                <h3>Guía Orientativa - A300</h3>
+                                <div class="guia-contenido">
+                                    <p>Esta guía proporciona orientación sobre cómo completar la estrategia general de auditoría.</p>
+                                    <!-- Aquí se puede agregar más contenido de guía -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario A300 - Estrategia general de auditoría
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA300()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioA300()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+        
+        // Función para cerrar el formulario A300
+        function cerrarFormularioA300() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+        
+        // Función para guardar el formulario A300
+        function guardarFormularioA300() {
+            // Recopilar todas las respuestas de las preguntas
+            const respuestas = {
+                q1_documentacion: document.querySelector('input[name="a300_q1"]:checked')?.value || 'no_respondido',
+                q2_factores: document.querySelector('input[name="a300_q2"]:checked')?.value || 'no_respondido',
+                q3_momento_documentacion: document.querySelector('input[name="a300_q3"]:checked')?.value || 'no_respondido',
+                q4_anteriores_documentacion: document.querySelector('input[name="a300_q4"]:checked')?.value || 'no_respondido',
+                q5_documentacion: document.querySelector('input[name="a300_q5"]:checked')?.value || 'no_respondido',
+                q6_anteriores_factores: document.querySelector('input[name="a300_q6"]:checked')?.value || 'no_respondido',
+                q7_partes_relacionadas: document.querySelector('input[name="a300_q7"]:checked')?.value || 'no_respondido',
+                q8_riesgos_documentacion: document.querySelector('input[name="a300_q8"]:checked')?.value || 'no_respondido',
+                q9_riesgos_factores: document.querySelector('input[name="a300_q9"]:checked')?.value || 'no_respondido',
+                q10_servicios_documentacion: document.querySelector('input[name="a300_q10"]:checked')?.value || 'no_respondido',
+                q11_recursos_documentacion: document.querySelector('input[name="a300_q11"]:checked')?.value || 'no_respondido',
+                q12_experto_documentacion: document.querySelector('input[name="a300_q12"]:checked')?.value || 'no_respondido',
+                q13_internos_documentacion: document.querySelector('input[name="a300_q13"]:checked')?.value || 'no_respondido',
+                q14_internos_factores: document.querySelector('input[name="a300_q14"]:checked')?.value || 'no_respondido',
+                q15_comunicacion_documentacion: document.querySelector('input[name="a300_q15"]:checked')?.value || 'no_respondido',
+                q16_carta_planificacion: document.querySelector('input[name="a300_q16"]:checked')?.value || 'no_respondido',
+                q17_cambios_estrategia: document.querySelector('input[name="a300_q17"]:checked')?.value || 'no_respondido'
+            };
+            
+            console.log('Respuestas del formulario A300:', respuestas);
+            showNotification('Formulario A300 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioA300();
+        }
+        
+        // Función para cambiar de pestaña
+        function openTab(evt, tabName) {
+            var i, tabcontent, tabbuttons;
+            
+            // Ocultar todo el contenido de las pestañas
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active");
+            }
+            
+            // Remover la clase active de todos los botones
+            tabbuttons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabbuttons.length; i++) {
+                tabbuttons[i].classList.remove("active");
+            }
+            
+            // Mostrar la pestaña actual y activar el botón
+            document.getElementById(tabName).style.display = "block";
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+        
+        // Función para toggle de secciones
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId + '-content');
+            const icon = document.getElementById(sectionId + '-icon');
+            
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                icon.classList.remove('bi-chevron-right');
+                icon.classList.add('bi-chevron-down');
+            } else {
+                content.style.display = 'none';
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-right');
+            }
+        }
+        
+        // Función para establecer estado de los botones
+        function setStatus(button, status) {
+            // Remover estado activo de todos los botones del mismo grupo
+            const siblings = button.parentElement.querySelectorAll('.status-btn');
+            siblings.forEach(btn => btn.classList.remove('active'));
+            
+            // Agregar estado activo al botón seleccionado
+            button.classList.add('active');
+            
+            // Guardar el estado
+            const campoItem = button.closest('.campo-item');
+            const campoLabel = campoItem.querySelector('.campo-label').textContent;
+            console.log(`Campo: ${campoLabel}, Estado: ${status}`);
         }
         
         // Función para abrir observaciones
