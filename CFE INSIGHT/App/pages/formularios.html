@@ -1646,6 +1646,8 @@
                 mostrarFormularioA200();
             } else if (formId === 'A300') {
                 mostrarFormularioA300();
+            } else if (formId === 'A360') {
+                mostrarFormularioA360();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -3301,6 +3303,938 @@
             cerrarFormularioA300();
         }
         
+        // Función para mostrar el formulario A360
+        function mostrarFormularioA360() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>A360 Hoja de Trabajo - Selección de un Auditor del Componente</h2>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="imprimirFormulario()" title="Imprimir">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Imprimir</span>
+                                </button>
+                                <button class="header-btn" onclick="editarPreguntas()" title="Editar Preguntas">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                                <button class="header-btn" onclick="colapsarFormulario()" title="Colapsar">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                    <span>Colapsar</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioA360()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>CONSIDERACIONES DEL AUDITOR DEL COMPONENTE</h3>
+                            </div>
+                            
+                            <!-- Pregunta 1 -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">1.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Evaluar la necesidad de un auditor del componente</h4>
+                                        <p>Determinar si las personas de otra firma son necesarias para obtener evidencia de auditoría suficiente y adecuada. De ser así, describir la naturaleza de la implicación requerida o marcar la casilla correspondiente a continuación:</p>
+                                    </div>
+                                </div>
+                                <div class="pregunta-opciones">
+                                    <div class="multiselect-container">
+                                        <div class="multiselect-dropdown" onclick="toggleMultiselect()">
+                                            <span id="multiselect-placeholder">Seleccionar opciones...</span>
+                                            <i class="bi bi-chevron-down"></i>
+                                        </div>
+                                        <div class="multiselect-options" id="multiselect-options">
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_1" name="a360_q1" value="procedimientos_riesgos" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_1">Procedimientos de evaluación de riesgos.</label>
+                                            </div>
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_2" name="a360_q1" value="procedimientos_riesgos_material" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_2">Procedimientos para responder a los riesgos evaluados de incorrección material.</label>
+                                            </div>
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_3" name="a360_q1" value="servicios_compartidos" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_3">Realizar procedimientos de auditoría en un centro de servicios compartidos en una ubicación remota.</label>
+                                            </div>
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_4" name="a360_q1" value="recuento_inventario" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_4">Recuento físico del inventario.</label>
+                                            </div>
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_5" name="a360_q1" value="inspeccion_propiedad" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_5">Inspección de propiedad, planta y equipo.</label>
+                                            </div>
+                                            <div class="multiselect-option">
+                                                <input type="checkbox" id="a360_q1_6" name="a360_q1" value="otro" onchange="updateSelectedOptions()">
+                                                <label for="a360_q1_6">Otro (Especificar)</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Área para mostrar las opciones seleccionadas -->
+                                    <div class="selected-options-container" id="selected-options-container" style="display: none;">
+                                        <div class="selected-options-label">Opciones seleccionadas:</div>
+                                        <div class="selected-options-list" id="selected-options-list"></div>
+                                    </div>
+                                    
+                                    <textarea class="form-textarea-small" id="a360_q1_nota" name="a360_q1_nota" placeholder="Agregar nota"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Pregunta 2 -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">2.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Naturaleza, alcance y objetivos</h4>
+                                        <p>Determinar la naturaleza, calendario y alcance exactos de los procedimientos que realizará el auditor del componente. Considerar asuntos incluyendo:</p>
+                                        <ul>
+                                            <li>La naturaleza de la cuestión a la que se refiere ese trabajo del auditor del componente</li>
+                                            <li>Los riesgos de incorrección material en la cuestión a la que se refiere ese trabajo del auditor del componente</li>
+                                            <li>La importancia de ese trabajo del auditor del componente en el contexto de la auditoría</li>
+                                            <li>El conocimiento y la experiencia del equipo de auditoría del grupo con el trabajo realizado anteriormente por el auditor del componente</li>
+                                            <li>Si ese auditor del componente está sujeto al sistema de gestión de calidad de la firma del auditor, lo que incluye requisitos éticos relevantes</li>
+                                            <li>Alcance de la implicación del auditor del componente en la realización de procedimientos de auditoría adicionales en el proceso de consolidación, incluida la subconsolidación</li>
+                                            <li>Alcance de la implicación del auditor del componente en el diseño de procedimientos de auditoría adicionales (riesgo significativo, riesgo elevado, proceso de consolidación)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="pregunta-opciones">
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q2_sin_excepciones" name="a360_q2" value="completado_sin_excepciones">
+                                        <label for="a360_q2_sin_excepciones">Completado sin excepciones</label>
+                                    </div>
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q2_con_excepciones" name="a360_q2" value="completado_con_excepciones">
+                                        <label for="a360_q2_con_excepciones">Completado con excepciones</label>
+                                    </div>
+                                    <textarea class="form-textarea" id="a360_q2_nota" name="a360_q2_nota" placeholder="Agregar nota"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Pregunta 3 -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">3.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Comunicación bidireccional efectiva</h4>
+                                        <p>Determinar el método para conseguir una comunicación bidireccional eficaz entre el auditor del grupo y los auditores de componente para establecer las expectativas con respecto a los auditores de componente, incluida la facilitación de la dirección y supervisión de los auditores del componente y la revisión del trabajo de estos.</p>
+                                    </div>
+                                </div>
+                                <div class="pregunta-opciones">
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q3_sin_excepciones" name="a360_q3" value="completado_sin_excepciones">
+                                        <label for="a360_q3_sin_excepciones">Completado sin excepciones</label>
+                                    </div>
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q3_con_excepciones" name="a360_q3" value="completado_con_excepciones">
+                                        <label for="a360_q3_con_excepciones">Completado con excepciones</label>
+                                    </div>
+                                    <textarea class="form-textarea" id="a360_q3_nota" name="a360_q3_nota" placeholder="Agregar nota"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Pregunta 4 -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">4.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Nivel de participación</h4>
+                                        <p>Determinar el nivel de implicación de los auditores de componente, con base en los hechos y circunstancias del compromiso de auditoría del grupo.</p>
+                                    </div>
+                                </div>
+                                <div class="pregunta-opciones">
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q4_sin_excepciones" name="a360_q4" value="completado_sin_excepciones">
+                                        <label for="a360_q4_sin_excepciones">Completado sin excepciones</label>
+                                    </div>
+                                    <div class="opcion-item">
+                                        <input type="radio" id="a360_q4_con_excepciones" name="a360_q4" value="completado_con_excepciones">
+                                        <label for="a360_q4_con_excepciones">Completado con excepciones</label>
+                                    </div>
+                                    <textarea class="form-textarea" id="a360_q4_nota" name="a360_q4_nota" placeholder="Agregar nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>EVALUACIÓN DE LAS CREDENCIALES DEL AUDITOR DEL COMPONENTE</h3>
+                            </div>
+                            
+                            <!-- Pregunta 5 con todos los incisos en un solo contenedor -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">5.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Competencia y capacidad del auditor del componente</h4>
+                                        <p>Evaluar si el auditor del componente propuesto:</p>
+                                        
+                                        <!-- Inciso 5a -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">a.</div>
+                                            <div class="inciso-texto">
+                                                <p>Tiene la competencia y capacidades necesarias, así como el tiempo suficiente, para el fin pretendido, teniendo en cuenta la información sobre los resultados del proceso de monitoreo y corrección o inspecciones externas relacionadas con el auditor del componente si están disponibles.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5a_sin_excepciones" name="a360_q5a" value="completado_sin_excepciones">
+                                                    <label for="a360_q5a_sin_excepciones">Completado sin excepciones</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5a_con_excepciones" name="a360_q5a" value="completado_con_excepciones">
+                                                    <label for="a360_q5a_con_excepciones">Completado con excepciones</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q5a_nota" name="a360_q5a_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 5b -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">b.</div>
+                                            <div class="inciso-texto">
+                                                <p>Comprende y es capaz de cumplir con los requisitos éticos relevantes (incluida la independencia)</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5b_sin_excepciones" name="a360_q5b" value="completado_sin_excepciones">
+                                                    <label for="a360_q5b_sin_excepciones">Completado sin excepciones</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5b_con_excepciones" name="a360_q5b" value="completado_con_excepciones">
+                                                    <label for="a360_q5b_con_excepciones">Completado con excepciones</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q5b_nota" name="a360_q5b_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 5c -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">c.</div>
+                                            <div class="inciso-texto">
+                                                <p>Planes sobre el uso del trabajo de un experto del auditor</p>
+                                                <p>Comentar con el auditor del componente:</p>
+                                                <ul>
+                                                    <li>La naturaleza, calendario y alcance exactos de los procedimientos que realizará un experto.</li>
+                                                    <li>La evaluación del auditor del componente de si el experto propuesto del auditor tiene la competencia y capacidades necesarias para el fin previsto.</li>
+                                                    <li>La evaluación del auditor del componente de la idoneidad del trabajo del experto del auditor para los fines del auditor del grupo.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5c_sin_excepciones" name="a360_q5c" value="completado_sin_excepciones">
+                                                    <label for="a360_q5c_sin_excepciones">Completado sin excepciones</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q5c_con_excepciones" name="a360_q5c" value="completado_con_excepciones">
+                                                    <label for="a360_q5c_con_excepciones">Completado con excepciones</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q5c_nota" name="a360_q5c_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>COMUNICACIONES CON EL AUDITOR DEL COMPONENTE</h3>
+                            </div>
+                            
+                            <!-- Pregunta 6 con todos los incisos en un solo contenedor -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">6.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Comunicación con el auditor del componente</h4>
+                                        <p>Preparar una comunicación con el auditor del componente que incluya:</p>
+                                        
+                                        <!-- Inciso 6a -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">a.</div>
+                                            <div class="inciso-texto">
+                                                <p>Una solicitud para que el auditor del componente confirme que colaborará con las peticiones del auditor del grupo, incluida una confirmación de que ha cumplido con los requisitos éticos relevantes y entiende las normas de auditoría y el marco de información financiera aplicables.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6a_si" name="a360_q6a" value="si">
+                                                    <label for="a360_q6a_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6a_no" name="a360_q6a" value="no">
+                                                    <label for="a360_q6a_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6a_nota" name="a360_q6a_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6b -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">b.</div>
+                                            <div class="inciso-texto">
+                                                <p>Una solicitud de las cualificaciones y experiencia del auditor del componente, y los resultados de las inspecciones cuando corresponda (internas y externas).</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6b_si" name="a360_q6b" value="si">
+                                                    <label for="a360_q6b_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6b_no" name="a360_q6b" value="no">
+                                                    <label for="a360_q6b_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6b_nota" name="a360_q6b_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6c -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">c.</div>
+                                            <div class="inciso-texto">
+                                                <p>Dar a conocer al auditor del componente cualquier requisito ético.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6c_si" name="a360_q6c" value="si">
+                                                    <label for="a360_q6c_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6c_no" name="a360_q6c" value="no">
+                                                    <label for="a360_q6c_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6c_nota" name="a360_q6c_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6d -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">d.</div>
+                                            <div class="inciso-texto">
+                                                <p>Las respectivas responsabilidades y cualquier comunicación requerida por el auditor del componente</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6d_si" name="a360_q6d" value="si">
+                                                    <label for="a360_q6d_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6d_no" name="a360_q6d" value="no">
+                                                    <label for="a360_q6d_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6d_nota" name="a360_q6d_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6e -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">e.</div>
+                                            <div class="inciso-texto">
+                                                <p>Cuestiones que son relevantes para el diseño o desempeño de los procedimientos de evaluación de riesgos del auditor del componente para los fines del compromiso de la auditoría del grupo.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6e_si" name="a360_q6e" value="si">
+                                                    <label for="a360_q6e_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6e_no" name="a360_q6e" value="no">
+                                                    <label for="a360_q6e_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6e_nota" name="a360_q6e_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6f -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">f.</div>
+                                            <div class="inciso-texto">
+                                                <p>Transacciones y relaciones con partes relacionadas identificadas.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6f_si" name="a360_q6f" value="si">
+                                                    <label for="a360_q6f_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6f_no" name="a360_q6f" value="no">
+                                                    <label for="a360_q6f_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6f_nota" name="a360_q6f_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6g -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">g.</div>
+                                            <div class="inciso-texto">
+                                                <p>Hechos o condiciones que podrían generar duda sobre la capacidad del grupo para continuar como negocio en marcha.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6g_si" name="a360_q6g" value="si">
+                                                    <label for="a360_q6g_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6g_no" name="a360_q6g" value="no">
+                                                    <label for="a360_q6g_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6g_nota" name="a360_q6g_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6h -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">h.</div>
+                                            <div class="inciso-texto">
+                                                <p>Una solicitud para que el auditor del componente comunique:</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-i -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">i.</div>
+                                            <div class="inciso-texto">
+                                                <p>Cuestiones que serían relevantes para la identificación y evaluación de riesgos a nivel del grupo.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hi_si" name="a360_q6hi" value="si">
+                                                    <label for="a360_q6hi_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hi_no" name="a360_q6hi" value="no">
+                                                    <label for="a360_q6hi_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hi_nota" name="a360_q6hi_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-iii -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">iii.</div>
+                                            <div class="inciso-texto">
+                                                <p>Cualquier hecho que pudiera generar duda sobre la capacidad del grupo para continuar como negocio en marcha.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hiii_si" name="a360_q6hiii" value="si">
+                                                    <label for="a360_q6hiii_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hiii_no" name="a360_q6hiii" value="no">
+                                                    <label for="a360_q6hiii_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hiii_nota" name="a360_q6hiii_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-iv -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">iv.</div>
+                                            <div class="inciso-texto">
+                                                <p>Información financiera sobre la que se ha pedido que se realicen procedimientos de auditoría.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hiv_si" name="a360_q6hiv" value="si">
+                                                    <label for="a360_q6hiv_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hiv_no" name="a360_q6hiv" value="no">
+                                                    <label for="a360_q6hiv_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hiv_nota" name="a360_q6hiv_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-v -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">v.</div>
+                                            <div class="inciso-texto">
+                                                <p>Si se ha realizado el trabajo solicitado.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hv_si" name="a360_q6hv" value="si">
+                                                    <label for="a360_q6hv_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hv_no" name="a360_q6hv" value="no">
+                                                    <label for="a360_q6hv_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hv_nota" name="a360_q6hv_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-vi -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">vi.</div>
+                                            <div class="inciso-texto">
+                                                <p>Si los requisitos éticos relevantes, incluidos aquellos relacionados con la independencia, se han recopilado</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hvi_si" name="a360_q6hvi" value="si">
+                                                    <label for="a360_q6hvi_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hvi_no" name="a360_q6hvi" value="no">
+                                                    <label for="a360_q6hvi_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hvi_nota" name="a360_q6hvi_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-vii -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">vii.</div>
+                                            <div class="inciso-texto">
+                                                <p>Información sobre casos de incumplimiento de leyes o reglamentos.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hvii_si" name="a360_q6hvii" value="si">
+                                                    <label for="a360_q6hvii_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hvii_no" name="a360_q6hvii" value="no">
+                                                    <label for="a360_q6hvii_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hvii_nota" name="a360_q6hvii_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-viii -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">viii.</div>
+                                            <div class="inciso-texto">
+                                                <p>Incorrecciones corregidas y no corregidas de la información financiera del componente identificada por el auditor del componente y que superan el umbral comunicado.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hviii_si" name="a360_q6hviii" value="si">
+                                                    <label for="a360_q6hviii_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hviii_no" name="a360_q6hviii" value="no">
+                                                    <label for="a360_q6hviii_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hviii_nota" name="a360_q6hviii_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-ix -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">ix.</div>
+                                            <div class="inciso-texto">
+                                                <p>Indicadores de posible sesgo de la gerencia.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hix_si" name="a360_q6hix" value="si">
+                                                    <label for="a360_q6hix_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hix_no" name="a360_q6hix" value="no">
+                                                    <label for="a360_q6hix_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hix_nota" name="a360_q6hix_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-x -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">x.</div>
+                                            <div class="inciso-texto">
+                                                <p>Descripción de cualquier deficiencia en el sistema de control interno identificada en relación con los procedimientos de auditoría realizados.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hx_si" name="a360_q6hx" value="si">
+                                                    <label for="a360_q6hx_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hx_no" name="a360_q6hx" value="no">
+                                                    <label for="a360_q6hx_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hx_nota" name="a360_q6hx_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-xi -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">xi.</div>
+                                            <div class="inciso-texto">
+                                                <p>Fraude o sospecha de fraude que implicase a la dirección del componente, empleados con un rol significativo en el sistema de control interno del grupo en el componente u otros donde el fraude dio como resultado una incorrección material de la información financiera del componente.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxi_si" name="a360_q6hxi" value="si">
+                                                    <label for="a360_q6hxi_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxi_no" name="a360_q6hxi" value="no">
+                                                    <label for="a360_q6hxi_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hxi_nota" name="a360_q6hxi_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-xii -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">xii.</div>
+                                            <div class="inciso-texto">
+                                                <p>Otras cuestiones significativas comunicadas o que se espera que se comuniquen a la dirección del componente o a los responsables del gobierno del componente.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxii_si" name="a360_q6hxii" value="si">
+                                                    <label for="a360_q6hxii_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxii_no" name="a360_q6hxii" value="no">
+                                                    <label for="a360_q6hxii_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hxii_nota" name="a360_q6hxii_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-xiii -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">xiii.</div>
+                                            <div class="inciso-texto">
+                                                <p>Excepciones indicadas en las declaraciones por escrito solicitadas a la dirección del componente.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxiii_si" name="a360_q6hxiii" value="si">
+                                                    <label for="a360_q6hxiii_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxiii_no" name="a360_q6hxiii" value="no">
+                                                    <label for="a360_q6hxiii_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hxiii_nota" name="a360_q6hxiii_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-xiv -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">xiv.</div>
+                                            <div class="inciso-texto">
+                                                <p>Cualquier otra cuestión que pudiese ser relevante para la auditoría del grupo.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxiv_si" name="a360_q6hxiv" value="si">
+                                                    <label for="a360_q6hxiv_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxiv_no" name="a360_q6hxiv" value="no">
+                                                    <label for="a360_q6hxiv_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hxiv_nota" name="a360_q6hxiv_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sub-incisos 6h-xv -->
+                                        <div class="inciso-item sub-inciso">
+                                            <div class="inciso-numero">xv.</div>
+                                            <div class="inciso-texto">
+                                                <p>Hallazgos o conclusiones generales.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxv_si" name="a360_q6hxv" value="si">
+                                                    <label for="a360_q6hxv_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6hxv_no" name="a360_q6hxv" value="no">
+                                                    <label for="a360_q6hxv_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6hxv_nota" name="a360_q6hxv_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6i -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">i.</div>
+                                            <div class="inciso-texto">
+                                                <p>Materialidad de desempeño del componente.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6i_si" name="a360_q6i" value="si">
+                                                    <label for="a360_q6i_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6i_no" name="a360_q6i" value="no">
+                                                    <label for="a360_q6i_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6i_nota" name="a360_q6i_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6j -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">j.</div>
+                                            <div class="inciso-texto">
+                                                <p>El umbral por encima del cual deben comunicarse al auditor del grupo las incorrecciones identificadas a nivel del componente.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6j_si" name="a360_q6j" value="si">
+                                                    <label for="a360_q6j_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6j_no" name="a360_q6j" value="no">
+                                                    <label for="a360_q6j_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6j_nota" name="a360_q6j_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6k -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">k.</div>
+                                            <div class="inciso-texto">
+                                                <p>Una solicitud para notificar al auditor del grupo si tiene conocimiento de hechos posteriores que podrían requerir ajustes, o revelación, en los estados financieros del grupo.</p>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6k_si" name="a360_q6k" value="si">
+                                                    <label for="a360_q6k_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6k_no" name="a360_q6k" value="no">
+                                                    <label for="a360_q6k_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6k_nota" name="a360_q6k_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inciso 6l -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">l.</div>
+                                            <div class="inciso-texto">
+                                                <p>Otras cuestiones tales como:</p>
+                                                <ul>
+                                                    <li>Contactos clave del equipo de auditoría del grupo.</li>
+                                                    <li>Fechas clave.</li>
+                                                    <li>Forma de comunicación de los procedimientos e informes, si la hubiera.</li>
+                                                    <li>Riesgos, incluidos los riesgos significativos, identificados por el auditor del grupo relevantes para el auditor del componente Cualquier otra conclusión sobre la evaluación de riesgos relevante para el componente.</li>
+                                                    <li>Procedimientos o áreas abordadas por el auditor del grupo (p. ej., pruebas de deterioro, controles generales de TI, pruebas de centro de servicios compartidos, etc.).</li>
+                                                    <li>Diseño y resultados de los procedimientos de auditoría adicionales relacionados con las áreas de riesgos significativos o más elevados.</li>
+                                                </ul>
+                                            </div>
+                                            <div class="inciso-opciones">
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6l_si" name="a360_q6l" value="si">
+                                                    <label for="a360_q6l_si">Si</label>
+                                                </div>
+                                                <div class="opcion-item">
+                                                    <input type="radio" id="a360_q6l_no" name="a360_q6l" value="no">
+                                                    <label for="a360_q6l_no">No</label>
+                                                </div>
+                                                <textarea class="form-textarea-small" id="a360_q6l_nota" name="a360_q6l_nota" placeholder="Agregar nota"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario A360 - Hoja de Trabajo - Selección de un Auditor del Componente
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA360()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioA360()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+        
+        // Función para cerrar el formulario A360
+        function cerrarFormularioA360() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+        
+        // Función para guardar el formulario A360
+        function guardarFormularioA360() {
+            // Recopilar todas las respuestas de las preguntas
+            const respuestas = {
+                q1_seleccion: Array.from(document.querySelectorAll('input[name="a360_q1"]:checked')).map(cb => cb.value),
+                q1_nota: document.querySelector('#a360_q1_nota')?.value || '',
+                q2: document.querySelector('input[name="a360_q2"]:checked')?.value || 'no_respondido',
+                q2_nota: document.querySelector('#a360_q2_nota')?.value || '',
+                q3: document.querySelector('input[name="a360_q3"]:checked')?.value || 'no_respondido',
+                q3_nota: document.querySelector('#a360_q3_nota')?.value || '',
+                q4: document.querySelector('input[name="a360_q4"]:checked')?.value || 'no_respondido',
+                q4_nota: document.querySelector('#a360_q4_nota')?.value || '',
+                q5a: document.querySelector('input[name="a360_q5a"]:checked')?.value || 'no_respondido',
+                q5a_nota: document.querySelector('#a360_q5a_nota')?.value || '',
+                q5b: document.querySelector('input[name="a360_q5b"]:checked')?.value || 'no_respondido',
+                q5b_nota: document.querySelector('#a360_q5b_nota')?.value || '',
+                q5c: document.querySelector('input[name="a360_q5c"]:checked')?.value || 'no_respondido',
+                q5c_nota: document.querySelector('#a360_q5c_nota')?.value || ''
+            };
+            
+            console.log('Respuestas del formulario A360:', respuestas);
+            showNotification('Formulario A360 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioA360();
+        }
+
+        // Función para controlar el dropdown multiselección
+        function toggleMultiselect() {
+            const options = document.getElementById('multiselect-options');
+            const dropdown = document.querySelector('.multiselect-dropdown');
+            
+            if (options.style.display === 'block') {
+                options.style.display = 'none';
+                dropdown.classList.remove('open');
+            } else {
+                options.style.display = 'block';
+                dropdown.classList.add('open');
+            }
+        }
+
+        // Función para actualizar el placeholder cuando se seleccionan opciones
+        function updateMultiselectPlaceholder() {
+            const checkboxes = document.querySelectorAll('input[name="a360_q1"]:checked');
+            const placeholder = document.getElementById('multiselect-placeholder');
+            
+            if (checkboxes.length === 0) {
+                placeholder.textContent = 'Seleccionar opciones...';
+            } else if (checkboxes.length === 1) {
+                placeholder.textContent = '1 opción seleccionada';
+            } else {
+                placeholder.textContent = `${checkboxes.length} opciones seleccionadas`;
+            }
+        }
+
+        // Función para mostrar las opciones seleccionadas como etiquetas
+        function updateSelectedOptions() {
+            const checkboxes = document.querySelectorAll('input[name="a360_q1"]:checked');
+            const container = document.getElementById('selected-options-container');
+            const list = document.getElementById('selected-options-list');
+            
+            // Actualizar placeholder
+            updateMultiselectPlaceholder();
+            
+            if (checkboxes.length === 0) {
+                container.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+            
+            // Mostrar contenedor
+            container.style.display = 'block';
+            
+            // Limpiar lista anterior
+            list.innerHTML = '';
+            
+            // Mapeo de valores a textos completos para las etiquetas
+            const optionTexts = {
+                'procedimientos_riesgos': 'Procedimientos de evaluación de riesgos.',
+                'procedimientos_riesgos_material': 'Procedimientos para responder a los riesgos evaluados de incorrección material.',
+                'servicios_compartidos': 'Realizar procedimientos de auditoría en un centro de servicios compartidos en una ubicación remota.',
+                'recuento_inventario': 'Recuento físico del inventario.',
+                'inspeccion_propiedad': 'Inspección de propiedad, planta y equipo.',
+                'otro': 'Otro (Especificar)'
+            };
+            
+            // Crear etiquetas para cada opción seleccionada
+            checkboxes.forEach(checkbox => {
+                const tag = document.createElement('div');
+                tag.className = 'selected-option-tag';
+                tag.innerHTML = `
+                    <span>${optionTexts[checkbox.value]}</span>
+                    <button type="button" onclick="removeOption('${checkbox.value}')" class="remove-tag">
+                        <i class="bi bi-x"></i>
+                    </button>
+                `;
+                list.appendChild(tag);
+            });
+        }
+
+        // Función para remover una opción seleccionada
+        function removeOption(value) {
+            const checkbox = document.querySelector(`input[name="a360_q1"][value="${value}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
+                updateSelectedOptions();
+            }
+        }
+
+        // Función para cerrar el dropdown cuando se hace clic fuera
+        document.addEventListener('click', function(event) {
+            const container = document.querySelector('.multiselect-container');
+            if (container && !container.contains(event.target)) {
+                const options = document.getElementById('multiselect-options');
+                const dropdown = document.querySelector('.multiselect-dropdown');
+                if (options) {
+                    options.style.display = 'none';
+                    dropdown.classList.remove('open');
+                }
+            }
+        });
+
+        // Agregar event listeners a los checkboxes
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('input[name="a360_q1"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateMultiselectPlaceholder();
+                });
+            });
+        });
+
         // Funciones para la sección de conclusión A300
         function toggleDecisionesDocumentacion() {
             const preguntasContainer = document.getElementById('preguntas-7-17');
