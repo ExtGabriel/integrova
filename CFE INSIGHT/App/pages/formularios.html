@@ -1648,6 +1648,8 @@
                 mostrarFormularioA300();
             } else if (formId === 'A360') {
                 mostrarFormularioA360();
+            } else if (formId === 'A400') {
+                mostrarFormularioA400();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -5875,6 +5877,686 @@
             // Cerrar el modal
             cerrarFormularioA300();
         };
+
+        // Función para mostrar el formulario A400
+        function mostrarFormularioA400() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2>DISCUSIONES DE PLANIFICACIÓN EN EQUIPO</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioA400()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>1. Documentación preferida</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">1.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Seleccione la documentación preferida:</h4>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_doc_narrativa" name="a400_documentacion" value="narrativa">
+                                            <label for="a400_doc_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_doc_procedimientos" name="a400_documentacion" value="procedimientos">
+                                            <label for="a400_doc_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>2. Información</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">a.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Fecha de la discusión:</h4>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="date" id="a400_fecha_discusion" name="a400_fecha_discusion" class="form-date">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>3. Presentación del equipo y orientación</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-texto">
+                                        <!-- Inciso 3a -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">a.</div>
+                                            <div class="inciso-texto">
+                                                <h4>Presentar a los miembros del equipo de auditoría y su función en la auditoría.</h4>
+                                            </div>
+                                        </div>
+                                        <div class="inciso-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3a_completado" name="a400_3a" value="completado_sin_excepciones">
+                                                <label for="a400_3a_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3a_excepciones" name="a400_3a" value="completado_con_excepciones">
+                                                <label for="a400_3a_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3a_na" name="a400_3a" value="na">
+                                                <label for="a400_3a_na">N/A</label>
+                                            </div>
+                                        </div>
+                                        <textarea class="form-textarea-small" id="a400_3a_nota" name="a400_3a_nota" placeholder="Añadir nota"></textarea>
+
+                                        <!-- Inciso 3b -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">b.</div>
+                                            <div class="inciso-texto">
+                                                <h4>Discutir:</h4>
+                                                <ul>
+                                                    <li>Entornos del componente</li>
+                                                    <li>Actividades centralizadas</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="inciso-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3b_completado" name="a400_3b" value="completado_sin_excepciones">
+                                                <label for="a400_3b_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3b_excepciones" name="a400_3b" value="completado_con_excepciones">
+                                                <label for="a400_3b_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3b_na" name="a400_3b" value="na">
+                                                <label for="a400_3b_na">N/A</label>
+                                            </div>
+                                        </div>
+                                        <textarea class="form-textarea-small" id="a400_3b_nota" name="a400_3b_nota" placeholder="Añadir nota"></textarea>
+
+                                        <!-- Inciso 3c -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">c.</div>
+                                            <div class="inciso-texto">
+                                                <h5>Analizar el alcance y el momento de realización del compromiso, incluida la revisión, y las comunicaciones</h5>
+                                            </div>
+                                        </div>
+                                        <div class="inciso-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3c_completado" name="a400_3c" value="completado_sin_excepciones">
+                                                <label for="a400_3c_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3c_excepciones" name="a400_3c" value="completado_con_excepciones">
+                                                <label for="a400_3c_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3c_na" name="a400_3c" value="na">
+                                                <label for="a400_3c_na">N/A</label>
+                                            </div>
+                                        </div>
+                                        <textarea class="form-textarea-small" id="a400_3c_nota" name="a400_3c_nota" placeholder="Añadir nota"></textarea>
+
+                                        <!-- Inciso 3d -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">d.</div>
+                                            <div class="inciso-texto">
+                                                <h5>Describir hechos significativos que tienen lugar en el período actual.</h5>
+                                            </div>
+                                        </div>
+                                        <div class="inciso-opciones">
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3d_completado" name="a400_3d" value="completado_sin_excepciones">
+                                                <label for="a400_3d_completado">Completado sin excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3d_excepciones" name="a400_3d" value="completado_con_excepciones">
+                                                <label for="a400_3d_excepciones">Completado con excepciones</label>
+                                            </div>
+                                            <div class="opcion-item">
+                                                <input type="radio" id="a400_3d_na" name="a400_3d" value="na">
+                                                <label for="a400_3d_na">N/A</label>
+                                            </div>
+                                        </div>
+                                        <textarea class="form-textarea-small" id="a400_3d_nota" name="a400_3d_nota" placeholder="Añadir nota"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">4. Experiencia anterior</div>
+                                    <div class="pregunta-texto">
+                                        <p>Analizar los riesgos/temas/hechos que se destacaron en compromisos anteriores, tales como:</p>
+                                        <ul>
+                                            <li>Naturaleza y alcance de las incorreciones identificadas y asientos de ajuste significativos</li>
+                                            <li>Riesgos significativos y asuntos de auditoría clave</li>
+                                            <li>Estimaciones significativas relacionadas con la información financiera, incluidas las revelaciones</li>
+                                            <li>Comunicaciones con la gerencia y con los encargados de la dirección de la empresa</li>
+                                            <li>Casos conocidos o alegados de fraude</li>
+                                            <li>Asuntos que causaron preocupación o demoras en la ejecución de procedimientos o resolución de temas de auditoría</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_4_completado" name="a400_4" value="completado_sin_excepciones">
+                                            <label for="a400_4_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_4_excepciones" name="a400_4" value="completado_con_excepciones">
+                                            <label for="a400_4_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_4_na" name="a400_4" value="na">
+                                            <label for="a400_4_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_4_nota" name="a400_4_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">5. Cambios clave</div>
+                                    <div class="pregunta-texto">
+                                        <p>Analizar los cambios clave que han tenido lugar desde la auditoría anterior y sus implicancias sobre la auditoría.</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_5_completado" name="a400_5" value="completado_sin_excepciones">
+                                            <label for="a400_5_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_5_excepciones" name="a400_5" value="completado_con_excepciones">
+                                            <label for="a400_5_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_5_na" name="a400_5" value="na">
+                                            <label for="a400_5_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_5_nota" name="a400_5_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>La aplicación del marco de información financiera aplicable</h3>
+                            </div>
+                            
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">6.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_6_narrativa" name="a400_6_documentacion" value="narrativa">
+                                            <label for="a400_6_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_6_procedimientos" name="a400_6_documentacion" value="procedimientos">
+                                            <label for="a400_6_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">7.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Aplicación del marco de información financiera aplicable</h4>
+                                        <!-- Inciso 7a -->
+                                        <div class="inciso-item">
+                                            <div class="inciso-numero">a.</div>
+                                            <div class="inciso-texto">
+                                                <h5>Discutir la aplicación del marco de información financiera aplicable.</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_7a_completado" name="a400_7a" value="completado_sin_excepciones">
+                                            <label for="a400_7a_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_7a_excepciones" name="a400_7a" value="completado_con_excepciones">
+                                            <label for="a400_7a_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_7a_na" name="a400_7a" value="na">
+                                            <label for="a400_7a_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_7a_nota" name="a400_7a_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Propensión de los estados financieros a incorrecciones materiales debido a fraude o error</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">8.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_8_narrativa" name="a400_8_documentacion" value="narrativa">
+                                            <label for="a400_8_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_8_procedimientos" name="a400_8_documentacion" value="procedimientos">
+                                            <label for="a400_8_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">9.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Susceptibilidad del estado financiero al fraude</h4>
+                                        <p>Discutir los riesgos de fraude y cómo podría producirse fraude (manipulación de las ganancias y malversación de activos) en la entidad, y las respuestas generales y específicas relacionadas ante los riesgos.</p>
+                                        <p>Consultar los Formularios A410 Hoja de trabajo – Escenarios de fraude y B405.</p>
+                                        <p>Identificar riesgos de fraude para obtener orientación adicional.</p>
+                                        <p>Considerar lo siguiente:</p>
+                                        <ul>
+                                            <li>Saldos de cuentas y operaciones materiales.</li>
+                                            <li>Naturaleza de relaciones y operaciones con partes relacionadas.</li>
+                                            <li>Reconocimiento de ingresos y políticas contables.</li>
+                                            <li>Naturaleza de las estimaciones, incluyendo el nivel de complejidad y la incertidumbre en la estimación (B250 Hoja de trabajo – Comprensión de estimaciones contables).</li>
+                                            <li>Deficiencias significativas en el control interno.</li>
+                                            <li>Riesgos significativos (B450 Informe de riesgos / B500 Informe de evaluación de riesgo) y, si corresponde, todo asunto de auditoría aplicable.</li>
+                                            <li>Acuerdos y convenios financieros.</li>
+                                            <li>Planes de incentivo de la gerencia.</li>
+                                            <li>Pérdidas operativas y tendencias de negocio negativas.</li>
+                                            <li>Hechos o condiciones para negocio en marcha.</li>
+                                            <li>Litigios significativos.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_9_completado" name="a400_9" value="completado_sin_excepciones">
+                                            <label for="a400_9_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_9_excepciones" name="a400_9" value="completado_con_excepciones">
+                                            <label for="a400_9_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_9_na" name="a400_9" value="na">
+                                            <label for="a400_9_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_9_nota" name="a400_9_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">10.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Susceptibilidad del estado financiero al error</h4>
+                                        <p>Analizar la susceptibilidad de los estados financieros de la entidad a incorrecciones materiales debidas a un error y las correspondientes respuestas generales y específicas a los riesgos.</p>
+                                        <p>Considerar lo siguiente:</p>
+                                        <ul>
+                                            <li>Factores de riesgo inherente.</li>
+                                            <li>Áreas complejas en el marco de informes financieros aplicables, incluidas la clasificación y revelaciones.</li>
+                                            <li>Alcance de relaciones y operaciones con partes relacionadas.</li>
+                                            <li>La aplicación de políticas contables esenciales.</li>
+                                            <li>Uso de organizaciones de servicio dentro del sistema de información de la entidad.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_10_completado" name="a400_10" value="completado_sin_excepciones">
+                                            <label for="a400_10_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_10_excepciones" name="a400_10" value="completado_con_excepciones">
+                                            <label for="a400_10_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_10_na" name="a400_10" value="na">
+                                            <label for="a400_10_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_10_nota" name="a400_10_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">11.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Requisitos éticos del equipo del compromiso</h4>
+                                        <p>Analizar los requisitos éticos relevantes, lo que incluye aquellos relacionados con la independencia y los procedimientos o políticas de la firma.</p>
+                                        <p>Considerar lo siguiente:</p>
+                                        <ul>
+                                            <li>Amenazas al cumplimiento ético.</li>
+                                            <li>Circunstancia que puede dar lugar a un incumplimiento de los requisitos éticos.</li>
+                                            <li>Respuesta a las instancias de no cumplimiento de leyes y normas por parte de la entidad.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_11_completado" name="a400_11" value="completado_sin_excepciones">
+                                            <label for="a400_11_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_11_excepciones" name="a400_11" value="completado_con_excepciones">
+                                            <label for="a400_11_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_11_na" name="a400_11" value="na">
+                                            <label for="a400_11_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_11_nota" name="a400_11_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">12.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>PER</h4>
+                                        <p>Analizar qué PER se ejecutará y quién las ejecutará.</p>
+                                        <p>Consultar A405 Preparación de los procedimientos de evaluación de riesgo.</p>
+                                        <p>Tener en cuenta lo siguiente:</p>
+                                        <ul>
+                                            <li>Naturaleza y alcance de la información que la entidad va a suministrar.</li>
+                                            <li>La dependencia esperada de los controles internos, que podría afectar a lo que la empresa procesa, y los sistemas de información necesitarán una evaluación del diseño y la implementación.</li>
+                                            <li>Si la organización externaliza procesos clave para los que debería obtenerse un informe del auditor del servicio.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_12_completado" name="a400_12" value="completado_sin_excepciones">
+                                            <label for="a400_12_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_12_excepciones" name="a400_12" value="completado_con_excepciones">
+                                            <label for="a400_12_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_12_na" name="a400_12" value="na">
+                                            <label for="a400_12_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_12_nota" name="a400_12_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Potencial de fraude</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">13.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_13_narrativa" name="a400_13_documentacion" value="narrativa">
+                                            <label for="a400_13_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_13_procedimientos" name="a400_13_documentacion" value="procedimientos">
+                                            <label for="a400_13_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Potenciales eficiencias de la auditoría</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">14.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_14_narrativa" name="a400_14_documentacion" value="narrativa">
+                                            <label for="a400_14_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_14_procedimientos" name="a400_14_documentacion" value="procedimientos">
+                                            <label for="a400_14_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Decisiones clave / respuesta de auditoría</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">15.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_15_narrativa" name="a400_15_documentacion" value="narrativa">
+                                            <label for="a400_15_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_15_procedimientos" name="a400_15_documentacion" value="procedimientos">
+                                            <label for="a400_15_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="pregunta-numero">16.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Planes de auditoría y estrategia general de auditoría</h4>
+                                        <p>Planes de auditoría y estrategia general de auditoría (A300 Estrategia general de auditoría).</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_16_completado" name="a400_16" value="completado_sin_excepciones">
+                                            <label for="a400_16_completado">Completado sin excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_16_excepciones" name="a400_16" value="completado_con_excepciones">
+                                            <label for="a400_16_excepciones">Completado con excepciones</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_16_na" name="a400_16" value="na">
+                                            <label for="a400_16_na">N/A</label>
+                                        </div>
+                                    </div>
+                                    <textarea class="form-textarea-small" id="a400_16_nota" name="a400_16_nota" placeholder="Añadir nota"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Comunicación con otros miembros del equipo</h3>
+                            </div>
+                            
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">17.</div>
+                                    <div class="pregunta-texto">
+                                        <h4>Documentación preferida</h4>
+                                        <p>Seleccione la documentación preferida:</p>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_17_narrativa" name="a400_17_documentacion" value="narrativa">
+                                            <label for="a400_17_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a400_17_procedimientos" name="a400_17_documentacion" value="procedimientos">
+                                            <label for="a400_17_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="formulario-seccion">
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">Conclusión</div>
+                                    <div class="pregunta-texto">
+                                        <p>Todos los temas que se desprenden de la agenda de arriba se han documentado en forma apropiada y referenciado a otros documentos de trabajo, y se han completado los pasos de acción relacionados.</p>
+                                    </div>
+                                    
+                                    <div class="conclusion-texto-adicional">
+                                        <textarea id="a400_conclusion_texto" name="a400_conclusion_texto" class="form-textarea-large" placeholder="Añadir texto de conclusión adicional..." style="width: 100%; max-width: 600px;"></textarea>
+                                    </div>
+                                    
+                                    <div class="conclusion-botones">
+                                        <button type="button" class="btn-formulario btn-secundario" onclick="ocultarDecisionesDocumentacion()">
+                                            <i class="bi bi-eye-slash"></i> Ocultar decisiones de Documentación preferida
+                                        </button>
+                                        <button type="button" class="btn-formulario btn-secundario" onclick="ocultarConclusión()">
+                                            <i class="bi bi-eye-slash"></i> Ocultar
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="conclusion-enlace">
+                                        <a href="#" class="enlace-formulario" onclick="procederA500(); return false;">
+                                            <i class="bi bi-arrow-right-circle"></i> Proceder a A500 Materialidad
+                                        </a>
+                                    </div>
+                                    
+                                    <div class="conclusion-aprobacion">
+                                        <button type="button" class="btn-formulario btn-aprobacion" onclick="aprobarFormularioA400()">
+                                            <i class="bi bi-check-circle-fill"></i> Aprobación
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario A400 - Discusiones de planificación en equipo
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA400()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioA400()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario A400
+        function cerrarFormularioA400() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario A400
+        function guardarFormularioA400() {
+            // Recopilar todas las respuestas
+            const respuestas = {
+                documentacion: document.querySelector('input[name="a400_documentacion"]:checked')?.value || 'no_respondido',
+                fecha_discusion: document.querySelector('#a400_fecha_discusion')?.value || '',
+                presentacion_equipo: document.querySelector('input[name="a400_3a"]:checked')?.value || 'no_respondido',
+                presentacion_equipo_nota: document.querySelector('#a400_3a_nota')?.value || '',
+                discusion_entornos: document.querySelector('input[name="a400_3b"]:checked')?.value || 'no_respondido',
+                discusion_entornos_nota: document.querySelector('#a400_3b_nota')?.value || '',
+                analisis_alcance: document.querySelector('input[name="a400_3c"]:checked')?.value || 'no_respondido',
+                analisis_alcance_nota: document.querySelector('#a400_3c_nota')?.value || '',
+                hechos_significativos: document.querySelector('input[name="a400_3d"]:checked')?.value || 'no_respondido',
+                hechos_significativos_nota: document.querySelector('#a400_3d_nota')?.value || '',
+                experiencia_anterior: document.querySelector('input[name="a400_4"]:checked')?.value || 'no_respondido',
+                experiencia_anterior_nota: document.querySelector('#a400_4_nota')?.value || '',
+                cambios_clave: document.querySelector('input[name="a400_5"]:checked')?.value || 'no_respondido',
+                cambios_clave_nota: document.querySelector('#a400_5_nota')?.value || ''
+            };
+            
+            console.log('Respuestas del formulario A400:', respuestas);
+            showNotification('Formulario A400 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioA400();
+        }
     </script>
     <script src="../js/utils.js"></script>
     <script src="../js/api-client.js"></script>
