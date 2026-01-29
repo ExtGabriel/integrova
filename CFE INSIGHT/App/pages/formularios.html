@@ -4066,6 +4066,56 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="formulario-seccion">
+                            <!-- Conclusion en el mismo contenedor -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">Conclusion</div>
+                                    <div class="pregunta-texto">
+                                        <h4><strong>Con base en los procedimientos de auditoría realizados anteriormente, considero que:</strong></h4>
+                                        <ul>
+                                            <li>El auditor del componente tiene la competencia y las capacidades adecuadas, incluido el tiempo para realizar el compromiso.</li>
+                                            <li>Los procedimientos de auditoría adicionales, si los hubiera, diseñados por los auditores de componente son adecuados para las áreas de riesgo significativo o riesgo más elevado.</li>
+                                            <li>Los procedimientos de auditoría adicionales, si los hubiera, diseñados por los auditores de componente son adecuados para el proceso de consolidación.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a360_conclusion1_si" name="a360_conclusion1" value="si">
+                                            <label for="a360_conclusion1_si">Si</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a360_conclusion1_no" name="a360_conclusion1" value="no">
+                                            <label for="a360_conclusion1_no">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Pregunta 2 como pregunta separada en el mismo contenedor -->
+                                <div class="pregunta-contenido">
+                                    <div class="pregunta-numero">2.</div>
+                                    <div class="pregunta-texto">
+                                        <h4><strong>Como socio del compromiso del grupo, asumo la responsabilidad de lo siguiente:</strong></h4>
+                                        <ul>
+                                            <li>La naturaleza, calendario y alcance de la dirección y supervisión de los auditores de componente y la revisión de su trabajo.</li>
+                                            <li>Se ha puesto en conocimiento del auditor del componente los requisitos éticos relevantes y ha confirmado que los comprende y los cumplirá.</li>
+                                            <li>El auditor del componente colaborará con el auditor del grupo y realizará el trabajo solicitado por el auditor del grupo.</li>
+                                        </ul>
+                                    </div>
+                                    <div class="inciso-opciones">
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a360_conclusion2_si" name="a360_conclusion2" value="si">
+                                            <label for="a360_conclusion2_si">Si</label>
+                                        </div>
+                                        <div class="opcion-item">
+                                            <input type="radio" id="a360_conclusion2_no" name="a360_conclusion2" value="no">
+                                            <label for="a360_conclusion2_no">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="formulario-footer">
@@ -4103,6 +4153,41 @@
             }
         }
         
+        // Función para actualizar dinámicamente la pregunta 3 según la respuesta de la pregunta 1
+        function actualizarPregunta3() {
+            const pregunta1Si = document.querySelector('input[name="a360_conclusion1_si"]:checked');
+            const pregunta3Texto = document.getElementById('pregunta3_texto');
+            const pregunta3Opciones = document.getElementById('pregunta3_opciones');
+            
+            if (pregunta1Si) {
+                // Si la pregunta 1 es SI, mostrar texto simple
+                pregunta3Texto.innerHTML = '<h4>Proceder a A300 Estrategia general de auditoría</h4>';
+                pregunta3Opciones.innerHTML = `
+                    <div class="opcion-item">
+                        <input type="radio" id="a360_conclusion3_si" name="a360_conclusion3" value="si">
+                        <label for="a360_conclusion3_si">Si</label>
+                    </div>
+                    <div class="opcion-item">
+                        <input type="radio" id="a360_conclusion3_no" name="a360_conclusion3" value="no">
+                        <label for="a360_conclusion3_no">No</label>
+                    </div>
+                `;
+            } else {
+                // Si la pregunta 1 es NO, mostrar texto alternativo
+                pregunta3Texto.innerHTML = '<h4>Con base en el conocimiento adquirido, NO considero que el auditor del componente</h4>';
+                pregunta3Opciones.innerHTML = `
+                    <div class="opcion-item">
+                        <select id="a360_conclusion3_select" name="a360_conclusion3" class="form-select">
+                            <option value="">Select</option>
+                            <option value="opcion1">Opción 1</option>
+                            <option value="opcion2">Opción 2</option>
+                            <option value="opcion3">Opción 3</option>
+                        </select>
+                    </div>
+                `;
+            }
+        }
+        
         // Función para guardar el formulario A360
         function guardarFormularioA360() {
             // Recopilar todas las respuestas de las preguntas
@@ -4120,7 +4205,65 @@
                 q5b: document.querySelector('input[name="a360_q5b"]:checked')?.value || 'no_respondido',
                 q5b_nota: document.querySelector('#a360_q5b_nota')?.value || '',
                 q5c: document.querySelector('input[name="a360_q5c"]:checked')?.value || 'no_respondido',
-                q5c_nota: document.querySelector('#a360_q5c_nota')?.value || ''
+                q5c_nota: document.querySelector('#a360_q5c_nota')?.value || '',
+                // Preguntas de la sección 6
+                q6a: document.querySelector('input[name="a360_q6a"]:checked')?.value || 'no_respondido',
+                q6a_nota: document.querySelector('#a360_q6a_nota')?.value || '',
+                q6b: document.querySelector('input[name="a360_q6b"]:checked')?.value || 'no_respondido',
+                q6b_nota: document.querySelector('#a360_q6b_nota')?.value || '',
+                q6c: document.querySelector('input[name="a360_q6c"]:checked')?.value || 'no_respondido',
+                q6c_nota: document.querySelector('#a360_q6c_nota')?.value || '',
+                q6d: document.querySelector('input[name="a360_q6d"]:checked')?.value || 'no_respondido',
+                q6d_nota: document.querySelector('#a360_q6d_nota')?.value || '',
+                q6e: document.querySelector('input[name="a360_q6e"]:checked')?.value || 'no_respondido',
+                q6e_nota: document.querySelector('#a360_q6e_nota')?.value || '',
+                q6f: document.querySelector('input[name="a360_q6f"]:checked')?.value || 'no_respondido',
+                q6f_nota: document.querySelector('#a360_q6f_nota')?.value || '',
+                q6g: document.querySelector('input[name="a360_q6g"]:checked')?.value || 'no_respondido',
+                q6g_nota: document.querySelector('#a360_q6g_nota')?.value || '',
+                q6hi: document.querySelector('input[name="a360_q6hi"]:checked')?.value || 'no_respondido',
+                q6hi_nota: document.querySelector('#a360_q6hi_nota')?.value || '',
+                q6hii: document.querySelector('input[name="a360_q6hii"]:checked')?.value || 'no_respondido',
+                q6hii_nota: document.querySelector('#a360_q6hii_nota')?.value || '',
+                q6hiii: document.querySelector('input[name="a360_q6hiii"]:checked')?.value || 'no_respondido',
+                q6hiii_nota: document.querySelector('#a360_q6hiii_nota')?.value || '',
+                q6hiv: document.querySelector('input[name="a360_q6hiv"]:checked')?.value || 'no_respondido',
+                q6hiv_nota: document.querySelector('#a360_q6hiv_nota')?.value || '',
+                q6hv: document.querySelector('input[name="a360_q6hv"]:checked')?.value || 'no_respondido',
+                q6hv_nota: document.querySelector('#a360_q6hv_nota')?.value || '',
+                q6hvi: document.querySelector('input[name="a360_q6hvi"]:checked')?.value || 'no_respondido',
+                q6hvi_nota: document.querySelector('#a360_q6hvi_nota')?.value || '',
+                q6hvii: document.querySelector('input[name="a360_q6hvii"]:checked')?.value || 'no_respondido',
+                q6hvii_nota: document.querySelector('#a360_q6hvii_nota')?.value || '',
+                q6hviii: document.querySelector('input[name="a360_q6hviii"]:checked')?.value || 'no_respondido',
+                q6hviii_nota: document.querySelector('#a360_q6hviii_nota')?.value || '',
+                q6hix: document.querySelector('input[name="a360_q6hix"]:checked')?.value || 'no_respondido',
+                q6hix_nota: document.querySelector('#a360_q6hix_nota')?.value || '',
+                q6hx: document.querySelector('input[name="a360_q6hx"]:checked')?.value || 'no_respondido',
+                q6hx_nota: document.querySelector('#a360_q6hx_nota')?.value || '',
+                q6hxi: document.querySelector('input[name="a360_q6hxi"]:checked')?.value || 'no_respondido',
+                q6hxi_nota: document.querySelector('#a360_q6hxi_nota')?.value || '',
+                q6hxii: document.querySelector('input[name="a360_q6hxii"]:checked')?.value || 'no_respondido',
+                q6hxii_nota: document.querySelector('#a360_q6hxii_nota')?.value || '',
+                q6hxiii: document.querySelector('input[name="a360_q6hxiii"]:checked')?.value || 'no_respondido',
+                q6hxiii_nota: document.querySelector('#a360_q6hxiii_nota')?.value || '',
+                q6hxiv: document.querySelector('input[name="a360_q6hxiv"]:checked')?.value || 'no_respondido',
+                q6hxiv_nota: document.querySelector('#a360_q6hxiv_nota')?.value || '',
+                q6hxv: document.querySelector('input[name="a360_q6hxv"]:checked')?.value || 'no_respondido',
+                q6hxv_nota: document.querySelector('#a360_q6hxv_nota')?.value || '',
+                q6i: document.querySelector('input[name="a360_q6i"]:checked')?.value || 'no_respondido',
+                q6i_nota: document.querySelector('#a360_q6i_nota')?.value || '',
+                q6j: document.querySelector('input[name="a360_q6j"]:checked')?.value || 'no_respondido',
+                q6j_nota: document.querySelector('#a360_q6j_nota')?.value || '',
+                q6k: document.querySelector('input[name="a360_q6k"]:checked')?.value || 'no_respondido',
+                q6k_nota: document.querySelector('#a360_q6k_nota')?.value || '',
+                q6l: document.querySelector('input[name="a360_q6l"]:checked')?.value || 'no_respondido',
+                q6l_nota: document.querySelector('#a360_q6l_nota')?.value || '',
+                // Preguntas del apartado Conclusion
+                conclusion1: document.querySelector('input[name="a360_conclusion1"]:checked')?.value || 'no_respondido',
+                conclusion2: document.querySelector('input[name="a360_conclusion2"]:checked')?.value || 'no_respondido',
+                conclusion3: document.querySelector('input[name="a360_conclusion3"]:checked')?.value || document.querySelector('#a360_conclusion3_select')?.value || 'no_respondido',
+                conclusion4: document.querySelector('input[name="a360_conclusion4"]:checked')?.value || 'no_respondido'
             };
             
             console.log('Respuestas del formulario A360:', respuestas);
