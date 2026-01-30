@@ -1656,6 +1656,8 @@
                 mostrarFormularioB100();
             } else if (formId === 'B200') {
                 mostrarFormularioB200();
+            } else if (formId === 'B300') {
+                mostrarFormularioB300();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -8725,6 +8727,372 @@
                 <td><input type="text" class="materiality-input-small" id="perf_account${rowCount + 1}_trivial"></td>
             `;
             tbody.appendChild(newRow);
+        }
+
+        // Función para mostrar el formulario B300
+        function mostrarFormularioB300() {
+            // Eliminar cualquier modal existente
+            const existingModal = document.querySelector('.formulario-modal');
+            if (existingModal) {
+                document.body.removeChild(existingModal);
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2>B300 Evaluación de Riesgos</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioB300()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <div class="b300-content">
+                            <!-- Sección 1: Ambiente de control -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Ambiente de control</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">1. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="ambiente-control-1" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="ambiente-control-1" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 2: Evaluación del ambiente de control -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Evaluación del ambiente de control</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">2. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-ambiente-2" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-ambiente-2" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 3: Proceso de evaluación de riesgo de la entidad -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Proceso de evaluación de riesgo de la entidad</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">3. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="proceso-evaluacion-3" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="proceso-evaluacion-3" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 4: Riesgos identificados de incorrecciones materiales no identificados por la gerencia -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Riesgos identificados de incorrecciones materiales no identificados por la gerencia</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">4. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="riesgos-identificados-4" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="riesgos-identificados-4" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 5: Evaluación del procedimiento de evaluación de riesgos de la entidad -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Evaluación del procedimiento de evaluación de riesgos de la entidad</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">5. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-procedimiento-5" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-procedimiento-5" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 6: Sistemas de información relevantes para los informes financieros -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Sistemas de información relevantes para los informes financieros</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">6. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="sistemas-informacion-6" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="sistemas-informacion-6" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 7: Comunicación -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Comunicación</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">7. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="comunicacion-7" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="comunicacion-7" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 8: Evaluación de los sistemas de información y comunicación -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Evaluación de los sistemas de información y comunicación</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">8. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-sistemas-8" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="evaluacion-sistemas-8" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 9: Actividades de control -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Actividades de control</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">9. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="actividades-control-9" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="actividades-control-9" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 10: Riesgos relacionados a TI -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Riesgos relacionados a TI</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">10. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="riesgos-ti-10" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="riesgos-ti-10" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 11: Actividades de control, incluidas las relacionadas con la evaluación de TI -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Actividades de control, incluidas las relacionadas con la evaluación de TI</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">11. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="actividades-control-ti-11" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="actividades-control-ti-11" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 12: Procedimiento de la entidad para monitorear el sistema de controles internos -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Procedimiento de la entidad para monitorear el sistema de controles internos</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">12. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="monitoreo-sistema-12" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="monitoreo-sistema-12" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 13: Procedimiento de la entidad para monitorear la evaluación del sistema de controles internos -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Procedimiento de la entidad para monitorear la evaluación del sistema de controles internos</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">13. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="monitoreo-evaluacion-13" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="monitoreo-evaluacion-13" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sección 14: Control interno relacionado con las estimaciones contables -->
+                            <div class="b300-section">
+                                <div class="b300-section-header">
+                                    <h3>Control interno relacionado con las estimaciones contables</h3>
+                                </div>
+                                <div class="b300-section-content">
+                                    <div class="b300-question">
+                                        <label class="b300-question-label">14. Documentación preferida</label>
+                                        <div class="b300-options-vertical">
+                                            <label class="b300-option">
+                                                <input type="radio" name="estimaciones-contables-14" value="narrativa" class="b300-radio">
+                                                <span class="b300-option-text">Narrativa</span>
+                                            </label>
+                                            <label class="b300-option">
+                                                <input type="radio" name="estimaciones-contables-14" value="procedimientos" class="b300-radio">
+                                                <span class="b300-option-text">Procedimientos</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="formulario-acciones">
+                            <button class="btn-guardar" onclick="guardarFormularioB300()">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                            <button class="btn-cancelar" onclick="cerrarFormularioB300()">
+                                <i class="bi bi-x"></i> Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario B300
+        function cerrarFormularioB300() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario B300
+        function guardarFormularioB300() {
+            showNotification('Formulario B300 guardado correctamente', 'success');
+            cerrarFormularioB300();
         }
     </script>
     <script src="../js/utils.js"></script>
