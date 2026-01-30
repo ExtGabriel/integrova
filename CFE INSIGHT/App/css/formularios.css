@@ -1332,10 +1332,654 @@
     font-size: 0.95rem;
 }
 
-.prepared-actions {
+/* ----- ESTILOS PARA FORMULARIO B200 ----- */
+.formulario-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.formulario-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.formulario-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.formulario-modal.show .formulario-modal-content {
+    transform: scale(1);
+}
+
+.formulario-header {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.formulario-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.btn-cerrar {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-cerrar:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.formulario-body {
+    padding: 0;
+    max-height: calc(90vh - 80px);
+    overflow-y: auto;
+}
+
+/* Pestañas B200 */
+.b200-tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.b200-tabs .tab {
+    padding: 15px 25px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #6c757d;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.b200-tabs .tab:hover {
+    background: rgba(76, 175, 80, 0.05);
+    color: #4CAF50;
+}
+
+.b200-tabs .tab.active {
+    color: #4CAF50;
+    background: white;
+    border-bottom-color: #4CAF50;
+}
+
+/* Contenido B200 */
+.b200-content {
+    padding: 25px;
+}
+
+.b200-content .section-header {
+    margin-bottom: 20px;
+}
+
+.b200-content .section-header h3 {
+    color: #2E7D32;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.b200-subsections {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.subsection {
+    background: #f8f9fa;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+}
+
+.subsection-header {
+    background: linear-gradient(135deg, #e8f5e8, #d4edda);
+    padding: 15px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.subsection-header:hover {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+}
+
+.subsection-header h4 {
+    margin: 0;
+    color: #2E7D32;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.subsection-content {
+    padding: 20px;
+    background: white;
+}
+
+.b200-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.b200-field {
+    margin-bottom: 10px;
+}
+
+.b200-field label {
+    color: #2E7D32;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.b200-field-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.b200-field-item:last-child {
+    border-bottom: none;
+}
+
+.b200-field-item-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.b200-field-item-vertical:last-child {
+    border-bottom: none;
+}
+
+.b200-sub-label {
+    min-width: 200px;
+    color: #37474F;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.b200-data-field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.b200-data-field::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: #2196F3;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.b200-value {
+    color: #37474F;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.b200-link {
+    color: #4CAF50;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.b200-link:hover {
+    color: #2E7D32;
+    text-decoration: underline;
+}
+
+.b200-input-field {
+    flex: 1;
+}
+
+.b200-input, .b200-textarea {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid rgba(76, 175, 80, 0.2);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #37474F;
+    transition: all 0.3s ease;
+}
+
+.b200-input:focus, .b200-textarea:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.b200-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+/* Radio buttons para B200 */
+.b200-radio-group {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.b200-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #37474F;
+    transition: all 0.3s ease;
+}
+
+.b200-radio-label:hover {
+    color: #4CAF50;
+}
+
+.b200-radio {
+    width: 16px;
+    height: 16px;
+    accent-color: #4CAF50;
+    cursor: pointer;
+}
+
+.b200-radio-text {
+    font-weight: 500;
+}
+
+/* Info icons */
+.b200-info-icon {
+    color: #4CAF50;
+    font-size: 0.85rem;
+    margin-left: 5px;
+    cursor: help;
+    transition: all 0.3s ease;
+}
+
+.b200-info-icon:hover {
+    color: #2E7D32;
+    transform: scale(1.1);
+}
+
+/* Radio buttons para tablas B200 */
+.b200-table-radio-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+}
+
+.b200-table-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #37474F;
+    transition: all 0.3s ease;
+}
+
+.b200-table-radio-label:hover {
+    color: #4CAF50;
+}
+
+.b200-table-radio {
+    width: 14px;
+    height: 14px;
+    accent-color: #4CAF50;
+    cursor: pointer;
+}
+
+.b200-table-radio-label span {
+    font-weight: 500;
+}
+
+/* Estilos para radio buttons verticales */
+.b200-data-field-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 20px;
+    margin-top: 10px;
+}
+
+.b200-radio-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.b200-radio-group-vertical .b200-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #37474F;
+    transition: all 0.3s ease;
+    margin: 0;
+}
+
+.b200-radio-group-vertical .b200-radio-label:hover {
+    color: #4CAF50;
+}
+
+.b200-radio-group-vertical .b200-radio {
+    width: 16px;
+    height: 16px;
+    accent-color: #4CAF50;
+    cursor: pointer;
+}
+
+.b200-radio-group-vertical .b200-radio-text {
+    font-weight: 500;
+}
+
+/* Campos de nota */
+.b200-note-field {
+    margin-top: 8px;
+    width: 100%;
+}
+
+.b200-note-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #37474F;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.b200-note-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+    background: white;
+}
+
+.b200-note-input::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Estilos para la sección Conclusión */
+.b200-textarea-container {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.b200-textarea-container .b200-textarea {
+    width: 100%;
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.b200-hide-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding: 12px 15px;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    gap: 30px;
+}
+
+.b200-hide-section:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.b200-hide-text {
+    color: #37474F;
+    font-size: 0.9rem;
+    font-weight: 500;
+    flex: 1;
+}
+
+.btn-hide {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 20px;
+    flex-shrink: 0;
+}
+
+.btn-hide:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-hide i {
+    font-size: 0.9rem;
+}
+
+/* Tabla de ubicaciones */
+.table-container {
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
+.b200-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+}
+
+.b200-table th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #37474F;
+    font-size: 0.9rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.b200-table td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.b200-table tr:last-child td {
+    border-bottom: none;
+}
+
+.table-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.table-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.btn-delete-row {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-delete-row:hover {
+    background: #c82333;
+    transform: scale(1.1);
+}
+
+.btn-add-row {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-add-row:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+}
+
+/* Botones de acción del formulario */
+.formulario-acciones {
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 15px;
     justify-content: flex-end;
+}
+
+.btn-guardar, .btn-cancelar {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.btn-guardar {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+}
+
+.btn-guardar:hover {
+    background: linear-gradient(135deg, #45a049, #2E7D32);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-cancelar {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-cancelar:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+/* Responsive para B200 */
+@media (max-width: 768px) {
+    .formulario-modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+    
+    .b200-field-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .b200-sub-label {
+        min-width: auto;
+    }
+    
+    .b200-tabs .tab {
+        padding: 12px 15px;
+        font-size: 0.9rem;
+    }
+    
+    .formulario-acciones {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn-guardar, .btn-cancelar {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 /* ----- Modal de "Revisado por" ----- */
@@ -4647,83 +5291,84 @@
 /* Tablas de materialidad específica */
 .materiality-specific-container,
 .performance-materiality-container {
-    margin-bottom: 25px;
+margin-bottom: 25px;
 }
 
 .materiality-specific-table,
 .performance-materiality-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 15px;
+width: 100%;
+border-collapse: collapse;
+background: white;
+border: 1px solid #dee2e6;
+border-radius: 8px;
+overflow: hidden;
+margin-bottom: 15px;
 }
 
 .materiality-specific-table th,
 .performance-materiality-table th {
-    background: #f8f9fa;
-    padding: 12px 8px;
-    text-align: center;
-    border: 1px solid #dee2e6;
-    font-weight: 600;
-    font-size: 13px;
-    color: #495057;
+background: #f8f9fa;
+padding: 12px 8px;
+text-align: center;
+border: 1px solid #dee2e6;
+font-weight: 600;
+font-size: 13px;
+color: #495057;
 }
 
 .materiality-specific-table td,
 .performance-materiality-table td {
-    padding: 8px;
-    border: 1px solid #dee2e6;
-    text-align: center;
-    vertical-align: middle;
+padding: 8px;
+border: 1px solid #dee2e6;
+text-align: center;
+vertical-align: middle;
 }
 
 .account-input {
-    width: 100%;
-    min-width: 150px;
-    padding: 6px 8px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 13px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box;
+width: 100%;
+min-width: 150px;
+padding: 6px 8px;
+border: 1px solid #ced4da;
+border-radius: 4px;
+font-size: 13px;
+transition: border-color 0.3s ease, box-shadow 0.3s ease;
+box-sizing: border-box;
 }
 
 .account-input:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+outline: none;
+border-color: #4CAF50;
+box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
 .balance-input {
-    width: 100%;
-    min-width: 100px;
-    padding: 6px 8px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 13px;
-    text-align: right;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    box-sizing: border-box;
+width: 100%;
+min-width: 100px;
+padding: 6px 8px;
+border: 1px solid #ced4da;
+border-radius: 4px;
+font-size: 13px;
+text-align: right;
+transition: border-color 0.3s ease, box-shadow 0.3s ease;
+box-sizing: border-box;
 }
 
 .balance-input:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+outline: none;
+border-color: #4CAF50;
+box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
 .materiality-input-small {
-    width: 100%;
-    min-width: 80px;
-    padding: 6px 8px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 13px;
-    text-align: right;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+width: 100%;
+min-width: 80px;
+padding: 6px 8px;
+border: 1px solid #ced4da;
+border-radius: 4px;
+font-size: 13px;
+text-align: right;
+transition: border-color 0.3s ease, box-shadow 0.3s ease;
+box-sizing: border-box;
     box-sizing: border-box;
 }
 

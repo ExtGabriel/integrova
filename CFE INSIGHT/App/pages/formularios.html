@@ -1654,6 +1654,8 @@
                 mostrarFormularioA500();
             } else if (formId === 'B100') {
                 mostrarFormularioB100();
+            } else if (formId === 'B200') {
+                mostrarFormularioB200();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -6983,6 +6985,1287 @@
             
             // Cerrar el modal
             cerrarFormularioB100();
+        }
+
+        // Función para mostrar el formulario B200
+        function mostrarFormularioB200() {
+            // Eliminar cualquier modal existente
+            const existingModal = document.querySelector('.formulario-modal');
+            if (existingModal) {
+                document.body.removeChild(existingModal);
+            }
+
+            // Crear el modal
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2>B200 Comprensión de la entidad y su entorno</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioB200()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <!-- Pestañas de navegación -->
+                        <div class="b200-tabs">
+                            <div class="tab active" onclick="switchTabB200('procedimientos')">Procedimientos</div>
+                            <div class="tab" onclick="switchTabB200('guia')">Guía orientativa</div>
+                        </div>
+
+                        <!-- Sección principal -->
+                        <div class="b200-content">
+                            <div class="section-header">
+                                <h3>COMPRENDER LA ENTIDAD Y SU ENTORNO</h3>
+                            </div>
+
+                            <!-- Subsecciones -->
+                            <div class="b200-subsections">
+                                <!-- Subsección General -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>General</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field">
+                                                <label>1. DESCRIPCIÓN GENERAL DE LA ENTIDAD</label>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">a. Nombre legal de la entidad</label>
+                                                <div class="b200-data-field">
+                                                    <span class="b200-value">S&D Inversiones</span>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">b. Nombre operativo</label>
+                                                <div class="b200-data-field">
+                                                    <span class="b200-value">PRUEBA</span>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">c. Cierre de ejercicio</label>
+                                                <div class="b200-data-field">
+                                                    <span class="b200-value">31 diciembre 2024</span>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">d. Sitio web</label>
+                                                <div class="b200-data-field">
+                                                    <a href="#" class="b200-link" onclick="showNotification('Editar configuración de entidad', 'info')">Editar configuración de entidad</a>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">e. Ubicación principal y dirección postal</label>
+                                                <div class="b200-data-field">
+                                                    <a href="#" class="b200-link" onclick="showNotification('Editar configuración de entidad', 'info')">Editar configuración de entidad</a>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">f. Descripción del negocio</label>
+                                                <div class="b200-input-field">
+                                                    <textarea class="b200-textarea" placeholder="Ingrese descripción del negocio..."></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">g. Industria</label>
+                                                <div class="b200-input-field">
+                                                    <input type="text" class="b200-input" placeholder="Ingrese industria...">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Otras ubicaciones -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Otras ubicaciones</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <!-- Tabla de otras ubicaciones -->
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Ubicación</th>
+                                                        <th>Dirección postal</th>
+                                                        <th>Tamaño/cantidad de empleados</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-locations-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese ubicación"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese dirección postal"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese tamaño/cantidad"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteRow(this)">×</button></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese ubicación"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese dirección postal"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese tamaño/cantidad"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addLocationRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Titularidad de la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Titularidad de la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">Tipo organizacional</label>
+                                                <div class="b200-radio-group">
+                                                    <label class="b200-radio-label">
+                                                        <input type="radio" name="tipo-organizacional" value="publica" class="b200-radio">
+                                                        <span class="b200-radio-text">Pública</span>
+                                                    </label>
+                                                    <label class="b200-radio-label">
+                                                        <input type="radio" name="tipo-organizacional" value="privada" class="b200-radio" checked>
+                                                        <span class="b200-radio-text">Privada</span>
+                                                    </label>
+                                                    <label class="b200-radio-label">
+                                                        <input type="radio" name="tipo-organizacional" value="otra" class="b200-radio">
+                                                        <span class="b200-radio-text">Otra</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">Jurisdicción de incorporación</label>
+                                                <div class="b200-input-field">
+                                                    <input type="text" class="b200-input" placeholder="Ingrese jurisdicción de incorporación...">
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">Fecha de incorporación</label>
+                                                <div class="b200-input-field">
+                                                    <input type="date" class="b200-input">
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">
+                                                    Marco de información financiera
+                                                    <i class="bi bi-info-circle b200-info-icon" title="Información sobre el marco de referencia contable"></i>
+                                                </label>
+                                                <div class="b200-input-field">
+                                                    <input type="text" class="b200-input" placeholder="Ingrese marco de información financiera...">
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">
+                                                    Listar los principales usuarios de los estados financieros
+                                                    <i class="bi bi-info-circle b200-info-icon" title="Principales usuarios o stakeholders de la información financiera"></i>
+                                                </label>
+                                                <div class="b200-input-field">
+                                                    <textarea class="b200-textarea" placeholder="Listar los principales usuarios de los estados financieros..."></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Personal clave de la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Personal clave de la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <!-- Tabla de personal clave -->
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre y título</th>
+                                                        <th>Detalles de contacto (Teléfono y dirección de correo electrónico)</th>
+                                                        <th>Calificaciones y experiencia</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-personal-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre y título"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Teléfono y correo electrónico"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                                                        <td><button class="btn-delete-row" onclick="deletePersonalRow(this)">×</button></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre y título"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Teléfono y correo electrónico"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                                                        <td><button class="btn-delete-row" onclick="deletePersonalRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addPersonalRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Personas encargadas de la dirección de la empresa -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Personas encargadas de la dirección de la empresa y a las que se comunican los asuntos de auditoría de interés vinculados con la dirección</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <!-- Tabla de personas encargadas -->
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre, relación/cargo y fecha de nombramiento</th>
+                                                        <th>¿En el Comité de auditoría?</th>
+                                                        <th>Calificaciones y experiencia (ej., habilidades, antecedentes, experiencia financiera, etc.)</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-directivos-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre, cargo y fecha"></td>
+                                                        <td>
+                                                            <div class="b200-table-radio-group">
+                                                                <label class="b200-table-radio-label">
+                                                                    <input type="radio" name="comite-auditoria-1" value="si" class="b200-table-radio">
+                                                                    <span>Sí</span>
+                                                                </label>
+                                                                <label class="b200-table-radio-label">
+                                                                    <input type="radio" name="comite-auditoria-1" value="no" class="b200-table-radio" checked>
+                                                                    <span>No</span>
+                                                                </label>
+                                                            </div>
+                                                        </td>
+                                                        <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteDirectivoRow(this)">×</button></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre, cargo y fecha"></td>
+                                                        <td>
+                                                            <div class="b200-table-radio-group">
+                                                                <label class="b200-table-radio-label">
+                                                                    <input type="radio" name="comite-auditoria-2" value="si" class="b200-table-radio">
+                                                                    <span>Sí</span>
+                                                                </label>
+                                                                <label class="b200-table-radio-label">
+                                                                    <input type="radio" name="comite-auditoria-2" value="no" class="b200-table-radio" checked>
+                                                                    <span>No</span>
+                                                                </label>
+                                                            </div>
+                                                        </td>
+                                                        <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteDirectivoRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addDirectivoRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Propietarios principales -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Propietarios principales (por ejemplo, accionistas, propietarios - miembros de la familia, etc.)</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <!-- Tabla de propietarios -->
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre, relación e interés (%)</th>
+                                                        <th>Clase de acción/ naturaleza de influencia y duración de la propiedad</th>
+                                                        <th>Marco normativo contable utilizado por la compañía matriz (si aplica) y los auditores, si poseen</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-propietarios-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre, relación e interés (%)"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Clase de acción y duración"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Marco normativo y auditores"></td>
+                                                        <td><button class="btn-delete-row" onclick="deletePropietarioRow(this)">×</button></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Ingrese nombre, relación e interés (%)"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Clase de acción y duración"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Marco normativo y auditores"></td>
+                                                        <td><button class="btn-delete-row" onclick="deletePropietarioRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addPropietarioRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Estructura de la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Estructura de la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <!-- Tabla de estructura -->
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre y Naturaleza de las operaciones</th>
+                                                        <th>Duración de la titularidad y Interés (%)</th>
+                                                        <th>Cierre del período financiero, Marco de informes financieros aplicable; Auditores, de haberlos</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-estructura-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Nombre y naturaleza de operaciones"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Duración e interés (%)"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Cierre, marco y auditores"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteEstructuraRow(this)">×</button></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Nombre y naturaleza de operaciones"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Duración e interés (%)"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Cierre, marco y auditores"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteEstructuraRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addEstructuraRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Información sobre acciones -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>8. Información sobre acciones</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Descripción/ características y tipo de acción</th>
+                                                        <th>Valor nominal y acciones autorizadas</th>
+                                                        <th>Acciones emitidas, en circulación y en tesorería</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-acciones-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Descripción y tipo de acción"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Valor nominal y acciones autorizadas"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Acciones emitidas, en circulación y en tesorería"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteAccionesRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addAccionesRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Asesores clave para la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>9. Asesores clave para la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre del asesor</th>
+                                                        <th>Tipo de asesoría (legal, financiera, etc.)</th>
+                                                        <th>Detalles de contacto (teléfono, correo electrónico)</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-asesores-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Nombre del asesor"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Tipo de asesoría"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Teléfono y correo electrónico"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteAsesoresRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addAsesoresRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Otros contactos -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>10. Otros contactos</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre y cargo</th>
+                                                        <th>Empresa/organización</th>
+                                                        <th>Motivo del contacto</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-otros-contactos-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Nombre y cargo"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Empresa/organización"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Motivo del contacto"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteOtrosContactosRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addOtrosContactosRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Estructura de la deuda -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>11. Estructura de la deuda</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre del prestamista</th>
+                                                        <th>Financiamiento disponible</th>
+                                                        <th>Descripción (p. Ej., tasa de interés, fecha de vencimiento, garantía y convenios)</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-deuda-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="Nombre del prestamista"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Financiamiento disponible"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteDeudaRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addDeudaRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Contratos a largo plazo -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>12. Contratos a largo plazo</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="table-container">
+                                            <table class="b200-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>¿Con quién es el contrato?</th>
+                                                        <th>Fecha de vencimiento</th>
+                                                        <th>Naturaleza del contrato, requisitos clave y cualquier factor de riesgo</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="b200-contratos-tbody">
+                                                    <tr>
+                                                        <td><input type="text" class="table-input" placeholder="¿Con quién es el contrato?"></td>
+                                                        <td><input type="date" class="table-input"></td>
+                                                        <td><input type="text" class="table-input" placeholder="Naturaleza del contrato, requisitos clave y cualquier factor de riesgo"></td>
+                                                        <td><button class="btn-delete-row" onclick="deleteContratosRow(this)">×</button></td>
+                                                    </tr>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="4">
+                                                            <button class="btn-add-row" onclick="addContratosRow()">+ Fila</button>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Factores industriales, normativos y otros factores externos -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Factores industriales, normativos y otros factores externos</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-item">
+                                            <label class="b200-sub-label">13. Documentación preferida</label>
+                                            <div class="b200-data-field">
+                                                <div class="b200-radio-group">
+                                                    <label class="b200-radio-label">
+                                                        <input type="radio" name="documentacion-preferida" value="narrativa" class="b200-radio">
+                                                        <span class="b200-radio-text">Narrativa</span>
+                                                    </label>
+                                                    <label class="b200-radio-label">
+                                                        <input type="radio" name="documentacion-preferida" value="procedimientos" class="b200-radio">
+                                                        <span class="b200-radio-text">Procedimientos</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Naturaleza de la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Naturaleza de la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">14. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-14" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-14" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">15. ¿La entidad realiza negocios en otra moneda?</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="negocios-otra-moneda" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="negocios-otra-moneda" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">16. ¿Tiene la entidad asuntos relacionados con el clima relevantes para la información financiera?</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="asuntos-clima" value="si-documentacion-opcional" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí (Documentación opcional)</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="asuntos-clima" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="asuntos-clima" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Marco de informes financieros aplicable y políticas contables clave -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Marco de informes financieros aplicable y políticas contables clave</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">17. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-17" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-17" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">18. ¿El marco de información financiera requiere un estado de flujo de efectivo o el cliente optó por preparar un estado de flujo de efectivo voluntariamente?</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="flujo-efectivo" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="flujo-efectivo" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">19. ¿Los flujos de ingresos de la entidad requieren juicios de valor significativos?</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="flujos-ingresos" value="si-documentacion-opcional" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí (Documentación opcional)</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="flujos-ingresos" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="flujos-ingresos" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Sesgo de la gerencia relacionado con las estimaciones contables -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Sesgo de la gerencia relacionado con las estimaciones contables</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">20. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-20" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-20" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Juicios importantes relativos al carácter razonable de las estimaciones contables y las revelaciones asociadas -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Juicios importantes relativos al carácter razonable de las estimaciones contables y las revelaciones asociadas</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">21. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-21" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-21" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Elementos clave del entendimiento del auditor de la entidad y de su entorno -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Elementos clave del entendimiento del auditor de la entidad y de su entorno</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">22. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-22" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-22" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item b200-field-item-vertical">
+                                                <label class="b200-sub-label">23. ¿Los estados financieros de la entidad están sujetos a elementos que se basan en técnicas de estimación en lugar de información objetiva específica? Tal como:<br>-estimaciones extensivas,<br>-subsidios,<br>-devengos,<br>-pagos anticipados; u,<br>-otras provisiones.</label>
+                                                <div class="b200-data-field-vertical">
+                                                    <div class="b200-radio-group-vertical">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="estados-financieros-estimacion" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="estados-financieros-estimacion" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item b200-field-item-vertical">
+                                                <label class="b200-sub-label">24. ¿Se abordarán las estimaciones contables a través del enfoque del contexto o de la documentación histórica?</label>
+                                                <div class="b200-data-field-vertical">
+                                                    <div class="b200-radio-group-vertical">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="estimaciones-enfoque" value="vista-contextual" class="b200-radio">
+                                                            <span class="b200-radio-text">Vista Contextual</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="estimaciones-enfoque" value="documentacion-historica" class="b200-radio">
+                                                            <span class="b200-radio-text">Documentación histórica</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="b200-note-field">
+                                                        <input type="text" class="b200-note-input" placeholder="Agregar nota..." id="note-24">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="b200-field-item b200-field-item-vertical">
+                                                <label class="b200-sub-label">25. Las siguientes áreas están sujetas a elementos que se basan en técnicas de estimación en lugar de información objetiva específica? Tal como:<br>-estimaciones extensivas,<br>-subsidios,<br>-devengos,<br>-pagos anticipados; u,<br>- otras provisiones.<br><br>a. Litigios, reclamos e incumplimientos</label>
+                                                <div class="b200-data-field-vertical">
+                                                    <div class="b200-radio-group-vertical">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="litigios-reclamos" value="si" class="b200-radio">
+                                                            <span class="b200-radio-text">Sí</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="litigios-reclamos" value="no" class="b200-radio">
+                                                            <span class="b200-radio-text">No</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="b200-note-field">
+                                                        <input type="text" class="b200-note-input" placeholder="Agregar nota..." id="note-25a">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Las medidas utilizadas, interna y externamente, para evaluar el rendimiento financiero de la entidad -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Las medidas utilizadas, interna y externamente, para evaluar el rendimiento financiero de la entidad</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">26. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-26" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-26" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Procedimientos analíticos -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Procedimientos analíticos</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item">
+                                                <label class="b200-sub-label">27. Documentación preferida</label>
+                                                <div class="b200-data-field">
+                                                    <div class="b200-radio-group">
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-27" value="narrativa" class="b200-radio">
+                                                            <span class="b200-radio-text">Narrativa</span>
+                                                        </label>
+                                                        <label class="b200-radio-label">
+                                                            <input type="radio" name="documentacion-preferida-27" value="procedimientos" class="b200-radio">
+                                                            <span class="b200-radio-text">Procedimientos</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Subsección Conclusión -->
+                                <div class="subsection">
+                                    <div class="subsection-header">
+                                        <h4>Conclusión</h4>
+                                    </div>
+                                    <div class="subsection-content">
+                                        <div class="b200-field-group">
+                                            <div class="b200-field-item b200-field-item-vertical">
+                                                <label class="b200-sub-label">Hemos identificado y documentado posibles fuentes de riesgo (para evaluación adicional) a través de la obtención/actualización de nuestra comprensión de la entidad y su entorno.</label>
+                                                <div class="b200-data-field-vertical">
+                                                    <div class="b200-textarea-container">
+                                                        <textarea class="b200-textarea" placeholder="Agregar más información..." rows="4"></textarea>
+                                                    </div>
+                                                    <div class="b200-hide-section">
+                                                        <span class="b200-hide-text">Ocultar decisiones de Documentación preferida</span>
+                                                        <button class="btn-hide" onclick="toggleDocumentationDecisions()">
+                                                            <i class="bi bi-eye-slash"></i> Ocultar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="formulario-acciones">
+                            <button class="btn-guardar" onclick="guardarFormularioB200()">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                            <button class="btn-cancelar" onclick="cerrarFormularioB200()">
+                                <i class="bi bi-x"></i> Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario B200
+        function cerrarFormularioB200() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para agregar fila a la tabla de ubicaciones
+        function addLocationRow() {
+            const tbody = document.getElementById('b200-locations-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Ingrese ubicación"></td>
+                <td><input type="text" class="table-input" placeholder="Ingrese dirección postal"></td>
+                <td><input type="text" class="table-input" placeholder="Ingrese tamaño/cantidad"></td>
+                <td><button class="btn-delete-row" onclick="deleteRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla
+        function deleteRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-locations-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de personal
+        function addPersonalRow() {
+            const tbody = document.getElementById('b200-personal-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Ingrese nombre y título"></td>
+                <td><input type="text" class="table-input" placeholder="Teléfono y correo electrónico"></td>
+                <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                <td><button class="btn-delete-row" onclick="deletePersonalRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de personal
+        function deletePersonalRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-personal-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de directivos
+        function addDirectivoRow() {
+            const tbody = document.getElementById('b200-directivos-tbody');
+            const rowCount = tbody.children.length + 1;
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Ingrese nombre, cargo y fecha"></td>
+                <td>
+                    <div class="b200-table-radio-group">
+                        <label class="b200-table-radio-label">
+                            <input type="radio" name="comite-auditoria-${rowCount}" value="si" class="b200-table-radio">
+                            <span>Sí</span>
+                        </label>
+                        <label class="b200-table-radio-label">
+                            <input type="radio" name="comite-auditoria-${rowCount}" value="no" class="b200-table-radio" checked>
+                            <span>No</span>
+                        </label>
+                    </div>
+                </td>
+                <td><input type="text" class="table-input" placeholder="Calificaciones y experiencia"></td>
+                <td><button class="btn-delete-row" onclick="deleteDirectivoRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de directivos
+        function deleteDirectivoRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-directivos-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de propietarios
+        function addPropietarioRow() {
+            const tbody = document.getElementById('b200-propietarios-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Ingrese nombre, relación e interés (%)"></td>
+                <td><input type="text" class="table-input" placeholder="Clase de acción y duración"></td>
+                <td><input type="text" class="table-input" placeholder="Marco normativo y auditores"></td>
+                <td><button class="btn-delete-row" onclick="deletePropietarioRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de propietarios
+        function deletePropietarioRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-propietarios-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de estructura
+        function addEstructuraRow() {
+            const tbody = document.getElementById('b200-estructura-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Nombre y naturaleza de operaciones"></td>
+                <td><input type="text" class="table-input" placeholder="Duración e interés (%)"></td>
+                <td><input type="text" class="table-input" placeholder="Cierre, marco y auditores"></td>
+                <td><button class="btn-delete-row" onclick="deleteEstructuraRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de estructura
+        function deleteEstructuraRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-estructura-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de acciones
+        function addAccionesRow() {
+            const tbody = document.getElementById('b200-acciones-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Descripción y tipo de acción"></td>
+                <td><input type="text" class="table-input" placeholder="Valor nominal y acciones autorizadas"></td>
+                <td><input type="text" class="table-input" placeholder="Acciones emitidas, en circulación y en tesorería"></td>
+                <td><button class="btn-delete-row" onclick="deleteAccionesRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de acciones
+        function deleteAccionesRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-acciones-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de asesores
+        function addAsesoresRow() {
+            const tbody = document.getElementById('b200-asesores-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Nombre del asesor"></td>
+                <td><input type="text" class="table-input" placeholder="Tipo de asesoría"></td>
+                <td><input type="text" class="table-input" placeholder="Teléfono y correo electrónico"></td>
+                <td><button class="btn-delete-row" onclick="deleteAsesoresRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de asesores
+        function deleteAsesoresRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-asesores-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de otros contactos
+        function addOtrosContactosRow() {
+            const tbody = document.getElementById('b200-otros-contactos-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Nombre y cargo"></td>
+                <td><input type="text" class="table-input" placeholder="Empresa/organización"></td>
+                <td><input type="text" class="table-input" placeholder="Motivo del contacto"></td>
+                <td><button class="btn-delete-row" onclick="deleteOtrosContactosRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de otros contactos
+        function deleteOtrosContactosRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-otros-contactos-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de deuda
+        function addDeudaRow() {
+            const tbody = document.getElementById('b200-deuda-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="Nombre del prestamista"></td>
+                <td><input type="text" class="table-input" placeholder="Financiamiento disponible"></td>
+                <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                <td><button class="btn-delete-row" onclick="deleteDeudaRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de deuda
+        function deleteDeudaRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-deuda-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para agregar fila a la tabla de contratos
+        function addContratosRow() {
+            const tbody = document.getElementById('b200-contratos-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="table-input" placeholder="¿Con quién es el contrato?"></td>
+                <td><input type="date" class="table-input"></td>
+                <td><input type="text" class="table-input" placeholder="Naturaleza del contrato, requisitos clave y cualquier factor de riesgo"></td>
+                <td><button class="btn-delete-row" onclick="deleteContratosRow(this)">×</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de la tabla de contratos
+        function deleteContratosRow(button) {
+            const row = button.closest('tr');
+            const tbody = document.getElementById('b200-contratos-tbody');
+            if (tbody.children.length > 1) {
+                row.remove();
+            } else {
+                showNotification('Debe haber al menos una fila', 'warning');
+            }
+        }
+
+        // Función para ocultar/mostrar decisiones de Documentación preferida
+        function toggleDocumentationDecisions() {
+            const sections = document.querySelectorAll('.subsection');
+            const hideButton = document.querySelector('.btn-hide');
+            const hideText = document.querySelector('.b200-hide-text');
+            const icon = hideButton.querySelector('i');
+            
+            // Ocultar todas las secciones excepto la conclusión
+            let isHidden = false;
+            sections.forEach(section => {
+                const header = section.querySelector('.subsection-header h4');
+                if (header && header.textContent !== 'Conclusión') {
+                    if (section.style.display === 'none') {
+                        section.style.display = 'block';
+                        isHidden = false;
+                    } else {
+                        section.style.display = 'none';
+                        isHidden = true;
+                    }
+                }
+            });
+            
+            // Actualizar botón y texto
+            if (isHidden) {
+                hideButton.innerHTML = '<i class="bi bi-eye"></i> Mostrar';
+                hideText.textContent = 'Mostrar decisiones de Documentación preferida';
+                showNotification('Decisiones de Documentación preferida ocultadas', 'info');
+            } else {
+                hideButton.innerHTML = '<i class="bi bi-eye-slash"></i> Ocultar';
+                hideText.textContent = 'Ocultar decisiones de Documentación preferida';
+                showNotification('Decisiones de Documentación preferida mostradas', 'info');
+            }
+        }
+
+        // Función para cambiar de pestaña en B200
+        function switchTabB200(tabName) {
+            const tabs = document.querySelectorAll('.b200-tabs .tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            showNotification(`Cambiando a pestaña: ${tabName}`, 'info');
+        }
+
+        // Función para guardar el formulario B200
+        function guardarFormularioB200() {
+            const datosFormulario = {
+                seccion: 'COMPRENDER LA ENTIDAD Y SU ENTORNO',
+                general: {
+                    nombreLegal: 'S&D Inversiones',
+                    nombreOperativo: 'PRUEBA',
+                    cierreEjercicio: '31 diciembre 2024',
+                    descripcionNegocio: document.querySelector('.b200-textarea').value || '',
+                    industria: document.querySelector('.b200-input').value || ''
+                },
+                otrasUbicaciones: {
+                    tabla: []
+                }
+            };
+
+            // Recopilar datos de la tabla de ubicaciones
+            const tableRows = document.querySelectorAll('#b200-locations-tbody tr');
+            tableRows.forEach((row, index) => {
+                const inputs = row.querySelectorAll('.table-input');
+                if (inputs.length >= 3) {
+                    datosFormulario.otrasUbicaciones.tabla.push({
+                        ubicacion: inputs[0].value,
+                        direccionPostal: inputs[1].value,
+                        tamanoEmpleados: inputs[2].value
+                    });
+                }
+            });
+
+            console.log('Datos del formulario B200:', datosFormulario);
+            showNotification('Formulario B200 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioB200();
         }
 
         // Función para mostrar el formulario A500
