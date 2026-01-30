@@ -1652,6 +1652,8 @@
                 mostrarFormularioA400();
             } else if (formId === 'A500') {
                 mostrarFormularioA500();
+            } else if (formId === 'B100') {
+                mostrarFormularioB100();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -6562,6 +6564,425 @@
             
             // Cerrar el modal
             cerrarFormularioA400();
+        }
+
+        // Función para mostrar el formulario B100
+        function mostrarFormularioB100() {
+            // Eliminar cualquier modal existente
+            const existingModal = document.querySelector('.formulario-modal');
+            if (existingModal) {
+                document.body.removeChild(existingModal);
+            }
+
+            // Crear el modal
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2>B100 Revisión analítica</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioB100()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <!-- Pestañas de navegación -->
+                        <div class="b100-tabs">
+                            <div class="tab active" onclick="switchTab('analisis')">Análisis</div>
+                            <div class="tab" onclick="switchTab('guia')">Guía orientativa</div>
+                        </div>
+
+                        <!-- Menú desplegable y opciones -->
+                        <div class="b100-controls">
+                            <div class="period-selector">
+                                <select class="period-dropdown">
+                                    <option value="planificacion">Planificación</option>
+                                    <option value="final" selected>Final</option>
+                                    <option value="prelim">Prelim</option>
+                                </select>
+                            </div>
+                            
+                            <div class="section-toggles">
+                                <!-- Primera fila - Análisis básico -->
+                                <div class="toggle-row">
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">General</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-general" checked>
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Relaciones</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-relaciones" checked>
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Razones de liquidez</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-liquidez" checked>
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Razones de rentabilidad</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-rentabilidad" checked>
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Segunda fila - Estados financieros -->
+                                <div class="toggle-row">
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Activos</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-activos">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Pasivos</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-pasivos">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Patrimonio</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-patrimonio">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Resultados</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-resultados">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tercera fila - Cuentas de resultados -->
+                                <div class="toggle-row">
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Costo de ventas</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-costo-ventas">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Ingresos</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-ingresos">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <div class="toggle-item">
+                                        <label class="toggle-label">Gastos</label>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="toggle-gastos">
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Paneles de contenido -->
+                        <div class="b100-panels">
+                            <!-- Panel General -->
+                            <div class="b100-panel" id="panel-general">
+                                <div class="panel-header">
+                                    <h3>General</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Relaciones -->
+                            <div class="b100-panel" id="panel-relaciones">
+                                <div class="panel-header">
+                                    <h3>Relaciones</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Razones de liquidez -->
+                            <div class="b100-panel" id="panel-liquidez">
+                                <div class="panel-header">
+                                    <h3>Razones de liquidez</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Razones de rentabilidad -->
+                            <div class="b100-panel" id="panel-rentabilidad">
+                                <div class="panel-header">
+                                    <h3>Razones de rentabilidad</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Activos -->
+                            <div class="b100-panel" id="panel-activos" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Activos</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Pasivos -->
+                            <div class="b100-panel" id="panel-pasivos" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Pasivos</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Patrimonio -->
+                            <div class="b100-panel" id="panel-patrimonio" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Patrimonio</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Resultados -->
+                            <div class="b100-panel" id="panel-resultados" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Resultados</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Costo de ventas -->
+                            <div class="b100-panel" id="panel-costo-ventas" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Costo de ventas</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Ingresos -->
+                            <div class="b100-panel" id="panel-ingresos" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Ingresos</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Gastos -->
+                            <div class="b100-panel" id="panel-gastos" style="display: none;">
+                                <div class="panel-header">
+                                    <h3>Gastos</h3>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="no-info">
+                                        <p>No hay información para mostrar...</p>
+                                    </div>
+                                    <div class="comment-editor">
+                                        <textarea placeholder="Editor comentarios de documentación..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="formulario-acciones">
+                            <button class="btn-guardar" onclick="guardarFormularioB100()">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                            <button class="btn-cancelar" onclick="cerrarFormularioB100()">
+                                <i class="bi bi-x"></i> Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+
+            // Agregar event listeners para los toggles con un pequeño retraso
+            setTimeout(() => {
+                setupToggleListeners();
+            }, 100);
+        }
+
+        // Función para configurar los listeners de los toggles
+        function setupToggleListeners() {
+            console.log('Configurando listeners de toggles...');
+            
+            const toggleConfigs = [
+                { toggleId: 'toggle-general', panelId: 'panel-general' },
+                { toggleId: 'toggle-relaciones', panelId: 'panel-relaciones' },
+                { toggleId: 'toggle-liquidez', panelId: 'panel-liquidez' },
+                { toggleId: 'toggle-rentabilidad', panelId: 'panel-rentabilidad' },
+                { toggleId: 'toggle-activos', panelId: 'panel-activos' },
+                { toggleId: 'toggle-pasivos', panelId: 'panel-pasivos' },
+                { toggleId: 'toggle-patrimonio', panelId: 'panel-patrimonio' },
+                { toggleId: 'toggle-resultados', panelId: 'panel-resultados' },
+                { toggleId: 'toggle-costo-ventas', panelId: 'panel-costo-ventas' },
+                { toggleId: 'toggle-ingresos', panelId: 'panel-ingresos' },
+                { toggleId: 'toggle-gastos', panelId: 'panel-gastos' }
+            ];
+
+            toggleConfigs.forEach(config => {
+                const toggle = document.getElementById(config.toggleId);
+                const panel = document.getElementById(config.panelId);
+                
+                console.log(`Configurando: ${config.toggleId} -> ${config.panelId}`);
+                console.log(`Toggle encontrado:`, !!toggle);
+                console.log(`Panel encontrado:`, !!panel);
+                
+                if (toggle && panel) {
+                    // Remover listeners existentes para evitar duplicados
+                    toggle.replaceWith(toggle.cloneNode(true));
+                    const newToggle = document.getElementById(config.toggleId);
+                    
+                    newToggle.addEventListener('change', function() {
+                        console.log(`Toggle ${config.toggleId} cambiado: ${this.checked}`);
+                        if (this.checked) {
+                            panel.style.display = 'block';
+                            console.log(`Mostrando panel: ${config.panelId}`);
+                        } else {
+                            panel.style.display = 'none';
+                            console.log(`Ocultando panel: ${config.panelId}`);
+                        }
+                    });
+                } else {
+                    console.error(`No se encontró toggle ${config.toggleId} o panel ${config.panelId}`);
+                }
+            });
+        }
+
+        // Función para cerrar el formulario B100
+        function cerrarFormularioB100() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para cambiar de pestaña
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.b100-tabs .tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            showNotification(`Cambiando a pestaña: ${tabName}`, 'info');
+        }
+
+        // Función para guardar el formulario B100
+        function guardarFormularioB100() {
+            const datosFormulario = {
+                periodo: document.querySelector('.period-dropdown').value,
+                paneles: {},
+                comentarios: {}
+            };
+
+            // Recopilar datos de cada panel visible
+            const panels = document.querySelectorAll('.b100-panel');
+            panels.forEach(panel => {
+                const panelId = panel.id;
+                const panelName = panel.querySelector('.panel-header h3').textContent;
+                const comment = panel.querySelector('.comment-editor textarea').value;
+                
+                datosFormulario.paneles[panelId] = {
+                    nombre: panelName,
+                    visible: panel.style.display !== 'none',
+                    comentarios: comment
+                };
+            });
+
+            console.log('Datos del formulario B100:', datosFormulario);
+            showNotification('Formulario B100 guardado correctamente', 'success');
+            
+            // Cerrar el modal
+            cerrarFormularioB100();
         }
 
         // Función para mostrar el formulario A500
