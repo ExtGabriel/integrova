@@ -1663,9 +1663,346 @@
                 mostrarFormularioB335();
             } else if (formId === 'B350') {
                 mostrarFormularioB350();
+            } else if (formId === 'B400') {
+                mostrarFormularioB400();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
+        }
+        
+        // Función para mostrar el formulario B400
+        function mostrarFormularioB400() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>B400 - Evaluación de RIM (incluyendo riesgos de fraude)</h2>
+                                <span class="codigo-formulario">B400</span>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="imprimirFormulario()" title="Imprimir">
+                                    <i class="bi bi-printer"></i>
+                                    <span>Imprimir</span>
+                                </button>
+                                <button class="header-btn" onclick="editarPreguntas()" title="Editar Preguntas">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span>Editar</span>
+                                </button>
+                                <button class="header-btn" onclick="colapsarFormulario()" title="Colapsar">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                    <span>Colapsar</span>
+                                </button>
+                                <div class="header-dropdown">
+                                    <button class="header-btn dropdown-toggle" onclick="toggleHeaderDropdown()" title="Más opciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <div class="header-dropdown-menu" id="headerDropdownMenu">
+                                        <a href="#" onclick="exportarFormulario(); return false;">
+                                            <i class="bi bi-download"></i> Exportar
+                                        </a>
+                                        <a href="#" onclick="compartirFormulario(); return false;">
+                                            <i class="bi bi-share"></i> Compartir
+                                        </a>
+                                        <a href="#" onclick="duplicarFormulario(); return false;">
+                                            <i class="bi bi-files"></i> Duplicar
+                                        </a>
+                                        <a href="#" onclick="eliminarFormulario(); return false;">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
+                                    </div>
+                                </div>
+                                <button class="header-btn" onclick="mostrarPreparadoRevisado()" title="Preparado y Revisado por">
+                                    <i class="bi bi-person-check"></i>
+                                    <span>Preparado y Revisado por</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioB400()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="formulario-body">
+                        <!-- Subtítulo general del formulario -->
+                        <div class="formulario-subtitle">
+                            <h3>Evaluación del riesgo de incorrección material (incluidos los riesgos de fraude)</h3>
+                        </div>
+                        
+                        <!-- Todas las preguntas en una sola sección con subtítulos integrados -->
+                        <div class="formulario-section">
+                            
+                            <!-- Pregunta 1 - Al nivel de los estados financieros -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Al nivel de los estados financieros</div>
+                                <div class="pregunta-texto">1. Riesgos evaluados a nivel de los estados financieros</div>
+                                <div class="pregunta-opciones">
+                                    <select id="b400_q1" name="b400_q1" class="form-select">
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="insignificante">Insignificante</option>
+                                        <option value="bajo">Bajo</option>
+                                        <option value="medio">Medio</option>
+                                        <option value="alto">Alto</option>
+                                        <option value="significativo">Significativo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 2 - Al nivel de los estados financieros -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Al nivel de los estados financieros</div>
+                                <div class="pregunta-texto">2. Razones para la evaluación de riesgos</div>
+                                <div class="pregunta-descripcion">
+                                    Resumir las principales razones para la evaluación del riesgo, tal como las fortalezas clave (que dan lugar a un riesgo bajo) o las debilidades (que dan lugar a un riesgo moderado o alto).
+                                </div>
+                                <div class="pregunta-opciones">
+                                    <textarea id="b400_q2" name="b400_q2" class="form-textarea" 
+                                        placeholder="Describa las razones para la evaluación del riesgo..." 
+                                        rows="4"></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 3 - Al nivel de los estados financieros -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Al nivel de los estados financieros</div>
+                                <div class="pregunta-texto">3. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q3_narrativa" name="b400_q3" value="narrativa">
+                                            <label for="b400_q3_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q3_procedimientos" name="b400_q3" value="procedimientos">
+                                            <label for="b400_q3_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 4 - A nivel de afirmación por clases de transacciones -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">A nivel de afirmación por clases de transacciones, saldos de cuentas y revelaciones</div>
+                                <div class="pregunta-texto">4. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q4_narrativa" name="b400_q4" value="narrativa">
+                                            <label for="b400_q4_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q4_procedimientos" name="b400_q4" value="procedimientos">
+                                            <label for="b400_q4_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 5 - Riesgos identificados y controles relacionados -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Riesgos identificados y controles relacionados</div>
+                                <div class="pregunta-texto">5. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q5_narrativa" name="b400_q5" value="narrativa">
+                                            <label for="b400_q5_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q5_procedimientos" name="b400_q5" value="procedimientos">
+                                            <label for="b400_q5_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 6 - Riesgo de fraude relacionado con el reconocimiento de ingresos -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Riesgo de fraude relacionado con el reconocimiento de ingresos</div>
+                                <div class="pregunta-texto">6. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q6_narrativa" name="b400_q6" value="narrativa">
+                                            <label for="b400_q6_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q6_procedimientos" name="b400_q6" value="procedimientos">
+                                            <label for="b400_q6_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 7 - Riesgos relacionados con las estimaciones contables -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Riesgos relacionados con las estimaciones contables</div>
+                                <div class="pregunta-texto">7. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q7_narrativa" name="b400_q7" value="narrativa">
+                                            <label for="b400_q7_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q7_procedimientos" name="b400_q7" value="procedimientos">
+                                            <label for="b400_q7_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Pregunta 8 - Clases de transacciones no significativas pero materiales -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Clases de transacciones, saldos de cuentas y revelaciones que no son significativos pero que son materiales</div>
+                                <div class="pregunta-texto">8. Documentación preferida</div>
+                                <div class="pregunta-opciones">
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q8_narrativa" name="b400_q8" value="narrativa">
+                                            <label for="b400_q8_narrativa">Narrativa</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="b400_q8_procedimientos" name="b400_q8" value="procedimientos">
+                                            <label for="b400_q8_procedimientos">Procedimientos</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sección final - Revisión de la evaluación de riesgos -->
+                            <div class="pregunta-item">
+                                <div class="pregunta-subtitulo">Revisión de la evaluación de riesgos</div>
+                            </div>
+                            
+                            <!-- Sección de Conclusion -->
+                            <div class="conclusion-section">
+                                <div class="conclusion-header">
+                                    <h4>Conclusion</h4>
+                                    <div class="conclusion-controls">
+                                        <button class="btn-toggle-documentation" onclick="toggleDocumentation()">
+                                            <i class="bi bi-eye-slash"></i> Ocultar decisiones de Documentación preferida
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="conclusion-content">
+                                    <div class="conclusion-textarea-wrapper">
+                                        <textarea id="conclusion_text" name="conclusion_text" class="conclusion-textarea" 
+                                            placeholder="Agregar conclusiones y observaciones adicionales..." 
+                                            rows="6"></textarea>
+                                    </div>
+                                    
+                                    <div class="conclusion-actions">
+                                        <div class="proceed-text">
+                                            Proceder a B500 Informe de evaluación de riesgo
+                                        </div>
+                                        <button class="btn-sign-off" onclick="signOffB400()">
+                                            <i class="bi bi-check-circle"></i> Sign Off
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="formulario-footer">
+                        <div class="formulario-info">
+                            Formulario B400 - Evaluación de RIM (incluyendo riesgos de fraude)
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioB400()">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioB400()">
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+        
+        // Función para cerrar el formulario B400
+        function cerrarFormularioB400() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+        
+        // Función para guardar el formulario B400
+        function guardarFormularioB400() {
+            // Aquí puedes agregar la lógica para guardar los datos del formulario
+            showNotification('Formulario B400 guardado correctamente', 'success');
+            cerrarFormularioB400();
+        }
+        
+        // Función para toggle de documentación preferida
+        function toggleDocumentation() {
+            const button = document.querySelector('.btn-toggle-documentation');
+            const documentationItems = document.querySelectorAll('[id*="_narrativa"], [id*="_procedimientos"]');
+            const icon = button.querySelector('i');
+            
+            if (button.textContent.includes('Ocultar')) {
+                // Ocultar documentación
+                documentationItems.forEach(item => {
+                    const parent = item.closest('.checkbox-item');
+                    if (parent) parent.style.display = 'none';
+                });
+                button.innerHTML = '<i class="bi bi-eye"></i> Mostrar decisiones de Documentación preferida';
+            } else {
+                // Mostrar documentación
+                documentationItems.forEach(item => {
+                    const parent = item.closest('.checkbox-item');
+                    if (parent) parent.style.display = 'flex';
+                });
+                button.innerHTML = '<i class="bi bi-eye-slash"></i> Ocultar decisiones de Documentación preferida';
+            }
+        }
+        
+        // Función para Sign Off del formulario B400
+        function signOffB400() {
+            const conclusionText = document.getElementById('conclusion_text').value;
+            
+            if (!conclusionText.trim()) {
+                showNotification('Por favor agregue conclusiones antes de hacer Sign Off', 'warning');
+                return;
+            }
+            
+            // Guardar el formulario y proceder a B500
+            guardarFormularioB400();
+            
+            // Mostrar notificación de proceder a B500
+            showNotification('Procediendo a B500 - Informe de evaluación de riesgo', 'success');
+            
+            // Aquí puedes agregar la lógica para abrir el formulario B500
+            setTimeout(() => {
+                abrirFormulario('B500');
+            }, 1000);
         }
         
         // Función para mostrar el formulario A100
