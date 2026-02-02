@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/formularios.css">
+    <link rel="stylesheet" href="../css/assessment.css">
     <!-- TinyMCE CDN -->
     <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 </head>
@@ -1660,6 +1661,8 @@
                 mostrarFormularioB300();
             } else if (formId === 'B335') {
                 mostrarFormularioB335();
+            } else if (formId === 'B350') {
+                mostrarFormularioB350();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -9633,6 +9636,1670 @@
             }
         }
     </script>
+
+    <!-- Formulario B350 Reporte de Control -->
+    <script>
+        function mostrarFormularioB350() {
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-content b350-container">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div class="formulario-info">
+                                Formulario B350 - Reporte de Control
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <button class="header-btn" onclick="cerrarFormularioB350()" title="Cerrar">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="b350-layout">
+                        <!-- Panel de Filtros Izquierdo -->
+                        <div class="b350-filters-panel">
+                            <div class="filters-header">
+                                <h3>FILTERS</h3>
+                                <button class="btn-reset" onclick="resetFiltersB350()">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </button>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Risks</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="risk-fraude" onchange="updateCountsB350()">
+                                    <span>Fraude Risk <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="risk-significativo" onchange="updateCountsB350()">
+                                    <span>Significativo Risk <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="risk-normal" onchange="updateCountsB350()">
+                                    <span>Normal Risk <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Cycles</h4>
+                                <select class="filter-select" name="cycles" onchange="updateCountsB350()">
+                                    <option value="">Select</option>
+                                    <option value="ingresos">Ingresos, Cuentas por cobrar, Cobros</option>
+                                    <option value="compras">Compras, cuentas por pagar, pagos</option>
+                                    <option value="nomina">Nómina</option>
+                                    <option value="informes">Informes financieros</option>
+                                    <option value="inversiones">Inversiones</option>
+                                    <option value="inventarios">Inventarios</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Control clave</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="control-clave-yes" onchange="updateCountsB350()">
+                                    <span>Yes <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="control-clave-no" onchange="updateCountsB350()">
+                                    <span>No <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Design</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="design-incomplete" onchange="updateCountsB350()">
+                                    <span>Incomplete <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="design-satisfactory" onchange="updateCountsB350()">
+                                    <span>Satisfactory <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="design-unsatisfactory" onchange="updateCountsB350()">
+                                    <span>Unsatisfactory <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Implementation</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="impl-incomplete" onchange="updateCountsB350()">
+                                    <span>Incomplete <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="impl-satisfactory" onchange="updateCountsB350()">
+                                    <span>Satisfactory <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="impl-unsatisfactory" onchange="updateCountsB350()">
+                                    <span>Unsatisfactory <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="impl-blocked" onchange="updateCountsB350()">
+                                    <span>Blocked <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Test this control</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="test-incomplete" onchange="updateCountsB350()">
+                                    <span>Incomplete <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="test-yes" onchange="updateCountsB350()">
+                                    <span>Yes <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="test-no" onchange="updateCountsB350()">
+                                    <span>No <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="test-blocked" onchange="updateCountsB350()">
+                                    <span>Blocked <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Control is effective</h4>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="effective-incomplete" onchange="updateCountsB350()">
+                                    <span>Incomplete <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="effective-yes" onchange="updateCountsB350()">
+                                    <span>Yes <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="effective-no" onchange="updateCountsB350()">
+                                    <span>No <span class="count">(0)</span></span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="effective-blocked" onchange="updateCountsB350()">
+                                    <span>Blocked <span class="count">(0)</span></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Área de Contenido Principal -->
+                        <div class="b350-content-area">
+                            <!-- Pestañas de navegación -->
+                            <div class="content-tabs">
+                                <button class="tab-btn" onclick="switchTabB350('risk')">RISK</button>
+                                <button class="tab-btn active" onclick="switchTabB350('controls')">CONTROLS</button>
+                                <button class="tab-btn" onclick="switchTabB350('assessment')">ASSESSMENT</button>
+                            </div>
+
+                            <!-- Área de contenido con botón New Control -->
+                            <div class="content-main">
+                                <!-- Contenido de la pestaña RISK -->
+                                <div id="risk-content" class="tab-content" style="display: none;">
+                                    <div class="risk-layout">
+                                        <!-- Panel de Filtros específico para RISK -->
+                                        <div class="risk-filters-panel">
+                                            <div class="filters-header">
+                                                <h3>FILTERS</h3>
+                                                <button class="btn-reset" onclick="resetRiskFilters()">Reset</button>
+                                            </div>
+
+                                            <div class="filter-section">
+                                                <h4>Tipo</h4>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-tipo-fraude" onchange="updateRiskCounts()">
+                                                    <span>Fraude <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-tipo-significativo" onchange="updateRiskCounts()">
+                                                    <span>Significativo <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-tipo-normal" onchange="updateRiskCounts()">
+                                                    <span>Normal <span class="count">(0)</span></span>
+                                                </label>
+                                            </div>
+
+                                            <div class="filter-section">
+                                                <h4>Afirmaciones</h4>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-afirmacion-integridad" onchange="updateRiskCounts()">
+                                                    <span>Integridad <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-afirmacion-existencia" onchange="updateRiskCounts()">
+                                                    <span>Existencia <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-afirmacion-precision" onchange="updateRiskCounts()">
+                                                    <span>Precisión y Valuación <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-afirmacion-presentacion" onchange="updateRiskCounts()">
+                                                    <span>Presentación y Revelación <span class="count">(0)</span></span>
+                                                </label>
+                                            </div>
+
+                                            <div class="filter-section">
+                                                <h4>Áreas</h4>
+                                                <select class="filter-select" name="risk-areas" onchange="updateRiskCounts()">
+                                                    <option value="">Select</option>
+                                                    <option value="propiedad-planta-equipo">Propiedad, planta y equipo</option>
+                                                    <option value="propiedad-inversion">Propiedad para inversión</option>
+                                                    <option value="activos-intangibles">Activos intangibles y fondo de comerio</option>
+                                                    <option value="inversiones">Inversiones</option>
+                                                    <option value="cuentas-cobrar-no-corriente">Cuentas por cobrar - No corriente</option>
+                                                    <option value="activos-agricolas">Activos agrícolas</option>
+                                                    <option value="inventarios">Inventarios</option>
+                                                    <option value="otros-activos-financieros">Otros activos financieros</option>
+                                                    <option value="cuentas-cobrar">Cuentas por cobrar</option>
+                                                    <option value="pagos-anticipado">Pagos por anticipado</option>
+                                                    <option value="efectivo-equivalente">Efectivo y equivalente</option>
+                                                    <option value="patrimonio">Patrimonio</option>
+                                                    <option value="prestamos-no-corriente">Préstamos - No corriente</option>
+                                                    <option value="pasivos-impuestos-diferidos">Pasivos por impuestos diferidos</option>
+                                                    <option value="otros-pasivos-no-corriente">Otros pasivos - No corriente</option>
+                                                    <option value="subsidios-gobierno">Subsidios del gobierno</option>
+                                                    <option value="arrendamientos-arrendatarios">Arrendamientos para arrendatarios</option>
+                                                    <option value="prestamos-corriente">Préstamos - Corriente</option>
+                                                    <option value="cuentas-pagar">Cuentas por pagar</option>
+                                                    <option value="otros-pasivos-corriente">Otros pasivos - Corriente</option>
+                                                    <option value="ingresos">Ingresos</option>
+                                                    <option value="costo-ventas">Costo de ventas</option>
+                                                    <option value="nomina-gastos">Nómina y otros gastos</option>
+                                                    <option value="otros-ingresos">Otros ingresos</option>
+                                                    <option value="otros-gastos">Otros gastos</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="filter-section">
+                                                <h4>Conclusión</h4>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-conclusion-tratado" onchange="updateRiskCounts()">
+                                                    <span>El riesgo ha sido tratado <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-conclusion-respuesta" onchange="updateRiskCounts()">
+                                                    <span>Se requiere una respuesta de auditoría <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-conclusion-deficiencia" onchange="updateRiskCounts()">
+                                                    <span>Existe una deficiencia de control significativa <span class="count">(0)</span></span>
+                                                </label>
+                                                <label class="filter-option">
+                                                    <input type="checkbox" name="risk-conclusion-otros" onchange="updateRiskCounts()">
+                                                    <span>Otros <span class="count">(0)</span></span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <!-- Área de Contenido Principal de RISK -->
+                                        <div class="risk-main-content">
+                                            <div class="content-header">
+                                                <button class="btn-new-risk" onclick="newRiskB350()">
+                                                    <i class="bi bi-plus-circle"></i> NEW RISK
+                                                </button>
+                                                <button class="btn-risk-library" onclick="riskLibraryB350()">
+                                                    <i class="bi bi-book"></i> RISK LIBRARY
+                                                </button>
+                                            </div>
+
+                                            <div class="risk-content-body">
+                                                <div class="risk-section">
+                                                    <h4>ESTADO FINANCIERO</h4>
+                                                    <div class="no-risk-message">
+                                                        <i class="bi bi-shield-check"></i>
+                                                        <p>No hay riesgos presentes en el estado financiero</p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="risk-section">
+                                                    <h4>AFIRMACIÓN</h4>
+                                                    <div class="no-risk-message">
+                                                        <i class="bi bi-shield-check"></i>
+                                                        <p>No hay riesgos presentes en la afirmación</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contenido de la pestaña CONTROLS -->
+                                <div id="controls-content" class="tab-content">
+                                    <div class="content-header">
+                                        <button class="btn-new-control" onclick="newControlB350()">
+                                            <i class="bi bi-plus-circle"></i> NEW CONTROL
+                                        </button>
+                                    </div>
+
+                                    <!-- Mensaje cuando no hay controles -->
+                                    <div class="no-controls-message">
+                                        <i class="bi bi-inbox"></i>
+                                        <p>No controls found</p>
+                                    </div>
+
+                                    <!-- Paginación -->
+                                    <div class="content-pagination">
+                                        <button class="pagination-btn" onclick="goToPageB350('first')">First</button>
+                                        <button class="pagination-btn" onclick="goToPageB350('prev')">&lt;</button>
+                                        <button class="pagination-btn active">1</button>
+                                        <button class="pagination-btn" onclick="goToPageB350('next')">&gt;</button>
+                                        <button class="pagination-btn" onclick="goToPageB350('last')">Last</button>
+                                    </div>
+                                </div>
+
+                                <!-- Contenido de la pestaña ASSESSMENT -->
+                                <div id="assessment-content" class="tab-content" style="display: none;">
+                                    <!-- Menú superior de Assessment -->
+                                    <div class="assessment-header">
+                                        <div class="assessment-menu">
+                                            <button class="assessment-btn" onclick="newArea()">
+                                                <i class="bi bi-plus-circle"></i> NEW AREA
+                                            </button>
+                                            
+                                            <div class="assessment-dropdown">
+                                                <button class="assessment-btn dropdown-toggle" onclick="toggleFilters()">
+                                                    <i class="bi bi-funnel"></i> Filters
+                                                    <i class="bi bi-chevron-down"></i>
+                                                </button>
+                                                <div id="filters-dropdown" class="dropdown-menu" style="display: none;">
+                                                    <div class="filter-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> Show Active Areas
+                                                        </label>
+                                                    </div>
+                                                    <div class="filter-option">
+                                                        <label>
+                                                            <input type="checkbox"> Show Inactive Areas
+                                                        </label>
+                                                    </div>
+                                                    <div class="filter-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> Show Financial Areas
+                                                        </label>
+                                                    </div>
+                                                    <div class="filter-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> Show Operational Areas
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="assessment-dropdown">
+                                                <button class="assessment-btn dropdown-toggle" onclick="toggleColumns()">
+                                                    <i class="bi bi-columns"></i> Columns
+                                                    <i class="bi bi-chevron-down"></i>
+                                                </button>
+                                                <div id="columns-dropdown" class="dropdown-menu" style="display: none;">
+                                                    <div class="column-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> Name
+                                                        </label>
+                                                    </div>
+                                                    <div class="column-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> RIM
+                                                        </label>
+                                                    </div>
+                                                    <div class="column-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> CY-Final
+                                                        </label>
+                                                    </div>
+                                                    <div class="column-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> PY-Final
+                                                        </label>
+                                                    </div>
+                                                    <div class="column-option">
+                                                        <label>
+                                                            <input type="checkbox" checked> Variance %
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="assessment-toggle">
+                                                <label class="toggle-label">
+                                                    Show Excluded
+                                                    <input type="checkbox" id="show-excluded" onchange="toggleExcluded()">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tabla de Financial Statement Level Risks -->
+                                    <div class="assessment-table-container">
+                                        <div class="assessment-table-header">
+                                            <h3>Financial Statement Level Risks</h3>
+                                        </div>
+                                        
+                                        <div class="assessment-table">
+                                            <table class="financial-risks-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="name-column">Name</th>
+                                                        <th class="rim-column">RIM</th>
+                                                        <th class="cy-column">CY-Final 31/12/2024</th>
+                                                        <th class="py-column">PY-Final 31/12/2023</th>
+                                                        <th class="variance-column">Variance %</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Propiedad, planta y equipo</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Propiedad para inversión</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Activos intangibles y fondo de comercio</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Inversiones</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Cuentas por cobrar - No corriente</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Activos agrícolas</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Inventarios</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Otros activos financieros</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Cuentas por cobrar</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Pagos por anticipado</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Efectivo y equivalentes</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Patrimonio</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Préstamos - No corriente</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Pasivos por impuestos diferidos</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Otros pasivos - No corriente</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Subsidios del gobierno</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Arrendamientos para arrendatarios</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Préstamos - Corriente</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Cuentas por pagar</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Otros pasivos - Corriente</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Ingresos</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Costo de ventas</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Nómina y otros gastos</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Otros ingresos</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="risk-row">
+                                                        <td class="name-cell">Otros gastos</td>
+                                                        <td class="rim-cell">IEPVPR</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="amount-cell">0,00</td>
+                                                        <td class="variance-cell">
+                                                            <div class="variance-content">
+                                                                <span>0,00</span>
+                                                                <button class="variance-btn">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario B350
+        function cerrarFormularioB350() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para resetear filtros
+        function resetFiltersB350() {
+            document.querySelectorAll('.b350-filters-panel input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.querySelectorAll('.b350-filters-panel select').forEach(select => {
+                select.value = '';
+            });
+            updateCountsB350();
+            showNotification('Filtros reseteados', 'info');
+        }
+
+        // Función para actualizar contadores
+        function updateCountsB350() {
+            // Simulación de actualización de contadores
+            document.querySelectorAll('.count').forEach(count => {
+                count.textContent = '(0)';
+            });
+        }
+
+        // Función para cambiar pestañas
+        function switchTabB350(tab) {
+            // Ocultar todo el contenido
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Quitar clase active de todos los botones
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Controlar visibilidad de paneles de filtros
+            const generalFiltersPanel = document.querySelector('.b350-filters-panel');
+            const riskContent = document.getElementById('risk-content');
+            
+            // Mostrar contenido correspondiente y activar botón
+            if (tab === 'risk') {
+                // Ocultar filtros generales y mostrar contenido de RISK
+                if (generalFiltersPanel) {
+                    generalFiltersPanel.style.display = 'none';
+                }
+                riskContent.style.display = 'flex'; // Usar flex para el layout de risk
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            } else if (tab === 'controls') {
+                // Mostrar filtros generales y contenido de CONTROLS
+                if (generalFiltersPanel) {
+                    generalFiltersPanel.style.display = 'block';
+                }
+                document.getElementById('controls-content').style.display = 'block';
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            } else if (tab === 'assessment') {
+                // Ocultar filtros generales y mostrar contenido de ASSESSMENT
+                if (generalFiltersPanel) {
+                    generalFiltersPanel.style.display = 'none';
+                }
+                document.getElementById('assessment-content').style.display = 'block';
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+            }
+            
+            showNotification(`Cambiado a pestaña ${tab.toUpperCase()}`, 'info');
+        }
+
+        // Función para resetear filtros de RISK
+        function resetRiskFilters() {
+            document.querySelectorAll('.risk-filters-panel input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.querySelectorAll('.risk-filters-panel select').forEach(select => {
+                select.value = '';
+            });
+            updateRiskCounts();
+            showNotification('Filtros de RISK reseteados', 'info');
+        }
+
+        // Función para actualizar contadores de RISK
+        function updateRiskCounts() {
+            // Simulación de actualización de contadores para filtros de RISK
+            document.querySelectorAll('.risk-filters-panel .count').forEach(count => {
+                count.textContent = '(0)';
+            });
+        }
+
+        // Función para nuevo riesgo
+        function newRiskB350() {
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content new-risk-modal">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div class="formulario-info">
+                                New Risk
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <button class="header-btn" onclick="cerrarNewRiskModal()" title="Cerrar">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="new-risk-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="risk-title">Title</label>
+                                <input type="text" id="risk-title" class="form-input" placeholder="Enter risk title">
+                            </div>
+                            <div class="form-group">
+                                <label for="risk-id">ID</label>
+                                <input type="text" id="risk-id" class="form-input" placeholder="Risk ID">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="risk-description">Descripción</label>
+                            <div class="rich-text-editor">
+                                <div class="editor-toolbar">
+                                    <button class="editor-btn" onclick="formatText('bold')" title="Negrita"><i class="bi bi-type-bold"></i></button>
+                                    <button class="editor-btn" onclick="formatText('italic')" title="Cursiva"><i class="bi bi-type-italic"></i></button>
+                                    <button class="editor-btn" onclick="formatText('underline')" title="Subrayado"><i class="bi bi-type-underline"></i></button>
+                                    <button class="editor-btn" onclick="formatText('insertUnorderedList')" title="Lista desordenada"><i class="bi bi-list-ul"></i></button>
+                                    <button class="editor-btn" onclick="formatText('insertOrderedList')" title="Lista ordenada"><i class="bi bi-list-ol"></i></button>
+                                </div>
+                                <div class="editor-content" 
+                                     contenteditable="true" 
+                                     id="risk-description"
+                                     placeholder="Enter risk description..."
+                                     placeholder-focus="Escribe la descripción del riesgo aquí..."
+                                     onclick="this.focus()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="risk-level">Nivel</label>
+                            <select id="risk-level" class="form-select" onchange="toggleRiskFields()">
+                                <option value="">Select level</option>
+                                <option value="estado-financiero">Estado financiero</option>
+                                <option value="afirmacion">Afirmación</option>
+                            </select>
+                        </div>
+
+                        <!-- Campo Áreas (solo visible cuando Nivel = Afirmación) -->
+                        <div class="form-group" id="areas-group" style="display: none;">
+                            <label for="risk-areas">Áreas</label>
+                            <select id="risk-areas" class="form-select">
+                                <option value="">Select area</option>
+                                <option value="propiedad-planta-equipo">Propiedad, planta y equipo</option>
+                                <option value="propiedad-inversion">Propiedad para inversión</option>
+                                <option value="activos-intangibles">Activos intangibles y fondo de comerio</option>
+                                <option value="inversiones">Inversiones</option>
+                                <option value="cuentas-cobrar-no-corriente">Cuentas por cobrar - No corriente</option>
+                                <option value="activos-agricolas">Activos agrícolas</option>
+                                <option value="inventarios">Inventarios</option>
+                                <option value="otros-activos-financieros">Otros activos financieros</option>
+                                <option value="cuentas-cobrar">Cuentas por cobrar</option>
+                                <option value="pagos-anticipado">Pagos por anticipado</option>
+                                <option value="efectivo-equivalente">Efectivo y equivalente</option>
+                                <option value="patrimonio">Patrimonio</option>
+                                <option value="prestamos-no-corriente">Préstamos - No corriente</option>
+                                <option value="pasivos-impuestos-diferidos">Pasivos por impuestos diferidos</option>
+                                <option value="otros-pasivos-no-corriente">Otros pasivos - No corriente</option>
+                                <option value="subsidios-gobierno">Subsidios del gobierno</option>
+                                <option value="arrendamientos-arrendatarios">Arrendamientos para arrendatarios</option>
+                                <option value="prestamos-corriente">Préstamos - Corriente</option>
+                                <option value="cuentas-pagar">Cuentas por pagar</option>
+                                <option value="otros-pasivos-corriente">Otros pasivos - Corriente</option>
+                                <option value="ingresos">Ingresos</option>
+                                <option value="costo-ventas">Costo de ventas</option>
+                                <option value="nomina-gastos">Nómina y otros gastos</option>
+                                <option value="otros-ingresos">Otros ingresos</option>
+                                <option value="otros-gastos">Otros gastos</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos Referencias y Respuesta de auditoría (siempre visibles) -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Referencias</label>
+                                <div class="reference-list">
+                                    <div class="reference-item">
+                                        <input type="text" class="form-input" placeholder="Add reference">
+                                        <button class="btn-add" onclick="addReference()"><i class="bi bi-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Respuesta de auditoría</label>
+                                <div class="reference-list">
+                                    <div class="reference-item">
+                                        <input type="text" class="form-input" placeholder="Add audit response">
+                                        <button class="btn-add" onclick="addAuditResponse()"><i class="bi bi-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="btn-secondary" onclick="saveAndCreateAnotherRisk()">Save and Create Another</button>
+                            <button class="btn-secondary" onclick="cerrarModalForzado(); return false;">Cancel</button>
+                            <button class="btn-primary" onclick="saveNewRisk()">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para alternar campos según el nivel seleccionado
+        function toggleRiskFields() {
+            const levelSelect = document.getElementById('risk-level');
+            const areasGroup = document.getElementById('areas-group');
+            const referencesAuditRow = document.querySelector('.form-row:nth-last-child(2)'); // Fila de Referencias y Respuesta
+            
+            if (levelSelect.value === 'estado-financiero') {
+                // Mostrar solo Referencias y Respuesta de auditoría
+                areasGroup.style.display = 'none';
+                referencesAuditRow.style.display = 'flex';
+            } else if (levelSelect.value === 'afirmacion') {
+                // Mostrar Áreas, Referencias y Respuesta de auditoría
+                areasGroup.style.display = 'block';
+                referencesAuditRow.style.display = 'flex';
+            } else {
+                // No mostrar campos adicionales si no hay selección
+                areasGroup.style.display = 'none';
+                referencesAuditRow.style.display = 'none';
+            }
+        }
+
+        // Función para cerrar modal de New Risk
+        function cerrarNewRiskModal(event) {
+            console.log('cerrarNewRiskModal called');
+            
+            // Prevenir comportamiento por defecto si viene de un evento
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }
+            
+            // Buscar el modal de New Risk específicamente
+            const modal = document.querySelector('.formulario-modal.new-risk-modal') || 
+                         document.querySelector('.formulario-modal');
+            
+            console.log('Modal found:', modal);
+            
+            if (modal) {
+                // Método 1: Ocultar inmediatamente
+                modal.style.display = 'none';
+                modal.style.opacity = '0';
+                modal.style.visibility = 'hidden';
+                modal.classList.remove('show');
+                
+                // Método 2: Remover del DOM inmediatamente
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                    console.log('Modal removed from DOM immediately');
+                }
+                
+                // Método 3: Buscar y eliminar todos los modales posibles
+                const allModals = document.querySelectorAll('.formulario-modal');
+                allModals.forEach(m => {
+                    if (m.parentNode) {
+                        m.parentNode.removeChild(m);
+                    }
+                });
+                
+            } else {
+                console.warn('No modal found to close');
+            }
+            
+            return false; // Prevenir cualquier comportamiento adicional
+        }
+
+        // Función alternativa de cierre (para prueba)
+        function cerrarModalForzado() {
+            console.log('cerrarModalForzado called');
+            
+            // Buscar y eliminar todos los modales
+            const modals = document.querySelectorAll('.formulario-modal');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            });
+            
+            return false;
+        }
+
+        // Función para guardar nuevo riesgo
+        function saveNewRisk() {
+            const title = document.getElementById('risk-title').value;
+            const description = document.getElementById('risk-description').innerHTML;
+            const level = document.getElementById('risk-level').value;
+            
+            if (!title || !description || !level) {
+                showNotification('Por favor complete todos los campos requeridos', 'warning');
+                return;
+            }
+            
+            showNotification('Risk guardado exitosamente', 'success');
+            cerrarNewRiskModal();
+        }
+
+        // Función para guardar y crear otro
+        function saveAndCreateAnotherRisk() {
+            const title = document.getElementById('risk-title').value;
+            const description = document.getElementById('risk-description').innerHTML;
+            const level = document.getElementById('risk-level').value;
+            
+            if (!title || !description || !level) {
+                showNotification('Por favor complete todos los campos requeridos', 'warning');
+                return;
+            }
+            
+            showNotification('Risk guardado. Abriendo nuevo formulario...', 'success');
+            
+            // Limpiar formulario para crear otro
+            document.getElementById('risk-title').value = '';
+            document.getElementById('risk-description').innerHTML = 'Enter risk description...';
+            document.getElementById('risk-level').value = '';
+        }
+
+        // Función para formatear texto en el editor
+        function formatText(command) {
+            const editor = document.getElementById('risk-description');
+            if (!editor) {
+                console.error('Editor not found');
+                return;
+            }
+            
+            // Asegurar que el editor tenga el foco
+            editor.focus();
+            
+            // Ejecutar el comando de formato
+            try {
+                document.execCommand(command, false, null);
+                
+                // Mantener el foco en el editor
+                editor.focus();
+                
+                // Mostrar notificación para algunos comandos
+                if (command === 'bold' || command === 'italic' || command === 'underline') {
+                    showNotification(`Formato ${command} aplicado`, 'info');
+                }
+            } catch (error) {
+                console.error('Error formatting text:', error);
+                showNotification('Error al aplicar formato', 'error');
+            }
+        }
+
+        // Función para inicializar el editor cuando el modal se abre
+        function initializeEditor() {
+            const editor = document.getElementById('risk-description');
+            if (editor) {
+                // Limpiar contenido si solo tiene el placeholder
+                if (editor.textContent.trim() === 'Enter risk description...' || 
+                    editor.textContent.trim() === '') {
+                    editor.innerHTML = '';
+                }
+                
+                // Agregar evento para manejar el placeholder
+                editor.addEventListener('input', function() {
+                    if (this.innerHTML.trim() === '') {
+                        this.innerHTML = '';
+                    }
+                });
+                
+                // Poner foco en el editor después de un pequeño retraso
+                setTimeout(() => {
+                    editor.focus();
+                }, 100);
+            }
+        }
+
+        // Modificar la función newRiskB350 para inicializar el editor
+        function newRiskB350() {
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content new-risk-modal">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div class="formulario-info">
+                                New Risk
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <button class="header-btn" onclick="cerrarNewRiskModal()" title="Cerrar">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="new-risk-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="risk-title">Title</label>
+                                <input type="text" id="risk-title" class="form-input" placeholder="Enter risk title">
+                            </div>
+                            <div class="form-group">
+                                <label for="risk-id">ID</label>
+                                <input type="text" id="risk-id" class="form-input" placeholder="Risk ID">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="risk-description">Descripción</label>
+                            <div class="rich-text-editor">
+                                <div class="editor-toolbar">
+                                    <button class="editor-btn" onclick="formatText('bold')" title="Negrita"><i class="bi bi-type-bold"></i></button>
+                                    <button class="editor-btn" onclick="formatText('italic')" title="Cursiva"><i class="bi bi-type-italic"></i></button>
+                                    <button class="editor-btn" onclick="formatText('underline')" title="Subrayado"><i class="bi bi-type-underline"></i></button>
+                                    <button class="editor-btn" onclick="formatText('insertUnorderedList')" title="Lista desordenada"><i class="bi bi-list-ul"></i></button>
+                                    <button class="editor-btn" onclick="formatText('insertOrderedList')" title="Lista ordenada"><i class="bi bi-list-ol"></i></button>
+                                </div>
+                                <div class="editor-content" 
+                                     contenteditable="true" 
+                                     id="risk-description"
+                                     placeholder="Enter risk description..."
+                                     placeholder-focus="Escribe la descripción del riesgo aquí..."
+                                     onclick="this.focus()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="risk-level">Nivel</label>
+                            <select id="risk-level" class="form-select" onchange="toggleRiskFields()">
+                                <option value="">Select level</option>
+                                <option value="estado-financiero">Estado financiero</option>
+                                <option value="afirmacion">Afirmación</option>
+                            </select>
+                        </div>
+
+                        <!-- Campo Áreas (solo visible cuando Nivel = Afirmación) -->
+                        <div class="form-group" id="areas-group" style="display: none;">
+                            <label for="risk-areas">Áreas</label>
+                            <select id="risk-areas" class="form-select">
+                                <option value="">Select area</option>
+                                <option value="propiedad-planta-equipo">Propiedad, planta y equipo</option>
+                                <option value="propiedad-inversion">Propiedad para inversión</option>
+                                <option value="activos-intangibles">Activos intangibles y fondo de comerio</option>
+                                <option value="inversiones">Inversiones</option>
+                                <option value="cuentas-cobrar-no-corriente">Cuentas por cobrar - No corriente</option>
+                                <option value="activos-agricolas">Activos agrícolas</option>
+                                <option value="inventarios">Inventarios</option>
+                                <option value="otros-activos-financieros">Otros activos financieros</option>
+                                <option value="cuentas-cobrar">Cuentas por cobrar</option>
+                                <option value="pagos-anticipado">Pagos por anticipado</option>
+                                <option value="efectivo-equivalente">Efectivo y equivalente</option>
+                                <option value="patrimonio">Patrimonio</option>
+                                <option value="prestamos-no-corriente">Préstamos - No corriente</option>
+                                <option value="pasivos-impuestos-diferidos">Pasivos por impuestos diferidos</option>
+                                <option value="otros-pasivos-no-corriente">Otros pasivos - No corriente</option>
+                                <option value="subsidios-gobierno">Subsidios del gobierno</option>
+                                <option value="arrendamientos-arrendatarios">Arrendamientos para arrendatarios</option>
+                                <option value="prestamos-corriente">Préstamos - Corriente</option>
+                                <option value="cuentas-pagar">Cuentas por pagar</option>
+                                <option value="otros-pasivos-corriente">Otros pasivos - Corriente</option>
+                                <option value="ingresos">Ingresos</option>
+                                <option value="costo-ventas">Costo de ventas</option>
+                                <option value="nomina-gastos">Nómina y otros gastos</option>
+                                <option value="otros-ingresos">Otros ingresos</option>
+                                <option value="otros-gastos">Otros gastos</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos Referencias y Respuesta de auditoría (siempre visibles) -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Referencias</label>
+                                <div class="reference-list">
+                                    <div class="reference-item">
+                                        <input type="text" class="form-input" placeholder="Add reference">
+                                        <button class="btn-add" onclick="addReference()"><i class="bi bi-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Respuesta de auditoría</label>
+                                <div class="reference-list">
+                                    <div class="reference-item">
+                                        <input type="text" class="form-input" placeholder="Add audit response">
+                                        <button class="btn-add" onclick="addAuditResponse()"><i class="bi bi-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="btn-secondary" onclick="saveAndCreateAnotherRisk()">Save and Create Another</button>
+                            <button class="btn-secondary" onclick="cerrarModalForzado(); return false;">Cancel</button>
+                            <button class="btn-primary" onclick="saveNewRisk()">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.offsetHeight;
+            modal.classList.add('show');
+            
+            // Inicializar el editor después de que el modal se muestre
+            setTimeout(() => {
+                initializeEditor();
+            }, 300);
+        }
+
+        // Variable global para almacenar el campo actual (referencias o respuesta de auditoría)
+        let currentTargetField = '';
+
+        // Función para agregar referencia
+        function addReference() {
+            console.log('addReference() called');
+            currentTargetField = 'references';
+            openFormSelectionModal();
+        }
+
+        // Función para agregar respuesta de auditoría
+        function addAuditResponse() {
+            console.log('addAuditResponse() called');
+            currentTargetField = 'audit-response';
+            openFormSelectionModal();
+        }
+
+        // Función para abrir el modal de selección de formularios (versión mejorada)
+        function openFormSelectionModal() {
+            console.log('openFormSelectionModal() called');
+            
+            // Verificar si el modal ya existe
+            let modal = document.getElementById('formSelectionModal');
+            
+            if (!modal) {
+                console.log('Modal no encontrado, creándolo...');
+                
+                // Crear el modal dinámicamente
+                modal = document.createElement('div');
+                modal.id = 'formSelectionModal';
+                modal.className = 'formulario-modal';
+                modal.style.display = 'none';
+                modal.innerHTML = `
+                    <div class="formulario-modal-content form-selection-content">
+                        <div class="formulario-header">
+                            <div class="header-left">
+                                <div class="formulario-info">
+                                    Seleccionar Formulario
+                                </div>
+                            </div>
+                            <div class="header-right">
+                                <button class="header-btn" onclick="closeFormSelectionModal()" title="Cerrar">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-selection-body">
+                            <div class="search-section">
+                                <input type="text" id="formSearchInput" class="form-input" placeholder="Buscar formulario...">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="showHiddenForms">
+                                    <span class="checkmark"></span>
+                                    Show hidden
+                                </label>
+                            </div>
+                            
+                            <div class="form-list-container">
+                                <div class="form-category">
+                                    <h4>Resumen evaluación de riesgo</h4>
+                                    <div class="form-item">
+                                        <i class="bi bi-exclamation-circle-fill text-warning"></i>
+                                        <span class="form-info">
+                                            <strong>B450</strong> Informe de riesgos
+                                        </span>
+                                        <input type="checkbox" class="form-checkbox" data-id="B450" data-title="Informe de riesgos">
+                                    </div>
+                                    <div class="form-item">
+                                        <i class="bi bi-file-earmark-text text-primary"></i>
+                                        <span class="form-info">
+                                            <strong>B500</strong> Informe de evaluación de riesgo
+                                        </span>
+                                        <input type="checkbox" class="form-checkbox" data-id="B500" data-title="Informe de evaluación de riesgo">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-category">
+                                    <h4>Procedimientos de evaluación de riesgo</h4>
+                                    <div class="form-item">
+                                        <i class="bi bi-file-earmark-excel text-success"></i>
+                                        <span class="form-info">
+                                            <strong>B510</strong> Programa de auditoría del grupo
+                                        </span>
+                                        <input type="checkbox" class="form-checkbox" data-id="B510" data-title="Programa de auditoría del grupo">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-selection-footer">
+                            <button class="btn-secondary" onclick="closeFormSelectionModal()">Cancelar</button>
+                            <button class="btn-primary" onclick="addSelectedForms()">Agregar Seleccionados</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Agregar al body
+                document.body.appendChild(modal);
+                console.log('Modal creado y agregado al body');
+            }
+            
+            // Mostrar el modal
+            modal.style.display = 'flex';
+            console.log('Modal display set to flex');
+            
+            // Limpiar selecciones anteriores
+            document.querySelectorAll('.form-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Limpiar búsqueda
+            const searchInput = document.getElementById('formSearchInput');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            // Mostrar modal con animación
+            setTimeout(() => {
+                modal.classList.add('show');
+                console.log('Modal show class added');
+            }, 10);
+        }
+
+        // Función para cerrar el modal de selección de formularios
+        function closeFormSelectionModal() {
+            const modal = document.getElementById('formSelectionModal');
+            modal.classList.remove('show');
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Función para agregar los formularios seleccionados
+        function addSelectedForms() {
+            const selectedForms = document.querySelectorAll('.form-checkbox:checked');
+            
+            if (selectedForms.length === 0) {
+                showNotification('Por favor seleccione al menos un formulario', 'warning');
+                return;
+            }
+            
+            // Determinar la lista correcta según el campo actual
+            let targetList;
+            if (currentTargetField === 'references') {
+                targetList = document.querySelector('.reference-list');
+            } else if (currentTargetField === 'audit-response') {
+                targetList = document.querySelectorAll('.reference-list')[1];
+            } else {
+                showNotification('Error: No se pudo determinar el campo destino', 'error');
+                return;
+            }
+            
+            selectedForms.forEach(checkbox => {
+                const formId = checkbox.dataset.id;
+                const formTitle = checkbox.dataset.title;
+                
+                // Crear nuevo elemento de referencia
+                const newReference = document.createElement('div');
+                newReference.className = 'reference-item';
+                newReference.innerHTML = `
+                    <input type="text" class="form-input" value="${formId} - ${formTitle}" readonly>
+                    <button class="btn-remove" onclick="this.parentElement.remove()"><i class="bi bi-dash"></i></button>
+                `;
+                
+                targetList.appendChild(newReference);
+            });
+            
+            const fieldName = currentTargetField === 'references' ? 'referencia(s)' : 'respuesta(s) de auditoría';
+            showNotification(`${selectedForms.length} formulario(s) agregado(s) como ${fieldName}`, 'success');
+            closeFormSelectionModal();
+        }
+
+        // Función de búsqueda de formularios
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('formSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const formItems = document.querySelectorAll('.form-item');
+                    
+                    formItems.forEach(item => {
+                        const formInfo = item.querySelector('.form-info').textContent.toLowerCase();
+                        if (formInfo.includes(searchTerm)) {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        });
+
+        // Función para risk library
+        function riskLibraryB350() {
+            showNotification('Abriendo biblioteca de riesgos...', 'info');
+        }
+
+        // Función para nueva evaluación
+        function newAssessmentB350() {
+            showNotification('Abriendo formulario de nueva evaluación...', 'info');
+        }
+
+        // Funciones para el menú de Assessment
+        function newArea() {
+            showNotification('Abriendo formulario para nueva área...', 'info');
+        }
+
+        function toggleFilters() {
+            const dropdown = document.getElementById('filters-dropdown');
+            const isVisible = dropdown.style.display !== 'none';
+            
+            // Cerrar otros dropdowns
+            document.getElementById('columns-dropdown').style.display = 'none';
+            
+            // Toggle filters dropdown
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function toggleColumns() {
+            const dropdown = document.getElementById('columns-dropdown');
+            const isVisible = dropdown.style.display !== 'none';
+            
+            // Cerrar otros dropdowns
+            document.getElementById('filters-dropdown').style.display = 'none';
+            
+            // Toggle columns dropdown
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function toggleExcluded() {
+            const showExcluded = document.getElementById('show-excluded').checked;
+            const rows = document.querySelectorAll('.risk-row');
+            
+            rows.forEach(row => {
+                // Aquí se podría agregar lógica para mostrar/ocultar filas excluidas
+                console.log('Toggle excluded:', showExcluded);
+            });
+            
+            showNotification(showExcluded ? 'Mostrando áreas excluidas' : 'Ocultando áreas excluidas', 'info');
+        }
+
+        // Cerrar dropdowns al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            const filtersDropdown = document.getElementById('filters-dropdown');
+            const columnsDropdown = document.getElementById('columns-dropdown');
+            
+            // Verificar si el clic fue fuera de los dropdowns
+            const isClickOutsideFilters = !event.target.closest('.assessment-dropdown') || 
+                                         !event.target.closest('[onclick="toggleFilters()"]');
+            const isClickOutsideColumns = !event.target.closest('.assessment-dropdown') || 
+                                         !event.target.closest('[onclick="toggleColumns()"]');
+            
+            if (isClickOutsideFilters) {
+                filtersDropdown.style.display = 'none';
+            }
+            if (isClickOutsideColumns) {
+                columnsDropdown.style.display = 'none';
+            }
+        });
+
+        // Función para nuevo control
+        function newControlB350() {
+            showNotification('Abriendo formulario de nuevo control...', 'info');
+        }
+
+        // Función para navegación de paginación
+        function goToPageB350(page) {
+            showNotification(`Navegando a: ${page}`, 'info');
+        }
+    </script>
+    
+    <!-- Modal para selección de formularios -->
+    <div id="formSelectionModal" class="formulario-modal" style="display: none;">
+        <div class="formulario-modal-content form-selection-content">
+            <div class="formulario-header">
+                <div class="header-left">
+                    <div class="formulario-info">
+                        Seleccionar Formulario
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="header-btn" onclick="closeFormSelectionModal()" title="Cerrar">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-selection-body">
+                <div class="search-section">
+                    <input type="text" id="formSearchInput" class="form-input" placeholder="Buscar formulario...">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="showHiddenForms">
+                        <span class="checkmark"></span>
+                        Show hidden
+                    </label>
+                </div>
+                
+                <div class="form-list-container">
+                    <div class="form-category">
+                        <h4>Resumen evaluación de riesgo</h4>
+                        <div class="form-item">
+                            <i class="bi bi-exclamation-circle-fill text-warning"></i>
+                            <span class="form-info">
+                                <strong>B450</strong> Informe de riesgos
+                            </span>
+                            <input type="checkbox" class="form-checkbox" data-id="B450" data-title="Informe de riesgos">
+                        </div>
+                        <div class="form-item">
+                            <i class="bi bi-file-earmark-text text-primary"></i>
+                            <span class="form-info">
+                                <strong>B500</strong> Informe de evaluación de riesgo
+                            </span>
+                            <input type="checkbox" class="form-checkbox" data-id="B500" data-title="Informe de evaluación de riesgo">
+                        </div>
+                    </div>
+                    
+                    <div class="form-category">
+                        <h4>Procedimientos de evaluación de riesgo</h4>
+                        <div class="form-item">
+                            <i class="bi bi-file-earmark-excel text-success"></i>
+                            <span class="form-info">
+                                <strong>B510</strong> Programa de auditoría del grupo - Componentes de alcance
+                            </span>
+                            <input type="checkbox" class="form-checkbox" data-id="B510" data-title="Programa de auditoría del grupo">
+                        </div>
+                        <div class="form-item">
+                            <i class="bi bi-file-earmark-text text-primary"></i>
+                            <span class="form-info">
+                                <strong>B600</strong> Negocio en marcha
+                            </span>
+                            <input type="checkbox" class="form-checkbox" data-id="B600" data-title="Negocio en marcha">
+                        </div>
+                    </div>
+                    
+                    <div class="form-category">
+                        <h4>Respuestas de auditoría</h4>
+                        <div class="form-item">
+                            <i class="bi bi-file-earmark-text text-info"></i>
+                            <span class="form-info">
+                                <strong>C100</strong> Respuesta de auditoría a los riesgos evaluados
+                            </span>
+                            <input type="checkbox" class="form-checkbox" data-id="C100" data-title="Respuesta de auditoría a los riesgos evaluados">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-selection-footer">
+                <button class="btn-secondary" onclick="closeFormSelectionModal()">Cancelar</button>
+                <button class="btn-primary" onclick="addSelectedForms()">Agregar Seleccionados</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="../js/utils.js"></script>
     <script src="../js/api-client.js"></script>
     <script src="../js/auth-guard.js"></script>
