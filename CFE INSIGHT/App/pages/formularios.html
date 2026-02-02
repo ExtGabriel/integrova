@@ -1658,6 +1658,8 @@
                 mostrarFormularioB200();
             } else if (formId === 'B300') {
                 mostrarFormularioB300();
+            } else if (formId === 'B335') {
+                mostrarFormularioB335();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -9093,6 +9095,542 @@
         function guardarFormularioB300() {
             showNotification('Formulario B300 guardado correctamente', 'success');
             cerrarFormularioB300();
+        }
+
+        // Función para mostrar el formulario B335
+        function mostrarFormularioB335() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+            
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <div class="header-left">
+                            <div>
+                                <h2>Entendimiento del proceso de información financiera</h2>
+                                <span class="codigo-formulario">B335</span>
+                            </div>
+                            <div class="header-botones">
+                                <button class="header-btn" onclick="abrirObservaciones()" title="Observaciones">
+                                    <i class="bi bi-chat-text"></i>
+                                    <span>Observaciones</span>
+                                </button>
+                                <button class="header-btn" onclick="abrirInferencias()" title="Inferencias">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span>Inferencias</span>
+                                </button>
+                                <button class="header-btn" onclick="abrirReferencias()" title="Referencias">
+                                    <i class="bi bi-link"></i>
+                                    <span>Referencias</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <button class="header-btn" onclick="cerrarFormularioB335()" title="Cerrar">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="formulario-body">
+                        <div class="section-header">
+                            <h3>COMPRENDER EL PROCESO DE INFORMES FINANCIEROS</h3>
+                        </div>
+
+                        <!-- Subsección: Proceso de Informes Financieros -->
+                        <div class="subsection">
+                            <div class="subsection-header">
+                                <h4>Proceso de Informes Financieros</h4>
+                            </div>
+                            <div class="subsection-content">
+                                <!-- Pregunta 1 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>1. Proceso de informes financieros</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Documentar el proceso de información financiera utilizado para preparar los estados financieros de la entidad de conformidad con el marco de información financiera aplicable. Considerar:</p>
+                                        <ul>
+                                            <li>De dónde se obtiene la información como, por ejemplo, el libro mayor general, proveedores de servicios, libros auxiliares, etc.</li>
+                                            <li>El personal involucrado, como la dirección, otros miembros de la entidad y los responsables del gobierno de la entidad y sus funciones.</li>
+                                        </ul>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p1" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p1" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p1" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p1-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 2 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>2. Proceso de cierre de los estados financieros</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Documentar el proceso de cierre de los estados financieros. Considerar:</p>
+                                        <ul>
+                                            <li>El uso de asientos del diario (incluidos asientos automatizados) diseñado para realizar correcciones y configurar devengados.</li>
+                                            <li>Procedimientos realizados, tales como conciliaciones e informes.</li>
+                                            <li>El proceso relacionado con la recopilación de información para la preparación de los estados financieros.</li>
+                                        </ul>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p2" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p2" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p2" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p2-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 3 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>3. Hechos y condiciones</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Documentar el proceso utilizado para captar cualquier hecho y condición distintos de las transacciones que están en el curso normal de la actividad comercial, tales como pasivos contingentes, hechos que afecten al negocio en marcha, hechos posteriores, etc.</p>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p3" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p3" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p3" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p3-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 4 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>4. Diseñar procedimientos para hechos posteriores</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Diseñar procedimientos de auditoría para obtener evidencia de auditoría adecuada y suficiente de que se hayan identificado todos los hechos que tengan lugar entre la fecha de los estados financieros y la fecha del informe del auditor que requieran un ajuste de los estados financieros o revelación en estos. (C135 Hechos posteriores)</p>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p4" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p4" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p4" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p4-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 5 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>5. Proceso de revelación</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Documentar el proceso relacionado con las revelaciones en los estados financieros. Considerar:</p>
+                                        <ul>
+                                            <li>El personal involucrado.</li>
+                                            <li>Cómo se capta la información y su exactitud.</li>
+                                            <li>Uso de expertos, especialistas o listas de verificación.</li>
+                                        </ul>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p5" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p5" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p5" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p5-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 6 -->
+                                <div class="pregunta-block">
+                                    <div class="pregunta-header">
+                                        <h4>6. Marco de informes financieros aplicable</h4>
+                                    </div>
+                                    <div class="pregunta-contenido">
+                                        <p>Revisar el entendimiento de la selección y aplicación de políticas contables de la entidad, y la evaluación de si las políticas contables de la entidad son adecuadas para su negocio y coherentes con el marco de información financiera aplicable documentado en el B200 Identificación de riesgos a través del entendimiento de la entidad.</p>
+                                        <div class="opciones-respuesta">
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p6" value="completado-sin-excepciones">
+                                                <span class="opcion-texto">Completado sin excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p6" value="completado-con-excepciones">
+                                                <span class="opcion-texto">Completado con excepciones</span>
+                                            </label>
+                                            <label class="opcion-respuesta">
+                                                <input type="radio" name="b335-p6" value="na">
+                                                <span class="opcion-texto">N/A</span>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-textarea-small" name="b335-p6-nota" placeholder="Agregar nota..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nueva Subsección: COMPRENDER LOS ASIENTOS DEL DIARIO -->
+                        <div class="subsection">
+                            <div class="subsection-header">
+                                <h4>COMPRENDER LOS ASIENTOS DEL DIARIO</h4>
+                            </div>
+                            <div class="subsection-content">
+
+                        <!-- Pregunta 7 -->
+                        <div class="pregunta-block">
+                            <div class="pregunta-header">
+                                <h4>7. Comprender la naturaleza de los asientos del diario</h4>
+                            </div>
+                            <div class="pregunta-contenido">
+                                <p>Obtener un entendimiento de la naturaleza de los asientos del diario utilizados en el proceso de información financiera y procesados a través del sistema de información de la entidad.</p>
+                                <p><strong>Dirección:</strong></p>
+                                <ul>
+                                    <li>Políticas de la gerencia en relación al uso, autorización y control de los asientos. Tratar el uso de asientos comunes, asientos no rutinarios (correcciones y ajustes) y asientos inusuales o solicitados por la gerencia.</li>
+                                    <li>Procedimientos automáticos usados para mantener el libro mayor general o para preparar los estados financieros cuando los asientos ingresados no posean una evidencia escrita.</li>
+                                    <li>Cualquier historial de asientos no autorizados, inapropiados o ficticios identificados.</li>
+                                    <li>El riesgo evaluado de incorrección material relacionada con el proceso de informe financiero de la entidad. Considerar las deficiencias identificadas en los controles de nivel de los estados financieros (B315 Identificación de riesgos a través de los componentes del sistema de control interno de la entidad) y los factores de riesgo (B450 Informe de riesgos, o equivalente).</li>
+                                </ul>
+                                <div class="opciones-respuesta">
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p7" value="completado-sin-excepciones">
+                                        <span class="opcion-texto">Completado sin excepciones</span>
+                                    </label>
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p7" value="completado-con-excepciones">
+                                        <span class="opcion-texto">Completado con excepciones</span>
+                                    </label>
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p7" value="na">
+                                        <span class="opcion-texto">N/A</span>
+                                    </label>
+                                </div>
+                                <textarea class="form-textarea-small" name="b335-p7-nota" placeholder="Agregar nota..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Pregunta 8 -->
+                        <div class="pregunta-block">
+                            <div class="pregunta-header">
+                                <h4>8. Comprender los controles de asientos del diario</h4>
+                            </div>
+                            <div class="pregunta-contenido">
+                                <p>Para cada uno de los tipos principales de asientos del diario identificados en el procedimiento Comprender los asientos del diario, documentar el proceso (incluidos los procesos automatizados en los que los asientos del diario pueden no tener un registro en papel) sobre cómo se inician, autorizan, registran, aprueban e informan los asientos del diario. (B350 Reporte de control, o equivalente)</p>
+                                <div class="opciones-respuesta">
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p8" value="completado-sin-excepciones">
+                                        <span class="opcion-texto">Completado sin excepciones</span>
+                                    </label>
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p8" value="completado-con-excepciones">
+                                        <span class="opcion-texto">Completado con excepciones</span>
+                                    </label>
+                                    <label class="opcion-respuesta">
+                                        <input type="radio" name="b335-p8" value="na">
+                                        <span class="opcion-texto">N/A</span>
+                                    </label>
+                                </div>
+                                <textarea class="form-textarea-small" name="b335-p8-nota" placeholder="Agregar nota..."></textarea>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+
+                        <!-- Nueva Subsección: COMPRENDER LAS COMUNICACIONES DE LA DIRECCIÓN -->
+                        <div class="subsection">
+                            <div class="subsection-header">
+                                <h4>COMPRENDER LAS COMUNICACIONES DE LA DIRECCIÓN</h4>
+                            </div>
+                            <div class="subsection-content">
+
+                        <!-- Pregunta 9 -->
+                        <div class="pregunta-block">
+                            <div class="pregunta-header">
+                                <h4>9. Comunicación de asuntos significativos</h4>
+                            </div>
+                            <div class="pregunta-contenido">
+                                <p>Obtener entendimiento sobre cómo la gerencia comunica cuestiones significativas que dan soporte a la preparación de los estados financieros:</p>
+                                
+                                <!-- Subpregunta 9a -->
+                                <div class="subpregunta-block">
+                                    <h5>a. Entre personas dentro de la entidad.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9a" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9a" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9a" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p9a-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+
+                                <!-- Subpregunta 9b -->
+                                <div class="subpregunta-block">
+                                    <h5>b. Entre la gerencia y los responsables del gobierno de la entidad.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9b" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9b" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9b" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p9b-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+
+                                <!-- Subpregunta 9c -->
+                                <div class="subpregunta-block">
+                                    <h5>c. Con partes externas, tales como bancos y autoridades reguladoras.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9c" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9c" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p9c" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p9c-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pregunta 10 -->
+                        <div class="pregunta-block">
+                            <div class="pregunta-header">
+                                <h4>10. Comunicación de responsabilidades de emisión de informes</h4>
+                            </div>
+                            <div class="pregunta-contenido">
+                                <p>Obtener entendimiento sobre cómo la gerencia comunica responsabilidades de información dentro del sistema de información y el resto de componentes del sistema de control interno:</p>
+                                
+                                <!-- Subpregunta 10a -->
+                                <div class="subpregunta-block">
+                                    <h5>a. Entre personas dentro de la entidad.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10a" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10a" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10a" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p10a-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+
+                                <!-- Subpregunta 10b -->
+                                <div class="subpregunta-block">
+                                    <h5>b. Entre la gerencia y los responsables del gobierno de la entidad.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10b" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10b" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10b" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p10b-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+
+                                <!-- Subpregunta 10c -->
+                                <div class="subpregunta-block">
+                                    <h5>c. Con partes externas, tales como bancos y autoridades reguladoras.</h5>
+                                    <div class="opciones-respuesta">
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10c" value="completado-sin-excepciones">
+                                            <span class="opcion-texto">Completado sin excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10c" value="completado-con-excepciones">
+                                            <span class="opcion-texto">Completado con excepciones</span>
+                                        </label>
+                                        <label class="opcion-respuesta">
+                                            <input type="radio" name="b335-p10c" value="na">
+                                            <span class="opcion-texto">N/A</span>
+                                        </label>
+                                    </div>
+                                    <textarea class="form-textarea-small" name="b335-p10c-nota" placeholder="Agregar nota..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Conclusión -->
+                        <div class="subsection">
+                            <div class="subsection-header">
+                                <h4>Conclusión</h4>
+                            </div>
+                            <div class="subsection-content">
+                                <div class="conclusion-block">
+                                    <div class="conclusion-content">
+                                        <p class="conclusion-text">Se ha obtenido suficiente información para comprender el proceso de información financiera y se han identificado y documentado los posibles orígenes de riesgo en el B450 Informe de riesgos, o equivalente.</p>
+                                        <textarea class="form-textarea-small" name="b335-conclusion-adicional" placeholder="Additional conclusion text"></textarea>
+                                    </div>
+                                    <div class="conclusion-actions">
+                                        <button class="btn-sign-off" onclick="signOffB335()">
+                                            <i class="bi bi-check-circle"></i> Sign Off
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="formulario-acciones">
+                            <button class="btn-guardar" onclick="guardarFormularioB335()">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                            <button class="btn-cancelar" onclick="cerrarFormularioB335()">
+                                <i class="bi bi-x"></i> Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario B335
+        function cerrarFormularioB335() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario B335
+        function guardarFormularioB335() {
+            showNotification('Formulario B335 guardado correctamente', 'success');
+            cerrarFormularioB335();
+        }
+
+        // Función para Sign Off del formulario B335
+        function signOffB335() {
+            // Verificar que todas las preguntas estén respondidas
+            const preguntas = ['b335-p1', 'b335-p2', 'b335-p3', 'b335-p4', 'b335-p5', 'b335-p6', 
+                              'b335-p7', 'b335-p8', 'b335-p9a', 'b335-p9b', 'b335-p9c', 
+                              'b335-p10a', 'b335-p10b', 'b335-p10c'];
+            
+            let todasRespondidas = true;
+            let preguntasPendientes = [];
+            
+            preguntas.forEach(pregunta => {
+                const respuesta = document.querySelector(`input[name="${pregunta}"]:checked`);
+                if (!respuesta) {
+                    todasRespondidas = false;
+                    // Extraer número de pregunta para mostrar
+                    const numPregunta = pregunta.replace('b335-p', '').replace(/[a-c]/, '');
+                    if (!preguntasPendientes.includes(numPregunta)) {
+                        preguntasPendientes.push(numPregunta);
+                    }
+                }
+            });
+            
+            if (!todasRespondidas) {
+                showNotification(`Por favor responda todas las preguntas antes de hacer Sign Off. Preguntas pendientes: ${preguntasPendientes.join(', ')}`, 'warning');
+                return;
+            }
+            
+            // Mostrar confirmación
+            if (confirm('¿Está seguro de hacer Sign Off en este formulario? Esta acción confirmará que todas las preguntas han sido revisadas aprobatoriamente.')) {
+                // Aquí podrías agregar lógica para guardar el estado de Sign Off
+                showNotification('Sign Off realizado exitosamente', 'success');
+                
+                // Deshabilitar todos los campos después del Sign Off
+                document.querySelectorAll('input[type="radio"], textarea').forEach(element => {
+                    element.disabled = true;
+                });
+                
+                // Cambiar estilo del botón Sign Off
+                const btnSignOff = document.querySelector('.btn-sign-off');
+                if (btnSignOff) {
+                    btnSignOff.innerHTML = '<i class="bi bi-check-circle-fill"></i> Signed Off';
+                    btnSignOff.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+                    btnSignOff.disabled = true;
+                }
+            }
         }
     </script>
     <script src="../js/utils.js"></script>
