@@ -171,8 +171,8 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'planificacion-menu')"></i>
                             <div class="plus-dropdown-content" id="planificacion-menu">
                                 <a href="#" onclick="openFolderModal(event, 'planificacion')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#"><i class="bi bi-file-earmark"></i> Papel</a>
-                                <a href="#"><i class="bi bi-file-text"></i> Memorándum</a>
+                                <a href="#" onclick="openDocumentModal(event, 'carta')"><i class="bi bi-file-earmark"></i> Carta</a>
+                                <a href="#" onclick="openMemorandumModal()"><i class="bi bi-file-text"></i> Memorándum</a>
                                 <a href="#"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
                                 <a href="#"><i class="bi bi-graph-up"></i> Análisis</a>
                                 <a href="#"><i class="bi bi-check-square"></i> Lista de verificación</a>
@@ -390,8 +390,8 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'evaluacion-menu')"></i>
                             <div class="plus-dropdown-content" id="evaluacion-menu">
                                 <a href="#" onclick="openFolderModal(event, 'evaluacion')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#"><i class="bi bi-file-earmark"></i> Papel</a>
-                                <a href="#"><i class="bi bi-file-text"></i> Memorándum</a>
+                                <a href="#" onclick="openDocumentModal(event, 'carta')"><i class="bi bi-file-earmark"></i> Carta</a>
+                                <a href="#" onclick="openMemorandumModal()"><i class="bi bi-file-text"></i> Memorándum</a>
                                 <a href="#"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
                                 <a href="#"><i class="bi bi-graph-up"></i> Análisis</a>
                                 <a href="#"><i class="bi bi-check-square"></i> Lista de verificación</a>
@@ -679,8 +679,8 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'respuesta-menu')"></i>
                             <div class="plus-dropdown-content" id="respuesta-menu">
                                 <a href="#" onclick="openFolderModal(event, 'respuesta')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#"><i class="bi bi-file-earmark"></i> Papel</a>
-                                <a href="#"><i class="bi bi-file-text"></i> Memorándum</a>
+                                <a href="#" onclick="openDocumentModal(event, 'carta')"><i class="bi bi-file-earmark"></i> Carta</a>
+                                <a href="#" onclick="openMemorandumModal()"><i class="bi bi-file-text"></i> Memorándum</a>
                                 <a href="#"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
                                 <a href="#"><i class="bi bi-graph-up"></i> Análisis</a>
                                 <a href="#"><i class="bi bi-check-square"></i> Lista de verificación</a>
@@ -781,8 +781,8 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'planes-menu')"></i>
                             <div class="plus-dropdown-content" id="planes-menu">
                                 <a href="#" onclick="openFolderModal(event, 'planes')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#"><i class="bi bi-file-earmark"></i> Papel</a>
-                                <a href="#"><i class="bi bi-file-text"></i> Memorándum</a>
+                                <a href="#" onclick="openDocumentModal(event, 'carta')"><i class="bi bi-file-earmark"></i> Carta</a>
+                                <a href="#" onclick="openMemorandumModal()"><i class="bi bi-file-text"></i> Memorándum</a>
                                 <a href="#"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
                                 <a href="#"><i class="bi bi-graph-up"></i> Análisis</a>
                                 <a href="#"><i class="bi bi-check-square"></i> Lista de verificación</a>
@@ -875,8 +875,8 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'cierre-menu')"></i>
                             <div class="plus-dropdown-content" id="cierre-menu">
                                 <a href="#" onclick="openFolderModal(event, 'cierre')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#"><i class="bi bi-file-earmark"></i> Papel</a>
-                                <a href="#"><i class="bi bi-file-text"></i> Memorándum</a>
+                                <a href="#" onclick="openDocumentModal(event, 'carta')"><i class="bi bi-file-earmark"></i> Carta</a>
+                                <a href="#" onclick="openMemorandumModal()"><i class="bi bi-file-text"></i> Memorándum</a>
                                 <a href="#"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
                                 <a href="#"><i class="bi bi-graph-up"></i> Análisis</a>
                                 <a href="#"><i class="bi bi-check-square"></i> Lista de verificación</a>
@@ -2472,6 +2472,739 @@
                     }, 300);
                 }
             }
+        }
+
+        // Función para abrir el modal de propiedades de documento
+        function openDocumentModal(event, documentType) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Generar un ID único para el documento
+            const documentId = `DOC-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+            
+            // Prellenar campos según el tipo de documento
+            const documentNames = {
+                'carta': 'Carta',
+                'memorandum': 'Memorándum',
+                'hoja_trabajo': 'Hoja de trabajo',
+                'analisis': 'Análisis',
+                'lista_verificacion': 'Lista de verificación',
+                'consulta': 'Consulta',
+                'estados_financieros': 'Estados financieros',
+                'marcador_posicion': 'Marcador de posición',
+                'enlace': 'Enlace',
+                'word': 'Microsoft Word',
+                'excel': 'Microsoft Excel'
+            };
+            
+            document.getElementById('documentId').value = documentId;
+            document.getElementById('documentName').value = documentNames[documentType] || 'Documento';
+            
+            // Mostrar el modal
+            const modal = document.getElementById('documentPropertiesModal');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+            
+            // Configurar eventos
+            setupDocumentModalEvents();
+        }
+
+        // Función para cerrar el modal de propiedades de documento
+        function closeDocumentModal() {
+            const modal = document.getElementById('documentPropertiesModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Función para configurar eventos del modal de documento
+        function setupDocumentModalEvents() {
+            // Toggle del esquema de aprobación
+            const approvalToggle = document.getElementById('approvalSchema');
+            const schemaSection = document.getElementById('schemaSection');
+            
+            approvalToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    schemaSection.style.display = 'block';
+                } else {
+                    schemaSection.style.display = 'none';
+                }
+            });
+            
+            // Guardar documento
+            const saveButton = document.getElementById('saveDocumentBtn');
+            saveButton.onclick = function() {
+                const documentName = document.getElementById('documentName').value.trim();
+                const documentId = document.getElementById('documentId').value;
+                const approvalSchema = document.getElementById('approvalSchema').checked;
+                const selectedSchema = document.querySelector('input[name="schema"]:checked')?.value;
+                
+                if (!documentName) {
+                    showNotification('Por favor, ingrese un nombre para el documento', 'warning');
+                    document.getElementById('documentName').focus();
+                    return;
+                }
+                
+                // Crear el documento
+                createDocumentInSystem({
+                    id: documentId,
+                    name: documentName,
+                    type: 'carta',
+                    approvalSchema: approvalSchema,
+                    schemaType: selectedSchema,
+                    createdAt: new Date().toISOString()
+                });
+                
+                // Agregar la carta a la sección actual
+                addCartaToCurrentSection(documentName, documentId);
+                
+                showNotification(`Documento "${documentName}" creado exitosamente`, 'success');
+                closeDocumentModal();
+                
+                // Abrir nueva área para crear la carta
+                setTimeout(() => {
+                    openCartaWorkspace(documentName, documentId);
+                }, 500);
+            };
+            
+            // Editar visibilidad
+            const visibilityButton = document.querySelector('.document-modal-footer .btn-secondary');
+            visibilityButton.onclick = function() {
+                showNotification('Función de edición de visibilidad en desarrollo', 'info');
+            };
+            
+            // Cerrar modal al hacer clic fuera
+            const modal = document.getElementById('documentPropertiesModal');
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    closeDocumentModal();
+                }
+            };
+        }
+
+        // Función para editar documentos aplicados
+        function editAppliedDocuments(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Cerrar el modal de propiedades de documento
+            closeDocumentModal();
+            
+            // Abrir el modal de configuración del encargo
+            setTimeout(() => {
+                openConfiguracionModal();
+                showNotification('Configuración del encargo abierta', 'success');
+            }, 300);
+        }
+
+        // Función para abrir el modal de roles
+        function openRolesModal(button) {
+            const modal = document.getElementById('rolesModal');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+            
+            // Guardar referencia al botón que lo abrió
+            modal.dataset.currentButton = button.closest('.esquema-item').querySelector('.add-role-btn').outerHTML;
+        }
+
+        // Función para cerrar el modal de roles
+        function closeRolesModal() {
+            const modal = document.getElementById('rolesModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Función para filtrar roles
+        function filterRoles() {
+            const searchInput = event.target;
+            const filter = searchInput.value.toLowerCase();
+            const rolesList = document.querySelector('.roles-list');
+            const labels = rolesList.querySelectorAll('label');
+
+            labels.forEach(label => {
+                const text = label.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    label.style.display = 'flex';
+                } else {
+                    label.style.display = 'none';
+                }
+            });
+        }
+
+        // Función para agregar roles seleccionados
+        function addSelectedRoles() {
+            const modal = document.getElementById('rolesModal');
+            const checkboxes = modal.querySelectorAll('input[type="checkbox"]:checked');
+            const currentEsquemaItem = modal.currentEsquemaItem;
+            
+            if (!currentEsquemaItem) {
+                closeRolesModal();
+                return;
+            }
+            
+            // Encontrar todas las secciones de roles en el esquema actual
+            const roleSections = currentEsquemaItem.querySelectorAll('.role-section');
+            
+            checkboxes.forEach(checkbox => {
+                const roleValue = checkbox.value;
+                
+                // Determinar en qué sección agregar el rol basado en su contenido
+                let targetSection = null;
+                
+                if (roleValue.includes('Preparado')) {
+                    // Buscar la sección PREPARAR
+                    roleSections.forEach(section => {
+                        const h5 = section.querySelector('h5');
+                        if (h5 && h5.textContent.includes('PREPARAR')) {
+                            targetSection = section;
+                        }
+                    });
+                } else if (roleValue.includes('Revisado') || roleValue.includes('Socio')) {
+                    // Buscar la sección REVISAR
+                    roleSections.forEach(section => {
+                        const h5 = section.querySelector('h5');
+                        if (h5 && h5.textContent.includes('REVISAR')) {
+                            targetSection = section;
+                        }
+                    });
+                }
+                
+                if (targetSection) {
+                    // Verificar si el rol ya existe en esta sección
+                    const existingInputs = targetSection.querySelectorAll('input[type="text"]');
+                    const roleExists = Array.from(existingInputs).some(input => input.value === roleValue);
+                    
+                    if (!roleExists) {
+                        // Crear el nuevo rol
+                        const roleInputGroup = document.createElement('div');
+                        roleInputGroup.className = 'role-input-group';
+                        roleInputGroup.innerHTML = `
+                            <input type="text" value="${roleValue}" readonly>
+                            <button class="remove-role-btn" onclick="removeRoleInput(this)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        `;
+                        
+                        // Agregar a la sección correspondiente
+                        targetSection.appendChild(roleInputGroup);
+                        
+                        // Mostrar notificación específica
+                        console.log(`Rol "${roleValue}" agregado a la sección ${targetSection.querySelector('h5').textContent}`);
+                    }
+                }
+            });
+            
+            // Cerrar modal y mostrar notificación
+            closeRolesModal();
+            showNotification('Roles agregados correctamente', 'success');
+        }
+
+        // Modificar los botones + Roles existentes
+        document.addEventListener('DOMContentLoaded', function() {
+            const addRoleButtons = document.querySelectorAll('.add-role-btn');
+            addRoleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const modal = document.getElementById('rolesModal');
+                    modal.currentEsquemaItem = this.closest('.esquema-item');
+                    openRolesModal(this);
+                });
+            });
+        });
+
+        // Función para agregar la carta a la sección actual
+        function addCartaToCurrentSection(documentName, documentId) {
+            // Buscar la sección actual (donde se está creando el documento)
+            const currentSection = document.querySelector('.section.active') || document.querySelector('.section');
+            
+            if (currentSection) {
+                // Buscar el contenedor de documentos en la sección actual
+                const documentsContainer = currentSection.querySelector('.documents-grid') || 
+                                         currentSection.querySelector('.section-content') ||
+                                         currentSection;
+                
+                // Crear el elemento de la carta
+                const cartaElement = document.createElement('div');
+                cartaElement.className = 'document-item carta-item';
+                cartaElement.setAttribute('data-id', documentId);
+                cartaElement.innerHTML = `
+                    <div class="document-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <div class="document-info">
+                        <h4 class="document-title">${documentName}</h4>
+                        <p class="document-type">Carta</p>
+                        <p class="document-date">Creado: ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    <div class="document-actions">
+                        <button class="btn-icon" onclick="openCartaWorkspace('${documentName}', '${documentId}')" title="Abrir carta">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn-icon" onclick="deleteDocument('${documentId}')" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // Agregar la carta al contenedor
+                documentsContainer.appendChild(cartaElement);
+                
+                // Agregar animación de entrada
+                cartaElement.style.opacity = '0';
+                cartaElement.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    cartaElement.style.transition = 'all 0.3s ease';
+                    cartaElement.style.opacity = '1';
+                    cartaElement.style.transform = 'translateY(0)';
+                }, 10);
+                
+                showNotification(`Carta "${documentName}" agregada a la sección actual`, 'success');
+            }
+        }
+
+        // Función para abrir el área de trabajo de la carta
+        function openCartaWorkspace(documentName, documentId) {
+            // Ocultar contenido actual
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                mainContent.style.display = 'none';
+            }
+            
+            // Crear el área de trabajo de la carta
+            const cartaWorkspace = document.createElement('div');
+            cartaWorkspace.className = 'carta-workspace';
+            cartaWorkspace.innerHTML = `
+                <div class="carta-sidebar">
+                    <div class="sidebar-section">
+                        <h4>Plano de docum</h4>
+                    </div>
+                    <div class="sidebar-section">
+                        <div class="areas-header">
+                            <h4 class="areas-title">ÁREAS</h4>
+                            <div class="areas-dropdown">
+                                <button class="areas-plus-btn" onclick="toggleAreasMenu(this)">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <div class="areas-menu">
+                                    <div class="areas-menu-item" onclick="selectAreaOption('Nueva área')">
+                                        <i class="bi bi-file-plus"></i>
+                                        Nueva área
+                                    </div>
+                                    <div class="areas-menu-item" onclick="selectAreaOption('Tabla de contenidos')">
+                                        <i class="bi bi-list-ul"></i>
+                                        Tabla de contenidos
+                                    </div>
+                                    <div class="areas-menu-item" onclick="selectAreaOption('PDF insertado')">
+                                        <i class="bi bi-file-pdf"></i>
+                                        PDF insertado
+                                    </div>
+                                    <div class="areas-menu-item" onclick="selectAreaOption('Memorandum')">
+                                        <i class="bi bi-file-text"></i>
+                                        Memorandum
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carta-main">
+                    <div class="carta-header">
+                        <h2>${documentName}</h2>
+                    </div>
+                    <div class="carta-content">
+                        <div class="content-instruction">
+                            <h3>Agregar contenido usando la siguiente lista desplegable</h3>
+                            <button class="add-content-btn">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                        <div class="content-divider"></div>
+                        <div class="carta-editor" id="cartaEditor">
+                            <!-- Aquí se agregará el contenido de la carta -->
+                        </div>
+                    </div>
+                </div>
+                <div class="carta-actions">
+                    <button class="btn btn-secondary" onclick="closeCartaWorkspace()">
+                        <i class="bi bi-arrow-left"></i>
+                        Volver
+                    </button>
+                    <button class="btn btn-primary" onclick="saveCarta()">
+                        <i class="bi bi-save"></i>
+                        Guardar Carta
+                    </button>
+                </div>
+            `;
+            
+            // Agregar al body
+            document.body.appendChild(cartaWorkspace);
+            
+            // Mostrar con animación
+            setTimeout(() => {
+                cartaWorkspace.classList.add('show');
+            }, 10);
+            
+            showNotification(`Área de trabajo para "${documentName}" abierta`, 'success');
+        }
+
+        // Función para mostrar/ocultar el menú de áreas
+        function toggleAreasMenu(button) {
+            const menu = button.nextElementSibling;
+            const allMenus = document.querySelectorAll('.areas-menu');
+            
+            // Cerrar otros menús abiertos
+            allMenus.forEach(m => {
+                if (m !== menu) {
+                    m.classList.remove('show');
+                }
+            });
+            
+            // Toggle del menú actual
+            menu.classList.toggle('show');
+        }
+
+        // Función para seleccionar una opción del menú de áreas
+        function selectAreaOption(option) {
+            // Cerrar el menú
+            const menu = document.querySelector('.areas-menu.show');
+            if (menu) {
+                menu.classList.remove('show');
+            }
+            
+            // Manejar la opción seleccionada
+            switch(option) {
+                case 'Nueva área':
+                    showNotification('Creando nueva área...', 'info');
+                    // Aquí puedes agregar la lógica para crear una nueva área
+                    break;
+                case 'Tabla de contenidos':
+                    showNotification('Agregando tabla de contenidos...', 'info');
+                    // Aquí puedes agregar la lógica para la tabla de contenidos
+                    break;
+                case 'PDF insertado':
+                    showNotification('Insertando PDF...', 'info');
+                    // Aquí puedes agregar la lógica para insertar PDF
+                    break;
+                case 'Memorandum':
+                    openMemorandumModal();
+                    break;
+            }
+        }
+
+        // Función para abrir el modal de Memorandum
+        function openMemorandumModal() {
+            const modal = document.getElementById('memorandumModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    modal.classList.add('show');
+                }, 10);
+            } else {
+                showNotification('Modal de Memorandum no encontrado', 'error');
+            }
+        }
+
+        // Función para cerrar el modal de Memorandum
+        function closeMemorandumModal() {
+            const modal = document.getElementById('memorandumModal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        // Función para guardar el Memorandum
+        function saveMemorandum() {
+            const memorandumId = document.getElementById('memorandumId').value.trim();
+            const memorandumName = document.getElementById('memorandumName').value;
+            const approvalSchema = document.getElementById('memorandumApproval').checked;
+            const selectedScheme = document.querySelector('input[name="scheme"]:checked')?.value;
+            
+            if (!memorandumId) {
+                showNotification('Por favor, ingrese un identificador para el memorandum', 'warning');
+                document.getElementById('memorandumId').focus();
+                return;
+            }
+            
+            // Crear el documento memorandum
+            createDocumentInSystem({
+                id: memorandumId,
+                name: memorandumName,
+                type: 'memorandum',
+                approvalSchema: approvalSchema,
+                schemaType: selectedScheme,
+                createdAt: new Date().toISOString()
+            });
+            
+            // Agregar el memorandum a la sección actual
+            addMemorandumToCurrentSection(memorandumName, memorandumId);
+            
+            showNotification(`Memorandum "${memorandumName}" creado exitosamente`, 'success');
+            closeMemorandumModal();
+        }
+
+        // Función para agregar el memorandum a la sección actual
+        function addMemorandumToCurrentSection(documentName, documentId) {
+            // Buscar la sección actual (donde se está creando el documento)
+            const currentSection = document.querySelector('.section.active') || document.querySelector('.section');
+            
+            if (currentSection) {
+                // Buscar el contenedor de documentos en la sección actual
+                const documentsContainer = currentSection.querySelector('.documents-grid') || 
+                                         currentSection.querySelector('.section-content') ||
+                                         currentSection;
+                
+                // Crear el elemento del memorandum
+                const memorandumElement = document.createElement('div');
+                memorandumElement.className = 'document-item memorandum-item';
+                memorandumElement.setAttribute('data-id', documentId);
+                memorandumElement.innerHTML = `
+                    <div class="document-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <div class="document-info">
+                        <h4 class="document-title">${documentName}</h4>
+                        <p class="document-type">Memorandum</p>
+                        <p class="document-date">Creado: ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    <div class="document-actions">
+                        <button class="btn-icon" onclick="openMemorandumWorkspace('${documentName}', '${documentId}')" title="Abrir memorandum">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn-icon" onclick="deleteDocument('${documentId}')" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // Agregar el memorandum al contenedor
+                documentsContainer.appendChild(memorandumElement);
+                
+                // Agregar animación de entrada
+                memorandumElement.style.opacity = '0';
+                memorandumElement.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    memorandumElement.style.transition = 'all 0.3s ease';
+                    memorandumElement.style.opacity = '1';
+                    memorandumElement.style.transform = 'translateY(0)';
+                }, 10);
+                
+                showNotification(`Memorandum "${documentName}" agregado a la sección actual`, 'success');
+            }
+        }
+
+        // Función para abrir el área de trabajo del memorandum
+        function openMemorandumWorkspace(documentName, documentId) {
+            showNotification(`Abriendo área de trabajo para "${documentName}"...`, 'info');
+            // Aquí puedes implementar el área de trabajo específica para memorandum
+        }
+
+        // Cerrar menús al hacer clic fuera
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.areas-dropdown')) {
+                const menus = document.querySelectorAll('.areas-menu');
+                menus.forEach(menu => menu.classList.remove('show'));
+            }
+        });
+
+        // Función para cerrar el área de trabajo de la carta
+        function closeCartaWorkspace() {
+            const cartaWorkspace = document.querySelector('.carta-workspace');
+            if (cartaWorkspace) {
+                cartaWorkspace.classList.remove('show');
+                setTimeout(() => {
+                    cartaWorkspace.remove();
+                    // Mostrar contenido principal nuevamente
+                    const mainContent = document.querySelector('.main-content');
+                    if (mainContent) {
+                        mainContent.style.display = 'block';
+                    }
+                }, 300);
+            }
+        }
+
+        // Función para guardar la carta
+        function saveCarta() {
+            showNotification('Carta guardada exitosamente', 'success');
+        }
+
+        // Funciones para el Modal de Configuración del Encargo
+        function openConfiguracionModal() {
+            const modal = document.getElementById('configuracionEncargoModal');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        function closeConfiguracionModal() {
+            const modal = document.getElementById('configuracionEncargoModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        function showConfigSection(section) {
+            // Actualizar sidebar
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${section}"]`).classList.add('active');
+
+            // Mostrar sección correspondiente
+            document.querySelectorAll('.config-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(`${section}-section`).classList.add('active');
+        }
+
+        // Funciones para la sección de Roles
+        function addNewRole() {
+            const tbody = document.getElementById('rolesTableBody');
+            const rowCount = tbody.children.length;
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><i class="bi bi-grip-vertical drag-handle"></i></td>
+                <td><input type="text" value="" class="role-name-input" placeholder="Nuevo rol"></td>
+                <td>
+                    <div class="workflow-options">
+                        <button class="arrow-btn" onclick="moveRoleUp(this)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="workflow${rowCount + 1}" value="preparar" checked>
+                                <span>Preparar</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="workflow${rowCount + 1}" value="revisar">
+                                <span>Revisar</span>
+                            </label>
+                        </div>
+                        <button class="arrow-btn" onclick="moveRoleDown(this)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <label class="checkbox-label">
+                        <input type="checkbox">
+                        <span class="checkmark"></span>
+                    </label>
+                </td>
+                <td>
+                    <button class="delete-btn" onclick="deleteRole(this)">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+            showNotification('Nuevo rol agregado', 'success');
+        }
+
+        function deleteRole(btn) {
+            const row = btn.closest('tr');
+            row.style.animation = 'slideOutLeft 0.3s ease-out';
+            setTimeout(() => {
+                row.remove();
+                showNotification('Rol eliminado', 'success');
+            }, 300);
+        }
+
+        function moveRoleUp(btn) {
+            const row = btn.closest('tr');
+            const prevRow = row.previousElementSibling;
+            if (prevRow) {
+                row.parentNode.insertBefore(row, prevRow);
+            }
+        }
+
+        function moveRoleDown(btn) {
+            const row = btn.closest('tr');
+            const nextRow = row.nextElementSibling;
+            if (nextRow) {
+                row.parentNode.insertBefore(nextRow, row);
+            }
+        }
+
+        // Funciones para la sección de Esquemas
+        function toggleEsquemaDetails(btn) {
+            const details = btn.closest('.esquema-item').querySelector('.esquema-details');
+            const icon = btn.querySelector('i');
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-up');
+            } else {
+                details.style.display = 'none';
+                icon.classList.remove('bi-chevron-up');
+                icon.classList.add('bi-chevron-down');
+            }
+        }
+
+        function addRoleToEsquema(btn) {
+            const roleSection = btn.closest('.role-section');
+            const newRoleInput = document.createElement('div');
+            newRoleInput.className = 'role-input-group';
+            newRoleInput.innerHTML = `
+                <input type="text" value="" placeholder="Nuevo rol">
+                <button class="remove-role-btn" onclick="removeRoleInput(this)">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+            roleSection.insertBefore(newRoleInput, btn);
+            showNotification('Rol agregado al esquema', 'success');
+        }
+
+        function removeRoleInput(btn) {
+            const inputGroup = btn.closest('.role-input-group');
+            inputGroup.style.animation = 'slideOutLeft 0.3s ease-out';
+            setTimeout(() => {
+                inputGroup.remove();
+                showNotification('Rol eliminado del esquema', 'success');
+            }, 300);
+        }
+
+        function copyEsquema(btn) {
+            const esquemaItem = btn.closest('.esquema-item');
+            const esquemaName = esquemaItem.querySelector('h4').textContent;
+            showNotification(`Copiando esquema: ${esquemaName}`, 'info');
+        }
+
+        function deleteEsquema(btn) {
+            const esquemaItem = btn.closest('.esquema-item');
+            const esquemaName = esquemaItem.querySelector('h4').textContent;
+            
+            if (confirm(`¿Está seguro de eliminar el esquema "${esquemaName}"?`)) {
+                esquemaItem.style.animation = 'slideOutLeft 0.3s ease-out';
+                setTimeout(() => {
+                    esquemaItem.remove();
+                    showNotification(`Esquema "${esquemaName}" eliminado`, 'success');
+                }, 300);
+            }
+        }
+
+        function moreEsquemaOptions(btn) {
+            showNotification('Más opciones del esquema', 'info');
+        }
+
+        // Función para crear documento en el sistema
+        function createDocumentInSystem(documentData) {
+            // Aquí iría la lógica para guardar el documento en el sistema
+            console.log('Creando documento:', documentData);
+            
+            // Por ahora, solo mostramos una notificación
+            // En una implementación real, esto se enviaría a una API
         }
 
         // Variable global para almacenar la sección actual
@@ -13221,9 +13954,602 @@
         </div>
     </div>
 
+    <!-- Modal de Configuración del Encargo -->
+    <div id="configuracionEncargoModal" class="modal">
+        <div class="modal-content config-modal">
+            <div class="config-modal-header">
+                <div class="config-modal-title">
+                    <i class="bi bi-chevron-left" onclick="closeConfiguracionModal()"></i>
+                    <h2>Configuración del encargo</h2>
+                </div>
+                <button class="close-btn" onclick="closeConfiguracionModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="config-modal-body">
+                <!-- Panel lateral izquierdo -->
+                <div class="config-sidebar">
+                    <div class="sidebar-section">
+                        <h3>APROBACIONES</h3>
+                        <i class="bi bi-chevron-up"></i>
+                    </div>
+                    <ul class="sidebar-menu">
+                        <li class="sidebar-item active" data-section="roles" onclick="showConfigSection('roles')">
+                            <span>Roles</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </li>
+                        <li class="sidebar-item" data-section="esquemas" onclick="showConfigSection('esquemas')">
+                            <span>Esquemas</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Contenido principal -->
+                <div class="config-main-content">
+                    <!-- Sección de Roles -->
+                    <div id="roles-section" class="config-section active">
+                        <div class="section-header">
+                            <h3>Roles</h3>
+                            <button class="btn-add" onclick="addNewRole()">
+                                <i class="bi bi-plus"></i> Agregar rol
+                            </button>
+                        </div>
+                        <div class="roles-table-container">
+                            <table class="roles-table">
+                                <thead>
+                                    <tr>
+                                        <th width="40"></th>
+                                        <th>Nombre</th>
+                                        <th>Esquema de trabajo</th>
+                                        <th>Múltiples tildados</th>
+                                        <th width="40"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rolesTableBody">
+                                    <tr>
+                                        <td><i class="bi bi-grip-vertical drag-handle"></i></td>
+                                        <td><input type="text" value="Preparado por" class="role-name-input"></td>
+                                        <td>
+                                            <div class="workflow-options">
+                                                <button class="arrow-btn" onclick="moveRoleUp(this)">
+                                                    <i class="bi bi-chevron-left"></i>
+                                                </button>
+                                                <div class="radio-group">
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="workflow1" value="preparar" checked>
+                                                        <span>Preparar</span>
+                                                    </label>
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="workflow1" value="revisar">
+                                                        <span>Revisar</span>
+                                                    </label>
+                                                </div>
+                                                <button class="arrow-btn" onclick="moveRoleDown(this)">
+                                                    <i class="bi bi-chevron-right"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <label class="checkbox-label">
+                                                <input type="checkbox">
+                                                <span class="checkmark"></span>
+                                            </label>
+                                        </td>
+                                        <td>
+                                            <button class="delete-btn" onclick="deleteRole(this)">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-grip-vertical drag-handle"></i></td>
+                                        <td><input type="text" value="Revisado por" class="role-name-input"></td>
+                                        <td>
+                                            <div class="workflow-options">
+                                                <button class="arrow-btn" onclick="moveRoleUp(this)">
+                                                    <i class="bi bi-chevron-left"></i>
+                                                </button>
+                                                <div class="radio-group">
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="workflow2" value="preparar">
+                                                        <span>Preparar</span>
+                                                    </label>
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="workflow2" value="revisar" checked>
+                                                        <span>Revisar</span>
+                                                    </label>
+                                                </div>
+                                                <button class="arrow-btn" onclick="moveRoleDown(this)">
+                                                    <i class="bi bi-chevron-right"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <label class="checkbox-label">
+                                                <input type="checkbox">
+                                                <span class="checkmark"></span>
+                                            </label>
+                                        </td>
+                                        <td>
+                                            <button class="delete-btn" onclick="deleteRole(this)">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sección de Esquemas -->
+                    <div id="esquemas-section" class="config-section">
+                        <div class="section-header">
+                            <h3>Esquemas</h3>
+                        </div>
+                        <div class="esquemas-list">
+                            <div class="esquema-item">
+                                <div class="esquema-header">
+                                    <div class="esquema-info">
+                                        <h4>Roles</h4>
+                                        <span class="esquema-tag">Predeterminado</span>
+                                    </div>
+                                    <button class="expand-btn" onclick="toggleEsquemaDetails(this)">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
+                                <div class="esquema-details" style="display: none;">
+                                    <button class="add-role-btn"><i class="bi bi-plus"></i> Roles</button>
+                                    <div class="role-section">
+                                        <h5>PREPARAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado por" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="role-section">
+                                        <h5>REVISAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado por" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="esquema-item">
+                                <div class="esquema-header">
+                                    <div class="esquema-info">
+                                        <h4>Preliminar/Final</h4>
+                                    </div>
+                                    <div class="esquema-actions">
+                                        <button class="action-btn" onclick="copyEsquema(this)">
+                                            <i class="bi bi-copy"></i> Hacer una copia
+                                        </button>
+                                        <button class="action-btn" onclick="deleteEsquema(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button class="action-btn expand-btn" onclick="toggleEsquemaDetails(this)">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="esquema-details" style="display: none;">
+                                    <button class="add-role-btn"><i class="bi bi-plus"></i> Roles</button>
+                                    <div class="role-section">
+                                        <h5>PREPARAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado - P" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado - F" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="role-section">
+                                        <h5>REVISAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado - Pr" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado - Final" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="esquema-item">
+                                <div class="esquema-header">
+                                    <div class="esquema-info">
+                                        <h4>Preliminar/Final/Socio</h4>
+                                    </div>
+                                    <div class="esquema-actions">
+                                        <button class="action-btn" onclick="copyEsquema(this)">
+                                            <i class="bi bi-copy"></i> Hacer una copia
+                                        </button>
+                                        <button class="action-btn" onclick="deleteEsquema(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button class="action-btn expand-btn" onclick="toggleEsquemaDetails(this)">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="esquema-details" style="display: none;">
+                                    <button class="add-role-btn"><i class="bi bi-plus"></i> Roles</button>
+                                    <div class="role-section">
+                                        <h5>PREPARAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado - P" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado - F" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="role-section">
+                                        <h5>REVISAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado - Pr" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado - Final" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Socio - Prelim." readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Socio - Final" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="esquema-item">
+                                <div class="esquema-header">
+                                    <div class="esquema-info">
+                                        <h4>Revisión Socio</h4>
+                                    </div>
+                                    <div class="esquema-actions">
+                                        <button class="action-btn" onclick="copyEsquema(this)">
+                                            <i class="bi bi-copy"></i> Hacer una copia
+                                        </button>
+                                        <button class="action-btn" onclick="deleteEsquema(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button class="action-btn expand-btn" onclick="toggleEsquemaDetails(this)">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="esquema-details" style="display: none;">
+                                    <button class="add-role-btn"><i class="bi bi-plus"></i> Roles</button>
+                                    <div class="role-section">
+                                        <h5>PREPARAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Preparado por" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="role-section">
+                                        <h5>REVISAR</h5>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Revisado por" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                        <div class="role-input-group">
+                                            <input type="text" value="Socio" readonly>
+                                            <button class="remove-role-btn"><i class="bi bi-x"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Propiedades de Documento -->
+    <div id="documentPropertiesModal" class="modal">
+        <div class="modal-content document-modal">
+            <div class="document-modal-header">
+                <h3><i class="bi bi-file-earmark"></i> Propiedades de documento</h3>
+                <button class="close-btn" onclick="closeDocumentModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="document-modal-body">
+                <div class="form-group">
+                    <label for="documentId">
+                        <i class="bi bi-type"></i>
+                        Identificador
+                    </label>
+                    <input type="text" id="documentId" placeholder="Ej: CARTA-2024-001" pattern="[A-Za-z\-]+" title="Solo letras y guiones permitidos">
+                </div>
+                <div class="form-group">
+                    <label for="documentName">
+                        <i class="bi bi-file-text"></i>
+                        Nombre
+                    </label>
+                    <input type="text" id="documentName" placeholder="Nombre del documento">
+                </div>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <i class="bi bi-shield-check"></i>
+                        Esquema de aprobación
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="approvalSchema" checked>
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+                <div class="form-group" id="schemaSection">
+                    <label>
+                        <i class="bi bi-people"></i>
+                        Seleccionar esquema de aprobación
+                    </label>
+                    <div class="schema-table-container">
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre de esquema</th>
+                                    <th>Roles de preparadores</th>
+                                    <th>Roles de revisores</th>
+                                    <th>Documentos aplicados</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <label class="radio-label">
+                                            <input type="radio" name="schema" value="roles-predeterminado" checked>
+                                            <span>Roles - Predeterminado</span>
+                                        </label>
+                                    </td>
+                                    <td>1</td>
+                                    <td>1</td>
+                                    <td>298 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label class="radio-label">
+                                            <input type="radio" name="schema" value="preliminar-final">
+                                            <span>Preliminar/Final</span>
+                                        </label>
+                                    </td>
+                                    <td>2</td>
+                                    <td>2</td>
+                                    <td>4 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label class="radio-label">
+                                            <input type="radio" name="schema" value="preliminar-final-socio">
+                                            <span>Preliminar/Final/Socio</span>
+                                        </label>
+                                    </td>
+                                    <td>2</td>
+                                    <td>4</td>
+                                    <td>0 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label class="radio-label">
+                                            <input type="radio" name="schema" value="revision-socio">
+                                            <span>Revisión Socio</span>
+                                        </label>
+                                    </td>
+                                    <td>1</td>
+                                    <td>2</td>
+                                    <td>3 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="document-modal-footer">
+                <button class="btn btn-secondary" onclick="editDocumentVisibility()">
+                    <i class="bi bi-eye"></i>
+                    Editar visibilidad
+                </button>
+                <button class="btn btn-cancel" onclick="closeDocumentModal()">
+                    <i class="bi bi-x-circle"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" id="saveDocumentBtn">
+                    <i class="bi bi-check-circle"></i>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/utils.js"></script>
     <script src="../js/api-client.js"></script>
     <script src="../js/auth-guard.js"></script>
-</body>
 
+    <!-- Modal para seleccionar roles -->
+    <div id="rolesModal" class="modal">
+        <div class="modal-content roles-modal-content">
+            <div class="roles-modal-header">
+                <h3>Seleccionar Roles</h3>
+                <span class="close-button" onclick="closeRolesModal()">&times;</span>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="Buscar" onkeyup="filterRoles()">
+            </div>
+            <div class="roles-list">
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Preparado - Prelim." checked>
+                    <span class="checkmark"></span>
+                    Preparado - Prelim.
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Revisado - Prelim." checked>
+                    <span class="checkmark"></span>
+                    Revisado - Prelim.
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Preparado - Final" checked>
+                    <span class="checkmark"></span>
+                    Preparado - Final
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Revisado - Final" checked>
+                    <span class="checkmark"></span>
+                    Revisado - Final
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Socio - Prelim.">
+                    <span class="checkmark"></span>
+                    Socio - Prelim.
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Socio - Final">
+                    <span class="checkmark"></span>
+                    Socio - Final
+                </label>
+                <label class="role-checkbox">
+                    <input type="checkbox" value="Socio">
+                    <span class="checkmark"></span>
+                    Socio
+                </label>
+            </div>
+            <div class="roles-modal-footer">
+                <button class="btn btn-cancel" onclick="closeRolesModal()">
+                    <i class="bi bi-x-circle"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="addSelectedRoles()">
+                    <i class="bi bi-check-circle"></i>
+                    Agregar Roles
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- Modal de Propiedades de Documento - Memorandum -->
+    <div id="memorandumModal" class="modal" style="display: none;">
+        <div class="modal-content memorandum-modal-content">
+            <div class="modal-header memorandum-modal-header">
+                <h2>Propiedades de documento</h2>
+                <span class="close-button" onclick="closeMemorandumModal()">&times;</span>
+            </div>
+            <div class="modal-body memorandum-modal-body">
+                <div class="form-group">
+                    <label for="memorandumId">
+                        <i class="bi bi-hash"></i>
+                        Identificador
+                    </label>
+                    <input type="text" id="memorandumId" placeholder="Identificador" value="">
+                </div>
+                
+                <div class="form-group">
+                    <label for="memorandumName">
+                        <i class="bi bi-file-text"></i>
+                        Nombre
+                    </label>
+                    <input type="text" id="memorandumName" value="Memorandum" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <i class="bi bi-check-circle"></i>
+                        Esquema de aprobación
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="memorandumApproval">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <i class="bi bi-table"></i>
+                        Esquemas disponibles
+                    </label>
+                    <div class="schemes-table-container">
+                        <table class="schemes-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre de esquema</th>
+                                    <th>Roles de prepar...</th>
+                                    <th>Roles de revisores</th>
+                                    <th>Documentos aplic...</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <input type="radio" name="scheme" value="default" checked>
+                                        <label>Roles - Predeterminado</label>
+                                    </td>
+                                    <td>1</td>
+                                    <td>1</td>
+                                    <td>298</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="radio" name="scheme" value="preliminary">
+                                        <label>Preliminar/Final</label>
+                                    </td>
+                                    <td>2</td>
+                                    <td>2</td>
+                                    <td>4</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="radio" name="scheme" value="preliminary_partner">
+                                        <label>Preliminar/Final/Socio</label>
+                                    </td>
+                                    <td>2</td>
+                                    <td>4</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <input type="radio" name="scheme" value="partner_review">
+                                        <label>Revisión Socio</label>
+                                    </td>
+                                    <td>1</td>
+                                    <td>2</td>
+                                    <td>3</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn btn-secondary visibility-btn">
+                        <i class="bi bi-eye"></i>
+                        Editar visibilidad
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer memorandum-modal-footer">
+                <button class="btn btn-cancel" onclick="closeMemorandumModal()">
+                    <i class="bi bi-x-circle"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="saveMemorandum()">
+                    <i class="bi bi-save"></i>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
 </html>
