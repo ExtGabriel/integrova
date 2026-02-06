@@ -511,6 +511,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Si existe protectPage (Supabase Auth Guard), evitamos el flujo legacy de sesión
+            // porque puede provocar redirecciones ("rebote") mientras Supabase termina de inicializar.
+            if (typeof window.protectPage === 'function') {
+                return;
+            }
+
             // Chequeo de sesión con expiración
             const userData = getCurrentSession();
             if (!userData) {
@@ -519,7 +525,14 @@
             }
 
             // Restringir acceso: solo administradores, programadores, socios y usuarios pueden ver logs
-            if (userData.role !== 'administrador' && userData.role !== 'programador' && userData.role !== 'socio' && userData.role !== 'usuario') {
+            if (
+                userData.role !== 'administrador' &&
+                userData.role !== 'programador' &&
+                userData.role !== 'socio' &&
+                userData.role !== 'usuario' &&
+                userData.role !== 'admin' &&
+                userData.role !== 'user'
+            ) {
                 alert('Acceso denegado. Solo administradores, programadores, socios y usuarios pueden ver los registros.');
                 window.location.href = 'dashboard.html';
                 return;

@@ -2185,6 +2185,51 @@
                         </div>
                     </div>
 
+                    <!-- Sección: Integridad del libro mayor -->
+                    <div id="ledgerIntegritySection" class="data-section" style="display: none;">
+                        <h2>Integridad del libro mayor</h2>
+
+                        <div class="card" style="padding: 16px; margin-bottom: 16px;">
+                            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                                <div style="min-width: 220px;">
+                                    <div style="font-size: 0.85rem; color: #6c757d;">Total Debe</div>
+                                    <div id="ledgerTotalDebe" style="font-size: 1.25rem; font-weight: 600;">-</div>
+                                </div>
+                                <div style="min-width: 220px;">
+                                    <div style="font-size: 0.85rem; color: #6c757d;">Total Haber</div>
+                                    <div id="ledgerTotalHaber" style="font-size: 1.25rem; font-weight: 600;">-</div>
+                                </div>
+                                <div style="min-width: 220px;">
+                                    <div style="font-size: 0.85rem; color: #6c757d;">Diferencia (Debe - Haber)</div>
+                                    <div id="ledgerTotalDiff" style="font-size: 1.25rem; font-weight: 700;">-</div>
+                                </div>
+                            </div>
+                            <div id="ledgerIntegrityMeta" style="margin-top: 8px; font-size: 0.85rem; color: #6c757d;"></div>
+                        </div>
+
+                        <div class="card" style="padding: 16px;">
+                            <h3 style="margin-top: 0;">Diferencias por cuenta</h3>
+                            <div style="overflow: auto;">
+                                <table class="table" style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e9ecef;">Código</th>
+                                            <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e9ecef;">Cuenta</th>
+                                            <th style="text-align:right; padding: 8px; border-bottom: 1px solid #e9ecef;">Debe</th>
+                                            <th style="text-align:right; padding: 8px; border-bottom: 1px solid #e9ecef;">Haber</th>
+                                            <th style="text-align:right; padding: 8px; border-bottom: 1px solid #e9ecef;">Diferencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ledgerDiffTableBody">
+                                        <tr>
+                                            <td colspan="5" style="padding: 12px; color: #6c757d;">Cargando...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Main Content -->
                     <div class="data-main-content" id="dataMainContent">
                         <h2>Añadir datos</h2>
@@ -2203,10 +2248,10 @@
                                 <h4>Archivos seleccionados:</h4>
                                 <div id="fileItems"></div>
                                 <div class="file-actions">
-                                    <button class="btn btn-primary" onclick="uploadFiles()">
-                                        <i class="bi bi-upload"></i>
-                                        Subir archivos
-                                    </button>
+                                     <button class="btn btn-primary" onclick="uploadFiles(event)">
+                                         <i class="bi bi-upload"></i>
+                                         Subir archivos
+                                     </button>
                                     <button class="btn btn-secondary" onclick="clearFiles()">
                                         <i class="bi bi-trash"></i>
                                         Limpiar selección
@@ -2290,6 +2335,145 @@
             } else {
                 toggleBtn.className = 'bi bi-moon';
                 localStorage.setItem('theme', 'light');
+            }
+        }
+
+        function formatNumber(n) {
+            if (n == null || !Number.isFinite(n)) return '0.00';
+            return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function extractLedgerTotalsAndDiffs(sheet) {
+            const headers = Array.isArray(sheet?.headers) ? sheet.headers : [];
+            const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
+            if (!headers.length || !rows.length) {
+                return { totalDebe: 0, totalHaber: 0, totalDiff: 0, diffs: [] };
+            }
+
+            const headerMap = headers.map(normalizeHeader);
+            const idxCuentaNombreLibro = headerMap.findIndex(h => ['cuenta', 'account', 'nombre cuenta', 'cuenta nombre'].includes(h));
+            const idxCodigoLibro = headerMap.findIndex(h => ['código de debe', 'codigo de debe', 'código', 'codigo', 'cod', 'cuenta código', 'cuenta codigo'].includes(h));
+            const idxDebe = headerMap.findIndex(h => ['debe', 'debit'].includes(h));
+            const idxHaber = headerMap.findIndex(h => ['haber', 'credit'].includes(h));
+
+            function toNumber(v) {
+                if (v == null || v === '') return 0;
+                if (typeof v === 'number') return v;
+                const s = String(v).replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+                const num = Number(s);
+                return Number.isFinite(num) ? num : 0;
+            }
+
+            let totalDebe = 0;
+            let totalHaber = 0;
+            const map = new Map();
+
+            rows.forEach((r) => {
+                const row = Array.isArray(r) ? r : [];
+                const debe = idxDebe >= 0 ? toNumber(row[idxDebe]) : 0;
+                const haber = idxHaber >= 0 ? toNumber(row[idxHaber]) : 0;
+                totalDebe += debe;
+                totalHaber += haber;
+
+                const codeRaw = idxCodigoLibro >= 0 ? row[idxCodigoLibro] : null;
+                const nameRaw = idxCuentaNombreLibro >= 0 ? row[idxCuentaNombreLibro] : null;
+                const code = (codeRaw == null ? '' : String(codeRaw)).trim();
+                const name = (nameRaw == null ? '' : String(nameRaw)).trim();
+                const key = `${code}||${name}`;
+                const prev = map.get(key) || { code, name, debe: 0, haber: 0, diff: 0 };
+                prev.debe += debe;
+                prev.haber += haber;
+                prev.diff += (debe - haber);
+                map.set(key, prev);
+            });
+
+            const diffs = Array.from(map.values())
+                .filter(x => (x.code || x.name))
+                .sort((a, b) => String(a.code || a.name).localeCompare(String(b.code || b.name)));
+
+            return { totalDebe, totalHaber, totalDiff: totalDebe - totalHaber, diffs };
+        }
+
+        function renderLedgerIntegrity(result, meta) {
+            const elDebe = document.getElementById('ledgerTotalDebe');
+            const elHaber = document.getElementById('ledgerTotalHaber');
+            const elDiff = document.getElementById('ledgerTotalDiff');
+            const elMeta = document.getElementById('ledgerIntegrityMeta');
+            const tbody = document.getElementById('ledgerDiffTableBody');
+
+            if (elDebe) elDebe.textContent = formatNumber(result.totalDebe);
+            if (elHaber) elHaber.textContent = formatNumber(result.totalHaber);
+            if (elDiff) {
+                elDiff.textContent = formatNumber(result.totalDiff);
+                elDiff.style.color = Math.abs(result.totalDiff) < 0.00001 ? '#198754' : '#dc3545';
+            }
+            if (elMeta) elMeta.textContent = meta || '';
+
+            if (!tbody) return;
+
+            if (!result.diffs.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="padding: 12px; color: #6c757d;">No se encontraron movimientos en el Excel.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = result.diffs
+                .slice(0, 500)
+                .map((d) => {
+                    const diffColor = Math.abs(d.diff) < 0.00001 ? '#198754' : '#dc3545';
+                    return `
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #f1f3f5;">${d.code || ''}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #f1f3f5;">${d.name || ''}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatNumber(d.debe)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatNumber(d.haber)}</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #f1f3f5; text-align:right; color: ${diffColor}; font-weight: 600;">${formatNumber(d.diff)}</td>
+                        </tr>
+                    `;
+                })
+                .join('');
+        }
+
+        async function loadLedgerIntegrityFromLatestExcel() {
+            try {
+                const tbody = document.getElementById('ledgerDiffTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="padding: 12px; color: #6c757d;">Cargando...</td>
+                        </tr>
+                    `;
+                }
+
+                const resp = await fetch('/api/excel/latest');
+                const contentType = resp.headers.get('content-type') || '';
+                const payload = contentType.includes('application/json')
+                    ? await resp.json().catch(() => null)
+                    : null;
+                const rawText = payload ? null : await resp.text().catch(() => null);
+
+                if (!resp.ok || !payload || payload.success === false) {
+                    const msg = payload?.error || rawText || `No se pudo cargar Excel (HTTP ${resp.status})`;
+                    throw new Error(msg);
+                }
+
+                const sheetsData = payload?.data?.sheets_data;
+                const picked = pickFirstSheet(sheetsData);
+                if (!picked) {
+                    renderLedgerIntegrity({ totalDebe: 0, totalHaber: 0, totalDiff: 0, diffs: [] }, '');
+                    return;
+                }
+
+                const result = extractLedgerTotalsAndDiffs(picked.sheet);
+                const meta = `Archivo: ${payload?.data?.filename || ''} | Estado: ${payload?.data?.status || ''}`;
+                renderLedgerIntegrity(result, meta);
+            } catch (err) {
+                console.error('Error cargando integridad del libro mayor:', err);
+                renderLedgerIntegrity({ totalDebe: 0, totalHaber: 0, totalDiff: 0, diffs: [] }, '');
+                alert(err?.message || 'Error cargando integridad del libro mayor');
             }
         }
 
@@ -8387,19 +8571,184 @@
         function selectDataSection(sectionName) {
             // Ocultar todas las secciones
             const asignarCuentasSection = document.getElementById('asignarCuentasSection');
+            const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
             const dataMainContent = document.getElementById('dataMainContent');
             
             asignarCuentasSection.style.display = 'none';
+            ledgerIntegritySection.style.display = 'none';
             dataMainContent.style.display = 'none';
             
             // Mostrar la sección correspondiente
             switch(sectionName) {
                 case 'asignar-cuentas':
                     asignarCuentasSection.style.display = 'block';
+                    loadUnassignedAccountsFromLatestExcel();
+                    break;
+                case 'integridad-libro':
+                    ledgerIntegritySection.style.display = 'block';
+                    loadLedgerIntegrityFromLatestExcel();
                     break;
                 default:
                     dataMainContent.style.display = 'block';
                     break;
+            }
+        }
+
+        function normalizeHeader(h) {
+            return String(h || '').trim().toLowerCase();
+        }
+
+        function pickFirstSheet(sheetsData) {
+            if (!sheetsData || typeof sheetsData !== 'object') return null;
+            const names = Object.keys(sheetsData);
+            if (!names.length) return null;
+            return { name: names[0], sheet: sheetsData[names[0]] };
+        }
+
+        function extractAccountsFromSheet(sheet) {
+            const headers = Array.isArray(sheet?.headers) ? sheet.headers : [];
+            const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
+            if (!headers.length || !rows.length) return [];
+
+            const headerMap = headers.map(normalizeHeader);
+
+            // Caso 1: Excel tipo catálogo/balanza (cuenta + nombre + saldo)
+            const idxCuenta = headerMap.findIndex(h => ['cuenta', 'codigo', 'código', 'cod', 'account', 'no. cuenta', 'número de cuenta'].includes(h));
+            const idxNombre = headerMap.findIndex(h => ['nombre', 'descripcion', 'descripción', 'concepto', 'detalle', 'account name'].includes(h));
+            const idxSaldo = headerMap.findIndex(h => ['saldo', 'monto', 'importe', 'balance', 'valor', 'total'].includes(h));
+
+            // Caso 2: Excel tipo libro diario (Cuenta + Código + Debe/Haber)
+            const idxCuentaNombreLibro = headerMap.findIndex(h => ['cuenta', 'account', 'nombre cuenta', 'cuenta nombre'].includes(h));
+            const idxCodigoLibro = headerMap.findIndex(h => ['código de debe', 'codigo de debe', 'código', 'codigo', 'cod', 'cuenta código', 'cuenta codigo'].includes(h));
+            const idxDebe = headerMap.findIndex(h => ['debe', 'debit'].includes(h));
+            const idxHaber = headerMap.findIndex(h => ['haber', 'credit'].includes(h));
+
+            const isLibroDiario = (idxDebe >= 0 || idxHaber >= 0) && (idxCuentaNombreLibro >= 0 || idxCodigoLibro >= 0);
+
+            function toNumber(v) {
+                if (v == null || v === '') return 0;
+                if (typeof v === 'number') return v;
+                const s = String(v).replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+                const n = Number(s);
+                return Number.isFinite(n) ? n : 0;
+            }
+
+            if (isLibroDiario) {
+                const map = new Map();
+                rows.forEach((r) => {
+                    const row = Array.isArray(r) ? r : [];
+                    const codeRaw = idxCodigoLibro >= 0 ? row[idxCodigoLibro] : null;
+                    const nameRaw = idxCuentaNombreLibro >= 0 ? row[idxCuentaNombreLibro] : null;
+                    const debe = idxDebe >= 0 ? toNumber(row[idxDebe]) : 0;
+                    const haber = idxHaber >= 0 ? toNumber(row[idxHaber]) : 0;
+
+                    const codeStr = (codeRaw == null ? '' : String(codeRaw)).trim();
+                    const nameStr = (nameRaw == null ? '' : String(nameRaw)).trim();
+
+                    if (!codeStr && !nameStr) return;
+
+                    const key = `${codeStr}||${nameStr}`;
+                    const prev = map.get(key) || { code: codeStr, name: nameStr, value: 0 };
+                    prev.value += (debe - haber);
+                    map.set(key, prev);
+                });
+
+                return Array.from(map.values())
+                    .filter(a => (a.code || a.name))
+                    .sort((a, b) => String(a.code || a.name).localeCompare(String(b.code || b.name)));
+            }
+
+            // Fallback: tratar como catálogo/balanza
+            const accounts = [];
+            rows.forEach((r) => {
+                const row = Array.isArray(r) ? r : [];
+                const code = idxCuenta >= 0 ? row[idxCuenta] : null;
+                const name = idxNombre >= 0 ? row[idxNombre] : null;
+                const value = idxSaldo >= 0 ? row[idxSaldo] : null;
+
+                if (code == null && name == null) return;
+
+                const codeStr = (code == null ? '' : String(code)).trim();
+                const nameStr = (name == null ? '' : String(name)).trim();
+                if (!codeStr && !nameStr) return;
+
+                accounts.push({ code: codeStr, name: nameStr, value });
+            });
+
+            return accounts;
+        }
+
+        function renderUnassignedAccounts(accounts) {
+            const container = document.querySelector('.unassigned-accounts-list');
+            const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+            if (!container) return;
+
+            const count = Array.isArray(accounts) ? accounts.length : 0;
+            if (countEl) countEl.textContent = `(${count} restantes)`;
+
+            if (!count) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-archive"></i>
+                        <p>No se encontraron cuentas</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const itemsHtml = accounts
+                .slice(0, 500)
+                .map((a) => {
+                    const displayName = `${a.code ? a.code + ' ' : ''}${a.name || ''}`.trim();
+                    return `
+                        <div class="account-item" style="justify-content: space-between;">
+                            <span class="account-name">${displayName || '(sin nombre)'}</span>
+                            <span class="account-value">${a.value == null ? '' : a.value}</span>
+                        </div>
+                    `;
+                })
+                .join('');
+
+            container.innerHTML = itemsHtml;
+        }
+
+        async function loadUnassignedAccountsFromLatestExcel() {
+            try {
+                const container = document.querySelector('.unassigned-accounts-list');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-hourglass-split"></i>
+                            <p>Cargando cuentas desde Excel...</p>
+                        </div>
+                    `;
+                }
+
+                const resp = await fetch('/api/excel/latest');
+                const contentType = resp.headers.get('content-type') || '';
+                const payload = contentType.includes('application/json')
+                    ? await resp.json().catch(() => null)
+                    : null;
+                const rawText = payload ? null : await resp.text().catch(() => null);
+
+                if (!resp.ok || !payload || payload.success === false) {
+                    const msg = payload?.error || rawText || `No se pudo cargar Excel (HTTP ${resp.status})`;
+                    throw new Error(msg);
+                }
+
+                const sheetsData = payload?.data?.sheets_data;
+                const picked = pickFirstSheet(sheetsData);
+                if (!picked) {
+                    renderUnassignedAccounts([]);
+                    return;
+                }
+
+                const accounts = extractAccountsFromSheet(picked.sheet);
+                renderUnassignedAccounts(accounts);
+            } catch (err) {
+                console.error('Error cargando cuentas desde Excel:', err);
+                renderUnassignedAccounts([]);
+                alert(err?.message || 'Error cargando cuentas desde Excel');
             }
         }
         
@@ -8521,7 +8870,7 @@
                             selectDataSection('asignar-cuentas');
                             break;
                         case 2: // Integridad del libro mayor
-                            selectDataSection('default');
+                            selectDataSection('integridad-libro');
                             break;
                         case 3: // Cuentas
                             selectDataSection('default');
@@ -8681,26 +9030,55 @@
             document.getElementById('fileInput').value = '';
         }
         
-        function uploadFiles() {
+        async function uploadFiles(evt) {
             if (selectedFiles.length === 0) {
                 alert('Por favor selecciona al menos un archivo para subir.');
                 return;
             }
-            
-            // Aquí iría la lógica para subir los archivos al servidor
-            console.log('Subiendo archivos:', selectedFiles);
-            
-            // Simulación de subida
-            const uploadBtn = event.target;
-            uploadBtn.disabled = true;
-            uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Subiendo...';
-            
-            setTimeout(() => {
-                alert(`Se han subido ${selectedFiles.length} archivos exitosamente.`);
+
+            const uploadBtn = evt?.target;
+            if (uploadBtn) {
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Subiendo...';
+            }
+
+            try {
+                const formData = new FormData();
+                selectedFiles.forEach((file) => formData.append('files', file));
+
+                const response = await fetch('/api/excel/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok || !payload || payload.success === false) {
+                    const msg = payload?.error || `Error subiendo archivos (HTTP ${response.status})`;
+                    throw new Error(msg);
+                }
+
+                const results = payload.results || [];
+                const okCount = results.filter(r => r && r.success).length;
+                const fail = results.filter(r => r && !r.success);
+
+                if (fail.length) {
+                    const details = fail.map(f => `${f.filename}: ${f.error || 'Error'}`).join('\n');
+                    alert(`Subidos: ${okCount}/${results.length}\n\nFallos:\n${details}`);
+                } else {
+                    alert(`Se han subido ${okCount} archivo(s) exitosamente y se guardaron en la tabla "excel".`);
+                }
+
                 clearFiles();
-                uploadBtn.disabled = false;
-                uploadBtn.innerHTML = '<i class="bi bi-upload"></i> Subir archivos';
-            }, 2000);
+            } catch (err) {
+                console.error('Error subiendo archivos:', err);
+                alert(err?.message || 'Error subiendo archivos');
+            } finally {
+                if (uploadBtn) {
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '<i class="bi bi-upload"></i> Subir archivos';
+                }
+            }
         }
 
         // Función para abrir formularios específicos
