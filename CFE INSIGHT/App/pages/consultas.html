@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultas - CFE INSIGHT</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/formularios.css">
+    
+    <style>
+        .consultas-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .consultas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0 calc(-50vw + 50%) 40px calc(-50vw + 50%);
+            padding: 50px 80px;
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .consultas-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
+            pointer-events: none;
+        }
+        
+        .consultas-header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .consultas-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: -0.5px;
+        }
+        
+        .consultas-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            margin: 8px 0 0 0;
+            font-weight: 400;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .nueva-consulta-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: #2E7D32;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .nueva-consulta-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            background: white;
+        }
+        
+        .nueva-consulta-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .consultas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+        
+        .consulta-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            min-height: 180px;
+        }
+        
+        .consulta-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: #4CAF50;
+        }
+        
+        .consulta-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .consulta-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+            font-size: 1.3rem;
+        }
+        
+        .consulta-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        
+        .consulta-code {
+            color: #666;
+            font-size: 0.9rem;
+            margin: 5px 0 0 0;
+        }
+        
+        .consulta-description {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .consulta-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .consulta-type {
+            background: #f8f9fa;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .consulta-date {
+            color: #999;
+            font-size: 0.8rem;
+        }
+        
+        .modal-nueva-consulta {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: #2E7D32;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            background: white;
+        }
+        
+        .back-btn:active {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="consultas-container">
+        <div class="consultas-header">
+            <div class="consultas-header-content">
+                <h1 class="consultas-title">Consultas</h1>
+                <p class="consultas-subtitle">Gestiona tus consultas y temas de auditoría</p>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button class="back-btn" onclick="window.close()">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </button>
+                <button class="nueva-consulta-btn" onclick="openNuevaConsultaModal()">
+                    <i class="bi bi-plus-circle"></i> Nueva Consulta
+                </button>
+            </div>
+        </div>
+        
+        <div class="consultas-grid">
+            <!-- Propiedad, planta y equipo -->
+            <div class="consulta-card" onclick="openConsultaForm('1.101QT', 'Propiedad, planta y equipo', 'propiedad-planta-equipo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Propiedad, planta y equipo</h3>
+                        <p class="consulta-code">1.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de conciliación del balance de comprobación para costo y depreciación acumulada de propiedad, planta y equipo, incluyendo saldos, adiciones, retiros y cálculos de depreciación.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Fijos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Intangibles y fondo de comercio -->
+            <div class="consulta-card" onclick="openConsultaForm('10.101QT', 'Intangibles y fondo de comercio', 'intangibles-fondo-comercio')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Intangibles y fondo de comercio</h3>
+                        <p class="consulta-code">10.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de conciliación del balance de comprobación para intangibles y fondo de comercio, incluyendo documentación de expertos designados y declaraciones de independencia.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Intangibles</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Inventarios -->
+            <div class="consulta-card" onclick="openConsultaForm('110.101QT', 'Inventarios', 'inventarios')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Inventarios</h3>
+                        <p class="consulta-code">110.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de cuentas de inventario que concilien con el balance de comprobación, documentación de conteo físico, detalles de inventario en consignación y movimientos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Corrientes</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Inversiones -->
+            <div class="consulta-card" onclick="openConsultaForm('120.101QT', 'Inversiones', 'inversiones')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Inversiones</h3>
+                        <p class="consulta-code">120.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de inversiones que concilien con el balance de comprobación, estados de cuenta de corretaje, valor de mercado y detalles de garantías.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Inversiones</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Cuentas por cobrar -->
+            <div class="consulta-card" onclick="openConsultaForm('130.101QT', 'Cuentas por cobrar, comerciales y otras', 'cuentas-por-cobrar')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Cuentas por cobrar, comerciales y otras</h3>
+                        <p class="consulta-code">130.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de cuentas por cobrar que concilien con el balance de comprobación, antigüedad de saldos, recibos de efectivo y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Corrientes</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Pagos anticipados -->
+            <div class="consulta-card" onclick="openConsultaForm('135.101QT', 'Pagos anticipados', 'pagos-anticipados')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Pagos anticipados</h3>
+                        <p class="consulta-code">135.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de pólizas de seguro, cobertura, otros pagos anticipados y documentación de expertos relacionados con esta área.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Corrientes</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Efectivo y equivalentes -->
+            <div class="consulta-card" onclick="openConsultaForm('140.101QT', 'Efectivo y equivalentes de efectivo', 'efectivo-equivalentes')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-cash"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Efectivo y equivalentes de efectivo</h3>
+                        <p class="consulta-code">140.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de cuentas bancarias, conciliaciones bancarias, convenios y restricciones sobre el uso del efectivo.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos Corrientes</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Ingresos -->
+            <div class="consulta-card" onclick="openConsultaForm('1500.101QT', 'Ingresos', 'ingresos')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Ingresos</h3>
+                        <p class="consulta-code">1500.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de ingresos por fecha, cliente, línea de producto, ubicación geográfica, devoluciones y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Cuentas de Resultados</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Costo de ventas -->
+            <div class="consulta-card" onclick="openConsultaForm('1600.101QT', 'Costo de ventas', 'costo-ventas')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-cart"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Costo de ventas</h3>
+                        <p class="consulta-code">1600.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de costo de ventas por proveedor, productos, servicios descontinuados y documentación de expertos y nómina.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Cuentas de Resultados</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Nómina y otros gastos -->
+            <div class="consulta-card" onclick="openConsultaForm('1600.105QT', 'Nómina y otros gastos', 'nomina-otros-gastos')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Nómina y otros gastos</h3>
+                        <p class="consulta-code">1600.105QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de gastos de nómina por persona, asientos de nómina, informes regulatorios, planes de bonos y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Cuentas de Resultados</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Otros ingresos -->
+            <div class="consulta-card" onclick="openConsultaForm('1700.101QT', 'Otros ingresos', 'otros-ingresos')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-plus-circle"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Otros ingresos</h3>
+                        <p class="consulta-code">1700.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de otros ingresos por fecha, cliente, línea de producto, ubicación geográfica, presupuestos y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Cuentas de Resultados</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Otros gastos -->
+            <div class="consulta-card" onclick="openConsultaForm('1800.101QT', 'Otros gastos', 'otros-gastos')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Otros gastos</h3>
+                        <p class="consulta-code">1800.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de otros gastos por fecha, proveedor, descripción, productos/servicios y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Cuentas de Resultados</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Inversiones a largo plazo -->
+            <div class="consulta-card" onclick="openConsultaForm('20.101QT', 'Inversiones a largo plazo', 'inversiones-largo-plazo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Inversiones a largo plazo</h3>
+                        <p class="consulta-code">20.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de inversiones a largo plazo, estados financieros de subsidiarias, conciliaciones de participación y detalles de garantías.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Inversiones</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Capital (Corporativo) -->
+            <div class="consulta-card" onclick="openConsultaForm('200.101QT', 'Capital (Corporativo)', 'capital-corporativo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-bank"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Capital (Corporativo)</h3>
+                        <p class="consulta-code">200.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de patrimonio, transacciones de capital, dividendos, opciones de acciones, garantías y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Patrimonio</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Deuda a largo plazo -->
+            <div class="consulta-card" onclick="openConsultaForm('300.101QT', 'Deuda a largo plazo', 'deuda-largo-plazo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Deuda a largo plazo</h3>
+                        <p class="consulta-code">300.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de deuda a largo plazo con saldos, prestamistas, vencimientos, tasas, garantías y contratos de préstamo.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Impuestos sobre la renta -->
+            <div class="consulta-card" onclick="openConsultaForm('325.101QT', 'Impuestos sobre la renta', 'impuestos-renta')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-calculator"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Impuestos sobre la renta</h3>
+                        <p class="consulta-code">325.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cálculos de impuestos diferidos, documentación de respaldo y documentación de expertos en esta área.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Préstamos y anticipos por pagar -->
+            <div class="consulta-card" onclick="openConsultaForm('330.101QT', 'Préstamos y anticipos por pagar', 'prestamos-anticipos-pagar')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Préstamos y anticipos por pagar</h3>
+                        <p class="consulta-code">330.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de préstamos y anticipos por pagar con saldos, prestamistas, vencimientos, tasas, garantías y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Subsidios del gobierno -->
+            <div class="consulta-card" onclick="openConsultaForm('335.101QT', 'Subsidios del gobierno', 'subsidios-gobierno')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Subsidios del gobierno</h3>
+                        <p class="consulta-code">335.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar acuerdos de subvención del gobierno, condiciones de interés, correspondencia sobre reembolsos y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Arrendamientos para arrendatarios -->
+            <div class="consulta-card" onclick="openConsultaForm('340.101QT', 'Arrendamientos para arrendatarios', 'arrendamientos-arrendatarios')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-house"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Arrendamientos para arrendatarios</h3>
+                        <p class="consulta-code">340.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar contratos de arrendamiento válidos, listados de contratos del período y ejercicio anterior, y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Préstamos y anticipos por cobrar -->
+            <div class="consulta-card" onclick="openConsultaForm('35.101QT', 'Préstamos y anticipos por cobrar', 'prestamos-anticipos-cobrar')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Préstamos y anticipos por cobrar</h3>
+                        <p class="consulta-code">35.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de préstamos y anticipos por cobrar, detalles de vencimiento, tasas, garantías y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Activos agrícolas -->
+            <div class="consulta-card" onclick="openConsultaForm('40.101QT', 'Activos agrícolas', 'activos-agricolas')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-tree"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Activos agrícolas</h3>
+                        <p class="consulta-code">40.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de activos biológicos, depreciación acumulada, adiciones, retiros y detalles de compras individuales.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Activos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Propiedad para inversión -->
+            <div class="consulta-card" onclick="openConsultaForm('5.101QT', 'Propiedad para inversión', 'propiedad-inversion')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-house-gear"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Propiedad para inversión</h3>
+                        <p class="consulta-code">5.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de inversión, conciliaciones, obligaciones de retiro, gravámenes y restricciones sobre la propiedad.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Inversiones</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Documentos por pagar y deuda bancaria -->
+            <div class="consulta-card" onclick="openConsultaForm('400.101QT', 'Documentos por pagar y deuda bancaria', 'documentos-pagar-deuda-bancaria')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Documentos por pagar y deuda bancaria</h3>
+                        <p class="consulta-code">400.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de documentos por pagar, deudas bancarias, prestamistas, vencimientos, garantías y documentación de expertos.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Cuentas por pagar y pasivos devengados -->
+            <div class="consulta-card" onclick="openConsultaForm('425.101QT', 'Cuentas por pagar y pasivos devengados', 'cuentas-pagar-pasivos-devengados')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Cuentas por pagar y pasivos devengados</h3>
+                        <p class="consulta-code">425.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de cuentas por pagar, pagos posteriores, conciliaciones con proveedores y pasivos devengados.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Endeudamiento bancario -->
+            <div class="consulta-card" onclick="openConsultaForm('430.101QT', 'Endeudamiento bancario', 'endeudamiento-bancario')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-bank2"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Endeudamiento bancario</h3>
+                        <p class="consulta-code">430.101QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para cargar cédulas de pagarés y deudas bancarias, conciliaciones, prestamistas, vencimientos y conciliaciones bancarias.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Pasivos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Solicitud - Carta de compromiso -->
+            <div class="consulta-card" onclick="openConsultaForm('A200QT', 'Solicitud - Carta de compromiso', 'carta-compromiso')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-envelope-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Solicitud - Carta de compromiso</h3>
+                        <p class="consulta-code">A200QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Plantilla para cargar carta de compromiso firmada, confirmación de términos y condiciones para iniciar el trabajo de auditoría.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Documentación</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <!-- Otras consultas existentes -->
+            <div class="consulta-card" onclick="openConsultaForm('B100QT', 'Conocimiento del negocio y del sector', 'conocimiento-negocio')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Conocimiento del negocio y del sector</h3>
+                        <p class="consulta-code">B100QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Esta consulta ayuda a obtener información sobre el conocimiento del negocio y del sector en el que opera la entidad. Incluye preguntas sobre la naturaleza del negocio, el entorno regulatorio, los factores económicos y otros aspectos relevantes para la comprensión del contexto empresarial.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Planificación</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <div class="consulta-card" onclick="openConsultaForm('B200QT', 'Comprensión de la entidad y su entorno', 'comprension-entidad')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-globe"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Comprensión de la entidad y su entorno</h3>
+                        <p class="consulta-code">B200QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta diseñada para comprender la entidad y su entorno, incluyendo factores internos y externos que pueden afectar los estados financieros. Cubre aspectos como la industria, el entorno regulatorio, objetivos estratégicos y riesgos identificados por la dirección.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Planificación</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <div class="consulta-card" onclick="openConsultaForm('B300QT', 'Evaluación del riesgo de incorrección material', 'evaluacion-riesgo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-shield-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Evaluación del riesgo de incorrección material</h3>
+                        <p class="consulta-code">B300QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Herramienta para evaluar los riesgos de incorrección material a través de la identificación y análisis de factores de riesgo significativos. Ayuda a determinar los riesgos potenciales que podrían afectar la fiabilidad de los estados financieros.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Evaluación de Riesgos</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+            
+            <div class="consulta-card" onclick="openConsultaForm('B400QT', 'Respuesta al riesgo de auditoría', 'respuesta-riesgo')">
+                <div class="consulta-header">
+                    <div class="consulta-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div>
+                        <h3 class="consulta-title">Respuesta al riesgo de auditoría</h3>
+                        <p class="consulta-code">B400QT</p>
+                    </div>
+                </div>
+                <p class="consulta-description">
+                    Consulta para desarrollar respuestas adecuadas a los riesgos de auditoría identificados. Incluye procedimientos específicos para abordar los riesgos significativos y asegurar que se obtenga evidencia de auditoría suficiente y adecuada.
+                </p>
+                <div class="consulta-footer">
+                    <span class="consulta-type">Respuesta al Riesgo</span>
+                    <span class="consulta-date">Actualizado: 09/02/2026</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Formulario de Consulta -->
+    <div id="modalConsultaForm" class="modal-nueva-consulta">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Registrar Consulta</h2>
+                <button class="close-btn" onclick="closeConsultaFormModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            
+            <form id="consultaForm">
+                <div class="form-group">
+                    <label class="form-label" for="consultaNumero">Número de la consulta</label>
+                    <input type="text" id="consultaNumero" class="form-control" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaNombre">Nombre de la consulta</label>
+                    <input type="text" id="consultaNombre" class="form-control" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaContenido">Texto de la consulta</label>
+                    <textarea id="consultaContenido" class="form-control form-textarea" rows="15" readonly></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeConsultaFormModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear consulta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Nueva Consulta (personalizada) -->
+    <div id="modalNuevaConsulta" class="modal-nueva-consulta">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Crear Nueva Consulta</h2>
+                <button class="close-btn" onclick="closeNuevaConsultaModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            
+            <form id="nuevaConsultaForm">
+                <div class="form-group">
+                    <label class="form-label" for="consultaCodigo">Código de Consulta</label>
+                    <input type="text" id="consultaCodigo" class="form-control" placeholder="Ej: B700QT" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaTitulo">Título de la Consulta</label>
+                    <input type="text" id="consultaTitulo" class="form-control" placeholder="Ej: Evaluación de procedimientos sustantivos" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaTipo">Tipo de Consulta</label>
+                    <select id="consultaTipo" class="form-control" required>
+                        <option value="">Seleccionar tipo...</option>
+                        <option value="planificacion">Planificación</option>
+                        <option value="evaluacion-riesgos">Evaluación de Riesgos</option>
+                        <option value="respuesta-riesgo">Respuesta al Riesgo</option>
+                        <option value="planes-auditoria">Planes y Procedimientos</option>
+                        <option value="documentos-cierre">Documentos de Cierre</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaDescripcion">Descripción</label>
+                    <textarea id="consultaDescripcion" class="form-control form-textarea" placeholder="Describe detalladamente el propósito y alcance de esta consulta..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="consultaObjetivos">Objetivos</label>
+                    <textarea id="consultaObjetivos" class="form-control form-textarea" placeholder="Lista los objetivos específicos de esta consulta..."></textarea>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeNuevaConsultaModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Consulta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Contenido específico para cada consulta
+        const consultasContent = {
+            'propiedad-planta-equipo': {
+                codigo: '1.101QT',
+                nombre: 'Propiedad, planta y equipo',
+                contenido: `Cargue una cédula que concilie con el balance de comprobación al cierre del ejercicio, para el costo y la depreciación acumulada de cada categoría principal de propiedad, planta y equipo, incluyendo:
+
+Saldos iniciales, adiciones, retiros, ajustes, amortizaciones y saldos finales.
+
+Detalles como fecha, proveedor/comprador, descripción e importe de adiciones y disposiciones.
+
+Cálculos de depreciación para cada clase de activo.
+
+Cargue una lista de los contratos de arrendamiento activos durante el año, incluyendo el valor y el período del arrendamiento.
+
+Cargue una lista de obligaciones para el retiro de activos (ORA) o pasivos por cierre definitivo aplicables durante el año, si existen.
+
+Cargue una lista de gravámenes y restricciones sobre la propiedad de activos y una lista de cualquier activo que se haya prometido como garantía.`
+            },
+            'intangibles-fondo-comercio': {
+                codigo: '10.101QT',
+                nombre: 'Intangibles y fondo de comercio',
+                contenido: `Cargue una cédula que concilie con el balance de comprobación al final del período, del costo y la amortización acumulada de cada categoría principal de intangibles y fondo de comercio, incluidos los saldos iniciales, adiciones, disposiciones, amortizaciones, amortizaciones tomadas y saldos finales.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la empresa para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'inventarios': {
+                codigo: '110.101QT',
+                nombre: 'Inventarios',
+                contenido: `Cargue una cédula de todas las cuentas de inventario que concilie con el balance de comprobación al final del período.
+
+Cargue la documentación del conteo del inventario físico realizado durante el año.
+
+Cargue detalles de cualquier inventario mantenido:
+
+En consignación y/o consignado a otros al final del período.
+
+Por terceros al final del período.
+
+Cargue una lista de movimientos de inventario desde la fecha del conteo del inventario físico hasta el listado de inventario final.
+
+Cargue los detalles de cualquier reserva de inventario y cualquier inventario obsoleto o de baja rotación al final del período.
+
+Cargue una lista de cualquier inventario que haya sido asignado o prometido como garantía, aplicable durante el año.`
+            },
+            'inversiones': {
+                codigo: '120.101QT',
+                nombre: 'Inversiones',
+                contenido: `Cargue una cédula de inversiones, al final del período, que concilie con el balance de comprobación, mostrando para cada inversión: saldos iniciales, compras, disposiciones o amortizaciones por deterioro, ganancias o pérdidas no realizadas, saldos finales, valor de mercado, ingresos, el nombre de la participada, la fecha de vencimiento cuando corresponda y el tratamiento contable.
+
+Cargue copias de los estados de cuenta de corretaje de todas las cuentas de inversión que muestren el saldo final y todas las inversiones mantenidas al final del período.
+
+Cargue una lista del valor de mercado o el valor actual de las inversiones a la fecha de cierre de ejercicio.
+
+Cargue una lista del valor de mercado o el valor actual de las inversiones posteriores al cierre de ejercicio.
+
+Cargue una lista de las inversiones que se han asignado o prometido como garantía, aplicable durante el año.`
+            },
+            'cuentas-por-cobrar': {
+                codigo: '130.101QT',
+                nombre: 'Cuentas por cobrar, comerciales y otras',
+                contenido: `Cargue una cédula de cuentas por cobrar, al final del año, que muestre el nombre de cada cliente y el saldo de la cuenta además de la antigüedad de la cuenta por mes que concilie con el balance de comprobación. Proporcione una expectativa sobre la posibilidad de cobrar los montos pendientes con una antigüedad superior a 90 días.
+
+Cargue una cédula por cliente del saldo inicial por cobrar, créditos adicionales tomados, las cancelaciones, los montos cobrados y el saldo final.
+
+Cargue una lista de recibos de efectivo (incluido el nombre del cliente, la fecha de la factura, el número y el importe) desde la fecha de finalización del período hasta la fecha actual.
+
+Cargue una lista actualizada de cuentas por cobrar que muestre qué facturas se han pagado desde el final del período.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'pagos-anticipados': {
+                codigo: '135.101QT',
+                nombre: 'Pagos anticipados',
+                contenido: `Cargue una cédula que incluya detalles de las pólizas de seguro y cobertura, así como la naturaleza de otros pagos anticipados y un cálculo del importe del pago anticipado con comparativos al final del período.
+
+Cargue una lista de las pólizas de seguro vigentes, el período cubierto, el alcance de la cobertura y cualquier reclamo realizado en el período.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la empresa para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'efectivo-equivalentes': {
+                codigo: '140.101QT',
+                nombre: 'Efectivo y equivalentes de efectivo',
+                contenido: `Cargue una cédula de todas las cuentas de efectivo y equivalentes de efectivo, que incluya el nombre del banco, el número de cuenta y el importe que concilie con el balance de comprobación al final del período.
+
+Cargue una lista de todos los convenios, restricciones de retiro o requerimientos de saldo mínimo con respecto al uso o retiro de efectivo y equivalentes de efectivo.
+
+Cargue una copia de las conciliaciones bancarias de todas las cuentas bancarias al final del período.
+
+Cargue una copia de los estados de cuenta bancarios finales de las cuentas bancarias cerradas durante el año.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'ingresos': {
+                codigo: '1500.101QT',
+                nombre: 'Ingresos',
+                contenido: `Cargue una cédula para cada cuenta de ingresos para el año, incluyendo detalles por:
+
+Fecha, descripción del ingreso e importe
+
+Ingresos mensuales
+
+Ingresos por cliente
+
+Ingresos por línea de producto
+
+Ingresos por ubicación geográfica
+
+Presupuestos para ingresos
+
+Cargue una lista de las devoluciones de ventas/notas de crédito posteriores al cierre del ejercicio.
+
+Cargue los asientos de ventas del año.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de una firma experta independiente relacionada con esta área de los estados financieros.`
+            },
+            'costo-ventas': {
+                codigo: '1600.101QT',
+                nombre: 'Costo de ventas',
+                contenido: `Cargue una cédula para las cuentas relacionadas con el costo de ventas para el año, incluyendo detalles por:
+
+Fecha, proveedor, descripción del gasto e importe;
+
+Nuevos productos y servicios;
+
+Productos o servicios descontinuados.
+
+Cargue los asientos de compras del año.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de una firma experta designada por la entidad para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.
+
+Cargue una copia del registro de nómina del año.`
+            },
+            'nomina-otros-gastos': {
+                codigo: '1600.105QT',
+                nombre: 'Nómina y otros gastos',
+                contenido: `Cargue una cédula de gastos de nómina por persona, incluyendo salario, comisiones, bonificaciones, beneficios a empleados y cualquier gasto devengado relacionado con los empleados (derecho de vacaciones, horas extras, etc.).
+
+Cargue los asientos de nómina del año.
+
+Cargue copias de todos los informes de nómina presentados ante las autoridades reguladoras y detalles de todos los planes de bonos e incentivos proporcionados a sus empleados.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de una firma experta designada por la entidad para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.
+
+Cargue una copia del registro de nómina del año.`
+            },
+            'otros-ingresos': {
+                codigo: '1700.101QT',
+                nombre: 'Otros ingresos',
+                contenido: `Cargue una cédula para cada cuenta de otros ingresos para el año, incluyendo detalles por:
+
+Fecha, descripción del ingreso e importe;
+
+Otros ingresos mensuales;
+
+Otros ingresos por cliente;
+
+Otros ingresos por línea de producto;
+
+Otros ingresos por ubicación geográfica;
+
+Presupuestos para otros ingresos.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de una firma experta designada por la entidad para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'otros-gastos': {
+                codigo: '1800.101QT',
+                nombre: 'Otros gastos',
+                contenido: `Cargue una cédula para las cuentas relacionadas con otros gastos para el año, incluyendo detalles por:
+
+Fecha, proveedor, descripción del gasto e importe;
+
+Nuevos productos y servicios;
+
+Productos o servicios descontinuados.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de una firma experta designada por la entidad para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'inversiones-largo-plazo': {
+                codigo: '20.101QT',
+                nombre: 'Inversiones a largo plazo',
+                contenido: `Para cada inversión, cargue una cédula que concilie con el balance de comprobación al cierre de ejercicio. La cédula debe incluir el saldo de apertura de la cuenta de inversión, adiciones, retiros, ajustes y ganancias relacionadas (participación de ganancias bajo el método de participación, ingreso por dividendos bajo el método de costo), así como el saldo de cierre de la cuenta de inversión.
+
+Para las inversiones contabilizadas según el método de la participación, proporcionar una conciliación entre la inversión de la entidad y su participación en el valor en libros de la participada.
+
+Para cada inversión en una subsidiaria, afiliada o negocio conjunto:
+
+Cargue una copia del estado financiero anual más reciente.
+
+Cuando el cierre de ejercicio de la subsidiaria, afiliada o negocio conjunto no sea el mismo que el de la entidad, una copia del estado financiero a esa fecha.
+
+Cargue una lista de las inversiones que se han asignado o prometido como garantía.`
+            },
+            'capital-corporativo': {
+                codigo: '200.101QT',
+                nombre: 'Capital (Corporativo)',
+                contenido: `Cargue una cédula que muestre la actividad en todas las cuentas de patrimonio incluyendo saldo inicial, adiciones, retiros, asignación de ingresos y saldo final para cada socio.
+
+Cargue una lista de transacciones en cuentas de capital para el período.
+
+Cargue una cédula que contenga los detalles de todos los dividendos declarados y/o pagados a los accionistas.
+
+Cargue una cédula de opciones de acciones para el año.
+
+Cargue una cédula de garantías para el año.
+
+Cargue una lista de acciones compradas, canceladas, redimidas o retiradas durante el año.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'deuda-largo-plazo': {
+                codigo: '300.101QT',
+                nombre: 'Deuda a largo plazo',
+                contenido: `Cargue una cédula de deuda a largo plazo que concilie con el balance de comprobación al final del período, identificando los siguientes aspectos para cada préstamo incluido en la deuda a largo plazo:
+
+Saldos iniciales
+
+Nombre del prestamista y relación
+
+Adiciones
+
+Reembolsos
+
+Saldos finales
+
+Fecha de vencimiento
+
+Términos de la cuota
+
+Tasa de interés
+
+Prendas, garantías y valores proporcionados
+
+Convenios o restricciones
+
+Interés pagado
+
+Intereses devengados al inicio y al final del período
+
+Cargue copias de cualquier contrato de préstamo de deuda a largo plazo.`
+            },
+            'impuestos-renta': {
+                codigo: '325.101QT',
+                nombre: 'Impuestos sobre la renta',
+                contenido: `Cargue una cédula que muestre el cálculo de los impuestos sobre la renta diferidos y la documentación de respaldo al final del período.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la empresa para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'prestamos-anticipos-pagar': {
+                codigo: '330.101QT',
+                nombre: 'Préstamos y anticipos por pagar',
+                contenido: `Cargue una cédula de préstamos y anticipos por pagar que concilie con el balance de comprobación al final del período, identificando los siguientes aspectos para cada préstamo y anticipos por pagar:
+
+Saldos iniciales
+
+Nombre del prestamista y relación
+
+Adiciones
+
+Reembolsos
+
+Saldos finales
+
+Fecha de vencimiento
+
+Términos de la cuota
+
+Tasa de interés
+
+Prendas, garantías y valores proporcionados
+
+Convenios o restricciones
+
+Interés pagado
+
+Intereses devengados al inicio y al final del período
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'subsidios-gobierno': {
+                codigo: '335.101QT',
+                nombre: 'Subsidios del gobierno',
+                contenido: `Cargue una copia de los nuevos acuerdos de subvención del gobierno y las condiciones de los tipos de interés.
+
+Cargue los acuerdos o la correspondencia con respecto a las subvenciones del gobierno que son cobrables o cuyo reembolso es necesario.
+
+Suba los convenios de subvenciones importantes.
+
+Cargue la documentación pertinente relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'arrendamientos-arrendatarios': {
+                codigo: '340.101QT',
+                nombre: 'Arrendamientos para arrendatarios',
+                contenido: `Cargue los contratos de arrendamiento válidos durante todo el período, así como un listado que contenga información y detalles de los contratos de arrendamiento.
+
+Cargue la lista de contratos de arrendamiento válidos para el ejercicio anterior.
+
+Cargue la documentación pertinente relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.`
+            },
+            'prestamos-anticipos-cobrar': {
+                codigo: '35.101QT',
+                nombre: 'Préstamos y anticipos por cobrar',
+                contenido: `Cargue una cédula de préstamos y anticipos por cobrar que concilie con el balance de comprobación al final del período, que incluya el saldo inicial del préstamo, préstamos adicionales, cuota, intereses ganados en el préstamo y saldo final del préstamo.
+
+Proporcionar detalles sobre la fecha de vencimiento, la tasa de interés y la garantía del préstamo.
+
+Cargue detalles de cualquier préstamo y anticipo por cobrar cuyo valor neto en libros sea mayor que su valor neto realizable (ej., valor deteriorado).
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la empresa para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'activos-agricolas': {
+                codigo: '40.101QT',
+                nombre: 'Activos agrícolas',
+                contenido: `Cargue una cédula que concilie contra el balance de comprobación al 31 de diciembre de 2021 para el costo y la depreciación acumulada de cada clase o categoría principal de activos biológicos, incluyendo:
+
+Clase/categoría de activos
+
+Descripción
+
+Saldos iniciales
+
+Adiciones
+
+Retiros/Bajas
+
+Transferencias entre clases/categorías de activos
+
+Amortizaciones/Deterioros
+
+Depreciación
+
+Saldos finales
+
+Cargue una cédula de todos los activos biológicos en el año XX, para cada compra individual de activos superior a $XXX incluyendo los siguientes detalles:
+
+Clase/categoría de activo`
+            },
+            'propiedad-inversion': {
+                codigo: '5.101QT',
+                nombre: 'Propiedad para inversión',
+                contenido: `Para cada inversión, cargue una cédula que concilie con el balance de comprobación al cierre de ejercicio. La cédula debe incluir el saldo de apertura de la cuenta de inversión, adiciones, retiros, ajustes y ganancias relacionadas (participación de ganancias bajo el método de participación, ingreso por dividendos bajo el método de costo), así como el saldo de cierre de la cuenta de inversión.
+
+Para las inversiones contabilizadas según el método de la participación, proporcionar una conciliación entre la inversión de la entidad y su participación en el valor en libros de la participada.
+
+Cargue una lista de obligaciones para el retiro de activos (ORA) o pasivos por cierre definitivo aplicables durante el año, si existen.
+
+Cargue una lista de gravámenes y restricciones sobre la propiedad de activos y una lista de los activos que se han pignorado como garantía, aplicable durante el año.`
+            },
+            'documentos-pagar-deuda-bancaria': {
+                codigo: '400.101QT',
+                nombre: 'Documentos por pagar y deuda bancaria',
+                contenido: `Cargue una cédula de documentos por pagar y deudas bancarias que contenga:
+
+Saldos de apertura y cierre
+
+Nombre del prestamista
+
+Relación
+
+Fecha de vencimiento
+
+Términos de la cuota (incluida la tasa de interés)
+
+Acuerdos o restricciones
+
+Garantías de terceros
+
+Promesas como garantía
+
+Préstamos y cuotas adicionales durante el período e intereses pagados
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la entidad para esta área de los estados financieros.
+
+Cargue la documentación relevante relacionada con el trabajo de un experto designado por la empresa para esta área de los estados financieros, incluida la Declaración de independencia y experiencia del experto.`
+            },
+            'cuentas-pagar-pasivos-devengados': {
+                codigo: '425.101QT',
+                nombre: 'Cuentas por pagar y pasivos devengados',
+                contenido: `Cargue una cédula de cuentas por pagar que concilie con el balance de comprobación al final del período, mostrando el nombre de cada proveedor y el saldo de la cuenta, así como su antigüedad por mes.
+
+Cargue una lista de pagos a proveedores después del cierre de ejercicio.
+
+Cargue la conciliación de saldos de cuentas por pagar al cierre de ejercicio con los estados de cuenta de los principales proveedores.
+
+Cargue una cédula de todos los pasivos devengados, que concilie con el balance de comprobación al final del período, incluyendo:
+Nómina de salarios
+
+Bono
+
+Comisión
+
+Participación en las ganancias
+
+Vacaciones
+
+Permiso de licencia extenso
+
+Beneficios`
+            },
+            'endeudamiento-bancario': {
+                codigo: '430.101QT',
+                nombre: 'Endeudamiento bancario',
+                contenido: `Cargue una cédula que concilie el balance de comprobación al final del período, que incluya para cada pagaré y deuda bancaria:
+
+Saldos iniciales
+
+Nombre del prestamista y relación
+
+Adiciones
+
+Reembolsos
+
+Saldos finales
+
+Fecha de vencimiento
+
+Términos de la cuota
+
+Tasa de interés
+
+Prendas, garantías y valores proporcionados
+
+Convenios o restricciones
+
+Interés pagado
+
+Intereses devengados al inicio y al final del período
+
+Cargue una copia de las conciliaciones bancarias de todas las cuentas bancarias al final del período.`
+            },
+            'carta-compromiso': {
+                codigo: 'A200QT',
+                nombre: 'Solicitud - Carta de compromiso',
+                contenido: `Para tener una comprensión clara de los términos de nuestros acuerdos, adjuntamos una carta de compromiso para que la lea, firme y devuelva lo antes posible. Esta es una carta estándar que todos los clientes deben firmar para confirmar la comprensión de nuestras responsabilidades mutuas. La carta de compromiso firmada debe devolverse antes del inicio del trabajo de compromiso.
+Cargue una copia de la carta de compromiso firmada.
+
+El [fecha] se le envió una carta de compromiso que todos los clientes deben firmar antes de que comencemos la auditoría. Le rogamos nos devuelva la carta de compromiso firmada lo antes posible. El trabajo de su compromiso no continuará hasta que recibamos este documento. Cargue una copia de la carta de compromiso firmada.
+Puede:
+Aceptar electrónicamente la carta
+Cargar la carta firmada`
+            },
+            'conocimiento-negocio': {
+                codigo: 'B100QT',
+                nombre: 'Conocimiento del negocio y del sector',
+                contenido: `Esta consulta ayuda a obtener información sobre el conocimiento del negocio y del sector en el que opera la entidad. Incluye preguntas sobre la naturaleza del negocio, el entorno regulatorio, los factores económicos y otros aspectos relevantes para la comprensión del contexto empresarial.
+
+Por favor, proporcione información detallada sobre:
+- Naturaleza y operaciones del negocio
+- Entorno regulatorio aplicable
+- Factores económicos que afectan al negocio
+- Principales competidores y posición en el mercado
+- Tendencias del sector`
+            },
+            'comprension-entidad': {
+                codigo: 'B200QT',
+                nombre: 'Comprensión de la entidad y su entorno',
+                contenido: `Consulta diseñada para comprender la entidad y su entorno, incluyendo factores internos y externos que pueden afectar los estados financieros. Cubre aspectos como la industria, el entorno regulatorio, objetivos estratégicos y riesgos identificados por la dirección.
+
+Por favor, proporcione información sobre:
+- Industria y entorno competitivo
+- Entorno regulatorio y legal
+- Objetivos estratégicos de la entidad
+- Riesgos identificados por la dirección
+- Estructura organizacional y gobierno corporativo`
+            },
+            'evaluacion-riesgo': {
+                codigo: 'B300QT',
+                nombre: 'Evaluación del riesgo de incorrección material',
+                contenido: `Herramienta para evaluar los riesgos de incorrección material a través de la identificación y análisis de factores de riesgo significativos. Ayuda a determinar los riesgos potenciales que podrían afectar la fiabilidad de los estados financieros.
+
+Por favor, identifique y evalúe:
+- Riesgos de incorrección material identificados
+- Factores de riesgo significativos
+- Controles internos relacionados
+- Impacto potencial en los estados financieros
+- Probabilidad de ocurrencia`
+            },
+            'respuesta-riesgo': {
+                codigo: 'B400QT',
+                nombre: 'Respuesta al riesgo de auditoría',
+                contenido: `Consulta para desarrollar respuestas adecuadas a los riesgos de auditoría identificados. Incluye procedimientos específicos para abordar los riesgos significativos y asegurar que se obtenga evidencia de auditoría suficiente y adecuada.
+
+Por favor, desarrolle:
+- Respuestas específicas a los riesgos identificados
+- Procedimientos de auditoría planificados
+- Naturaleza, oportunidad y extensión de los procedimientos
+- Evidencia de auditoría a obtener
+- Evaluación de la suficiencia de la evidencia`
+            }
+        };
+
+        function openConsultaForm(codigo, nombre, tipo) {
+            const consulta = consultasContent[tipo];
+            if (consulta) {
+                document.getElementById('consultaNumero').value = consulta.codigo;
+                document.getElementById('consultaNombre').value = consulta.nombre;
+                document.getElementById('consultaContenido').value = consulta.contenido;
+                document.getElementById('modalConsultaForm').style.display = 'flex';
+            }
+        }
+        
+        function closeConsultaFormModal() {
+            document.getElementById('modalConsultaForm').style.display = 'none';
+            document.getElementById('consultaForm').reset();
+        }
+        
+        function openNuevaConsultaModal() {
+            document.getElementById('modalNuevaConsulta').style.display = 'flex';
+        }
+        
+        function closeNuevaConsultaModal() {
+            document.getElementById('modalNuevaConsulta').style.display = 'none';
+            document.getElementById('nuevaConsultaForm').reset();
+        }
+        
+        function selectConsulta(codigo, titulo) {
+            // Esta función ya no se usa, pero se mantiene por compatibilidad
+            console.log(`Seleccionando consulta: ${codigo} - ${titulo}`);
+        }
+        
+        // Manejo del formulario de consulta específica
+        document.getElementById('consultaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const numero = document.getElementById('consultaNumero').value;
+            const nombre = document.getElementById('consultaNombre').value;
+            const contenido = document.getElementById('consultaContenido').value;
+            
+            // Aquí puedes implementar la lógica para guardar la consulta
+            console.log('Consulta registrada:', {
+                numero,
+                nombre,
+                contenido
+            });
+            
+            alert(`Consulta "${numero} - ${nombre}" registrada exitosamente.`);
+            closeConsultaFormModal();
+        });
+        
+        // Manejo del formulario de nueva consulta
+        document.getElementById('nuevaConsultaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const codigo = document.getElementById('consultaCodigo').value;
+            const titulo = document.getElementById('consultaTitulo').value;
+            const tipo = document.getElementById('consultaTipo').value;
+            const descripcion = document.getElementById('consultaDescripcion').value;
+            const objetivos = document.getElementById('consultaObjetivos').value;
+            
+            // Aquí puedes implementar la lógica para guardar la nueva consulta
+            console.log('Nueva consulta:', {
+                codigo,
+                titulo,
+                tipo,
+                descripcion,
+                objetivos
+            });
+            
+            alert(`Consulta "${codigo} - ${titulo}" creada exitosamente.`);
+            closeNuevaConsultaModal();
+        });
+        
+        // Cerrar modales al hacer clic fuera
+        document.getElementById('modalConsultaForm').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeConsultaFormModal();
+            }
+        });
+        
+        document.getElementById('modalNuevaConsulta').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeNuevaConsultaModal();
+            }
+        });
+    </script>
+</body>
+</html>
