@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estados Financieros</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/formularios.css">
+    
+    <style>
+        .estados-financieros-container {
+            display: flex;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: visible;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow: visible;
+        }
+        
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .sidebar-icons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .sidebar-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #6c757d;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-icon:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+        
+        .areas-section {
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        .areas-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .areas-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .add-button-container {
+            position: relative;
+        }
+        
+        .add-button {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .add-button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white !important;
+            border: 2px solid #dee2e6 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2) !important;
+            z-index: 999999 !important;
+            min-width: 250px !important;
+            display: none;
+            margin-top: 8px;
+            padding: 8px 0 !important;
+        }
+        
+        .dropdown-content.show {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .dropdown-item {
+            padding: 15px 20px !important;
+            cursor: pointer !important;
+            border-bottom: 1px solid #f1f3f4 !important;
+            transition: all 0.2s ease !important;
+            font-size: 14px !important;
+            color: #212529 !important;
+            display: block !important;
+            width: 100% !important;
+            text-align: left !important;
+            background-color: white !important;
+            font-weight: 500 !important;
+            line-height: 1.4 !important;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #f8f9fa !important;
+            color: #007bff !important;
+        }
+        
+        .dropdown-item:last-child {
+            border-bottom: none !important;
+        }
+        
+        .dropdown-item i {
+            margin-right: 12px !important;
+            color: #007bff !important;
+            font-size: 16px !important;
+            width: 20px !important;
+            display: inline-block !important;
+        }
+        
+        .main-content {
+            flex: 1;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .content-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .content-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #212529;
+            margin: 0;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .nav-button {
+            padding: 8px 16px;
+            border: 1px solid #dee2e6;
+            background-color: white;
+            color: #495057;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .nav-button:hover {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .nav-button.primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+        
+        .nav-button.primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        
+        .content-body {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #6c757d;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-text {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .empty-subtext {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .right-sidebar {
+            width: 300px;
+            background-color: #f8f9fa;
+            border-left: 1px solid #dee2e6;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .right-sidebar-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #dee2e6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tabs-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        
+        .tabs-nav {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 2px;
+        }
+        
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #6c757d;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .tab-button:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .tab-button.active {
+            background: #007bff;
+            color: white;
+            border-bottom: 2px solid #0056b3;
+        }
+        
+        .tab-button .badge {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            padding: 1px 4px;
+            border-radius: 8px;
+            font-size: 9px;
+            margin-left: 2px;
+        }
+        
+        .tab-button:not(.active) .badge {
+            background: #6c757d;
+        }
+        
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-section {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        .tab-section-header {
+            background: #007bff;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .tab-section-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .tab-section-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .tab-action-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 2px 4px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-action-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .tab-section-content {
+            padding: 10px;
+            background: #fafbfc;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .tab-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #495057;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-item:hover {
+            border-color: #007bff;
+            box-shadow: 0 1px 3px rgba(0,123,255,0.1);
+        }
+        
+        .tab-item-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        
+        .tab-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .tab-item-action {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 2px;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-item-action:hover {
+            background: #e9ecef;
+            color: #007bff;
+        }
+        
+        .empty-tab {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            font-size: 11px;
+            padding: 20px;
+        }
+        
+        .no-tabs-message {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            font-size: 12px;
+            padding: 20px;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+        }
+        
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="estados-financieros-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Document Map</div>
+                <div class="sidebar-icons">
+                    <div class="sidebar-icon" title="Deshacer/Rehacer">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </div>
+                    <div class="sidebar-icon" title="Imprimir">
+                        <i class="bi bi-printer"></i>
+                    </div>
+                    <div class="sidebar-icon" title="Cerrar">
+                        <i class="bi bi-x"></i>
+                    </div>
+                    <div class="sidebar-icon" title="Configuración">
+                        <i class="bi bi-gear"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="areas-section">
+                <div class="areas-header">
+                    <div class="areas-title">ÁREAS</div>
+                    <div class="add-button-container">
+                        <button class="add-button" onclick="toggleAreasDropdown(event)">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                        <div id="areasDropdown" style="
+                            position: absolute;
+                            top: 100%;
+                            right: -50px;
+                            background: white;
+                            border: 2px solid #007bff;
+                            border-radius: 8px;
+                            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                            z-index: 999999;
+                            min-width: 250px;
+                            display: none;
+                            margin-top: 8px;
+                            padding: 8px 0;
+                        ">
+                            <div style="
+                                padding: 15px 20px;
+                                cursor: pointer;
+                                border-bottom: 1px solid #f1f3f4;
+                                font-size: 14px;
+                                color: #212529;
+                                display: block;
+                                width: 100%;
+                                text-align: left;
+                                background: white;
+                                font-weight: 500;
+                            " onclick="addNewArea()" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                <i class="bi bi-folder-plus" style="margin-right: 12px; color: #007bff; font-size: 16px;"></i>
+                                Nueva Área
+                            </div>
+                            <div style="
+                                padding: 15px 20px;
+                                cursor: pointer;
+                                border-bottom: 1px solid #f1f3f4;
+                                font-size: 14px;
+                                color: #212529;
+                                display: block;
+                                width: 100%;
+                                text-align: left;
+                                background: white;
+                                font-weight: 500;
+                            " onclick="addNewNotesArea()" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                <i class="bi bi-sticky" style="margin-right: 12px; color: #007bff; font-size: 16px;"></i>
+                                Nueva área de notas
+                            </div>
+                            <div style="
+                                padding: 15px 20px;
+                                cursor: pointer;
+                                border-bottom: 1px solid #f1f3f4;
+                                font-size: 14px;
+                                color: #212529;
+                                display: block;
+                                width: 100%;
+                                text-align: left;
+                                background: white;
+                                font-weight: 500;
+                            " onclick="addTableOfContents()" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                <i class="bi bi-list-ul" style="margin-right: 12px; color: #007bff; font-size: 16px;"></i>
+                                Tabla de contenido
+                            </div>
+                            <div style="
+                                padding: 15px 20px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                color: #212529;
+                                display: block;
+                                width: 100%;
+                                text-align: left;
+                                background: white;
+                                font-weight: 500;
+                            " onclick="addEmbeddedPDF()" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                <i class="bi bi-file-pdf" style="margin-right: 12px; color: #007bff; font-size: 16px;"></i>
+                                PDF incrustado
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div class="main-content">
+                <div class="content-header">
+                    <h1 class="content-title">Estados Financieros</h1>
+                    <div class="header-actions">
+                        <button class="nav-button" onclick="goBack()">
+                            <i class="bi bi-arrow-left"></i> Regresar
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div class="empty-text">No hay áreas configuradas</div>
+                        <div class="empty-subtext">Use el botón + para agregar su primera área</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Sidebar -->
+            <div class="right-sidebar">
+                <div class="right-sidebar-header">
+                    <i class="bi bi-list-check" style="margin-right: 8px;"></i>
+                    Elementos Seleccionados
+                </div>
+                <div class="tabs-container">
+                    <div class="no-tabs-message">
+                        <i class="bi bi-inbox" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
+                        No hay elementos seleccionados
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation functions
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // Si no hay historial, cerrar la ventana
+                window.close();
+            }
+        }
+        
+        function toggleAreasDropdown(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const dropdown = document.getElementById('areasDropdown');
+            
+            if (!dropdown) {
+                return;
+            }
+            
+            // Simple toggle
+            if (dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+                dropdown.classList.remove('show');
+            } else {
+                dropdown.style.display = 'block';
+                dropdown.classList.add('show');
+            }
+        }
+        
+        function addNewArea() {
+            closeDropdown(); // Cerrar el dropdown
+            
+            // Crear nueva área en el contenido principal
+            const contentBody = document.querySelector('.content-body');
+            
+            // Eliminar el estado vacío si existe
+            const emptyState = contentBody.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Crear contenedor para las áreas si no existe
+            let areasContainer = contentBody.querySelector('.areas-container');
+            if (!areasContainer) {
+                areasContainer = document.createElement('div');
+                areasContainer.className = 'areas-container';
+                areasContainer.style.cssText = `
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
+                `;
+                contentBody.appendChild(areasContainer);
+            }
+            
+            // Crear nueva área
+            const areaCount = areasContainer.querySelectorAll('.area-item').length + 1;
+            const newArea = document.createElement('div');
+            newArea.className = 'area-item';
+            newArea.id = `area_${areaCount}`;
+            newArea.style.cssText = `
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            `;
+            newArea.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                        <i class="bi bi-folder" style="margin-right: 8px; color: #28a745;"></i>
+                        Área ${areaCount}
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="add-button" onclick="addNoteToArea(event, '${areaCount}')" style="width: 28px; height: 28px;">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                        <button class="nav-button" onclick="deleteArea(${areaCount})" style="padding: 4px 8px; background-color: #28a745; color: white; border-color: #28a745;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; min-height: 200px;">
+                    <p style="margin: 0; color: #6c757d; font-style: italic;">Contenido del área ${areaCount}...</p>
+                </div>
+            `;
+            
+            // Agregar la nueva área al contenedor
+            areasContainer.appendChild(newArea);
+            
+            // Agregar a la barra lateral
+            addSelectedItem('Área', `Área ${areaCount}`, 'folder', `area_${areaCount}`);
+            
+            // Mostrar notificación
+            showNotification(`Área ${areaCount} creada exitosamente`, 'success');
+        }
+        
+        function addNewNotesArea() {
+            closeDropdown(); // Cerrar el dropdown
+            
+            // Crear nueva área de notas en el contenido principal
+            const contentBody = document.querySelector('.content-body');
+            
+            // Eliminar el estado vacío si existe
+            const emptyState = contentBody.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Crear contenedor para las áreas de notas si no existe
+            let notesAreasContainer = contentBody.querySelector('.notes-areas-container');
+            if (!notesAreasContainer) {
+                notesAreasContainer = document.createElement('div');
+                notesAreasContainer.className = 'notes-areas-container';
+                notesAreasContainer.style.cssText = `
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
+                    margin-bottom: 30px;
+                    border: 2px solid #d4edda;
+                    border-radius: 8px;
+                    background: #f8f9fa;
+                `;
+                
+                // Agregar header para la sección de áreas de notas
+                const sectionHeader = document.createElement('div');
+                sectionHeader.style.cssText = `
+                    background: #28a745;
+                    color: white;
+                    padding: 12px 20px;
+                    margin: -20px -20px 15px -20px;
+                    border-radius: 8px 8px 0 0;
+                    font-size: 16px;
+                    font-weight: 600;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                `;
+                sectionHeader.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-sticky"></i>
+                        ÁREAS DE NOTAS
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.8;">
+                        <span id="notesAreasCount">0</span> áreas de notas creadas
+                    </div>
+                `;
+                notesAreasContainer.appendChild(sectionHeader);
+                
+                contentBody.appendChild(notesAreasContainer);
+            }
+            
+            // Crear nueva área de notas
+            const areaCount = notesAreasContainer.querySelectorAll('.area-item').length + 1;
+            const newNotesArea = document.createElement('div');
+            newNotesArea.className = 'area-item';
+            newNotesArea.id = `notes_${areaCount}`;
+            newNotesArea.style.cssText = `
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            `;
+            newNotesArea.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                        <i class="bi bi-sticky" style="margin-right: 8px; color: #28a745;"></i>
+                        Área de Notas ${areaCount}
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="add-button" onclick="addNoteToArea(event, 'notes_${areaCount}')" style="width: 28px; height: 28px;">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                        <button class="nav-button" onclick="deleteArea('notes_${areaCount}')" style="padding: 4px 8px; background-color: #28a745; color: white; border-color: #28a745;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; min-height: 200px;">
+                    <p style="margin: 0; color: #6c757d; font-style: italic;">Área de notas especializada...</p>
+                </div>
+            `;
+            
+            // Agregar el área de notas al contenedor
+            notesAreasContainer.appendChild(newNotesArea);
+            
+            // Actualizar contador
+            updateNotesAreasCount();
+            
+            // Agregar a la barra lateral
+            addSelectedItem('Área de Notas', `Área de Notas ${areaCount}`, 'sticky', `notes_${areaCount}`);
+            
+            // Mostrar notificación
+            showNotification(`Área de Notas ${areaCount} creada exitosamente`, 'success');
+        }
+        
+        function updateAreasCount() {
+            const areasContainer = document.querySelector('.areas-container');
+            const countElement = document.getElementById('areasCount');
+            if (areasContainer && countElement) {
+                const count = areasContainer.querySelectorAll('.area-item').length;
+                countElement.textContent = count;
+            }
+        }
+        
+        function updateNotesAreasCount() {
+            const notesContainer = document.querySelector('.notes-areas-container');
+            const countElement = document.getElementById('notesAreasCount');
+            if (notesContainer && countElement) {
+                const count = notesContainer.querySelectorAll('.area-item').length;
+                countElement.textContent = count;
+            }
+        }
+        
+        function addSelectedItem(type, title, icon, elementId) {
+            const container = document.querySelector('.tabs-container');
+            
+            // Eliminar mensaje vacío si existe
+            const emptyMessage = container.querySelector('.no-tabs-message');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
+            // Crear navegación de pestañas si no existe
+            let tabsNav = container.querySelector('.tabs-nav');
+            if (!tabsNav) {
+                tabsNav = document.createElement('div');
+                tabsNav.className = 'tabs-nav';
+                container.appendChild(tabsNav);
+            }
+            
+            // Normalizar el tipo para el ID
+            const typeId = type.toLowerCase().replace(/\s+/g, '_');
+            
+            // Buscar si ya existe una pestaña para este tipo
+            let tabButton = document.getElementById(`tab_${typeId}`);
+            let tabContent = document.getElementById(`content_${typeId}`);
+            
+            if (!tabButton) {
+                // Crear nueva pestaña
+                tabButton = document.createElement('button');
+                tabButton.className = 'tab-button';
+                tabButton.id = `tab_${typeId}`;
+                tabButton.onclick = () => switchTab(typeId);
+                tabButton.innerHTML = `
+                    <i class="bi bi-${icon}"></i>
+                    ${type}
+                    <span class="badge" id="badge_${typeId}">0</span>
+                `;
+                tabsNav.appendChild(tabButton);
+                
+                // Crear contenido de la pestaña
+                tabContent = document.createElement('div');
+                tabContent.className = 'tab-content';
+                tabContent.id = `content_${typeId}`;
+                tabContent.innerHTML = `
+                    <div class="empty-tab">
+                        No hay elementos en esta sección
+                    </div>
+                `;
+                container.appendChild(tabContent);
+            }
+            
+            // Agregar elemento a la pestaña
+            const emptyTab = tabContent.querySelector('.empty-tab');
+            if (emptyTab) {
+                emptyTab.remove();
+            }
+            
+            // Crear nuevo elemento
+            const item = document.createElement('div');
+            item.className = 'tab-item';
+            item.id = `selected_${elementId}`;
+            item.innerHTML = `
+                <div class="tab-item-title">
+                    <i class="bi bi-${icon}" style="color: #007bff;"></i>
+                    ${title}
+                </div>
+                <div class="tab-item-actions">
+                    <button class="tab-item-action" onclick="editSelectedItem('${elementId}')" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="tab-item-action" onclick="removeSelectedItem('${elementId}')" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="tab-item-action" onclick="viewSelectedItem('${elementId}')" title="Ver">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            `;
+            
+            tabContent.appendChild(item);
+            
+            // Actualizar contador
+            updateTabBadge(typeId);
+            
+            // Activar la pestaña actual
+            switchTab(typeId);
+        }
+        
+        function switchTab(typeId) {
+            // Desactivar todas las pestañas
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Activar la pestaña seleccionada
+            const tabButton = document.getElementById(`tab_${typeId}`);
+            const tabContent = document.getElementById(`content_${typeId}`);
+            
+            if (tabButton && tabContent) {
+                tabButton.classList.add('active');
+                tabContent.classList.add('active');
+            }
+        }
+        
+        function updateTabBadge(typeId) {
+            const badge = document.getElementById(`badge_${typeId}`);
+            const content = document.getElementById(`content_${typeId}`);
+            
+            if (badge && content) {
+                const itemCount = content.querySelectorAll('.tab-item').length;
+                badge.textContent = itemCount;
+            }
+        }
+        
+        function removeSelectedItem(elementId) {
+            const selectedItem = document.getElementById(`selected_${elementId}`);
+            if (selectedItem) {
+                selectedItem.style.transform = 'scale(0.95)';
+                selectedItem.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    selectedItem.remove();
+                    
+                    // Encontrar qué tipo de elemento era y actualizar badge
+                    const tabContent = selectedItem.closest('.tab-content');
+                    if (tabContent) {
+                        const typeId = tabContent.id.replace('content_', '');
+                        updateTabBadge(typeId);
+                        
+                        // Si no hay más elementos en la pestaña, mostrar mensaje vacío
+                        if (tabContent.querySelectorAll('.tab-item').length === 0) {
+                            tabContent.innerHTML = `
+                                <div class="empty-tab">
+                                    No hay elementos en esta sección
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    showNotification('Elemento eliminado de la lista', 'info');
+                }, 200);
+            }
+        }
+        
+        function editSelectedItem(elementId) {
+            showNotification(`Editando elemento: ${elementId}`, 'info');
+        }
+        
+        function viewSelectedItem(elementId) {
+            showNotification(`Visualizando elemento: ${elementId}`, 'info');
+        }
+        
+        function addNoteToArea(event, areaId) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Encontrar el área específica
+            const area = event.target.closest('.area-item');
+            const contentDiv = area.querySelector('div[style*="background: #f8f9fa"], div[style*="background: #fff9e6"]');
+            
+            // Crear contenedor para notas si no existe
+            let notesContainer = contentDiv.querySelector('.notes-container');
+            if (!notesContainer) {
+                notesContainer = document.createElement('div');
+                notesContainer.className = 'notes-container';
+                notesContainer.style.cssText = `
+                    margin-top: 15px;
+                `;
+                contentDiv.appendChild(notesContainer);
+            }
+            
+            // Contador de notas
+            const noteCount = notesContainer.children.length + 1;
+            
+            // Crear nueva nota
+            const newNote = document.createElement('div');
+            newNote.className = 'note-item';
+            newNote.style.cssText = `
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                padding: 15px;
+                margin-bottom: 10px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                transition: all 0.2s ease;
+            `;
+            newNote.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="bi bi-sticky" style="color: #ffc107; font-size: 16px;"></i>
+                        <span style="font-weight: 600; color: #495057; font-size: 14px;">Nota ${noteCount}</span>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="editNote(${areaId}, ${noteCount})" style="background: none; border: none; color: #007bff; cursor: pointer; padding: 2px;">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button onclick="deleteNote(${areaId}, ${noteCount})" style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 2px;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="background: #fff9e6; border-left: 3px solid #ffc107; padding: 10px; border-radius: 4px;">
+                    <textarea style="width: 100%; border: none; background: transparent; resize: vertical; min-height: 60px; font-family: inherit; font-size: 14px; color: #495057;" placeholder="Escribe tu nota aquí..."></textarea>
+                </div>
+            `;
+            
+            // Agregar la nota al contenedor
+            notesContainer.appendChild(newNote);
+            
+            // Limpiar el contenido placeholder si existe
+            const placeholder = contentDiv.querySelector('p[style*="font-style: italic"]');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+            
+            // Agregar a la barra lateral
+            addSelectedItem('Nota', `Nota ${noteCount} (${areaId})`, 'sticky', `${areaId}_note_${noteCount}`);
+            
+            // Mostrar notificación
+            showNotification(`Nota ${noteCount} agregada al Área ${areaId}`, 'success');
+        }
+        
+        function editNote(areaId, noteId) {
+            showNotification(`Editando nota ${noteId} del Área ${areaId}`, 'info');
+        }
+        
+        function deleteNote(areaId, noteId) {
+            if (confirm(`¿Está seguro de eliminar la nota ${noteId}?`)) {
+                const note = event.target.closest('.note-item');
+                note.style.transform = 'scale(0.95)';
+                note.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    note.remove();
+                    showNotification(`Nota ${noteId} eliminada`, 'success');
+                }, 200);
+            }
+        }
+        
+        function addAreaElement(parentAreaId, type) {
+            const typeNames = {
+                'titulo': 'Título',
+                'encabezado': 'Encabezado de nivel superior',
+                'contenido': 'Contenido',
+                'seccion': 'Sección de texto',
+                'tabla': 'Tabla dinámica',
+                'analisis': 'Análisis',
+                'salto': 'Salto de página'
+            };
+            
+            showNotification(`${typeNames[type]} agregado al Área ${parentAreaId}`, 'success');
+            
+            // Cerrar todos los dropdowns
+            document.querySelectorAll('.dropdown-content').forEach(d => {
+                d.style.display = 'none';
+            });
+        }
+        
+        function deleteArea(areaId) {
+            if (confirm(`¿Está seguro de eliminar el área ${areaId}?`)) {
+                const area = event.target.closest('.area-item');
+                area.style.transform = 'scale(0.8)';
+                area.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    area.remove();
+                    showNotification(`Área ${areaId} eliminada`, 'success');
+                }, 300);
+            }
+        }
+        
+        function addNewNotesArea() {
+            closeDropdown(); // Cerrar el dropdown
+            
+            // Crear nueva área de notas en el contenido principal
+            const contentBody = document.querySelector('.content-body');
+            
+            // Eliminar el estado vacío si existe
+            const emptyState = contentBody.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Crear contenedor para las áreas si no existe
+            let areasContainer = contentBody.querySelector('.areas-container');
+            if (!areasContainer) {
+                areasContainer = document.createElement('div');
+                areasContainer.className = 'areas-container';
+                areasContainer.style.cssText = `
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
+                `;
+                contentBody.appendChild(areasContainer);
+            }
+            
+            // Crear nueva área de notas
+            const areaCount = areasContainer.children.length + 1;
+            const newNotesArea = document.createElement('div');
+            newNotesArea.className = 'area-item';
+            newNotesArea.id = `notes_${areaCount}`;
+            newNotesArea.style.cssText = `
+                background: white;
+                border: 2px solid #ffc107;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            `;
+            newNotesArea.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                        <i class="bi bi-sticky" style="margin-right: 8px; color: #ffc107;"></i>
+                        Área de Notas ${areaCount}
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="add-button" onclick="addNoteToArea(event, 'notes_${areaCount}')" style="width: 28px; height: 28px;">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                        <button class="nav-button" onclick="deleteArea('notes_${areaCount}')" style="padding: 4px 8px; background-color: #dc3545; color: white; border-color: #dc3545;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; min-height: 200px;">
+                    <p style="margin: 0; color: #6c757d; font-style: italic;">Área de notas especializada...</p>
+                </div>
+            `;
+            
+            // Agregar el área de notas al contenedor
+            areasContainer.appendChild(newNotesArea);
+            
+            // Agregar a la barra lateral
+            addSelectedItem('Área de Notas', `Área de Notas ${areaCount}`, 'sticky', `notes_${areaCount}`);
+            
+            // Mostrar notificación
+            showNotification(`Área de Notas ${areaCount} creada exitosamente`, 'success');
+        }
+        
+        function addTableOfContents() {
+            closeDropdown(); // Cerrar el dropdown
+            alert('Función "Tabla de contenido" - En desarrollo');
+        }
+        
+        function addEmbeddedPDF() {
+            closeDropdown(); // Cerrar el dropdown
+            
+            // Crear nueva área de PDF en el contenido principal
+            const contentBody = document.querySelector('.content-body');
+            
+            // Eliminar el estado vacío si existe
+            const emptyState = contentBody.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            // Crear contenedor para PDFs si no existe
+            let pdfContainer = contentBody.querySelector('.pdf-container');
+            if (!pdfContainer) {
+                pdfContainer = document.createElement('div');
+                pdfContainer.className = 'pdf-container';
+                pdfContainer.style.cssText = `
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
+                `;
+                contentBody.appendChild(pdfContainer);
+            }
+            
+            // Crear nuevo visor de PDF simplificado
+            const pdfCount = pdfContainer.querySelectorAll('.pdf-viewer').length + 1;
+            const pdfViewer = document.createElement('div');
+            pdfViewer.className = 'pdf-viewer';
+            pdfViewer.id = `pdf_${pdfCount}`;
+            pdfViewer.style.cssText = `
+                background: white;
+                border: 1px solid #d4edda;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            `;
+            pdfViewer.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #495057; font-size: 16px; font-weight: 600;">
+                        <i class="bi bi-file-pdf" style="margin-right: 8px; color: #28a745;"></i>
+                        PDF ${pdfCount}
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="add-button" onclick="uploadPDF('${pdfCount}')" style="width: 28px; height: 28px;">
+                            <i class="bi bi-upload"></i>
+                        </button>
+                        <button class="nav-button" onclick="deletePDF('${pdfCount}')" style="padding: 4px 8px; background-color: #28a745; color: white; border-color: #28a745;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <i class="bi bi-cloud-upload" style="font-size: 48px; margin-bottom: 15px; color: #28a745;"></i>
+                        <div style="font-size: 16px; font-weight: 500; margin-bottom: 10px;">Subir PDF</div>
+                        <div style="font-size: 12px; margin-bottom: 20px;">Haz clic para seleccionar un archivo PDF</div>
+                        <input type="file" id="pdfInput_${pdfCount}" accept=".pdf" style="display: none;" onchange="handlePDFSelect('${pdfCount}', this)">
+                        <button onclick="document.getElementById('pdfInput_${pdfCount}').click()" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                            <i class="bi bi-folder2-open" style="margin-right: 8px;"></i>
+                            Seleccionar Archivo PDF
+                        </button>
+                    </div>
+                    <div id="pdfPreview_${pdfCount}" style="width: 100%; height: 300px; border: 1px solid #d4edda; border-radius: 4px; background: white; display: none; margin-top: 20px;">
+                        <!-- Aquí se mostrará el PDF -->
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el visor de PDF al contenedor
+            pdfContainer.appendChild(pdfViewer);
+            
+            // Agregar a la barra lateral
+            addSelectedItem('PDF', `PDF ${pdfCount}`, 'file-pdf', `pdf_${pdfCount}`);
+            
+            // Mostrar notificación
+            showNotification(`PDF ${pdfCount} agregado exitosamente`, 'success');
+        }
+        
+        function uploadPDF(pdfId) {
+            document.getElementById(`pdfInput_${pdfId}`).click();
+        }
+        
+        function handlePDFSelect(pdfId, input) {
+            const file = input.files[0];
+            if (file && file.type === 'application/pdf') {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const pdfData = e.target.result;
+                    const previewDiv = document.getElementById(`pdfPreview_${pdfId}`);
+                    
+                    // Mostrar preview del PDF (paleta verde)
+                    previewDiv.style.display = 'block';
+                    previewDiv.innerHTML = `
+                        <div style="height: 100%; display: flex; flex-direction: column;">
+                            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(40,167,69,0.25);">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-file-pdf" style="font-size: 14px;"></i>
+                                        <div>
+                                            <div style="font-size: 13px; font-weight: 600;">${file.name}</div>
+                                            <div style="font-size: 10px; opacity: 0.9; margin-top: 1px;">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button onclick="viewPDF('${pdfId}')" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s ease;">
+                                        <i class="bi bi-eye"></i> Vista
+                                    </button>
+                                    <button onclick="downloadPDF('${pdfId}')" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s ease;">
+                                        <i class="bi bi-download"></i> Descargar
+                                    </button>
+                                    <button onclick="deletePDF('${pdfId}')" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 500; transition: all 0.2s ease;">
+                                        <i class="bi bi-trash"></i> Borrar
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="pdfViewer_${pdfId}" style="width: 100%; height: 180px; border: 1px solid #d4edda; border-radius: 4px; background: white; display: none; margin-top: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                                <!-- El PDF se mostrará aquí cuando se presione "Vista" -->
+                            </div>
+                            <div style="background: linear-gradient(to bottom, #d4edda, #c3e6cb); padding: 6px 10px; border-top: 1px solid #c3e6cb; font-size: 9px; color: #155724; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <i class="bi bi-check-circle" style="color: #28a745; font-size: 12px;"></i>
+                                    <span style="color: #155724; font-weight: 500;">PDF cargado</span>
+                                </div>
+                                <div style="font-size: 8px; opacity: 0.7;">
+                                    ${new Date().toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Guardar en localStorage
+                    localStorage.setItem(`pdf_${pdfId}`, pdfData);
+                    localStorage.setItem(`pdf_name_${pdfId}`, file.name);
+                    localStorage.setItem(`pdf_size_${pdfId}`, file.size);
+                    
+                    showNotification(`PDF "${file.name}" cargado exitosamente`, 'success');
+                };
+                
+                reader.readAsDataURL(file);
+            } else {
+                showNotification('Por favor selecciona un archivo PDF válido', 'error');
+            }
+        }
+        
+        function viewPDF(pdfId) {
+            const pdfData = localStorage.getItem(`pdf_${pdfId}`);
+            const pdfName = localStorage.getItem(`pdf_name_${pdfId}`);
+            
+            if (pdfData) {
+                // Mostrar el visor PDF
+                const pdfViewer = document.getElementById(`pdfViewer_${pdfId}`);
+                pdfViewer.style.display = 'block';
+                pdfViewer.innerHTML = `
+                    <iframe src="${pdfData}" style="flex: 1; border: none; width: 100%; height: 250px;" title="PDF Viewer"></iframe>
+                `;
+                
+                // Abrir PDF en nueva ventana
+                const newWindow = window.open('', '_blank');
+                newWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${pdfName} - Visor PDF</title>
+                        <style>
+                            body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+                            embed { width: 100%; height: 100vh; }
+                        </style>
+                    </head>
+                    <body>
+                        <embed src="${pdfData}" type="application/pdf" width="100%" height="100%" />
+                    </body>
+                    </html>
+                `);
+                newWindow.document.close();
+                
+                showNotification(`Abriendo "${pdfName}" en nueva ventana`, 'info');
+            }
+        }
+        
+        function downloadPDF(pdfId) {
+            const pdfData = localStorage.getItem(`pdf_${pdfId}`);
+            const pdfName = localStorage.getItem(`pdf_name_${pdfId}`);
+            
+            if (pdfData && pdfName) {
+                // Convertir base64 a blob y descargar
+                const byteCharacters = atob(pdfData.split(',')[1]);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = pdfName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showNotification(`Descargando "${pdfName}"`, 'info');
+            }
+        }
+        
+        function deletePDF(pdfId) {
+            if (confirm(`¿Está seguro de eliminar el PDF ${pdfId}?`)) {
+                const pdfViewer = document.getElementById(`pdf_${pdfId}`);
+                pdfViewer.style.transform = 'scale(0.95)';
+                pdfViewer.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    pdfViewer.remove();
+                    
+                    // Limpiar localStorage
+                    localStorage.removeItem(`pdf_${pdfId}`);
+                    localStorage.removeItem(`pdf_name_${pdfId}`);
+                    
+                    updatePDFCount();
+                    showNotification(`PDF ${pdfId} eliminado`, 'success');
+                }, 200);
+            }
+        }
+        
+        function updatePDFCount() {
+            const pdfContainer = document.querySelector('.pdf-container');
+            const countElement = document.getElementById('pdfCount');
+            if (pdfContainer && countElement) {
+                const count = pdfContainer.querySelectorAll('.pdf-viewer').length;
+                countElement.textContent = count;
+            }
+        }
+        
+        function closeDropdown() {
+            setTimeout(() => {
+                const dropdown = document.getElementById('areasDropdown');
+                if (dropdown) {
+                    dropdown.classList.remove('show');
+                    dropdown.style.display = 'none';
+                }
+            }, 100); // Pequeño retraso para asegurar cierre
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('areasDropdown');
+            const container = document.querySelector('.add-button-container');
+            
+            if (!container.contains(event.target)) {
+                if (dropdown) {
+                    dropdown.classList.remove('show');
+                    dropdown.style.display = 'none';
+                }
+            }
+        });
+        
+        // Close sidebar functionality
+        document.querySelector('.sidebar-icon[title="Cerrar"]').addEventListener('click', function() {
+            if (confirm('¿Está seguro de que desea cerrar esta página?')) {
+                window.close();
+            }
+        });
+        
+        // Print functionality
+        document.querySelector('.sidebar-icon[title="Imprimir"]').addEventListener('click', function() {
+            window.print();
+        });
+        
+        // Settings functionality
+        document.querySelector('.sidebar-icon[title="Configuración"]').addEventListener('click', function() {
+            alert('Configuración - En desarrollo');
+        });
+        
+        // Undo/Redo functionality
+        document.querySelector('.sidebar-icon[title="Deshacer/Rehacer"]').addEventListener('click', function() {
+            alert('Deshacer/Rehacer - En desarrollo');
+        });
+    </script>
+</body>
+</html>
