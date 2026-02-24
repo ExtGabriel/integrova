@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="../css/formularios.css" rel="stylesheet">
-    <link href="estimacion_contable_simple.css" rel="stylesheet">
+    <link href="estimacion_contable.css" rel="stylesheet">
 </head>
 <body>
     <div class="estimacion-contable-wrapper">
@@ -96,7 +96,7 @@
             <main class="main-content">
                 <!-- Page Title -->
                 <div class="page-header">
-                    <h1>Estimación contable de unamas - Procedimientos de evaluación de riesgos y respuesta a los riesgos</h1>
+                    <h1>Estimación contable - Procedimientos de evaluación de riesgos y respuesta a los riesgos</h1>
                 </div>
 
                 <!-- Tabs -->
@@ -124,55 +124,34 @@
                 <div class="tab-content">
                     <!-- Descripción General Tab -->
                     <div id="tab-descripcion" class="tab-pane active">
-                        <div class="content-section">
+                        <div class="content-section" id="informacion-estimacion">
                             <div class="section-header">
                                 <h2>DESCRIPCIÓN GENERAL</h2>
                             </div>
-                            
-                            <div class="form-section">
+                            <div class="form-section simple-estimacion-form">
                                 <h3>Información de estimación contable</h3>
-                                <div class="form-group">
-                                    <label for="nombre-estimacion">Nombre de la estimación contable</label>
-                                    <input type="text" id="nombre-estimacion" class="form-control" placeholder="">
-                                    <small class="form-text">Documente si se trata de una estimación contable anterior o nueva.</small>
+
+                                <div class="form-row-inline">
+                                    <label for="nombre-estimacion">Nombre de la estimación contable:</label>
+                                    <input type="text" id="nombre-estimacion" name="nombre-estimacion" class="form-control" aria-label="Nombre de la estimación contable">
                                 </div>
-                                
-                                <div class="form-group">
-                                    <label for="fecha-periodo">Fecha del período</label>
-                                    <input type="date" id="fecha-periodo" class="form-control" placeholder="">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="fecha-preparacion">Fecha de preparación</label>
-                                    <input type="date" id="fecha-preparacion" class="form-control" placeholder="">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="preparado-por">Preparado por</label>
-                                    <input type="text" id="preparado-por" class="form-control" placeholder="">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="revisado-por">Revisado por</label>
-                                    <input type="text" id="revisado-por" class="form-control" placeholder="">
-                                </div>
-                                
-                                <div class="button-group">
-                                    <button class="btn btn-outline-primary" id="btn-estimacion-previa">
-                                        <i class="bi bi-arrow-clockwise"></i> Estimación contable previa
-                                    </button>
-                                    <button class="btn btn-primary" id="btn-nueva-estimacion">
-                                        <i class="bi bi-plus-circle"></i> Nueva estimación contable
-                                    </button>
+
+                                <div class="form-row-inline form-row-options">
+                                    <p class="question-text">Documente si se trata de una estimación contable anterior o nueva.</p>
+                                    <div class="button-group inline-options">
+                                        <button type="button" class="btn btn-outline-primary" id="btn-estimacion-previa">Estimación contable previa</button>
+                                        <button type="button" class="btn btn-outline-primary" id="btn-nueva-estimacion">Nueva estimación contable</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="content-section">
+                        <div class="content-section" id="historial-estimaciones">
                             <div class="section-header">
                                 <h2>HISTORIAL DE ESTIMACIONES CONTABLES</h2>
                             </div>
                             
+                                                        
                             <div class="chart-container">
                                 <canvas id="historialChart" width="400" height="200"></canvas>
                             </div>
@@ -190,6 +169,112 @@
                                     <span class="legend-color" style="background-color: #dc3545;"></span>
                                     <span>Variance</span>
                                 </div>
+                            </div>
+                            
+                            <!-- Tabla de historial detallado -->
+                            <div class="historial-table-container">
+                                <table class="historial-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Año</th>
+                                            <th>
+                                                Descripción de la cuenta
+                                                <i class="bi bi-question-circle help-icon" title="Descripción de la cuenta"></i>
+                                            </th>
+                                            <th>Monto de la cuenta</th>
+                                            <th>Estimación original</th>
+                                            <th>Actual</th>
+                                            <th>
+                                                Diferencia
+                                                <i class="bi bi-question-circle help-icon" title="Diferencia entre estimación y actual"></i>
+                                            </th>
+                                            <th>Comentarios</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>2024</td>
+                                            <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="text" class="table-input-comments" placeholder="Comentarios"></td>
+                                            <td>
+                                                <div class="modal-info-container" id="modal-info-2024">
+                                                    <button class="btn-table-action" onclick="abrirModalComentarios(2024)" title="Agregar información">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>2023</td>
+                                            <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="text" class="table-input-comments" placeholder="Comentarios"></td>
+                                            <td>
+                                                <div class="modal-info-container" id="modal-info-2023">
+                                                    <button class="btn-table-action" onclick="abrirModalComentarios(2023)" title="Agregar información">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>2022</td>
+                                            <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="text" class="table-input-comments" placeholder="Comentarios"></td>
+                                            <td>
+                                                <div class="modal-info-container" id="modal-info-2022">
+                                                    <button class="btn-table-action" onclick="abrirModalComentarios(2022)" title="Agregar información">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>2021</td>
+                                            <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="text" class="table-input-comments" placeholder="Comentarios"></td>
+                                            <td>
+                                                <div class="modal-info-container" id="modal-info-2021">
+                                                    <button class="btn-table-action" onclick="abrirModalComentarios(2021)" title="Agregar información">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>2020</td>
+                                            <td><input type="text" class="table-input" placeholder="Descripción"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="number" class="table-input-number" value="0"></td>
+                                            <td><input type="text" class="table-input-comments" placeholder="Comentarios"></td>
+                                            <td>
+                                                <div class="modal-info-container" id="modal-info-2020">
+                                                    <button class="btn-table-action" onclick="abrirModalComentarios(2020)" title="Agregar información">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -222,8 +307,266 @@
         </div>
     </div>
 
+    <!-- Modal de Comentarios -->
+    <div class="modal fade" id="modalComentarios" tabindex="-1" aria-labelledby="modalComentariosLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalComentariosLabel">Agregar Comentario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formComentarios">
+                        <div class="mb-3">
+                            <label for="objetivo" class="form-label">Objetivo</label>
+                            <select class="form-select" id="objetivo" required>
+                                <option value="" selected>Acepta la fuente</option>
+                                <option value="viene-de">Viene de</option>
+                                <option value="va-a">Va a</option>
+                                <option value="calculo-verificado">Cálculo verificado</option>
+                                <option value="adicion-marcada">Adición marcada</option>
+                                <option value="enlace">Enlace</option>
+                                <option value="nota">Nota</option>
+                                <option value="diferencia">Diferencia</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="enlace" class="form-label">Enlace</label>
+                            <div class="enlace-selector">
+                                <input type="text" class="form-control" id="enlaceBusqueda" placeholder="Búsqueda de documentos y ajustes...">
+                                <button type="button" class="btn-clear-enlace" onclick="clearEnlaceSelection()" style="display: none;" title="Limpiar selección">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="toggleFormulariosList()">
+                                    <span id="toggleText">Mostrar oculto</span>
+                                    <i class="bi bi-chevron-down" id="toggleIcon"></i>
+                                </button>
+                                <div id="formulariosListContainer" class="formularios-list-container" style="display: none;">
+                                    <div class="formularios-list">
+                                        <!-- Categoría: Configuración del compromiso -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('config-compromiso')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-config-compromiso"></i>
+                                                <span>Configuración del compromiso</span>
+                                            </div>
+                                            <div class="category-items" id="category-config-compromiso">
+                                                <div class="formulario-item" onclick="selectFormulario('A100', 'Lista de verificación del Optimizador - Decisiones iniciales de compromiso')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A100 Lista de verificación del Optimizador - Decisiones iniciales de compromiso</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Aceptación/continuidad del cliente -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('aceptacion-cliente')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-aceptacion-cliente"></i>
+                                                <span>Aceptación/continuidad del cliente</span>
+                                            </div>
+                                            <div class="category-items" id="category-aceptacion-cliente">
+                                                <div class="formulario-item" onclick="selectFormulario('A200', 'Actividades preliminares del compromiso')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A200 Actividades preliminares del compromiso</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Estrategia general de auditoría -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('estrategia-auditoria')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-estrategia-auditoria"></i>
+                                                <span>Estrategia general de auditoría</span>
+                                            </div>
+                                            <div class="category-items" id="category-estrategia-auditoria">
+                                                <div class="formulario-item" onclick="selectFormulario('A300', 'Estrategia general de auditoría')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A300 Estrategia general de auditoría</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('A360', 'Hoja de trabajo - Selección de un auditor del componente')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A360 Hoja de trabajo - Selección de un auditor del componente</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('A400', 'Discusiones de planificación en equipo')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A400 Discusiones de planificación en equipo</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Materialidad -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('materialidad')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-materialidad"></i>
+                                                <span>Materialidad</span>
+                                            </div>
+                                            <div class="category-items" id="category-materialidad">
+                                                <div class="formulario-item" onclick="selectFormulario('A500', 'Materialidad')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A500 Materialidad</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('A380', 'Materialidad')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A380 Materialidad</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('A390', 'Materialidad de ejecución')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>A390 Materialidad de ejecución</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Evaluación de riesgos -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('evaluacion-riesgos')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-evaluacion-riesgos"></i>
+                                                <span>Evaluación de riesgos</span>
+                                            </div>
+                                            <div class="category-items" id="category-evaluacion-riesgos">
+                                                <div class="formulario-item" onclick="selectFormulario('B100', 'Revisión analítica')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B100 Revisión analítica</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B200', 'Identificación de riesgos a través del entendimiento de la entidad')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B200 Identificación de riesgos a través del entendimiento de la entidad</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B300', 'Comprensión de los componentes del sistema de control interno de la entidad')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B300 Comprensión de los componentes del sistema de control interno de la entidad</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B335', 'Entendimiento del proceso de información financiera')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B335 Entendimiento del proceso de información financiera</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B350', 'Reporte de control')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B350 Reporte de control</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B400', 'Evaluación de RIM (incluyendo riesgos de fraude)')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B400 Evaluación de RIM (incluyendo riesgos de fraude)</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B450', 'Informe de riesgos')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B450 Informe de riesgos</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B500', 'Informe de evaluación de riesgo')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B500 Informe de evaluación de riesgo</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B510', 'Programa de auditoría del grupo – Componentes de alcance del compromiso')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B510 Programa de auditoría del grupo – Componentes de alcance del compromiso</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('B600', 'Negocio en marcha')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>B600 Negocio en marcha</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Respuesta al riesgo -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('respuesta-riesgo')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-respuesta-riesgo"></i>
+                                                <span>Respuesta al riesgo</span>
+                                            </div>
+                                            <div class="category-items" id="category-respuesta-riesgo">
+                                                <div class="formulario-item" onclick="selectFormulario('C100', 'Respuesta de auditoría a los riesgos evaluados')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>C100 Respuesta de auditoría a los riesgos evaluados</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('C160', 'Información financiera – Procedimientos de auditoría')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>C160 Información financiera – Procedimientos de auditoría</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('C165', 'Hoja de trabajo – Evaluación del trabajo de un auditor del componente')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>C165 Hoja de trabajo – Evaluación del trabajo de un auditor del componente</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Categoría: Planes y procedimientos de auditoría -->
+                                        <div class="formulario-category">
+                                            <div class="category-header" onclick="toggleCategory('planes-procedimientos')">
+                                                <i class="bi bi-dash-lg category-icon" id="icon-planes-procedimientos"></i>
+                                                <span>Planes y procedimientos de auditoría</span>
+                                            </div>
+                                            <div class="category-items" id="category-planes-procedimientos">
+                                                <div class="formulario-item" onclick="selectFormulario('D100', 'Documentación Base')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>D100 Documentación Base</span>
+                                                </div>
+                                                <div class="formulario-item" onclick="selectFormulario('D110', 'Documentación Complementaria')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                    <span>D110 Documentación Complementaria</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="enlace" name="enlace">
+                        </div>
+                        <div class="mb-3">
+                            <label for="nota" class="form-label">Nota</label>
+                            <div class="editor-toolbar">
+                                <select class="form-select form-select-sm d-inline-block" style="width: auto;">
+                                    <option>Estilos</option>
+                                    <option>Título 1</option>
+                                    <option>Título 2</option>
+                                    <option>Título 3</option>
+                                    <option>Normal</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('bold')" title="Negrita">
+                                    <i class="bi bi-type-bold"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('italic')" title="Cursiva">
+                                    <i class="bi bi-type-italic"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('underline')" title="Subrayado">
+                                    <i class="bi bi-type-underline"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('removeFormat')" title="Limpiar formato">
+                                    <i class="bi bi-eraser"></i>
+                                </button>
+                                <span class="toolbar-separator"></span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('insertUnorderedList')" title="Lista con viñetas">
+                                    <i class="bi bi-list-ul"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('insertOrderedList')" title="Lista numerada">
+                                    <i class="bi bi-list-ol"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('indent')" title="Aumentar sangría">
+                                    <i class="bi bi-indent"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('outdent')" title="Reducir sangría">
+                                    <i class="bi bi-text-left"></i>
+                                </button>
+                            </div>
+                            <div id="nota" class="editor-content" contenteditable="true"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <div class="d-flex modal-action-buttons justify-content-center">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="guardarComentario()">Ahorrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase Config -->
+    <script src="../js/config-supabase.js"></script>
+    <!-- Supabase Client -->
+    <script src="../js/supabaseClient.js"></script>
+    <!-- Auth Guard -->
+    <script src="../js/auth-guard.js"></script>
     <script src="estimacion_contable.js"></script>
 </body>
 </html>
