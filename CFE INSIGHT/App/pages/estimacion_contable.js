@@ -704,18 +704,41 @@ function abrirModalComentarios(year) {
     const modal = new bootstrap.Modal(document.getElementById('modalComentarios'));
 
     // Verificar si ya existe información guardada para este año
-    const infoContainer = document.getElementById(`modal-info-${year}`);
-    
-    if (infoContainer && infoContainer.dataset.objetivo) {
+    let infoContainer;
+    let savedData = null;
+
+    if (year === 'resumen-preparado' || year === 'resumen-revisado') {
+        // Para casos especiales de resumen, buscar el badge que contiene los datos
+        const badge = document.querySelector(`div[onclick*="${year}"]`);
+        if (badge && badge.dataset.objetivo) {
+            // Extraer datos de los atributos data
+            savedData = {
+                objetivo: badge.dataset.objetivo,
+                enlace: badge.dataset.enlace || '',
+                nota: badge.dataset.nota || ''
+            };
+        }
+    } else {
+        // Para años normales, usar el contenedor original
+        infoContainer = document.getElementById(`modal-info-${year}`);
+        
+        if (infoContainer && infoContainer.dataset.objetivo) {
+            savedData = {
+                objetivo: infoContainer.dataset.objetivo,
+                enlace: infoContainer.dataset.enlace,
+                nota: infoContainer.dataset.nota
+            };
+        }
+    }
+
+    if (savedData) {
         // Cargar la información guardada en el modal
-        const objetivo = infoContainer.dataset.objetivo;
-        const enlace = infoContainer.dataset.enlace;
-        const nota = infoContainer.dataset.nota;
+        const { objetivo, enlace, nota } = savedData;
 
         // Establecer los valores en el formulario
         document.getElementById('objetivo').value = objetivo;
         document.getElementById('enlace').value = enlace;
-        document.getElementById('nota').innerHTML = nota;
+        document.getElementById('nota').innerHTML = nota || '';
 
         // Si hay enlace, mostrarlo en el campo de búsqueda
         if (enlace) {
@@ -817,9 +840,8 @@ function guardarComentario() {
         return;
     }
 
-    // Encontrar el contenedor de información del modal para el año actual
-    const infoContainer = document.getElementById(`modal-info-${currentYear}`);
-    if (infoContainer) {
+    // Verificar si es un caso especial de resumen
+    if (currentYear === 'resumen-preparado' || currentYear === 'resumen-revisado') {
         // Crear el elemento para mostrar la información
         let infoHTML = '';
         let iconClass = '';
@@ -857,21 +879,131 @@ function guardarComentario() {
         }
 
         infoHTML = `
-            <div class="modal-info-item" onclick="abrirModalComentarios(${currentYear})" title="Objetivo: ${objetivo}${enlace ? ' - ' + enlace : ''}">
+            <div class="modal-info-item" onclick="abrirModalComentarios('${currentYear}')" 
+                 data-objetivo="${objetivo}" 
+                 data-enlace="${enlace}" 
+                 data-nota="${nota.replace(/"/g, '&quot;')}"
+                 title="Objetivo: ${objetivo}${enlace ? ' - ' + enlace : ''}">
                 <i class="bi ${iconClass}"></i>
                 <span class="modal-info-text">${shortText}</span>
             </div>
         `;
 
-        infoContainer.innerHTML = infoHTML;
-
-        // Guardar datos completos en atributos data para referencia futura
-        infoContainer.dataset.objetivo = objetivo;
-        infoContainer.dataset.enlace = enlace;
-        infoContainer.dataset.nota = nota;
+        // Encontrar el botón correspondiente y reemplazarlo
+        const targetButton = document.querySelector(`button[onclick*="${currentYear}"]`);
+        if (targetButton) {
+            targetButton.outerHTML = infoHTML;
+        }
 
         showNotification('Información guardada exitosamente', 'success');
+    } else {
+        // Lógica original para los años de la tabla de historial
+        const infoContainer = document.getElementById(`modal-info-${currentYear}`);
+        if (infoContainer) {
+            // Crear el elemento para mostrar la información
+            let infoHTML = '';
+            let iconClass = '';
+            let shortText = '';
+            
+            // Determinar el icono y texto según el objetivo
+            switch(objetivo) {
+                case 'viene-de':
+                    iconClass = 'bi-arrow-left';
+                    shortText = enlace ? enlace.substring(0, 15) + '...' : 'Viene de';
+                    break;
+                case 'va-a':
+                    iconClass = 'bi-arrow-right';
+                    shortText = enlace ? enlace.substring(0, 15) + '...' : 'Va a';
+                    break;
+                case 'calculo-verificado':
+                    iconClass = 'bi-check-circle';
+                    shortText = enlace ? enlace.substring(0, 15) + '...' : 'Verificado';
+                    break;
+                case 'adicion-marcada':
+                    iconClass = 'bi-plus-square';
+                    shortText = enlace ? enlace.substring(0, 15) + '...' : 'Adición';
+                    break;
+                case 'enlace':
+                    iconClass = 'bi-link';
+                    shortText = enlace ? enlace.substring(0, 15) + '...' : 'Enlace';
+                    break;
+                case 'nota':
+                default:
+                    iconClass = 'bi-sticky-note';
+                    // Extraer texto plano del contenido HTML
+                    const textoNota = nota.replace(/<[^>]*>/g, '').substring(0, 20);
+                    shortText = textoNota + (nota.length > 20 ? '...' : '');
+                    break;
+            }
+
+            infoHTML = `
+                <div class="modal-info-item" onclick="abrirModalComentarios(${currentYear})" title="Objetivo: ${objetivo}${enlace ? ' - ' + enlace : ''}">
+                    <i class="bi ${iconClass}"></i>
+                    <span class="modal-info-text">${shortText}</span>
+                </div>
+            `;
+
+            infoContainer.innerHTML = infoHTML;
+
+            // Guardar datos completos en atributos data para referencia futura
+            infoContainer.dataset.objetivo = objetivo;
+            infoContainer.dataset.enlace = enlace;
+            infoContainer.dataset.nota = nota;
+
+            showNotification('Información guardada exitosamente', 'success');
+        }
     }
+
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalComentarios'));
+    modal.hide();
+}
+
+// Eliminar comentario
+function eliminarComentario() {
+    // Confirmar eliminación
+    if (!confirm('¿Estás seguro de que deseas eliminar esta información? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    if (currentYear === 'resumen-preparado' || currentYear === 'resumen-revisado') {
+        // Para casos especiales de resumen, reemplazar el badge con el botón +
+        const badge = document.querySelector(`div[onclick*="${currentYear}"]`);
+        if (badge) {
+            let buttonText = '<button type="button" class="resumen-add-btn" title="Agregar comentario" onclick="abrirModalComentarios(\'' + currentYear + '\')"><i class="bi bi-plus"></i></button>';
+            badge.outerHTML = buttonText;
+        }
+    } else {
+        // Para años normales, restaurar el contenedor original con el botón +
+        const infoContainer = document.getElementById(`modal-info-${currentYear}`);
+        if (infoContainer) {
+            infoContainer.innerHTML = '<button type="button" class="btn btn-primary btn-sm" onclick="abrirModalComentarios(' + currentYear + ')"><i class="bi bi-plus-circle"></i></button>';
+            
+            // Limpiar datos guardados
+            delete infoContainer.dataset.objetivo;
+            delete infoContainer.dataset.enlace;
+            delete infoContainer.dataset.nota;
+        }
+    }
+
+    // Limpiar formulario
+    document.getElementById('objetivo').value = '';
+    document.getElementById('enlace').value = '';
+    document.getElementById('enlaceBusqueda').value = '';
+    document.getElementById('nota').innerHTML = '';
+
+    // Ocultar botón de limpiar enlace
+    const clearBtn = document.querySelector('.btn-clear-enlace');
+    if (clearBtn) {
+        clearBtn.style.display = 'none';
+    }
+
+    // Limpiar selección de formularios
+    document.querySelectorAll('.formulario-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+
+    showNotification('Información eliminada exitosamente', 'success');
 
     // Cerrar modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalComentarios'));
