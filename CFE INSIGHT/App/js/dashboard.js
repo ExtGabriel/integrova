@@ -965,7 +965,7 @@ async function generateDatabaseInsights() {
         } else {
             const completionRate = totalCommitments > 0 ? Math.round((completedCommitments / totalCommitments) * 100) : 0;
 
-            insights = `Sistema operativo con ${totalEntities} entidades, ${totalCommitments} compromisos totales (${activeCommitments} activos). `;
+            insights = `Analizando entidades trabajadas`;
 
             if (completionRate > 0) {
                 insights += `Tasa de cumplimiento: ${completionRate}%. `;
@@ -977,8 +977,6 @@ async function generateDatabaseInsights() {
 
             if (upcomingDeadlines > 0) {
                 insights += `${upcomingDeadlines} compromisos con fecha límite próxima.`;
-            } else if (activeCommitments > 0) {
-                insights += 'Todos los compromisos en tiempo y forma.';
             }
         }
 
