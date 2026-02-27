@@ -36,6 +36,7 @@ const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
             'http://localhost:3000',      // Desarrollo local
+            'http://localhost:3001',      // Servidor local (mismo puerto)
             'http://localhost:5000',      // Desarrollo local alternativo
             'http://localhost:8080',      // Desarrollo local alternativo
             process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
@@ -750,33 +751,6 @@ app.post('/api/auth/login', (_req, res) => {
         success: false,
         error: 'Autenticación movida a Supabase Auth. Usa supabase.auth.signInWithPassword desde el frontend.'
     });
-});
-if (existingForm) {
-    // Update existing form
-    const { data, error } = await supabase
-        .from('audit_forms')
-        .update({ data: formData })
-        .eq('id', existingForm.id)
-        .select();
-
-    if (error) throw error;
-    result = data[0];
-} else {
-    // Create new form
-    const { data, error } = await supabase
-        .from('audit_forms')
-        .insert([{ form_type: formType, user_id, data: formData }])
-        .select();
-
-    if (error) throw error;
-    result = data[0];
-}
-
-res.status(existingForm ? 200 : 201).json({ success: true, data: result });
-    } catch (error) {
-    console.error('Error saving audit form:', error);
-    res.status(500).json({ success: false, error: 'Failed to save audit form' });
-}
 });
 
 // ============================================
@@ -1943,6 +1917,770 @@ app.post('/api/ai/generate-report', async (req, res) => {
     } catch (error) {
         console.error('Error en /api/ai/generate-report:', error);
         res.status(500).json({ error: 'Error al generar reporte' });
+    }
+});
+
+// Nuevo endpoint para obtener el último conjunto de datos de Excel
+app.get('/api/excel/latest', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            console.error('Error al obtener el último conjunto de datos:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        if (data && data.length > 0) {
+            res.json({ success: true, data: data[0] });
+        } else {
+            res.status(404).json({ success: false, message: 'No se encontraron conjuntos de datos.' });
+        }
+    } catch (error) {
+        console.error('Error en /api/excel/latest:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+    }
+});
+
+// Endpoint para subir archivos Excel (estilo CaseWare)
+app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        
+        if (files.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No se proporcionaron archivos' 
+            });
+        }
+
+        const results = [];
+
+        for (const file of files) {
+            try {
+                // Procesar el archivo Excel como CaseWare
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const analysis = analyzeExcelLikeCaseWare(workbook, file.originalname);
+                
+                // Guardar en la base de datos (adaptado a estructura existente)
+                if (analysis.success) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('conjuntos_datos')
+                            .insert({
+                                nombre: file.originalname,
+                                tipo: analysis.fileType,
+                                fecha_importacion: new Date().toISOString(),
+                                total_debitos: analysis.totals.debits || 0,
+                                total_creditos: analysis.totals.credits || 0,
+                                estado: analysis.isBalanced ? 'balanceado' : 'desbalanceado',
+                                archivo_original: file.originalname
+                                // user_id se omite temporalmente hasta tener un UUID válido
+                            })
+                            .select();
+
+                        if (error) {
+                            console.error('Error guardando en BD:', error);
+                            analysis.savedToDatabase = false;
+                            analysis.dbError = error.message;
+                        } else {
+                            analysis.savedToDatabase = true;
+                            analysis.databaseId = data[0].id;
+                        }
+                    } catch (dbError) {
+                        console.error('Error en base de datos:', dbError);
+                        analysis.savedToDatabase = false;
+                        analysis.dbError = dbError.message;
+                    }
+                }
+                
+                results.push(analysis);
+
+            } catch (error) {
+                console.error(`Error procesando archivo ${file.originalname}:`, error);
+                results.push({
+                    success: false,
+                    fileName: file.originalname,
+                    error: `Error procesando archivo: ${error.message}`
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            results: results
+        });
+
+    } catch (error) {
+        console.error('Error en /api/excel/upload:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error procesando archivos' 
+        });
+    }
+});
+
+// Función de análisis estilo CaseWare IDEA
+function analyzeExcelLikeCaseWare(workbook, filename) {
+    const analysis = {
+        success: true,
+        fileName: filename,
+        fileType: 'Unknown',
+        sheets: [],
+        auditFindings: [],
+        dataQuality: {},
+        statistics: {},
+        accounts: [],
+        totals: { debits: 0, credits: 0 },
+        isBalanced: false,
+        anomalies: [],
+        recommendations: []
+    };
+
+    try {
+        // Analizar cada hoja
+        workbook.SheetNames.forEach((sheetName, index) => {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            const sheetAnalysis = analyzeSheetLikeCaseWare(sheetName, jsonData, index);
+            analysis.sheets.push(sheetAnalysis);
+            
+            // Acumular totales
+            if (sheetAnalysis.type === 'Trial Balance' || sheetAnalysis.type === 'Balance Sheet') {
+                analysis.totals.debits += sheetAnalysis.totals.debits;
+                analysis.totals.credits += sheetAnalysis.totals.credits;
+                analysis.accounts.push(...sheetAnalysis.accounts);
+            }
+        });
+
+        // Análisis global estilo CaseWare
+        analysis.isBalanced = Math.abs(analysis.totals.debits - analysis.totals.credits) < 0.01;
+        
+        // Detectar tipo de archivo
+        analysis.fileType = detectFileType(analysis.sheets);
+        
+        // Análisis de calidad de datos
+        analysis.dataQuality = analyzeDataQuality(analysis.accounts);
+        
+        // Generar hallazgos de auditoría
+        analysis.auditFindings = generateAuditFindings(analysis.accounts, analysis.totals);
+        
+        // Estadísticas
+        analysis.statistics = {
+            totalAccounts: analysis.accounts.length,
+            totalSheets: analysis.sheets.length,
+            zeroBalanceAccounts: analysis.accounts.filter(acc => 
+                Math.abs(acc.debit - acc.credit) < 0.01).length,
+            highValueAccounts: analysis.accounts.filter(acc => 
+                Math.max(acc.debit, acc.credit) > 1000000).length
+        };
+
+        // Detectar anomalías
+        analysis.anomalies = detectAnomalies(analysis.accounts);
+        
+        // Generar recomendaciones
+        analysis.recommendations = generateRecommendations(analysis);
+
+    } catch (error) {
+        console.error('Error en análisis CaseWare:', error);
+        analysis.success = false;
+        analysis.error = error.message;
+        
+        // Asegurar que todas las propiedades tengan valores predeterminados
+        analysis.statistics = analysis.statistics || {
+            totalAccounts: 0,
+            totalSheets: 0,
+            zeroBalanceAccounts: 0,
+            highValueAccounts: 0
+        };
+        analysis.dataQuality = analysis.dataQuality || {
+            completeness: { withAccountNumber: '0%', withAccountName: '0%' },
+            balanceAnalysis: { zeroBalance: '0%', negativeBalance: '0%' },
+            score: 0
+        };
+        analysis.auditFindings = analysis.auditFindings || [];
+        analysis.anomalies = analysis.anomalies || [];
+        analysis.recommendations = analysis.recommendations || [];
+    }
+
+    return analysis;
+}
+
+// Analizar hoja individual estilo CaseWare
+function analyzeSheetLikeCaseWare(sheetName, jsonData, sheetIndex) {
+    const sheetAnalysis = {
+        name: sheetName,
+        type: 'Unknown',
+        rows: jsonData.length,
+        columns: jsonData[0] ? jsonData[0].length : 0,
+        accounts: [],
+        totals: { debits: 0, credits: 0 },
+        hasHeaders: false,
+        dataRange: null,
+        quality: {}
+    };
+
+    // Detectar si tiene encabezados
+    if (jsonData.length > 1) {
+        sheetAnalysis.hasHeaders = detectHeaders(jsonData[0]);
+        const dataStart = sheetAnalysis.hasHeaders ? 1 : 0;
+        const dataRows = jsonData.slice(dataStart);
+        
+        // Identificar tipo de hoja
+        sheetAnalysis.type = identifySheetType(sheetName, jsonData[0]);
+        
+        // Extraer cuentas si es balance o estado financiero
+        if (sheetAnalysis.type === 'Trial Balance' || sheetAnalysis.type === 'Balance Sheet') {
+            console.log(`📊 Analizando hoja: ${sheetName}`);
+            console.log(`📋 Encabezados:`, jsonData[0]);
+            
+            const accounts = extractAccountsFromRows(dataRows, jsonData[0]);
+            sheetAnalysis.accounts = accounts;
+            
+            console.log(`📈 Cuentas extraídas: ${accounts.length}`);
+            console.log(`💰 Primeras 3 cuentas:`, accounts.slice(0, 3));
+            
+            // Calcular totales
+            accounts.forEach(acc => {
+                sheetAnalysis.totals.debits += acc.debit;
+                sheetAnalysis.totals.credits += acc.credit;
+            });
+            
+            console.log(`💵 Totales calculados: Débitos=${sheetAnalysis.totals.debits}, Créditos=${sheetAnalysis.totals.credits}`);
+        }
+        
+        // Análisis de calidad
+        sheetAnalysis.quality = analyzeSheetQuality(dataRows);
+    }
+
+    return sheetAnalysis;
+}
+
+// Detectar encabezados
+function detectHeaders(firstRow) {
+    const headerPatterns = ['cuenta', 'número', 'descripción', 'débito', 'crédito', 'saldo'];
+    return firstRow.some(cell => 
+        cell && typeof cell === 'string' && 
+        headerPatterns.some(pattern => 
+            cell.toLowerCase().includes(pattern)
+        )
+    );
+}
+
+// Identificar tipo de hoja
+function identifySheetType(sheetName, headers) {
+    const name = sheetName.toLowerCase();
+    const headerStr = headers ? headers.join(' ').toLowerCase() : '';
+    
+    if (name.includes('balance') || name.includes('trial') || 
+        headerStr.includes('débito') || headerStr.includes('crédito')) {
+        return 'Trial Balance';
+    } else if (name.includes('income') || name.includes('pérdidas') || 
+               name.includes('ganancias')) {
+        return 'Income Statement';
+    } else if (name.includes('balance sheet') || name.includes('estado') || 
+               name.includes('situación')) {
+        return 'Balance Sheet';
+    } else if (name.includes('cash') || name.includes('efectivo')) {
+        return 'Cash Flow';
+    }
+    
+    return 'Data Sheet';
+}
+
+// Extraer cuentas de las filas
+function extractAccountsFromRows(dataRows, headers) {
+    const accounts = [];
+    const colMapping = mapColumns(headers);
+    
+    dataRows.forEach((row, index) => {
+        if (row && row.length > 0 && isValidAccountRow(row)) {
+            const account = {
+                row: index + 2, // +2 porque incluye encabezado y es 1-based
+                number: extractAccountNumber(row, colMapping.number),
+                name: extractAccountName(row, colMapping.name),
+                debit: extractValue(row, colMapping.debit),
+                credit: extractValue(row, colMapping.credit),
+                balance: 0
+            };
+            
+            account.balance = account.debit - account.credit;
+            
+            if (account.number || account.name) {
+                accounts.push(account);
+            }
+        }
+    });
+    
+    return accounts;
+}
+
+// Mapear columnas
+function mapColumns(headers) {
+    const mapping = { number: -1, name: -1, debit: -1, credit: -1 };
+    
+    if (!headers) return mapping;
+    
+    console.log(`🔍 Mapeando columnas para encabezados:`, headers);
+    
+    headers.forEach((header, index) => {
+        if (header) {
+            const h = header.toString().toLowerCase();
+            if (h.includes('cuenta') || h.includes('número') || h.includes('no.')) mapping.number = index;
+            else if (h.includes('descripc') || h.includes('nombre') || h.includes('concepto')) mapping.name = index;
+            else if (h.includes('débito') || h.includes('debe')) mapping.debit = index;
+            else if (h.includes('crédito') || h.includes('haber')) mapping.credit = index;
+        }
+    });
+    
+    console.log(`📍 Mapeo de columnas:`, mapping);
+    return mapping;
+}
+
+// Validar fila de cuenta
+function isValidAccountRow(row) {
+    // No es fila válida si está vacía o solo tiene números sin texto
+    const hasText = row.some(cell => cell && typeof cell === 'string' && cell.trim().length > 0);
+    const hasNumbers = row.some(cell => cell && !isNaN(cell));
+    return hasText || hasNumbers;
+}
+
+// Extraer número de cuenta
+function extractAccountNumber(row, colIndex) {
+    if (colIndex >= 0 && row[colIndex]) {
+        const value = row[colIndex].toString().trim();
+        // Extraer solo números si es texto mixto
+        const numbers = value.match(/\d+/);
+        return numbers ? numbers[0] : value;
+    }
+    return '';
+}
+
+// Extraer nombre de cuenta
+function extractAccountName(row, colIndex) {
+    if (colIndex >= 0 && row[colIndex]) {
+        return row[colIndex].toString().trim();
+    }
+    return '';
+}
+
+// Extraer valor numérico
+function extractValue(row, colIndex) {
+    if (colIndex >= 0 && row[colIndex]) {
+        const value = parseFloat(row[colIndex]);
+        return isNaN(value) ? 0 : value;
+    }
+    return 0;
+}
+
+// Detectar tipo de archivo
+function detectFileType(sheets) {
+    const hasTrialBalance = sheets.some(s => s.type === 'Trial Balance');
+    const hasIncomeStatement = sheets.some(s => s.type === 'Income Statement');
+    const hasBalanceSheet = sheets.some(s => s.type === 'Balance Sheet');
+    
+    if (hasTrialBalance && hasIncomeStatement && hasBalanceSheet) {
+        return 'Financial Statements Package';
+    } else if (hasTrialBalance) {
+        return 'Trial Balance';
+    } else if (hasIncomeStatement) {
+        return 'Income Statement';
+    } else if (hasBalanceSheet) {
+        return 'Balance Sheet';
+    }
+    
+    return 'General Data';
+}
+
+// Análisis de calidad de datos
+function analyzeDataQuality(accounts) {
+    const total = accounts.length;
+    const withNumber = accounts.filter(acc => acc.number).length;
+    const withName = accounts.filter(acc => acc.name).length;
+    const withZeroBalance = accounts.filter(acc => Math.abs(acc.balance) < 0.01).length;
+    const withNegativeBalance = accounts.filter(acc => acc.balance < 0).length;
+    
+    return {
+        completeness: {
+            withAccountNumber: (withNumber / total * 100).toFixed(1) + '%',
+            withAccountName: (withName / total * 100).toFixed(1) + '%'
+        },
+        balanceAnalysis: {
+            zeroBalance: (withZeroBalance / total * 100).toFixed(1) + '%',
+            negativeBalance: (withNegativeBalance / total * 100).toFixed(1) + '%'
+        },
+        score: calculateDataQualityScore(accounts)
+    };
+}
+
+// Calcular score de calidad
+function calculateDataQualityScore(accounts) {
+    let score = 100;
+    const total = accounts.length;
+    
+    // Penalizar datos faltantes
+    score -= (accounts.filter(acc => !acc.number).length / total) * 20;
+    score -= (accounts.filter(acc => !acc.name).length / total) * 15;
+    
+    // Penalizar inconsistencias
+    score -= (accounts.filter(acc => acc.debit > 0 && acc.credit > 0).length / total) * 25;
+    
+    return Math.max(0, Math.round(score));
+}
+
+// Generar hallazgos de auditoría
+function generateAuditFindings(accounts, totals) {
+    const findings = [];
+    
+    // Verificar balance
+    if (Math.abs(totals.debits - totals.credits) > 0.01) {
+        findings.push({
+            type: 'Error',
+            severity: 'High',
+            description: 'Balance no cuadra',
+            detail: `Débitos: $${totals.debits.toLocaleString()}, Créditos: $${totals.credits.toLocaleString()}`,
+            recommendation: 'Revisar cálculos y registros contables'
+        });
+    }
+    
+    // Detectar cuentas sin número
+    const withoutNumber = accounts.filter(acc => !acc.number);
+    if (withoutNumber.length > 0) {
+        findings.push({
+            type: 'Warning',
+            severity: 'Medium',
+            description: 'Cuentas sin número',
+            detail: `${withoutNumber.length} cuentas no tienen número de cuenta`,
+            recommendation: 'Asignar números de cuenta según catálogo contable'
+        });
+    }
+    
+    // Detectar valores inusualmente altos
+    const highValues = accounts.filter(acc => Math.max(acc.debit, acc.credit) > 10000000);
+    if (highValues.length > 0) {
+        findings.push({
+            type: 'Information',
+            severity: 'Low',
+            description: 'Cuentas con valores altos',
+            detail: `${highValues.length} cuentas superan los $10,000,000`,
+            recommendation: 'Verificar transacciones de alto valor'
+        });
+    }
+    
+    return findings;
+}
+
+// Detectar anomalías
+function detectAnomalies(accounts) {
+    const anomalies = [];
+    
+    // Cuentas con débito y crédito simultáneos
+    const bothSides = accounts.filter(acc => acc.debit > 0 && acc.credit > 0);
+    if (bothSides.length > 0) {
+        anomalies.push({
+            type: 'Double Entry',
+            count: bothSides.length,
+            description: 'Cuentas con valores en ambas columnas'
+        });
+    }
+    
+    // Cuentas con saldos negativos inusuales
+    const negativeSaldos = accounts.filter(acc => acc.balance < -1000);
+    if (negativeSaldos.length > 0) {
+        anomalies.push({
+            type: 'Negative Balance',
+            count: negativeSaldos.length,
+            description: 'Cuentas con saldos deudores negativos significativos'
+        });
+    }
+    
+    return anomalies;
+}
+
+// Generar recomendaciones
+function generateRecommendations(analysis) {
+    const recommendations = [];
+    
+    if (!analysis.isBalanced) {
+        recommendations.push('Revisar el balance de comprobación para asegurar que débitos = créditos');
+    }
+    
+    if (analysis.dataQuality.score < 80) {
+        recommendations.push('Mejorar la calidad de los datos: completar números y nombres de cuentas');
+    }
+    
+    if (analysis.statistics.zeroBalanceAccounts > analysis.statistics.totalAccounts * 0.1) {
+        recommendations.push('Revisar cuentas con saldo cero - podrían ser innecesarias');
+    }
+    
+    recommendations.push('Considerar realizar análisis de tendencia para detectar variaciones inusuales');
+    recommendations.push('Documentar los hallazgos de auditoría para seguimiento');
+    
+    return recommendations;
+}
+
+// Analizar calidad de hoja
+function analyzeSheetQuality(dataRows) {
+    const totalRows = dataRows.length;
+    const emptyRows = dataRows.filter(row => !row || row.every(cell => !cell)).length;
+    const validRows = totalRows - emptyRows;
+    
+    return {
+        totalRows,
+        emptyRows,
+        validRows,
+        completeness: ((validRows / totalRows) * 100).toFixed(1) + '%'
+    };
+}
+
+// Endpoint para guardar cuentas y saldos
+app.post('/api/excel/save-accounts', async (req, res) => {
+    try {
+        const { accounts, totalDebits, totalCredits, fileName } = req.body;
+        
+        if (!accounts || !Array.isArray(accounts)) {
+            return res.status(400).json({ success: false, error: 'Datos de cuentas inválidos' });
+        }
+
+        // Crear registro del conjunto de datos
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .insert([{
+                nombre: fileName,
+                tipo: 'balance_comprobacion',
+                fecha_importacion: new Date().toISOString(),
+                total_debitos: totalDebits,
+                total_creditos: totalCredits,
+                estado: 'procesado'
+            }])
+            .select()
+            .single();
+
+        if (datasetError) throw datasetError;
+
+        // Guardar cuentas individuales
+        const accountsToInsert = accounts.map(account => ({
+            conjunto_id: dataset.id,
+            numero_cuenta: account.number,
+            nombre_cuenta: account.name,
+            debito_actual: account.currentYearDebit,
+            credito_actual: account.currentYearCredit,
+            debito_anterior: account.previousYearDebit,
+            credito_anterior: account.previousYearCredit,
+            saldo: account.currentYearDebit - account.currentYearCredit,
+            fecha_creacion: new Date().toISOString()
+        }));
+
+        const { data: savedAccounts, error: accountsError } = await supabase
+            .from('cuentas_contables')
+            .insert(accountsToInsert)
+            .select();
+
+        if (accountsError) throw accountsError;
+
+        res.json({
+            success: true,
+            message: 'Cuentas guardadas exitosamente',
+            dataset: dataset,
+            accounts: savedAccounts
+        });
+
+    } catch (error) {
+        console.error('Error guardando cuentas:', error);
+        res.status(500).json({ success: false, error: 'Error guardando cuentas' });
+    }
+});
+
+// Endpoint para guardar clasificaciones de cuentas
+app.post('/api/excel/save-classifications', async (req, res) => {
+    try {
+        const { classifications, accounts, datasetId } = req.body;
+        
+        if (!classifications || !accounts) {
+            return res.status(400).json({ success: false, error: 'Datos de clasificación inválidos' });
+        }
+
+        // Actualizar clasificaciones de cuentas
+        const updates = [];
+        Object.keys(classifications).forEach(accountIndex => {
+            const account = accounts[accountIndex];
+            const classification = classifications[accountIndex];
+            
+            updates.push({
+                id: account.id, // Asumiendo que tenemos el ID
+                grupo_financiero: classification,
+                fecha_clasificacion: new Date().toISOString(),
+                clasificado: true
+            });
+        });
+
+        // Actualizar en lote
+        const { data: updatedAccounts, error: updateError } = await supabase
+            .from('cuentas_contables')
+            .upsert(updates)
+            .select();
+
+        if (updateError) throw updateError;
+
+        // Generar estados financieros
+        const financialStatements = generateFinancialStatements(accounts, classifications);
+        
+        // Guardar estados financieros
+        const { data: savedStatements, error: statementsError } = await supabase
+            .from('estados_financieros')
+            .insert([{
+                conjunto_id: datasetId,
+                tipo: 'balance_general',
+                datos: financialStatements.balanceSheet,
+                fecha_generacion: new Date().toISOString(),
+                version: 1
+            }])
+            .select();
+
+        if (statementsError) throw statementsError;
+
+        res.json({
+            success: true,
+            message: 'Clasificaciones guardadas exitosamente',
+            accounts: updatedAccounts,
+            statements: savedStatements
+        });
+
+    } catch (error) {
+        console.error('Error guardando clasificaciones:', error);
+        res.status(500).json({ success: false, error: 'Error guardando clasificaciones' });
+    }
+});
+
+// Función auxiliar para generar estados financieros
+function generateFinancialStatements(accounts, classifications) {
+    const balanceSheet = {
+        activo: { accounts: [], total: 0 },
+        pasivo: { accounts: [], total: 0 },
+        patrimonio: { accounts: [], total: 0 }
+    };
+    
+    const incomeStatement = {
+        ingresos: { accounts: [], total: 0 },
+        gastos: { accounts: [], total: 0 }
+    };
+
+    accounts.forEach((account, index) => {
+        const classification = classifications[index];
+        const balance = account.currentYearDebit - account.currentYearCredit;
+        
+        if (classification === 'activo' || classification === 'pasivo' || classification === 'patrimonio') {
+            balanceSheet[classification].accounts.push({
+                ...account,
+                balance: Math.abs(balance)
+            });
+            balanceSheet[classification].total += Math.abs(balance);
+        } else if (classification === 'ingresos' || classification === 'gastos') {
+            const result = classification === 'ingresos' ? 
+                account.currentYearCredit - account.currentYearDebit :
+                account.currentYearDebit - account.currentYearCredit;
+            
+            incomeStatement[classification].accounts.push({
+                ...account,
+                result: Math.abs(result)
+            });
+            incomeStatement[classification].total += Math.abs(result);
+        }
+    });
+
+    return { balanceSheet, incomeStatement };
+}
+
+// Endpoint para obtener conjuntos de datos
+app.get('/api/excel/datasets', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .select(`
+                *,
+                cuentas_contables (
+                    id,
+                    numero_cuenta,
+                    nombre_cuenta,
+                    saldo,
+                    grupo_financiero
+                )
+            `)
+            .order('fecha_importacion', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ success: true, data: data });
+
+    } catch (error) {
+        console.error('Error obteniendo conjuntos de datos:', error);
+        res.status(500).json({ success: false, error: 'Error obteniendo conjuntos de datos' });
+    }
+});
+
+// Endpoint para subir y procesar archivos Excel
+app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        
+        if (files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No se subieron archivos' });
+        }
+
+        const processedFiles = [];
+
+        for (const file of files) {
+            if (!file.mimetype.includes('spreadsheet') && !file.originalname.endsWith('.xlsx') && !file.originalname.endsWith('.xls')) {
+                return res.status(400).json({ success: false, error: 'Solo se permiten archivos Excel' });
+            }
+
+            try {
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const sheetNames = workbook.SheetNames;
+                
+                if (sheetNames.length === 0) {
+                    return res.status(400).json({ success: false, error: 'El archivo Excel no contiene hojas' });
+                }
+
+                // Procesar la primera hoja
+                const firstSheet = workbook.Sheets[sheetNames[0]];
+                const jsonData = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                if (jsonData.length === 0) {
+                    return res.status(400).json({ success: false, error: 'La hoja está vacía' });
+                }
+
+                // Extraer columnas de la primera fila
+                const columns = jsonData[0] || [];
+                const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
+                
+                processedFiles.push({
+                    filename: file.originalname,
+                    sheetName: sheetNames[0],
+                    columns: columns,
+                    data: dataRows,
+                    totalRows: dataRows.length
+                });
+
+            } catch (error) {
+                console.error(`Error procesando archivo ${file.originalname}:`, error);
+                return res.status(500).json({ success: false, error: `Error procesando archivo ${file.originalname}` });
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Archivos procesados correctamente',
+            files: processedFiles
+        });
+
+    } catch (error) {
+        console.error('Error en /api/excel/upload:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
 

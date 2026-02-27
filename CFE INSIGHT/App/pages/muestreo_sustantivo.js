@@ -105,10 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (muestraDropdown && tipoMuestreoDropdown && conditionalTables) {
         muestraDropdown.addEventListener('change', checkConditions);
         tipoMuestreoDropdown.addEventListener('change', checkConditions);
-        
+
         // Check conditions on page load
         checkConditions();
-        
+
         // Add event listeners to Otras pruebas sustantivas dropdowns
         const otrasPruebasDropdowns = document.querySelectorAll('.assertions-table select');
         otrasPruebasDropdowns.forEach(dropdown => {
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cell = dropdown.closest('td');
             const row = cell.closest('tr');
             if (row && Array.from(row.cells).indexOf(cell) === 6) {
-                dropdown.addEventListener('change', function() {
+                dropdown.addEventListener('change', function () {
                     updateTableValues(this);
                 });
             }
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonGroups.forEach(group => {
             const buttons = group.querySelectorAll('.btn');
             buttons.forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     // Remove active class from all buttons in this group
                     buttons.forEach(btn => btn.classList.remove('active'));
                     // Add active class to clicked button

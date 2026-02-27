@@ -56,6 +56,8 @@ const corsOptions = {
             'http://localhost:3000',      // Desarrollo local
             'http://localhost:5000',      // Desarrollo local alternativo
             'http://localhost:8080',      // Desarrollo local alternativo
+            'http://localhost:3001',      // Mismo host que el backend
+            'http://127.0.0.1:3001',      // Variante loopback
             process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
         ].filter(Boolean); // Remover valores undefined/null
 

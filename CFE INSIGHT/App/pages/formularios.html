@@ -11912,6 +11912,592 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.getElementById('fileInput').value = '';
         }
         
+        function displayExcelResults(results) {
+            // Crear o actualizar el contenedor de resultados
+            let resultsContainer = document.getElementById('excelResults');
+            if (!resultsContainer) {
+                resultsContainer = document.createElement('div');
+                resultsContainer.id = 'excelResults';
+                resultsContainer.className = 'excel-results';
+                // Insertar después del área de subida
+                const uploadArea = document.querySelector('.upload-area');
+                if (uploadArea) {
+                    uploadArea.parentNode.insertBefore(resultsContainer, uploadArea.nextSibling);
+                }
+            }
+            
+            let html = '<h3>📊 Análisis de Auditoría (Estilo CaseWare)</h3>';
+            
+            results.forEach(result => {
+                if (result.success) {
+                    html += `
+                        <div class="file-result">
+                            <div class="file-header">
+                                <h4>📄 ${result.fileName}</h4>
+                                <div class="file-type-badge">${result.fileType}</div>
+                            </div>
+                            
+                            <!-- Resumen Ejecutivo -->
+                            <div class="analysis-section">
+                                <h5>📈 Resumen Ejecutivo</h5>
+                                <div class="summary-grid">
+                                    <div class="summary-item">
+                                        <span class="label">Tipo de Archivo:</span>
+                                        <span class="value">${result.fileType || 'Desconocido'}</span>
+                                    </div>
+                                    <div class="summary-item">
+                                        <span class="label">Hojas Analizadas:</span>
+                                        <span class="value">${(result.statistics && result.statistics.totalSheets) || 0}</span>
+                                    </div>
+                                    <div class="summary-item">
+                                        <span class="label">Cuentas Totales:</span>
+                                        <span class="value">${(result.statistics && result.statistics.totalAccounts) || 0}</span>
+                                    </div>
+                                    <div class="summary-item">
+                                        <span class="label">Balance:</span>
+                                        <span class="value ${result.isBalanced ? 'balanced' : 'unbalanced'}">
+                                            ${result.isBalanced ? '✅ Equilibrado' : '❌ No Equilibrado'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Totales -->
+                            <div class="analysis-section">
+                                <h5>💰 Totales del Balance</h5>
+                                <div class="totals-grid">
+                                    <div class="total-item debit">
+                                        <span class="total-label">Total Débitos:</span>
+                                        <span class="total-value">$${((result.totals && result.totals.debits) || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div class="total-item credit">
+                                        <span class="total-label">Total Créditos:</span>
+                                        <span class="total-value">$${((result.totals && result.totals.credits) || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div class="total-item difference">
+                                        <span class="total-label">Diferencia:</span>
+                                        <span class="total-value">$${Math.abs(((result.totals && result.totals.debits) || 0) - ((result.totals && result.totals.credits) || 0)).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Calidad de Datos -->
+                            <div class="analysis-section">
+                                <h5>🔍 Calidad de Datos</h5>
+                                <div class="quality-score">
+                                    <div class="score-circle ${getQualityClass((result.dataQuality && result.dataQuality.score) || 0)}">
+                                        ${(result.dataQuality && result.dataQuality.score) || 0}%
+                                    </div>
+                                    <div class="quality-details">
+                                        <p>Completitud de números: ${(result.dataQuality && result.dataQuality.completeness && result.dataQuality.completeness.withAccountNumber) || '0%'}</p>
+                                        <p>Completitud de nombres: ${(result.dataQuality && result.dataQuality.completeness && result.dataQuality.completeness.withAccountName) || '0%'}</p>
+                                        <p>Cuentas saldo cero: ${(result.dataQuality && result.dataQuality.balanceAnalysis && result.dataQuality.balanceAnalysis.zeroBalance) || '0%'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hallazgos de Auditoría -->
+                            <div class="analysis-section">
+                                <h5>⚠️ Hallazgos de Auditoría</h5>
+                                <div class="findings">
+                    `;
+                    
+                    if ((result.auditFindings && result.auditFindings.length === 0) || !result.auditFindings) {
+                        html += '<p class="no-findings">✅ No se encontraron hallazgos significativos</p>';
+                    } else {
+                        (result.auditFindings || []).forEach(finding => {
+                            html += `
+                                <div class="finding ${finding.type.toLowerCase()}">
+                                    <div class="finding-header">
+                                        <span class="finding-type">${finding.type}</span>
+                                        <span class="severity ${finding.severity.toLowerCase()}">${finding.severity}</span>
+                                    </div>
+                                    <div class="finding-content">
+                                        <p class="finding-description">${finding.description}</p>
+                                        <p class="finding-detail">${finding.detail}</p>
+                                        <p class="finding-recommendation"><strong>Recomendación:</strong> ${finding.recommendation}</p>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    html += `
+                                </div>
+                            </div>
+                            
+                            <!-- Anomalías Detectadas -->
+                            <div class="analysis-section">
+                                <h5>🚨 Anomalías Detectadas</h5>
+                                <div class="anomalies">
+                    `;
+                    
+                    if ((result.anomalies && result.anomalies.length === 0) || !result.anomalies) {
+                        html += '<p class="no-anomalies">✅ No se detectaron anomalías</p>';
+                    } else {
+                        (result.anomalies || []).forEach(anomaly => {
+                            html += `
+                                <div class="anomaly">
+                                    <span class="anomaly-type">${anomaly.type}</span>
+                                    <span class="anomaly-count">${anomaly.count} casos</span>
+                                    <span class="anomaly-description">${anomaly.description}</span>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    html += `
+                                </div>
+                            </div>
+                            
+                            <!-- Tabla de Cuentas (Primeras 20) -->
+                            <div class="analysis-section">
+                                <h5>📋 Cuentas Contables</h5>
+                                <div class="table-container">
+                                    <table class="accounts-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Fila</th>
+                                                <th>Cuenta</th>
+                                                <th>Nombre</th>
+                                                <th>Débito</th>
+                                                <th>Crédito</th>
+                                                <th>Saldo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                    `;
+                    
+                    (result.accounts || []).slice(0, 20).forEach(account => {
+                        const rowClass = (account.balance < 0) ? 'negative-balance' : '';
+                        html += `
+                            <tr class="${rowClass}">
+                                <td>${account.row || '-'}</td>
+                                <td>${account.number || '-'}</td>
+                                <td>${account.name || '-'}</td>
+                                <td>$${(account.debit || 0).toLocaleString()}</td>
+                                <td>$${(account.credit || 0).toLocaleString()}</td>
+                                <td>$${(account.balance || 0).toLocaleString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    if ((result.accounts && result.accounts.length > 20) || 0) {
+                        html += `
+                            <tr>
+                                <td colspan="6" style="text-align: center; font-style: italic;">
+                                    ... y ${(result.accounts && result.accounts.length - 20) || 0} cuentas más
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    
+                    html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Recomendaciones -->
+                            <div class="analysis-section">
+                                <h5>💡 Recomendaciones</h5>
+                                <div class="recommendations">
+                                    <ul>
+                    `;
+                    
+                    (result.recommendations || []).forEach(rec => {
+                        html += `<li>${rec}</li>`;
+                    });
+                    
+                    html += `
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <!-- Acciones -->
+                            <div class="analysis-section actions">
+                                <button onclick="saveAccountsToDatabase('${result.fileName}', ${JSON.stringify(result.accounts).replace(/"/g, '&quot;')}, ${result.totals.debits}, ${result.totals.credits})" class="btn btn-primary">
+                                    <i class="bi bi-database-add"></i> Guardar en Base de Datos
+                                </button>
+                                <button onclick="exportAnalysisReport('${result.fileName}', ${JSON.stringify(result).replace(/"/g, '&quot;')})" class="btn btn-secondary">
+                                    <i class="bi bi-download"></i> Exportar Reporte
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="file-result error">
+                            <h4>❌ ${result.fileName}</h4>
+                            <p class="error">${result.error}</p>
+                        </div>
+                    `;
+                }
+            });
+            
+            resultsContainer.innerHTML = html;
+            resultsContainer.style.display = 'block';
+            
+            // Agregar estilos mejorados si no existen
+            if (!document.getElementById('excelResultsStyles')) {
+                const style = document.createElement('style');
+                style.id = 'excelResultsStyles';
+                style.textContent = `
+                    .excel-results {
+                        margin-top: 20px;
+                        padding: 20px;
+                        background: #f8f9fa;
+                        border-radius: 12px;
+                        border: 1px solid #dee2e6;
+                    }
+                    .file-result {
+                        margin-bottom: 30px;
+                        padding: 25px;
+                        background: white;
+                        border-radius: 10px;
+                        border: 1px solid #dee2e6;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }
+                    .file-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 20px;
+                        padding-bottom: 15px;
+                        border-bottom: 2px solid #e9ecef;
+                    }
+                    .file-type-badge {
+                        background: #007bff;
+                        color: white;
+                        padding: 5px 12px;
+                        border-radius: 20px;
+                        font-size: 12px;
+                        font-weight: bold;
+                    }
+                    .analysis-section {
+                        margin-bottom: 25px;
+                    }
+                    .analysis-section h5 {
+                        color: #495057;
+                        margin-bottom: 15px;
+                        font-weight: 600;
+                    }
+                    .summary-grid, .totals-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                        gap: 15px;
+                        margin-bottom: 15px;
+                    }
+                    .summary-item, .total-item {
+                        padding: 12px;
+                        background: #f8f9fa;
+                        border-radius: 6px;
+                        border-left: 4px solid #007bff;
+                    }
+                    .total-item.debit { border-left-color: #dc3545; }
+                    .total-item.credit { border-left-color: #28a745; }
+                    .total-item.difference { border-left-color: #ffc107; }
+                    .label, .total-label {
+                        display: block;
+                        font-size: 12px;
+                        color: #6c757d;
+                        margin-bottom: 5px;
+                    }
+                    .value, .total-value {
+                        display: block;
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: #212529;
+                    }
+                    .balanced { color: #28a745; }
+                    .unbalanced { color: #dc3545; }
+                    .quality-score {
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                    }
+                    .score-circle {
+                        width: 80px;
+                        height: 80px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 20px;
+                        font-weight: bold;
+                        color: white;
+                    }
+                    .score-circle.high { background: #28a745; }
+                    .score-circle.medium { background: #ffc107; color: #212529; }
+                    .score-circle.low { background: #dc3545; }
+                    .finding {
+                        margin-bottom: 15px;
+                        padding: 15px;
+                        border-radius: 6px;
+                        border-left: 4px solid #007bff;
+                    }
+                    .finding.error { border-left-color: #dc3545; background: #f8d7da; }
+                    .finding.warning { border-left-color: #ffc107; background: #fff3cd; }
+                    .finding.information { border-left-color: #17a2b8; background: #d1ecf1; }
+                    .finding-header {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 10px;
+                    }
+                    .finding-type {
+                        font-weight: bold;
+                    }
+                    .severity {
+                        padding: 2px 8px;
+                        border-radius: 12px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        color: white;
+                    }
+                    .severity.high { background: #dc3545; }
+                    .severity.medium { background: #ffc107; color: #212529; }
+                    .severity.low { background: #17a2b8; }
+                    .anomaly {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 10px;
+                        background: #fff3cd;
+                        border-radius: 4px;
+                        margin-bottom: 8px;
+                    }
+                    .anomaly-type {
+                        font-weight: bold;
+                        color: #856404;
+                    }
+                    .table-container {
+                        max-height: 400px;
+                        overflow-y: auto;
+                        border: 1px solid #dee2e6;
+                        border-radius: 6px;
+                    }
+                    .accounts-table {
+                        width: 100%;
+                        margin: 0;
+                        border-collapse: collapse;
+                    }
+                    .accounts-table th,
+                    .accounts-table td {
+                        padding: 10px;
+                        text-align: left;
+                        border-bottom: 1px solid #dee2e6;
+                    }
+                    .accounts-table th {
+                        background: #f8f9fa;
+                        font-weight: bold;
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    }
+                    .negative-balance {
+                        background: #f8d7da;
+                    }
+                    .recommendations ul {
+                        margin: 0;
+                        padding-left: 20px;
+                    }
+                    .recommendations li {
+                        margin-bottom: 8px;
+                    }
+                    .actions {
+                        display: flex;
+                        gap: 15px;
+                        flex-wrap: wrap;
+                    }
+                    .btn {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        text-decoration: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .btn-primary {
+                        background: #007bff;
+                        color: white;
+                    }
+                    .btn-secondary {
+                        background: #6c757d;
+                        color: white;
+                    }
+                    .btn:hover {
+                        opacity: 0.9;
+                    }
+                    .file-result.error {
+                        background: #f8d7da;
+                        border-color: #f5c6cb;
+                    }
+                    .error {
+                        color: #721c24;
+                    }
+                    .no-findings, .no-anomalies {
+                        color: #28a745;
+                        font-style: italic;
+                        text-align: center;
+                        padding: 20px;
+                        background: #d4edda;
+                        border-radius: 6px;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        function getQualityClass(score) {
+            if (score >= 80) return 'high';
+            if (score >= 60) return 'medium';
+            return 'low';
+        }
+        
+        function exportAnalysisReport(fileName, analysisData) {
+            // Crear contenido del reporte
+            const report = generateCaseWareReport(fileName, JSON.parse(analysisData));
+            
+            // Descargar como archivo de texto
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Analysis_Report_${fileName.replace('.xlsx', '')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function generateCaseWareReport(fileName, analysis) {
+            let report = `===========================================
+           CASEWARE STYLE ANALYSIS REPORT
+===========================================
+File: ${fileName}
+Date: ${new Date().toLocaleString()}
+Type: ${analysis.fileType}
+
+===========================================
+           EXECUTIVE SUMMARY
+===========================================
+Total Sheets: ${analysis.statistics.totalSheets}
+Total Accounts: ${analysis.statistics.totalAccounts}
+Balance Status: ${analysis.isBalanced ? 'BALANCED' : 'UNBALANCED'}
+Data Quality Score: ${analysis.dataQuality.score}%
+
+Total Debits: $${analysis.totals.debits.toLocaleString()}
+Total Credits: $${analysis.totals.credits.toLocaleString()}
+Difference: $${Math.abs(analysis.totals.debits - analysis.totals.credits).toLocaleString()}
+
+===========================================
+           AUDIT FINDINGS
+===========================================`;
+
+            if (analysis.auditFindings.length === 0) {
+                report += '\nNo significant findings detected.';
+            } else {
+                analysis.auditFindings.forEach((finding, index) => {
+                    report += `\n${index + 1}. ${finding.type} (${finding.severity})
+   Description: ${finding.description}
+   Details: ${finding.detail}
+   Recommendation: ${finding.recommendation}
+`;
+                });
+            }
+
+            report += `
+===========================================
+           ANOMALIES DETECTED
+===========================================`;
+
+            if (analysis.anomalies.length === 0) {
+                report += '\nNo anomalies detected.';
+            } else {
+                analysis.anomalies.forEach((anomaly, index) => {
+                    report += `\n${index + 1}. ${anomaly.type}
+   Count: ${anomaly.count}
+   Description: ${anomaly.description}
+`;
+                });
+            }
+
+            report += `
+===========================================
+           RECOMMENDATIONS
+===========================================`;
+            analysis.recommendations.forEach((rec, index) => {
+                report += `\n${index + 1}. ${rec}`;
+            });
+
+            report += `
+===========================================
+           ACCOUNT DETAILS
+===========================================`;
+            analysis.accounts.slice(0, 50).forEach((account, index) => {
+                report += `\n${index + 1}. Account: ${account.number || 'N/A'}
+   Name: ${account.name}
+   Row: ${account.row}
+   Debit: $${account.debit.toLocaleString()}
+   Credit: $${account.credit.toLocaleString()}
+   Balance: $${account.balance.toLocaleString()}
+`;
+            });
+
+            if (analysis.accounts.length > 50) {
+                report += `\n... and ${analysis.accounts.length - 50} more accounts.`;
+            }
+
+            report += `
+===========================================
+           END OF REPORT
+===========================================
+Generated by CFE INSIGHT - CaseWare Style Analysis`;
+
+            return report;
+        }
+        
+        async function saveAccountsToDatabase(fileName, accounts, totalDebits, totalCredits) {
+            try {
+                const response = await fetch('/api/excel/save-accounts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fileName: fileName,
+                        accounts: accounts,
+                        totalDebits: totalDebits,
+                        totalCredits: totalCredits
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    alert(`✅ Datos guardados exitosamente en la base de datos.\nID del conjunto: ${result.dataset.id}\nCuentas guardadas: ${result.accounts.length}`);
+                    
+                    // Deshabilitar el botón para evitar duplicados
+                    const buttons = document.querySelectorAll('button[onclick*="saveAccountsToDatabase"]');
+                    buttons.forEach(btn => {
+                        if (btn.getAttribute('onclick').includes(fileName)) {
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="bi bi-check-circle"></i> Guardado en BD';
+                            btn.className = 'btn btn-success';
+                        }
+                    });
+                } else {
+                    alert(`❌ Error guardando datos: ${result.error || 'Error desconocido'}`);
+                }
+            } catch (error) {
+                console.error('Error guardando en base de datos:', error);
+                alert('❌ Error de conexión al guardar en la base de datos');
+            }
+        }
+        
         async function uploadFiles(evt) {
             if (selectedFiles.length === 0) {
                 alert('Por favor selecciona al menos un archivo para subir.');
@@ -11948,7 +12534,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const details = fail.map(f => `${f.filename}: ${f.error || 'Error'}`).join('\n');
                     alert(`Subidos: ${okCount}/${results.length}\n\nFallos:\n${details}`);
                 } else {
-                    alert(`Se han subido ${okCount} archivo(s) exitosamente y se guardaron en la tabla "excel".`);
+                    // Mostrar los datos procesados en una tabla
+                    displayExcelResults(results);
+                    alert(`Se han procesado ${okCount} archivo(s) exitosamente.`);
                 }
 
                 clearFiles();
@@ -17461,23 +18049,31 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         function toggleFilters() {
             const dropdown = document.getElementById('filters-dropdown');
+            if (!dropdown) {
+                return;
+            }
+
             const isVisible = dropdown.style.display !== 'none';
-            
-            // Cerrar otros dropdowns
-            document.getElementById('columns-dropdown').style.display = 'none';
-            
-            // Toggle filters dropdown
+            const columnsDropdown = document.getElementById('columns-dropdown');
+            if (columnsDropdown) {
+                columnsDropdown.style.display = 'none';
+            }
+
             dropdown.style.display = isVisible ? 'none' : 'block';
         }
 
         function toggleColumns() {
             const dropdown = document.getElementById('columns-dropdown');
+            if (!dropdown) {
+                return;
+            }
+
             const isVisible = dropdown.style.display !== 'none';
-            
-            // Cerrar otros dropdowns
-            document.getElementById('filters-dropdown').style.display = 'none';
-            
-            // Toggle columns dropdown
+            const filtersDropdown = document.getElementById('filters-dropdown');
+            if (filtersDropdown) {
+                filtersDropdown.style.display = 'none';
+            }
+
             dropdown.style.display = isVisible ? 'none' : 'block';
         }
 
@@ -17497,17 +18093,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         document.addEventListener('click', function(event) {
             const filtersDropdown = document.getElementById('filters-dropdown');
             const columnsDropdown = document.getElementById('columns-dropdown');
-            
-            // Verificar si el clic fue fuera de los dropdowns
-            const isClickOutsideFilters = !event.target.closest('.assessment-dropdown') || 
-                                         !event.target.closest('[onclick="toggleFilters()"]');
-            const isClickOutsideColumns = !event.target.closest('.assessment-dropdown') || 
-                                         !event.target.closest('[onclick="toggleColumns()"]');
-            
-            if (isClickOutsideFilters) {
+            const filtersTrigger = event.target.closest('[onclick="toggleFilters()"]');
+            const columnsTrigger = event.target.closest('[onclick="toggleColumns()"]');
+
+            if (filtersDropdown && !filtersDropdown.contains(event.target) && !filtersTrigger) {
                 filtersDropdown.style.display = 'none';
             }
-            if (isClickOutsideColumns) {
+
+            if (columnsDropdown && !columnsDropdown.contains(event.target) && !columnsTrigger) {
                 columnsDropdown.style.display = 'none';
             }
         });
