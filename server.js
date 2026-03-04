@@ -1945,6 +1945,90 @@ app.get('/api/excel/latest', async (req, res) => {
     }
 });
 
+// Endpoint para previsualizar archivos Excel (sin guardar en BD)
+app.post('/api/excel/preview', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        
+        if (files.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No se proporcionaron archivos' 
+            });
+        }
+
+        const previews = [];
+
+        for (const file of files) {
+            try {
+                // Procesar el archivo Excel para previsualización
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const preview = generatePreview(workbook, file.originalname);
+                
+                previews.push(preview);
+
+            } catch (error) {
+                console.error(`Error procesando preview ${file.originalname}:`, error);
+                previews.push({
+                    success: false,
+                    fileName: file.originalname,
+                    error: `Error procesando archivo: ${error.message}`
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            previews: previews
+        });
+
+    } catch (error) {
+        console.error('Error en /api/excel/preview:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error procesando archivos' 
+        });
+    }
+});
+
+// Función para generar previsualización de Excel
+function generatePreview(workbook, filename) {
+    const preview = {
+        success: true,
+        fileName: filename,
+        sheets: [],
+        totalSheets: workbook.SheetNames.length
+    };
+
+    try {
+        workbook.SheetNames.forEach((sheetName, index) => {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            if (jsonData.length > 0) {
+                const sheetPreview = {
+                    name: sheetName,
+                    index: index,
+                    headers: jsonData[0] || [],
+                    totalRows: jsonData.length,
+                    totalColumns: jsonData[0] ? jsonData[0].length : 0,
+                    previewData: jsonData.slice(0, 6), // Primeras 6 filas para previsualización
+                    detectedType: identifySheetType(sheetName, jsonData[0])
+                };
+                
+                preview.sheets.push(sheetPreview);
+            }
+        });
+
+    } catch (error) {
+        console.error('Error generando preview:', error);
+        preview.success = false;
+        preview.error = error.message;
+    }
+
+    return preview;
+}
+
 // Endpoint para subir archivos Excel (estilo CaseWare)
 app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
     try {
@@ -2197,18 +2281,42 @@ function extractAccountsFromRows(dataRows, headers) {
     const accounts = [];
     const colMapping = mapColumns(headers);
     
+    console.log(`🔍 Procesando ${dataRows.length} filas con mapeo:`, colMapping);
+    
     dataRows.forEach((row, index) => {
         if (row && row.length > 0 && isValidAccountRow(row)) {
+            let debitValue = 0;
+            let creditValue = 0;
+            
+            // Extraer valores según el mapeo
+            if (colMapping.debit >= 0 && colMapping.credit >= 0) {
+                // Si hay columnas separadas de débito/crédito
+                debitValue = extractValue(row, colMapping.debit);
+                creditValue = extractValue(row, colMapping.credit);
+            } else if (colMapping.debit >= 0) {
+                // Si solo hay una columna (saldos), separar positivos/negativos
+                const balanceValue = extractValue(row, colMapping.debit);
+                if (balanceValue >= 0) {
+                    debitValue = balanceValue;
+                    creditValue = 0;
+                } else {
+                    debitValue = 0;
+                    creditValue = Math.abs(balanceValue);
+                }
+            }
+            
             const account = {
                 row: index + 2, // +2 porque incluye encabezado y es 1-based
                 number: extractAccountNumber(row, colMapping.number),
                 name: extractAccountName(row, colMapping.name),
-                debit: extractValue(row, colMapping.debit),
-                credit: extractValue(row, colMapping.credit),
+                debit: debitValue,
+                credit: creditValue,
                 balance: 0
             };
             
             account.balance = account.debit - account.credit;
+            
+            console.log(`📊 Fila ${index + 2}: ${account.number} - ${account.name} | Débito: ${account.debit} | Crédito: ${account.credit}`);
             
             if (account.number || account.name) {
                 accounts.push(account);
@@ -2216,6 +2324,7 @@ function extractAccountsFromRows(dataRows, headers) {
         }
     });
     
+    console.log(`📈 Total cuentas procesadas: ${accounts.length}`);
     return accounts;
 }
 
@@ -2230,12 +2339,41 @@ function mapColumns(headers) {
     headers.forEach((header, index) => {
         if (header) {
             const h = header.toString().toLowerCase();
-            if (h.includes('cuenta') || h.includes('número') || h.includes('no.')) mapping.number = index;
-            else if (h.includes('descripc') || h.includes('nombre') || h.includes('concepto')) mapping.name = index;
-            else if (h.includes('débito') || h.includes('debe')) mapping.debit = index;
-            else if (h.includes('crédito') || h.includes('haber')) mapping.credit = index;
+            
+            // Número de cuenta (español e inglés) - buscar "Account Number" específicamente primero
+            if (h === 'account number' || h === 'cuenta' || h === 'número') {
+                mapping.number = index;
+            }
+            // Nombre de cuenta (español e inglés) - buscar "Account Name" específicamente primero
+            else if (h === 'account name' || h === 'nombre' || h === 'descripción') {
+                mapping.name = index;
+            }
+            // Débitos (español e inglés)
+            else if (h.includes('débito') || h.includes('debe') || h.includes('debit')) {
+                mapping.debit = index;
+            }
+            // Créditos (español e inglés)
+            else if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
+                mapping.credit = index;
+            }
         }
     });
+    
+    // Si no se encontraron débitos/créditos específicos, intentar con columnas de año
+    if (mapping.debit === -1 && mapping.credit === -1) {
+        headers.forEach((header, index) => {
+            if (header) {
+                const h = header.toString().toLowerCase();
+                // Buscar columnas que parezcan años (ej: "Current Year (2024)")
+                if (h.includes('current year') || h.includes('2024')) {
+                    mapping.debit = index; // Asumir que la columna del año actual es débito
+                }
+                else if (h.includes('prior year') || h.includes('2023')) {
+                    mapping.credit = index; // Asumir que la columna del año anterior es crédito
+                }
+            }
+        });
+    }
     
     console.log(`📍 Mapeo de columnas:`, mapping);
     return mapping;
