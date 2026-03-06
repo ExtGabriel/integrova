@@ -2463,6 +2463,385 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
+// ============================================
+// ENDPOINTS DE EXCEL
+// ============================================
+
+// Función para extraer cuentas del Excel según el mapeo
+async function extractAccountsFromExcel(excelFile, mappingData) {
+    if (!excelFile || !excelFile.sheets || excelFile.sheets.length === 0) {
+        return [];
+    }
+    
+    const accounts = [];
+    const firstSheet = excelFile.sheets[0];
+    const sheetData = firstSheet.data;
+    
+    if (!sheetData || sheetData.length < 2) {
+        return []; // Necesitamos al menos encabezados y una fila de datos
+    }
+    
+    // Obtener índices de columnas desde el mapeo
+    const accountNumberIndex = parseInt(mappingData.accountNumber);
+    const accountNameIndex = parseInt(mappingData.accountName);
+    const currentYearIndex = parseInt(mappingData.currentYear);
+    const previousYearIndex = parseInt(mappingData.previousYear);
+    
+    // Procesar cada fila de datos (empezando desde la segunda fila)
+    for (let i = 1; i < sheetData.length; i++) {
+        const row = sheetData[i];
+        
+        // Extraer valores según el mapeo
+        const accountNumber = row[accountNumberIndex] || '';
+        const accountName = row[accountNameIndex] || '';
+        const currentYearValue = row[currentYearIndex] || '';
+        const previousYearValue = row[previousYearIndex] || '';
+        
+        // Validar que tenga número y nombre de cuenta
+        if (!accountNumber.toString().trim() || !accountName.toString().trim()) {
+            continue; // Saltar filas vacías o incompletas
+        }
+        
+        // Crear objeto de cuenta adaptado a la estructura existente
+        const account = {
+            id: Date.now().toString() + '_' + i, // ID único
+            nombre: `${accountNumber.toString().trim()} - ${accountName.toString().trim()}`,
+            tipo: mappingData.balanceType || 'balance',
+            total_debitos: parseNumber(currentYearValue) > 0 ? parseNumber(currentYearValue) : 0,
+            total_creditos: parseNumber(currentYearValue) < 0 ? Math.abs(parseNumber(currentYearValue)) : 0,
+            estado: 'unassigned', // Estado inicial sin asignar
+            archivo_original: excelFile.originalName,
+            data: {
+                account_number: accountNumber.toString().trim(),
+                account_name: accountName.toString().trim(),
+                current_year_value: parseNumber(currentYearValue),
+                previous_year_value: parseNumber(previousYearValue),
+                current_year_debit_credit: mappingData.currentYearDebitCredit || 'both',
+                previous_year_debit_credit: mappingData.previousYearDebitCredit || 'both',
+                balance_type: mappingData.balanceType || 'balance',
+                source_file: excelFile.originalName
+            }
+        };
+        
+        accounts.push(account);
+    }
+    
+    return accounts;
+}
+
+// Función auxiliar para parsear números
+function parseNumber(value) {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        // Limpiar formato de moneda y convertir
+        const cleanValue = value.replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleanValue);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+}
+
+// Almacenamiento temporal para archivos Excel procesados
+let excelFilesStorage = [];
+
+// Endpoint para subir archivos Excel
+app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        
+        if (files.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No se proporcionaron archivos' 
+            });
+        }
+
+        const results = [];
+        
+        for (const file of files) {
+            try {
+                // Procesar archivo Excel
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const sheetsData = [];
+                
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    sheetsData.push({
+                        sheetName,
+                        data: jsonData,
+                        rows: jsonData.length,
+                        columns: jsonData.length > 0 ? jsonData[0].length : 0
+                    });
+                });
+                
+                const fileData = {
+                    id: Date.now() + Math.random().toString(36).substring(7),
+                    originalName: file.originalname,
+                    size: file.size,
+                    type: file.mimetype,
+                    uploadedAt: new Date().toISOString(),
+                    sheets: sheetsData,
+                    totalSheets: workbook.SheetNames.length
+                };
+                
+                // Guardar en almacenamiento temporal
+                excelFilesStorage.push(fileData);
+                
+                results.push({
+                    success: true,
+                    filename: file.originalname,
+                    message: 'Archivo procesado exitosamente',
+                    data: fileData
+                });
+                
+            } catch (error) {
+                console.error(`Error procesando archivo ${file.originalname}:`, error);
+                results.push({
+                    success: false,
+                    filename: file.originalname,
+                    error: `Error procesando archivo: ${error.message}`
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `Se procesaron ${files.length} archivos`,
+            results: results
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/excel/upload:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para obtener el último archivo Excel procesado
+app.get('/api/excel/latest', (req, res) => {
+    try {
+        if (excelFilesStorage.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No hay archivos Excel procesados' 
+            });
+        }
+        
+        // Obtener el archivo más reciente
+        const latestFile = excelFilesStorage[excelFilesStorage.length - 1];
+        
+        // Convertir al formato que espera el frontend
+        const responseData = {
+            id: latestFile.id, // Incluir el ID del archivo
+            filename: latestFile.originalName,
+            status: 'processed',
+            sheets_data: latestFile.sheets.map(sheet => ({
+                name: sheet.sheetName,
+                data: sheet.data,
+                rows: sheet.rows,
+                columns: sheet.columns
+            })),
+            uploadedAt: latestFile.uploadedAt,
+            totalSheets: latestFile.totalSheets
+        };
+        
+        res.json({
+            success: true,
+            data: responseData
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/excel/latest:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para procesar mapeo de datos Excel
+app.post('/api/excel/process-mapping', async (req, res) => {
+    try {
+        const { mappingData, fileId } = req.body;
+        
+        if (!mappingData) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'mappingData es requerido' 
+            });
+        }
+        
+        // Buscar el archivo si se proporcionó fileId
+        let sourceFile = null;
+        if (fileId) {
+            sourceFile = excelFilesStorage.find(f => f.id === fileId);
+            if (!sourceFile) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Archivo no encontrado' 
+                });
+            }
+        }
+        
+        // Procesar el mapeo y extraer cuentas del Excel
+        const processedMapping = {
+            id: Date.now().toString(),
+            processedAt: new Date().toISOString(),
+            mapping: mappingData,
+            sourceFile: sourceFile ? {
+                name: sourceFile.originalName,
+                sheets: sourceFile.totalSheets
+            } : null,
+            status: 'processed'
+        };
+        
+        // Extraer las cuentas del Excel usando el mapeo
+        const extractedAccounts = await extractAccountsFromExcel(sourceFile, mappingData);
+        
+        // Guardar las cuentas en la base de datos
+        if (extractedAccounts.length > 0) {
+            try {
+                const { data: savedAccounts, error: saveError } = await supabase
+                    .from('conjuntos_datos')
+                    .insert(extractedAccounts)
+                    .select();
+                
+                if (saveError) {
+                    console.error('Error guardando cuentas en conjuntos_datos:', saveError);
+                    throw saveError;
+                }
+                
+                console.log(`✅ Guardadas ${savedAccounts.length} cuentas en conjuntos_datos`);
+                
+            } catch (error) {
+                console.error('Error en base de datos:', error);
+                // Continuar aunque falle la base de datos
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `Mapeo procesado exitosamente. ${extractedAccounts.length} cuentas extraídas.`,
+            data: {
+                ...processedMapping,
+                accountsExtracted: extractedAccounts.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/excel/process-mapping:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para obtener cuentas sin asignar
+app.get('/api/accounts/unassigned', async (req, res) => {
+    try {
+        console.log('🔍 Buscando cuentas sin asignar...');
+        const { page = 1, limit = 50, search = '' } = req.query;
+        
+        let query = supabase
+            .from('conjuntos_datos')
+            .select('*')
+            .eq('estado', 'unassigned')
+            .order('created_at', { ascending: false });
+        
+        // Aplicar búsqueda si se proporciona
+        if (search && search.trim()) {
+            const searchTerm = search.trim();
+            query = query.or(`nombre.ilike.%${searchTerm}%,data->>'account_number'.ilike.%${searchTerm}%,data->>'account_name'.ilike.%${searchTerm}%`);
+        }
+        
+        // Aplicar paginación
+        const offset = (page - 1) * limit;
+        query = query.range(offset, offset + limit - 1);
+        
+        const { data, error, count } = await query;
+        
+        console.log('🔍 Resultado de la consulta:', { data: data?.length || 0, error, count });
+        
+        if (error) {
+            console.error('Error obteniendo cuentas sin asignar:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: data || [],
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: count || 0,
+                totalPages: Math.ceil((count || 0) / limit)
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/accounts/unassigned:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para asignar cuenta a un grupo
+app.post('/api/accounts/assign', async (req, res) => {
+    try {
+        const { accountId, groupId, groupName } = req.body;
+        
+        if (!accountId || !groupId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'accountId y groupId son requeridos' 
+            });
+        }
+        
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .update({ 
+                status: 'assigned',
+                assigned_group_id: groupId,
+                assigned_group_name: groupName,
+                assigned_at: new Date().toISOString()
+            })
+            .eq('id', accountId)
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('Error asignando cuenta:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Cuenta asignada exitosamente',
+            data: data
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/accounts/assign:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
 // Endpoint de health check
 app.get('/api/health', (req, res) => {
     res.json({
