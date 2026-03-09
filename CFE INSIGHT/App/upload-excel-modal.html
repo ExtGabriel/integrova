@@ -1,0 +1,634 @@
+<!-- Modal de Subida de Archivos Excel -->
+<div id="uploadExcelModal" class="upload-excel-modal">
+    <div class="upload-excel-modal-content">
+        <div class="upload-excel-modal-header">
+            <h2>
+                <i class="fas fa-file-excel excel-icon"></i>
+                Subir Archivo Excel
+            </h2>
+            <button class="upload-excel-modal-close" onclick="closeUploadExcelModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="upload-excel-modal-body">
+            <div class="upload-excel-preview">
+                <div class="file-info-display">
+                    <div class="file-icon-large">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <div class="file-details-display">
+                        <div class="file-name-display" id="fileName">archivo_seleccionado.xlsx</div>
+                        <div class="file-size-display" id="fileSize">2.5 MB</div>
+                        <div class="file-type-display">Microsoft Excel</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="upload-progress">
+                <div class="progress-label">Progreso de subida: <span id="progressPercent">0%</span></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+            </div>
+            
+            <div class="upload-status processing" id="uploadStatus">
+                <i class="fas fa-spinner fa-spin"></i> Procesando archivo...
+            </div>
+        </div>
+        
+        <div class="upload-excel-modal-footer">
+            <button class="btn btn-cancel" onclick="closeUploadExcelModal()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button class="btn btn-upload" id="uploadBtn" onclick="uploadExcelFile()">
+                <i class="fas fa-cloud-upload-alt"></i> Subir Archivo
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para mostrar el modal de subida de Excel
+function showUploadExcelModal(fileName, fileSize) {
+    const modal = document.getElementById('uploadExcelModal');
+    const fileNameElement = document.getElementById('fileName');
+    const fileSizeElement = document.getElementById('fileSize');
+    
+    // Actualizar información del archivo
+    if (fileName) fileNameElement.textContent = fileName;
+    if (fileSize) fileSizeElement.textContent = fileSize;
+    
+    // Resetear progreso y estado
+    resetUploadProgress();
+    
+    // Mostrar modal
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+// Función para cerrar el modal
+function closeUploadExcelModal() {
+    const modal = document.getElementById('uploadExcelModal');
+    modal.classList.remove('show');
+    document.body.style.overflow = 'auto';
+    resetUploadProgress();
+}
+
+// Función para resetear el progreso
+function resetUploadProgress() {
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    progressBar.style.width = '0%';
+    progressPercent.textContent = '0%';
+    uploadStatus.className = 'upload-status';
+    uploadStatus.style.display = 'none';
+    uploadBtn.disabled = false;
+    uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Subir Archivo';
+}
+
+// Función para simular la subida del archivo
+function uploadExcelFile() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const uploadStatus = document.getElementById('uploadStatus');
+    
+    // Deshabilitar botón durante la subida
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
+    
+    // Mostrar estado de procesamiento
+    uploadStatus.className = 'upload-status processing';
+    uploadStatus.style.display = 'block';
+    uploadStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando archivo...';
+    
+    // Simular progreso de subida
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        
+        progressBar.style.width = progress + '%';
+        progressPercent.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 90) {
+            clearInterval(interval);
+            
+            // Simular procesamiento final
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%';
+                
+                // Mostrar estado de éxito
+                uploadStatus.className = 'upload-status success';
+                uploadStatus.innerHTML = '<i class="fas fa-check-circle"></i> Archivo cargado exitosamente';
+                
+                // Actualizar botón
+                uploadBtn.innerHTML = '<i class="fas fa-check"></i> Continuar';
+                
+                // Cerrar modal y mostrar interfaz de mapeo después de 1.5 segundos
+                setTimeout(() => {
+                    closeUploadExcelModal();
+                    showColumnMappingInterface();
+                    showNotification('Archivo Excel listo para mapear columnas', 'success');
+                }, 1500);
+            }, 1000);
+        }
+    }, 200);
+}
+
+// Función para mostrar la interfaz de mapeo de columnas
+function showColumnMappingInterface() {
+    // Ocultar interfaces existentes si las hay
+    const existingInterfaces = document.querySelectorAll('.column-mapping-interface, .trial-balance-interface, .classification-interface');
+    existingInterfaces.forEach(interface => {
+        interface.style.display = 'none';
+    });
+    
+    // Crear o mostrar la interfaz de mapeo de columnas
+    let mappingInterface = document.getElementById('columnMappingInterface');
+    
+    if (!mappingInterface) {
+        // Crear la interfaz si no existe
+        mappingInterface = createColumnMappingInterface();
+        document.querySelector('.upload-section').appendChild(mappingInterface);
+    } else {
+        mappingInterface.style.display = 'block';
+    }
+    
+    // Animar la entrada
+    mappingInterface.style.animation = 'slideInUp 0.4s ease-out';
+    
+    // Hacer scroll suave hacia la interfaz
+    mappingInterface.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Función para crear la interfaz de mapeo de columnas
+function createColumnMappingInterface() {
+    const interface = document.createElement('div');
+    interface.id = 'columnMappingInterface';
+    interface.className = 'column-mapping-interface';
+    interface.innerHTML = `
+        <div class="interface-header">
+            <h3><i class="fas fa-columns"></i> Mapeo de Columnas</h3>
+            <p>Selecciona qué columna de tu archivo Excel corresponde a cada campo requerido:</p>
+        </div>
+        
+        <div class="column-mapping">
+            <div class="column-info">
+                <label><i class="fas fa-tag"></i> Código de Cuenta:</label>
+            </div>
+            <div class="column-select">
+                <select class="form-select" id="accountCodeColumn">
+                    <option value="">Seleccionar columna...</option>
+                    <option value="A">Columna A</option>
+                    <option value="B">Columna B</option>
+                    <option value="C">Columna C</option>
+                    <option value="D">Columna D</option>
+                    <option value="E">Columna E</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="column-mapping">
+            <div class="column-info">
+                <label><i class="fas fa-font"></i> Nombre de Cuenta:</label>
+            </div>
+            <div class="column-select">
+                <select class="form-select" id="accountNameColumn">
+                    <option value="">Seleccionar columna...</option>
+                    <option value="A">Columna A</option>
+                    <option value="B">Columna B</option>
+                    <option value="C">Columna C</option>
+                    <option value="D">Columna D</option>
+                    <option value="E">Columna E</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="column-mapping">
+            <div class="column-info">
+                <label><i class="fas fa-calculator"></i> Saldo Deudor:</label>
+            </div>
+            <div class="column-select">
+                <select class="form-select" id="debitBalanceColumn">
+                    <option value="">Seleccionar columna...</option>
+                    <option value="A">Columna A</option>
+                    <option value="B">Columna B</option>
+                    <option value="C">Columna C</option>
+                    <option value="D">Columna D</option>
+                    <option value="E">Columna E</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="column-mapping">
+            <div class="column-info">
+                <label><i class="fas fa-calculator"></i> Saldo Acreedor:</label>
+            </div>
+            <div class="column-select">
+                <select class="form-select" id="creditBalanceColumn">
+                    <option value="">Seleccionar columna...</option>
+                    <option value="A">Columna A</option>
+                    <option value="B">Columna B</option>
+                    <option value="C">Columna C</option>
+                    <option value="D">Columna D</option>
+                    <option value="E">Columna E</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="mapping-actions">
+            <button class="btn btn-secondary" onclick="cancelMapping()">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button class="btn btn-primary" onclick="processMapping()">
+                <i class="fas fa-check"></i> Procesar Datos
+            </button>
+        </div>
+    `;
+    
+    return interface;
+}
+
+// Función para procesar el mapeo
+function processMapping() {
+    const mappings = {
+        accountCode: document.getElementById('accountCodeColumn').value,
+        accountName: document.getElementById('accountNameColumn').value,
+        debitBalance: document.getElementById('debitBalanceColumn').value,
+        creditBalance: document.getElementById('creditBalanceColumn').value
+    };
+    
+    // Validar que todos los campos estén seleccionados
+    if (!mappings.accountCode || !mappings.accountName || !mappings.debitBalance || !mappings.creditBalance) {
+        showNotification('Por favor, selecciona todas las columnas requeridas', 'error');
+        return;
+    }
+    
+    // Mostrar notificación de procesamiento
+    showNotification('Procesando mapeo de columnas...', 'info');
+    
+    // Simular procesamiento
+    setTimeout(() => {
+        // Ocultar interfaz de mapeo
+        document.getElementById('columnMappingInterface').style.display = 'none';
+        
+        // Mostrar notificación de éxito
+        showNotification('Mapeo completado. Redirigiendo a Asignación de Cuentas...', 'success');
+        
+        // Redirigir a la sección de Asignación de Cuentas
+        setTimeout(() => {
+            navigateToAssignAccounts();
+        }, 1500);
+    }, 1500);
+}
+
+// Función para navegar a la sección de Asignación de Cuentas
+function navigateToAssignAccounts() {
+    // Ocultar todas las interfaces actuales
+    const allInterfaces = document.querySelectorAll('.column-mapping-interface, .trial-balance-interface, .classification-interface, .upload-section');
+    allInterfaces.forEach(interface => {
+        interface.style.display = 'none';
+    });
+    
+    // Buscar o crear la interfaz de Asignación de Cuentas
+    let assignAccountsInterface = document.getElementById('assignAccountsInterface');
+    
+    if (!assignAccountsInterface) {
+        // Crear la interfaz si no existe
+        assignAccountsInterface = createAssignAccountsInterface();
+        document.body.appendChild(assignAccountsInterface);
+    } else {
+        assignAccountsInterface.style.display = 'block';
+    }
+    
+    // Animar la entrada
+    assignAccountsInterface.style.animation = 'slideInUp 0.4s ease-out';
+    
+    // Hacer scroll suave hacia la interfaz
+    assignAccountsInterface.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Actualizar el título de la página si es necesario
+    updatePageTitle('Asignación de Cuentas');
+    
+    // Mostrar notificación de bienvenida
+    showNotification('Bienvenido a Asignación de Cuentas', 'info');
+}
+
+// Función para crear la interfaz de Asignación de Cuentas
+function createAssignAccountsInterface() {
+    const interface = document.createElement('div');
+    interface.id = 'assignAccountsInterface';
+    interface.className = 'assign-accounts-container';
+    interface.innerHTML = `
+        <div class="unassigned-accounts-panel">
+            <div class="panel-header">
+                <div class="left-header">
+                    <h3><i class="fas fa-list"></i> Cuentas por Asignar</h3>
+                    <span class="remaining-count">15 cuentas restantes</span>
+                </div>
+                <div class="right-header">
+                    <div class="input-group">
+                        <span class="input-group-text">Filtrar</span>
+                        <select class="form-select">
+                            <option>Todas</option>
+                            <option>Sin asignar</option>
+                            <option>Asignadas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="search-bar-container">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Buscar cuenta..." class="form-control">
+            </div>
+            
+            <div class="selection-info">
+                Selecciona las cuentas que deseas asignar a grupos financieros
+            </div>
+            
+            <div class="unassigned-accounts-list">
+                <div class="account-item">
+                    <div class="account-info">
+                        <input type="checkbox" class="account-checkbox">
+                        <span class="account-code">1001</span>
+                        <span class="account-name">Caja y Bancos</span>
+                    </div>
+                    <div class="account-balance">$50,000.00</div>
+                </div>
+                
+                <div class="account-item">
+                    <div class="account-info">
+                        <input type="checkbox" class="account-checkbox">
+                        <span class="account-code">1002</span>
+                        <span class="account-name">Bancos</span>
+                    </div>
+                    <div class="account-balance">$125,000.00</div>
+                </div>
+                
+                <div class="account-item">
+                    <div class="account-info">
+                        <input type="checkbox" class="account-checkbox">
+                        <span class="account-code">1101</span>
+                        <span class="account-name">Clientes</span>
+                    </div>
+                    <div class="account-balance">$75,000.00</div>
+                </div>
+                
+                <div class="account-item">
+                    <div class="account-info">
+                        <input type="checkbox" class="account-checkbox">
+                        <span class="account-code">1201</span>
+                        <span class="account-name">Inventarios</span>
+                    </div>
+                    <div class="account-balance">$200,000.00</div>
+                </div>
+                
+                <div class="account-item">
+                    <div class="account-info">
+                        <input type="checkbox" class="account-checkbox">
+                        <span class="account-code">1501</span>
+                        <span class="account-name">Propiedades, Planta y Equipo</span>
+                    </div>
+                    <div class="account-balance">$500,000.00</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="financial-groups-panel">
+            <div class="panel-header">
+                <div class="left-header">
+                    <h3><i class="fas fa-folder-tree"></i> Grupos Financieros</h3>
+                </div>
+                <div class="right-header">
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Nuevo Grupo
+                    </button>
+                </div>
+            </div>
+            
+            <div class="financial-groups-list">
+                <div class="financial-group">
+                    <div class="group-header">
+                        <i class="fas fa-chevron-down group-toggle"></i>
+                        <span class="group-name">Activo Corriente</span>
+                        <span class="group-count">3 cuentas</span>
+                    </div>
+                    <div class="group-content">
+                        <div class="assigned-account">
+                            <span class="account-code">1001</span>
+                            <span class="account-name">Caja y Bancos</span>
+                            <button class="btn-remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="assigned-account">
+                            <span class="account-code">1002</span>
+                            <span class="account-name">Bancos</span>
+                            <button class="btn-remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="assigned-account">
+                            <span class="account-code">1101</span>
+                            <span class="account-name">Clientes</span>
+                            <button class="btn-remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="financial-group">
+                    <div class="group-header">
+                        <i class="fas fa-chevron-down group-toggle"></i>
+                        <span class="group-name">Activo No Corriente</span>
+                        <span class="group-count">2 cuentas</span>
+                    </div>
+                    <div class="group-content">
+                        <div class="assigned-account">
+                            <span class="account-code">1201</span>
+                            <span class="account-name">Inventarios</span>
+                            <button class="btn-remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="assigned-account">
+                            <span class="account-code">1501</span>
+                            <span class="account-name">Propiedades, Planta y Equipo</span>
+                            <button class="btn-remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="financial-group">
+                    <div class="group-header">
+                        <i class="fas fa-chevron-right group-toggle"></i>
+                        <span class="group-name">Pasivo Corriente</span>
+                        <span class="group-count">0 cuentas</span>
+                    </div>
+                    <div class="group-content" style="display: none;">
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay cuentas asignadas</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="financial-group">
+                    <div class="group-header">
+                        <i class="fas fa-chevron-right group-toggle"></i>
+                        <span class="group-name">Patrimonio</span>
+                        <span class="group-count">0 cuentas</span>
+                    </div>
+                    <div class="group-content" style="display: none;">
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay cuentas asignadas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return interface;
+}
+
+// Función para actualizar el título de la página
+function updatePageTitle(title) {
+    const titleElement = document.querySelector('h1, .page-title, .main-title');
+    if (titleElement) {
+        titleElement.textContent = title;
+    }
+    
+    // También actualizar el título del documento
+    document.title = `${title} - CFE INSIGHT`;
+}
+
+// Función para cancelar el mapeo
+function cancelMapping() {
+    const interface = document.getElementById('columnMappingInterface');
+    if (interface) {
+        interface.style.display = 'none';
+    }
+    showNotification('Mapeo cancelado', 'info');
+}
+
+// Función para mostrar la interfaz de balance de prueba
+function showTrialBalanceInterface() {
+    // Esta función podría mostrar la siguiente interfaz del proceso
+    showNotification('Interfaz de balance de prueba lista', 'success');
+}
+
+// Función para mostrar notificaciones (opcional)
+function showNotification(message, type) {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    
+    // Seleccionar ícono según el tipo
+    let iconClass = '';
+    switch(type) {
+        case 'success':
+            iconClass = 'check-circle';
+            break;
+        case 'error':
+            iconClass = 'exclamation-circle';
+            break;
+        case 'info':
+            iconClass = 'info-circle';
+            break;
+        default:
+            iconClass = 'info-circle';
+    }
+    
+    notification.innerHTML = `
+        <i class="fas fa-${iconClass}"></i>
+        <span>${message}</span>
+    `;
+    
+    // Estilos para la notificación
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        z-index: 1000000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease-out;
+        max-width: 400px;
+        background: ${type === 'success' ? 'linear-gradient(135deg, #28a745, #20c997)' : 
+                    type === 'error' ? 'linear-gradient(135deg, #dc3545, #c82333)' : 
+                    'linear-gradient(135deg, #17a2b8, #138496)'};
+        color: white;
+    `;
+    
+    // Agregar al DOM
+    document.body.appendChild(notification);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// Agregar animaciones CSS
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Cerrar modal con la tecla Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeUploadExcelModal();
+    }
+});
+
+// Cerrar modal haciendo clic fuera del contenido
+document.getElementById('uploadExcelModal').addEventListener('click', (e) => {
+    if (e.target.id === 'uploadExcelModal') {
+        closeUploadExcelModal();
+    }
+});
+</script>

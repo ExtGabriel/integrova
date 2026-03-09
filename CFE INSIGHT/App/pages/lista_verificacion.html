@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Verificación</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .header-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .header-buttons button:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .main-content {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+        .sidebar {
+            width: 300px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+        }
+        .sidebar-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-item:hover {
+            background-color: #f8f9fa;
+        }
+        .sidebar-item.active {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        .content-area {
+            flex: 1;
+            background-color: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-button.active {
+            border-bottom-color: #007bff;
+            color: #007bff;
+            font-weight: 600;
+        }
+        .tab-button:hover:not(.active) {
+            background-color: #f8f9fa;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        .empty-state p {
+            margin-bottom: 30px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .group-form {
+            max-width: 600px;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        textarea.form-control {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .group-info {
+            max-width: 800px;
+            margin: 0;
+        }
+        .info-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #dee2e6;
+        }
+        .info-section h4 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 18px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .info-item {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .info-item strong {
+            color: #495057;
+            display: inline-block;
+            width: 120px;
+            font-weight: 600;
+        }
+        .procedures-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .procedures-section h4 {
+            margin-bottom: 20px;
+            color: #495057;
+            font-size: 18px;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <i class="bi bi-map"></i>
+            Mapa del documento
+        </h1>
+        <div class="header-buttons">
+            <button title="Configuración"><i class="bi bi-gear"></i></button>
+            <button title="Ejecutar"><i class="bi bi-play"></i></button>
+            <button title="Carpeta"><i class="bi bi-folder"></i></button>
+            <button title="Cerrar" onclick="window.close()"><i class="bi bi-x"></i></button>
+            <button title="Editar"><i class="bi bi-pencil"></i></button>
+            <button title="Dividir"><i class="bi bi-slash-square"></i></button>
+            <button title="Más opciones"><i class="bi bi-three-dots"></i></button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="sidebar-item active">
+                <i class="bi bi-list-check"></i>
+                Procedimientos
+            </div>
+            <div class="sidebar-item" onclick="showNewGroupInterface()">
+                <i class="bi bi-plus-circle"></i>
+                + Grupo
+            </div>
+        </div>
+        <div class="content-area">
+            <div class="content-header">
+                <h2 id="document-title">Lista de Verificación</h2>
+            </div>
+            <div class="tabs">
+                <button class="tab-button active">
+                    Procedimientos
+                </button>
+            </div>
+            <div class="empty-state">
+                <i class="bi bi-clipboard-check"></i>
+                <h3>Lista de verificación de prueba</h3>
+                <p>No hay procedimientos configurados aún.</p>
+                <button class="btn btn-primary">
+                    <i class="bi bi-plus"></i> Agregar procedimiento
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para recibir el nombre del documento desde la ventana padre
+        function setDocumentName(documentName) {
+            document.getElementById('document-title').textContent = 'Lista de verificación - ' + documentName;
+            document.title = 'Lista de verificación - ' + documentName;
+        }
+
+        // Escuchar mensajes desde la ventana padre
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'setDocumentName') {
+                setDocumentName(event.data.documentName);
+            }
+        });
+
+        // Intentar obtener el nombre del documento de los parámetros URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const documentName = urlParams.get('name');
+        if (documentName) {
+            setDocumentName(decodeURIComponent(documentName));
+        }
+
+        // Función para mostrar la interfaz de nuevo grupo
+        function showNewGroupInterface() {
+            const contentArea = document.querySelector('.content-area');
+            const currentTitle = document.getElementById('document-title').textContent;
+            
+            contentArea.innerHTML = `
+                <div class="content-header">
+                    <h2 id="document-title">${currentTitle}</h2>
+                </div>
+                <div class="tabs">
+                    <button class="tab-button active">
+                        Procedimientos
+                    </button>
+                </div>
+                <div class="group-form">
+                    <div class="form-group">
+                        <label for="group-name">Nombre del grupo</label>
+                        <input type="text" id="group-name" class="form-control" placeholder="Ej: Grupo de auditoría financiera">
+                    </div>
+                    <div class="form-group">
+                        <label for="group-description">Descripción</label>
+                        <textarea id="group-description" class="form-control" rows="3" placeholder="Descripción del grupo..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="group-type">Tipo de grupo</label>
+                        <select id="group-type" class="form-control">
+                            <option value="">Seleccionar tipo...</option>
+                            <option value="auditoria">Auditoría</option>
+                            <option value="revision">Revisión</option>
+                            <option value="procedimiento">Procedimiento</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="group-responsable">Responsable</label>
+                        <input type="text" id="group-responsable" class="form-control" placeholder="Nombre del responsable">
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="saveGroup()">
+                            <i class="bi bi-check"></i> Guardar grupo
+                        </button>
+                        <button class="btn btn-secondary" onclick="showProceduresInterface()">
+                            <i class="bi bi-x"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para mostrar la interfaz de un grupo existente
+        function showGroupInterface(groupName, groupDescription, groupType, groupResponsable) {
+            const contentArea = document.querySelector('.content-area');
+            
+            // Actualizar estado activo en sidebar
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            contentArea.innerHTML = `
+                <div class="content-header">
+                    <h2>${groupName}</h2>
+                </div>
+                <div class="tabs">
+                    <button class="tab-button active">
+                        ${groupName}
+                    </button>
+                </div>
+                <div class="group-info">
+                    <div class="info-section">
+                        <h4>Información del grupo</h4>
+                        <div class="info-item">
+                            <strong>Nombre:</strong> ${groupName}
+                        </div>
+                        <div class="info-item">
+                            <strong>Descripción:</strong> ${groupDescription || 'Sin descripción'}
+                        </div>
+                        <div class="info-item">
+                            <strong>Tipo:</strong> ${groupType || 'No especificado'}
+                        </div>
+                        <div class="info-item">
+                            <strong>Responsable:</strong> ${groupResponsable || 'No asignado'}
+                        </div>
+                    </div>
+                    <div class="procedures-section">
+                        <h4>Procedimientos del grupo</h4>
+                        <div class="empty-state">
+                            <h3>No hay procedimientos configurados aún</h3>
+                            <p>Agrega procedimientos a este grupo para comenzar.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para volver a la interfaz de procedimientos
+        function showProceduresInterface() {
+            const contentArea = document.querySelector('.content-area');
+            const currentTitle = document.getElementById('document-title').textContent;
+            
+            contentArea.innerHTML = `
+                <div class="content-header">
+                    <h2 id="document-title">${currentTitle}</h2>
+                </div>
+                <div class="tabs">
+                    <button class="tab-button active">
+                        Procedimientos
+                    </button>
+                </div>
+                <div class="empty-state">
+                    <h3>Lista de verificación de prueba</h3>
+                    <p>No hay procedimientos configurados aún.</p>
+                </div>
+            `;
+        }
+
+        // Función para guardar el grupo
+        function saveGroup() {
+            const groupName = document.getElementById('group-name').value;
+            const groupDescription = document.getElementById('group-description').value;
+            const groupType = document.getElementById('group-type').value;
+            const groupResponsable = document.getElementById('group-responsable').value;
+
+            if (!groupName) {
+                alert('Por favor, ingresa el nombre del grupo');
+                return;
+            }
+
+            // Agregar el nuevo grupo al sidebar
+            const sidebar = document.querySelector('.sidebar');
+            const newGroupItem = document.createElement('div');
+            newGroupItem.className = 'sidebar-item';
+            newGroupItem.innerHTML = `
+                <i class="bi bi-file-text"></i>
+                ${groupName}
+            `;
+            
+            // Insertar después de "Procedimientos"
+            const proceduresItem = sidebar.querySelector('.sidebar-item:first-child');
+            sidebar.insertBefore(newGroupItem, proceduresItem.nextSibling);
+            
+            // Agregar evento click al nuevo grupo
+            newGroupItem.addEventListener('click', function() {
+                showGroupInterface(groupName, groupDescription, groupType, groupResponsable);
+            });
+
+            // Aquí se podría guardar el grupo en una base de datos o localStorage
+            console.log('Grupo guardado:', {
+                name: groupName,
+                description: groupDescription,
+                type: groupType,
+                responsable: groupResponsable
+            });
+
+            alert('Grupo guardado exitosamente');
+            showProceduresInterface();
+        }
+
+        // Event listeners para las pestañas
+        document.addEventListener('DOMContentLoaded', function() {
+            // No se necesita evento para el sidebar ya que solo tiene "Procedimientos"
+        });
+    </script>
+</body>
+</html>

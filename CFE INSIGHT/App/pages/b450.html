@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B450 - Formulario de Evaluación</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .b450-container {
+            display: flex;
+            height: 100vh;
+            background: white;
+        }
+
+        /* Sidebar de filtros */
+        .filters-sidebar {
+            width: 280px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .filters-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-section {
+            margin-bottom: 25px;
+        }
+
+        .filter-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .filter-option:hover {
+            background-color: #e9ecef;
+        }
+
+        .filter-checkbox {
+            width: 16px;
+            height: 16px;
+            margin-right: 10px;
+            accent-color: #0066cc;
+        }
+
+        .filter-label {
+            flex: 1;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .filter-count {
+            font-size: 12px;
+            color: #6c757d;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            margin-bottom: 8px;
+        }
+
+        /* Contenido principal */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tabs de navegación */
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0 20px;
+        }
+
+        .nav-tab {
+            padding: 16px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-tab:hover {
+            color: #495057;
+            background-color: #f8f9fa;
+        }
+
+        .nav-tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+            font-weight: 600;
+        }
+
+        /* Barra de herramientas */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            color: #495057;
+        }
+
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+
+        .btn-primary:hover {
+            background: #0052a3;
+            border-color: #0052a3;
+        }
+
+        .btn:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-input {
+            width: 40px;
+            height: 20px;
+            appearance: none;
+            background: #ced4da;
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-input:checked {
+            background: #0066cc;
+        }
+
+        .toggle-input::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-input:checked::after {
+            transform: translateX(20px);
+        }
+
+        /* Área de contenido */
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        /* Sección de riesgos */
+        .risks-section {
+            display: none;
+        }
+
+        .risks-section.active {
+            display: block;
+        }
+
+        .risk-category {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .risk-category-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Sección de controles */
+        .controls-section {
+            display: none;
+        }
+
+        .controls-section.active {
+            display: block;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            background: white;
+            color: #495057;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+
+        /* Sección de evaluación */
+        .assessment-section {
+            display: none;
+        }
+
+        .assessment-section.active {
+            display: block;
+        }
+
+        .assessment-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 20px;
+        }
+
+        .data-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .table-name {
+            font-weight: 500;
+            color: #212529;
+        }
+
+        .table-number {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .variance-cell {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .variance-value {
+            font-family: 'Courier New', monospace;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .variance-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .variance-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .variance-neutral {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .dropdown-arrow {
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .b450-container {
+                flex-direction: column;
+            }
+
+            .filters-sidebar {
+                width: 100%;
+                max-height: 300px;
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+
+            .toolbar-left,
+            .toolbar-right {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="b450-container">
+        <!-- Sidebar de filtros -->
+        <aside class="filters-sidebar">
+            <div class="filters-header">FILTROS</div>
+            
+            <!-- Filtros de Riesgos -->
+            <div id="risk-filters" class="filter-group">
+                <div class="filter-section">
+                    <div class="filter-title">Tipo:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="fraude">
+                        <label class="filter-label" for="fraude">Fraude</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="significativo">
+                        <label class="filter-label" for="significativo">Significativo</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="normal">
+                        <label class="filter-label" for="normal">Normal</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Afirmaciones:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="integridad">
+                        <label class="filter-label" for="integridad">Integridad</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="existencia">
+                        <label class="filter-label" for="existencia">Existencia</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="precision">
+                        <label class="filter-label" for="precision">Precisión y Valuación</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="presentacion">
+                        <label class="filter-label" for="presentacion">Presentación y Revelación</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Áreas:</div>
+                    <select class="filter-select">
+                        <option value="">Seleccionar</option>
+                    </select>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Conclusión:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="tratado">
+                        <label class="filter-label" for="tratado">El riesgo ha sido tratado</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="respuesta">
+                        <label class="filter-label" for="respuesta">Se requiere una respuesta de auditoría</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="deficiencia">
+                        <label class="filter-label" for="deficiencia">Existe una deficiencia de control significativa</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="otros">
+                        <label class="filter-label" for="otros">Otros</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros de Controles -->
+            <div id="control-filters" class="filter-group" style="display: none;">
+                <div class="filter-section">
+                    <div class="filter-title">Riesgos:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="fraude-risk">
+                        <label class="filter-label" for="fraude-risk">Fraude Risk</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="significativo-risk">
+                        <label class="filter-label" for="significativo-risk">Significativo Risk</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="normal-risk">
+                        <label class="filter-label" for="normal-risk">Normal Risk</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Ciclos:</div>
+                    <select class="filter-select">
+                        <option value="">Seleccionar</option>
+                    </select>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Control clave:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="control-yes">
+                        <label class="filter-label" for="control-yes">Yes</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="control-no">
+                        <label class="filter-label" for="control-no">No</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Design:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="design-incomplete">
+                        <label class="filter-label" for="design-incomplete">Incomplete</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="design-satisfactory">
+                        <label class="filter-label" for="design-satisfactory">Satisfactory</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="design-unsatisfactory">
+                        <label class="filter-label" for="design-unsatisfactory">Unsatisfactory</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Implementation:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="impl-incomplete">
+                        <label class="filter-label" for="impl-incomplete">Incomplete</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="impl-satisfactory">
+                        <label class="filter-label" for="impl-satisfactory">Satisfactory</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="impl-unsatisfactory">
+                        <label class="filter-label" for="impl-unsatisfactory">Unsatisfactory</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="impl-blocked">
+                        <label class="filter-label" for="impl-blocked">Blocked</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Test this control:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="test-incomplete">
+                        <label class="filter-label" for="test-incomplete">Incomplete</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="test-yes">
+                        <label class="filter-label" for="test-yes">Yes</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="test-no">
+                        <label class="filter-label" for="test-no">No</label>
+                        <span class="filter-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros de Evaluación -->
+            <div id="assessment-filters" class="filter-group" style="display: none;">
+                <div class="filter-section">
+                    <div class="filter-title">Filtros de Evaluación:</div>
+                    <select class="filter-select">
+                        <option value="">Todos los filtros</option>
+                        <option value="name">Por nombre</option>
+                        <option value="variance">Por varianza</option>
+                        <option value="amount">Por monto</option>
+                    </select>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Columnas:</div>
+                    <select class="filter-select">
+                        <option value="">Todas las columnas</option>
+                        <option value="rim">RIM</option>
+                        <option value="cy">CY-Final</option>
+                        <option value="py">PY-Final</option>
+                        <option value="variance">Varianza %</option>
+                    </select>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Mostrar Excluidos:</div>
+                    <div class="filter-option">
+                        <input type="checkbox" class="filter-checkbox" id="show-excluded">
+                        <label class="filter-label" for="show-excluded">Incluir excluidos</label>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="main-content">
+            <!-- Tabs de navegación -->
+            <nav class="nav-tabs">
+                <button class="nav-tab" onclick="switchTab('risk')">RIESGO</button>
+                <button class="nav-tab" onclick="switchTab('control')">CONTROLES</button>
+                <button class="nav-tab active" onclick="switchTab('assessment')">EVALUACIÓN</button>
+            </nav>
+
+            <!-- Barra de herramientas -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <button class="btn btn-primary" id="new-button">NUEVO ÁREA</button>
+                    <select class="filter-select" style="width: 150px;">
+                        <option value="">Filtros</option>
+                    </select>
+                    <select class="filter-select" style="width: 150px;">
+                        <option value="">Columnas</option>
+                    </select>
+                </div>
+                <div class="toolbar-right">
+                    <div class="toggle-switch">
+                        <label for="show-excluded-toggle">Mostrar Excluidos</label>
+                        <input type="checkbox" id="show-excluded-toggle" class="toggle-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Área de contenido -->
+            <div class="content-area">
+                <!-- Sección de Riesgos -->
+                <section id="risk-section" class="risks-section">
+                    <div class="risk-category">
+                        <div class="risk-category-title">ESTADO FINANCIERO:</div>
+                        <div class="empty-state">No Estado financiero level Risks are present.</div>
+                    </div>
+                    <div class="risk-category">
+                        <div class="risk-category-title">AFIRMACIÓN:</div>
+                        <div class="empty-state">No Afirmación level Risks are present.</div>
+                    </div>
+                </section>
+
+                <!-- Sección de Controles -->
+                <section id="control-section" class="controls-section">
+                    <div class="controls-header">
+                        <div class="empty-state">No controls found</div>
+                        <div class="pagination">
+                            <button class="page-btn" disabled>First</button>
+                            <button class="page-btn" disabled>&lt;</button>
+                            <button class="page-btn active">1</button>
+                            <button class="page-btn" disabled>&gt;</button>
+                            <button class="page-btn" disabled>Last</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sección de Evaluación -->
+                <section id="assessment-section" class="assessment-section active">
+                    <h2 class="assessment-title">Financial Statement Level Risks</h2>
+                    <div class="data-table">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>RIM (I E PV PR)</th>
+                                    <th>CY-Final 31/12/2024</th>
+                                    <th>PY-Final 31/12/2023</th>
+                                    <th>Variance %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="table-name">Propiedad, planta y equipo</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Propiedad para inversión</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Activos intangibles y fondo de comerio</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Inversiones</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Cuentas por cobrar - No corriente</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Activos agrícolas</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Inventarios</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Otros activos financieros</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Cuentas por cobrar</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Pagos por anticipado</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Efectivo y equivalentes</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Patrimonio</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-name">Préstamos - No corriente</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td class="table-number">0,00</td>
+                                    <td>
+                                        <div class="variance-cell">
+                                            <span class="variance-value">0,00</span>
+                                            <span class="variance-indicator variance-neutral">+</span>
+                                            <span class="variance-indicator variance-neutral">○</span>
+                                            <span class="dropdown-arrow">▼</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Función para cambiar entre tabs
+        function switchTab(tabName) {
+            // Remover clase active de todos los tabs y secciones
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.risks-section, .controls-section, .assessment-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.querySelectorAll('.filter-group').forEach(group => {
+                group.style.display = 'none';
+            });
+
+            // Agregar clase active al tab seleccionado
+            if (tabName === 'risk') {
+                document.querySelector('.nav-tab:nth-child(1)').classList.add('active');
+                document.getElementById('risk-section').classList.add('active');
+                document.getElementById('risk-filters').style.display = 'block';
+                document.getElementById('new-button').textContent = 'NUEVO RIESGO';
+            } else if (tabName === 'control') {
+                document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+                document.getElementById('control-section').classList.add('active');
+                document.getElementById('control-filters').style.display = 'block';
+                document.getElementById('new-button').textContent = 'NUEVO CONTROL';
+            } else if (tabName === 'assessment') {
+                document.querySelector('.nav-tab:nth-child(3)').classList.add('active');
+                document.getElementById('assessment-section').classList.add('active');
+                document.getElementById('assessment-filters').style.display = 'block';
+                document.getElementById('new-button').textContent = 'NUEVO ÁREA';
+            }
+        }
+
+        // Funcionalidad de checkboxes
+        document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Aquí puedes agregar la lógica para filtrar los datos
+                console.log('Filter changed:', this.id, this.checked);
+            });
+        });
+
+        // Funcionalidad de selects
+        document.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', function() {
+                // Aquí puedes agregar la lógica para filtrar los datos
+                console.log('Select changed:', this.value);
+            });
+        });
+
+        // Toggle para mostrar excluidos
+        document.getElementById('show-excluded-toggle').addEventListener('change', function() {
+            console.log('Show excluded:', this.checked);
+        });
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer el tab inicial en assessment
+            switchTab('assessment');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Formulario</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/formularios.css">
+</head>
+
+<body>
+    <!-- Header con 3 columnas -->
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title"><i class="bi bi-file-earmark-text"></i> Formulario</h1>
+        </div>
+        <div class="header-center">
+            <!-- Vacío - sin buscador -->
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="header-btn" title="Regresar">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <button class="header-btn" onclick="logoutLocal()" title="Cerrar Sesión">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="formularios-container">
+            <!-- Contenedor para Entidad Padre y Entidad Hijo lado a lado -->
+            <div class="entidades-row">
+                <!-- Sección de Entidad Padre -->
+                <div class="form-section entidad-block">
+                    <div class="section-header">
+                        <h3><i class="bi bi-building"></i> Entidad Padre</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="entidadPadre">Seleccionar Entidad Padre</label>
+                        <select id="entidadPadre" class="form-control">
+                            <option value="">Seleccione una entidad padre...</option>
+                            <option value="entidad1">Dirección General</option>
+                            <option value="entidad2">Subdirección Administrativa</option>
+                            <option value="entidad3">Subdirección Técnica</option>
+                            <option value="entidad4">Subdirección Financiera</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sección de Entidad Hijo -->
+                <div class="form-section entidad-block">
+                    <div class="section-header">
+                        <h3><i class="bi bi-diagram-3"></i> Entidad Hijo</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="entidadHijo">Seleccionar Entidad Hijooo</label>
+                        <select id="entidadHijo" class="form-control">
+                            <option value="">Seleccione una entidad hijo...</option>
+                            <option value="hijo1">Departamento de Recursos Humanos</option>
+                            <option value="hijo2">Departamento de TI</option>
+                            <option value="hijo3">Departamento de Contabilidad</option>
+                            <option value="hijo4">Departamento de Operaciones</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Generar Formularios -->
+            <div class="form-section">
+                <div class="button-container">
+                    <button type="button" class="btn btn-primary btn-large" onclick="mostrarFormularios()">
+                        <i class="bi bi-file-earmark-plus"></i> Generar Formularios
+                    </button>
+                </div>
+            </div>
+
+            <!-- Opciones de Formularios (inicialmente oculto) -->
+            <div id="opcionesFormularios" class="formularios-grid" style="display: none;">
+                <div class="form-card" onclick="abrirFormulario('evaluacion')">
+                    <div class="form-icon">
+                        <i class="bi bi-clipboard-data"></i>
+                    </div>
+                    <div class="form-title">Evaluación de Desempeño</div>
+                    <div class="form-description">Formulario para evaluar el desempeño del personal</div>
+                </div>
+
+                <div class="form-card" onclick="abrirFormulario('solicitud')">
+                    <div class="form-icon">
+                        <i class="bi bi-file-earmark-plus"></i>
+                    </div>
+                    <div class="form-title">Solicitud de Recursos</div>
+                    <div class="form-description">Solicitar recursos para proyectos</div>
+                </div>
+
+                <div class="form-card" onclick="abrirFormulario('reporte')">
+                    <div class="form-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div class="form-title">Reporte de Avances</div>
+                    <div class="form-description">Reportar avances de proyectos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+    </script>
+    <script>
+        // Constante para Sesión (Unificada con login/dashboard)
+        const USER_KEY = 'userUI';
+
+        function getCurrentSession() {
+            if (window.currentUser) return window.currentUser;
+            try {
+                const sessionUser = sessionStorage.getItem(USER_KEY);
+                if (sessionUser) return JSON.parse(sessionUser);
+            } catch (e) { }
+            try {
+                const localUser = localStorage.getItem(USER_KEY);
+                if (localUser) return JSON.parse(localUser);
+            } catch (e) { }
+            return null;
+        }
+
+        function logoutLocal() {
+            if (typeof window.logout === 'function') {
+                window.logout();
+                return;
+            }
+            try {
+                if (localStorage.getItem(USER_KEY)) {
+                    localStorage.removeItem(USER_KEY);
+                }
+                window.location.href = 'login.html';
+                console.log('Sesión cerrada exitosamente');
+            } catch (error) {
+                console.error('Error en logout:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Función para mostrar/ocultar las opciones de formularios
+        function mostrarFormularios() {
+            const opcionesDiv = document.getElementById('opcionesFormularios');
+            const entidadPadre = document.getElementById('entidadPadre').value;
+            const entidadHijo = document.getElementById('entidadHijo').value;
+            
+            // Validar que se hayan seleccionado ambas entidades
+            if (!entidadPadre || !entidadHijo) {
+                alert('Por favor seleccione tanto la Entidad Padre como la Entidad Hijo antes de generar formularios.');
+                return;
+            }
+            
+            // Mostrar las opciones de formularios con animación
+            if (opcionesDiv.style.display === 'none') {
+                opcionesDiv.style.display = 'grid';
+                opcionesDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                opcionesDiv.style.display = 'none';
+            }
+        }
+
+        // Función para abrir formularios específicos
+        function abrirFormulario(tipo) {
+            // Aquí puedes agregar la lógica para cada tipo de formulario
+            console.log('Abriendo formulario:', tipo);
+            
+            // Por ahora, mostramos un alerta con el tipo de formulario
+            alert(`Abriendo formulario: ${tipo}\n\nEsta función aún está en desarrollo.`);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const initFormularios = function () {
+                const userData = getCurrentSession();
+                if (!userData) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                // Cargar entidades desde la API
+                cargarEntidades();
+
+                // Aquí puedes agregar más inicialización específica de la página
+                console.log('Página de formularios inicializada');
+            };
+
+            if (typeof window.protectPage === 'function') {
+                window.protectPage(initFormularios);
+            } else {
+                initFormularios();
+            }
+        });
+
+        // Función para cargar entidades desde la API
+        async function cargarEntidades() {
+            try {
+                // Cargar entidades padre
+                const entidadesResponse = await API.Entities.getAll();
+                if (entidadesResponse.success && entidadesResponse.data) {
+                    const selectPadre = document.getElementById('entidadPadre');
+                    selectPadre.innerHTML = '<option value="">Seleccione una entidad padre...</option>';
+                    
+                    entidadesResponse.data.forEach(entidad => {
+                        const option = document.createElement('option');
+                        option.value = entidad.id;
+                        option.textContent = entidad.name;
+                        selectPadre.appendChild(option);
+                    });
+                }
+
+                // Cargar entidades hijas (si hay una tabla separada o las mismas)
+                const hijasResponse = await API.Entities.getAll();
+                if (hijasResponse.success && hijasResponse.data) {
+                    const selectHijo = document.getElementById('entidadHijo');
+                    selectHijo.innerHTML = '<option value="">Seleccione una entidad hija...</option>';
+                    
+                    hijasResponse.data.forEach(entidad => {
+                        const option = document.createElement('option');
+                        option.value = entidad.id;
+                        option.textContent = entidad.name;
+                        selectHijo.appendChild(option);
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error cargando entidades:', error);
+                // Si hay error, mantener las opciones por defecto
+                console.log('Usando entidades por defecto');
+            }
+        }
+    </script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/auth-guard.js"></script>
+</body>
+
+</html>
