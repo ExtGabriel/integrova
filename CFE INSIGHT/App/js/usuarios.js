@@ -404,7 +404,7 @@
             const tdEstado = document.createElement('td');
             if (canChangeStatus) {
                 const btn = document.createElement('button');
-                btn.className = `btn btn-sm ${user.active ? 'btn-success' : 'btn-danger'}`;
+                btn.className = `btn btn-sm ${user.active ? 'btn-primary' : 'btn-danger'}`;
                 btn.innerHTML = user.active
                     ? '<i class="bi bi-check-circle"></i> Activo'
                     : '<i class="bi bi-x-circle"></i> Inactivo';
@@ -413,7 +413,7 @@
                 tdEstado.appendChild(btn);
             } else {
                 const badge = document.createElement('span');
-                badge.className = user.active ? 'badge bg-success' : 'badge bg-danger';
+                badge.className = user.active ? 'badge bg-primary' : 'badge bg-danger';
                 badge.textContent = user.active ? 'Activo' : 'Inactivo';
                 tdEstado.appendChild(badge);
             }
