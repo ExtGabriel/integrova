@@ -2502,25 +2502,19 @@ async function extractAccountsFromExcel(excelFile, mappingData) {
             continue; // Saltar filas vacías o incompletas
         }
         
-        // Crear objeto de cuenta adaptado a la estructura existente
+        // Crear objeto de cuenta
         const account = {
             id: Date.now().toString() + '_' + i, // ID único
-            nombre: `${accountNumber.toString().trim()} - ${accountName.toString().trim()}`,
-            tipo: mappingData.balanceType || 'balance',
-            total_debitos: parseNumber(currentYearValue) > 0 ? parseNumber(currentYearValue) : 0,
-            total_creditos: parseNumber(currentYearValue) < 0 ? Math.abs(parseNumber(currentYearValue)) : 0,
-            estado: 'unassigned', // Estado inicial sin asignar
-            archivo_original: excelFile.originalName,
-            data: {
-                account_number: accountNumber.toString().trim(),
-                account_name: accountName.toString().trim(),
-                current_year_value: parseNumber(currentYearValue),
-                previous_year_value: parseNumber(previousYearValue),
-                current_year_debit_credit: mappingData.currentYearDebitCredit || 'both',
-                previous_year_debit_credit: mappingData.previousYearDebitCredit || 'both',
-                balance_type: mappingData.balanceType || 'balance',
-                source_file: excelFile.originalName
-            }
+            account_number: accountNumber.toString().trim(),
+            account_name: accountName.toString().trim(),
+            current_year_value: parseNumber(currentYearValue),
+            previous_year_value: parseNumber(previousYearValue),
+            current_year_debit_credit: mappingData.currentYearDebitCredit || 'both',
+            previous_year_debit_credit: mappingData.previousYearDebitCredit || 'both',
+            balance_type: mappingData.balanceType || 'balance',
+            status: 'unassigned', // Estado inicial sin asignar
+            created_at: new Date().toISOString(),
+            source_file: excelFile.originalName
         };
         
         accounts.push(account);
@@ -2624,7 +2618,15 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 // Endpoint para obtener el último archivo Excel procesado
 app.get('/api/excel/latest', (req, res) => {
     try {
+        console.log('🔍 Verificando excelFilesStorage...');
+        console.log('📊 Cantidad de archivos en storage:', excelFilesStorage.length);
+        
+        if (excelFilesStorage.length > 0) {
+            console.log('📋 Último archivo:', excelFilesStorage[excelFilesStorage.length - 1].originalName);
+        }
+        
         if (excelFilesStorage.length === 0) {
+            console.log('❌ No hay archivos en excelFilesStorage');
             return res.status(404).json({ 
                 success: false, 
                 error: 'No hay archivos Excel procesados' 
@@ -2633,6 +2635,8 @@ app.get('/api/excel/latest', (req, res) => {
         
         // Obtener el archivo más reciente
         const latestFile = excelFilesStorage[excelFilesStorage.length - 1];
+        console.log('✅ Archivo encontrado:', latestFile.originalName);
+        console.log('📊 Hojas:', latestFile.sheets.length);
         
         // Convertir al formato que espera el frontend
         const responseData = {
@@ -2648,6 +2652,8 @@ app.get('/api/excel/latest', (req, res) => {
             uploadedAt: latestFile.uploadedAt,
             totalSheets: latestFile.totalSheets
         };
+        
+        console.log('📤 Enviando respuesta con sheets_data:', responseData.sheets_data.length, 'hojas');
         
         res.json({
             success: true,
@@ -2744,19 +2750,18 @@ app.post('/api/excel/process-mapping', async (req, res) => {
 // Endpoint para obtener cuentas sin asignar
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
-        console.log('🔍 Buscando cuentas sin asignar...');
         const { page = 1, limit = 50, search = '' } = req.query;
         
         let query = supabase
             .from('conjuntos_datos')
             .select('*')
-            .eq('estado', 'unassigned')
+            .eq('status', 'unassigned')
             .order('created_at', { ascending: false });
         
         // Aplicar búsqueda si se proporciona
         if (search && search.trim()) {
             const searchTerm = search.trim();
-            query = query.or(`nombre.ilike.%${searchTerm}%,data->>'account_number'.ilike.%${searchTerm}%,data->>'account_name'.ilike.%${searchTerm}%`);
+            query = query.or(`account_number.ilike.%${searchTerm}%,account_name.ilike.%${searchTerm}%`);
         }
         
         // Aplicar paginación
@@ -2764,8 +2769,6 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         query = query.range(offset, offset + limit - 1);
         
         const { data, error, count } = await query;
-        
-        console.log('🔍 Resultado de la consulta:', { data: data?.length || 0, error, count });
         
         if (error) {
             console.error('Error obteniendo cuentas sin asignar:', error);
@@ -2835,6 +2838,56 @@ app.post('/api/accounts/assign', async (req, res) => {
         
     } catch (error) {
         console.error('Error en /api/accounts/assign:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint temporal para crear la tabla conjuntos_datos
+app.post('/api/setup/create-table', async (req, res) => {
+    try {
+        const createTableSQL = `
+            CREATE TABLE IF NOT EXISTS conjuntos_datos (
+                id TEXT PRIMARY KEY,
+                account_number TEXT NOT NULL,
+                account_name TEXT NOT NULL,
+                current_year_value NUMERIC,
+                previous_year_value NUMERIC,
+                current_year_debit_credit TEXT DEFAULT 'both',
+                previous_year_debit_credit TEXT DEFAULT 'both',
+                balance_type TEXT DEFAULT 'balance',
+                status TEXT DEFAULT 'unassigned',
+                assigned_group_id TEXT,
+                assigned_group_name TEXT,
+                assigned_at TIMESTAMP WITH TIME ZONE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                source_file TEXT
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_conjuntos_datos_status ON conjuntos_datos(status);
+            CREATE INDEX IF NOT EXISTS idx_conjuntos_datos_account_number ON conjuntos_datos(account_number);
+            CREATE INDEX IF NOT EXISTS idx_conjuntos_datos_assigned_group_id ON conjuntos_datos(assigned_group_id);
+        `;
+        
+        const { data, error } = await supabase.rpc('exec_sql', { sql: createTableSQL });
+        
+        if (error) {
+            console.error('Error creando tabla:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Tabla conjuntos_datos creada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/setup/create-table:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Error interno del servidor' 

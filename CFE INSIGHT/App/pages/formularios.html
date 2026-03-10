@@ -2809,40 +2809,11 @@
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- Los datos se cargarán dinámicamente desde el Excel -->
                             <tr>
-                                <td>2</td>
-                                <td>1010</td>
-                                <td>Caja chica parqueos</td>
-                                <td>$1,000.00</td>
-                                <td>$800.00</td>
-                            </tr>
-                            <tr>
-                                <td>3</td>
-                                <td>1020</td>
-                                <td>Fondo estaciones de parqueos</td>
-                                <td>$2,500.00</td>
-                                <td>$2,000.00</td>
-                            </tr>
-                            <tr>
-                                <td>4</td>
-                                <td>1030</td>
-                                <td>Banco administración Q</td>
-                                <td>$15,000.00</td>
-                                <td>$12,000.00</td>
-                            </tr>
-                            <tr>
-                                <td>5</td>
-                                <td>1100</td>
-                                <td>Clientes</td>
-                                <td>$8,500.00</td>
-                                <td>$7,200.00</td>
-                            </tr>
-                            <tr>
-                                <td>6</td>
-                                <td>3000</td>
-                                <td>Capital social</td>
-                                <td>$50,000.00</td>
-                                <td>$45,000.00</td>
+                                <td colspan="5" style="text-align: center; color: #666;">
+                                    <i class="bi bi-hourglass-split"></i> Cargando datos del Excel...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -2850,7 +2821,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeColumnMappingModal()">Cancelar</button>
-                <button class="btn btn-primary" id="saveMappingBtn" onclick="processColumnMapping(event)">Guardar datos</button>
+                <button class="btn btn-primary" onclick="processColumnMapping(event)">Guardar datos</button>
             </div>
         </div>
     </div>
@@ -2883,29 +2854,58 @@
         
         async function loadExcelDataForMapping() {
             try {
+                console.log('🔄 Iniciando carga de datos del Excel...');
+                
                 // Obtener el último Excel procesado
                 const response = await fetch('/api/excel/latest');
+                console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+                
                 const result = await response.json();
+                console.log('📦 Datos recibidos:', result);
                 
                 if (!response.ok || !result.success) {
-                    console.error('Error cargando datos del Excel:', result.error);
+                    console.error('❌ Error cargando datos del Excel:', result.error);
+                    // Mostrar error en la vista previa
+                    const previewTable = document.querySelector('.sample-table tbody');
+                    if (previewTable) {
+                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
+                            <i class="bi bi-exclamation-triangle"></i> Error: ${result.error || 'Error desconocido'}
+                        </td></tr>`;
+                    }
                     return;
                 }
                 
                 const excelData = result.data;
+                console.log('📊 Estructura de datos del Excel:', excelData);
+                
                 if (!excelData || !excelData.sheets_data || excelData.sheets_data.length === 0) {
-                    console.error('No hay datos de Excel disponibles');
+                    console.error('❌ No hay datos de Excel disponibles');
+                    const previewTable = document.querySelector('.sample-table tbody');
+                    if (previewTable) {
+                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
+                            <i class="bi bi-exclamation-triangle"></i> No hay datos de Excel disponibles
+                        </td></tr>`;
+                    }
                     return;
                 }
                 
                 // Obtener la primera hoja
                 const firstSheet = excelData.sheets_data[0];
                 const sheetData = firstSheet.data;
+                console.log('📋 Datos de la primera hoja:', sheetData);
                 
                 if (!sheetData || sheetData.length === 0) {
-                    console.error('La hoja de Excel está vacía');
+                    console.error('❌ La hoja de Excel está vacía');
+                    const previewTable = document.querySelector('.sample-table tbody');
+                    if (previewTable) {
+                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
+                            <i class="bi bi-exclamation-triangle"></i> La hoja de Excel está vacía
+                        </td></tr>`;
+                    }
                     return;
                 }
+                
+                console.log('✅ Datos cargados correctamente, actualizando vista previa...');
                 
                 // Actualizar las opciones de los selectores de mapeo
                 updateMappingSelectors(sheetData);
@@ -2914,7 +2914,14 @@
                 updateDataPreview(sheetData);
                 
             } catch (error) {
-                console.error('Error cargando datos para mapeo:', error);
+                console.error('❌ Error cargando datos para mapeo:', error);
+                // Mostrar error en la vista previa
+                const previewTable = document.querySelector('.sample-table tbody');
+                if (previewTable) {
+                    previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
+                        <i class="bi bi-exclamation-triangle"></i> Error de conexión: ${error.message}
+                    </td></tr>`;
+                }
             }
         }
         
@@ -2976,16 +2983,36 @@
                 rowNumberCell.textContent = index + 2; // +2 porque empezamos desde la fila 2 del Excel
                 tr.appendChild(rowNumberCell);
                 
-                // Agregar las primeras 4 celdas de datos (o las que haya disponibles)
-                for (let i = 0; i < 4; i++) {
+                // Agregar todas las celdas de datos disponibles (hasta 5 columnas máximo)
+                for (let i = 0; i < Math.min(5, row.length); i++) {
                     const cell = document.createElement('td');
-                    const cellValue = row[i] || '';
+                    let cellValue = row[i] || '';
+                    
+                    // Formatear valores numéricos
+                    if (!isNaN(cellValue) && cellValue !== '') {
+                        cellValue = parseFloat(cellValue);
+                        if (Number.isInteger(cellValue)) {
+                            cellValue = cellValue.toLocaleString('es-MX');
+                        } else {
+                            cellValue = cellValue.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                    }
+                    
                     cell.textContent = cellValue.toString().trim();
+                    tr.appendChild(cell);
+                }
+                
+                // Si hay menos de 5 columnas, agregar celdas vacías
+                for (let i = row.length; i < 5; i++) {
+                    const cell = document.createElement('td');
+                    cell.textContent = '';
                     tr.appendChild(cell);
                 }
                 
                 previewTable.appendChild(tr);
             });
+            
+            console.log('✅ Vista previa actualizada con', dataRows.length, 'filas de datos reales');
         }
 
         function closeColumnMappingModal() {
@@ -2995,7 +3022,7 @@
         }
 
         async function processColumnMapping(event) {
-            // Prevenir comportamiento por defecto si es un evento
+            // Prevenir comportamiento por defecto si hay un evento
             if (event && event.preventDefault) {
                 event.preventDefault();
             }
@@ -3022,7 +3049,7 @@
 
             try {
                 // Mostrar indicador de carga
-                const saveBtn = event && event.target ? event.target : document.querySelector('#saveMappingBtn');
+                const saveBtn = event ? event.target : document.querySelector('button[onclick*="processColumnMapping"]');
                 const originalText = saveBtn.innerHTML;
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
@@ -3065,18 +3092,21 @@
                 closeColumnMappingModal();
 
                 // Mostrar mensaje de éxito
-                alert('Datos procesados y guardados correctamente en la tabla "conjuntos_datos"');
+                alert('✅ Proceso completado:\n• Datos completos del Excel guardados en "conjuntos_datos"\n• Cuentas extraídas guardadas en "cuentas_contables"');
 
-                // No redirigir a asignar cuentas por ahora
+                // Cerrar modal y volver a la vista principal
+                closeColumnMappingModal();
 
             } catch (error) {
                 console.error('Error procesando mapeo:', error);
                 alert('Error al procesar los datos: ' + error.message);
             } finally {
                 // Restaurar botón
-                const saveBtn = event && event.target ? event.target : document.querySelector('#saveMappingBtn');
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = originalText;
+                const saveBtn = event ? event.target : document.querySelector('button[onclick*="processColumnMapping"]');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = originalText;
+                }
             }
         }
 
@@ -3104,15 +3134,10 @@
                 targetSection.style.display = 'block';
             }
             
-            // Activar el item del menú correspondiente
-            const targetMenuItem = document.querySelector(`[onclick*="${section}"]`);
-            if (targetMenuItem) {
-                targetMenuItem.classList.add('active');
-            }
-            
-            // Si es la sección de accounts, mostrar la subsección de asignar cuentas
-            if (section === 'accounts') {
-                selectDataSection('asignar-cuentas');
+            // Agregar clase activa al item seleccionado
+            const clickedItem = event.target.closest('.menu-item');
+            if (clickedItem) {
+                clickedItem.classList.add('active');
             }
         }
 
@@ -11205,7 +11230,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             textarea.focus();
             
             // Crear el enlace HTML
-            const link = `<a href="#" class="inference-link" data-form="${formCode}" onclick="navigateToForm('${formCode}', event)">${formName}</a>`;
+            const link = `<a href="#" class="inference-link" data-form="${formCode}" onclick="navigateToForm('${formCode}')">${formName}</a>`;
             
             // Insertar el enlace en la posición actual del cursor
             const selection = window.getSelection();
@@ -11229,11 +11254,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para navegar a formulario
-        function navigateToForm(formCode, event) {
-            // Prevenir comportamiento por defecto si es un evento
-            if (event && event.preventDefault) {
-                event.preventDefault();
-            }
+        function navigateToForm(formCode) {
+            // Prevenir comportamiento por defecto
+            event.preventDefault();
             
             // Aquí puedes agregar la lógica para navegar al formulario
             showNotification(`Navegando al formulario ${formCode}`, 'info');
@@ -11267,11 +11290,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     <div class="special-characters-body">
                         <div class="char-categories">
                             <div class="category-tabs">
-                                <button class="category-tab active" onclick="showCharCategory('math', event)">Matemáticos</button>
-                                <button class="category-tab" onclick="showCharCategory('currency', event)">Moneda</button>
-                                <button class="category-tab" onclick="showCharCategory('arrows', event)">Flechas</button>
-                                <button class="category-tab" onclick="showCharCategory('symbols', event)">Símbolos</button>
-                                <button class="category-tab" onclick="showCharCategory('greek', event)">Griegos</button>
+                                <button class="category-tab active" onclick="showCharCategory('math')">Matemáticos</button>
+                                <button class="category-tab" onclick="showCharCategory('currency')">Moneda</button>
+                                <button class="category-tab" onclick="showCharCategory('arrows')">Flechas</button>
+                                <button class="category-tab" onclick="showCharCategory('symbols')">Símbolos</button>
+                                <button class="category-tab" onclick="showCharCategory('greek')">Griegos</button>
                             </div>
                             <div class="category-content" id="mathCategory">
                                 <div class="char-grid">
@@ -11413,7 +11436,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para mostrar categoría de caracteres
-        function showCharCategory(category, event) {
+        function showCharCategory(category) {
             // Ocultar todas las categorías
             document.querySelectorAll('.category-content').forEach(content => {
                 content.style.display = 'none';
@@ -11427,10 +11450,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Mostrar categoría seleccionada
             document.getElementById(category + 'Category').style.display = 'block';
             
-            // Agregar clase active al tab seleccionado si hay evento
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
+            // Agregar clase active al tab seleccionado
+            event.target.classList.add('active');
         }
 
         // Función para insertar carácter especial
@@ -12045,28 +12066,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const itemsHtml = accounts
                 .slice(0, 500)
                 .map((a) => {
-                    // Usar los campos de la estructura existente
-                    let displayName = a.nombre || '(sin nombre)';
-                    let displayValue = '';
+                    // Usar los campos de la base de datos
+                    const accountNumber = a.account_number || '';
+                    const accountName = a.account_name || '';
+                    const currentValue = a.current_year_value || 0;
+                    const previousValue = a.previous_year_value || 0;
                     
-                    // Si hay datos en el campo data (jsonb), usarlos
-                    if (a.data && typeof a.data === 'object') {
-                        const accountNumber = a.data.account_number || '';
-                        const accountName = a.data.account_name || '';
-                        const currentValue = a.data.current_year_value || 0;
-                        
-                        if (accountNumber && accountName) {
-                            displayName = `${accountNumber} ${accountName}`.trim();
-                        }
-                        displayValue = currentValue != null ? formatCurrency(currentValue) : '';
-                    } else {
-                        // Si no hay data, usar los campos principales
-                        displayValue = a.total_debitos != null ? formatCurrency(a.total_debitos) : '0,00';
-                    }
+                    const displayName = `${accountNumber} ${accountName}`.trim();
+                    const displayValue = currentValue != null ? formatCurrency(currentValue) : '';
                     
                     return `
                         <div class="account-item" style="justify-content: space-between;" data-account-id="${a.id}">
-                            <span class="account-name">${displayName}</span>
+                            <span class="account-name">${displayName || '(sin nombre)'}</span>
                             <span class="account-value">${displayValue}</span>
                         </div>
                     `;
@@ -12086,7 +12097,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         async function loadUnassignedAccountsFromLatestExcel() {
-            console.log('🔍 Cargando cuentas sin asignar...');
             try {
                 const container = document.querySelector('.unassigned-accounts-list');
                 if (container) {
@@ -12099,18 +12109,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
 
                 // Cargar cuentas desde la base de datos
-                console.log('🔍 Haciendo petición a /api/accounts/unassigned...');
                 const response = await fetch('/api/accounts/unassigned');
                 const result = await response.json();
-                
-                console.log('🔍 Respuesta del servidor:', result);
 
                 if (!response.ok || !result.success) {
                     throw new Error(result.error || 'Error cargando cuentas');
                 }
 
                 const accounts = result.data || [];
-                console.log('🔍 Cuentas obtenidas:', accounts.length);
                 renderUnassignedAccounts(accounts);
                 
                 // Actualizar el contador
@@ -12120,7 +12126,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
                 
             } catch (err) {
-                console.error('❌ Error cargando cuentas:', err);
+                console.error('Error cargando cuentas:', err);
                 renderUnassignedAccounts([]);
                 alert(err?.message || 'Error cargando cuentas');
             }

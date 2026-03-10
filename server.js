@@ -1923,6 +1923,8 @@ app.post('/api/ai/generate-report', async (req, res) => {
 // Nuevo endpoint para obtener el último conjunto de datos de Excel
 app.get('/api/excel/latest', async (req, res) => {
     try {
+        console.log('🔍 Buscando último Excel en la base de datos...');
+        
         const { data, error } = await supabase
             .from('conjuntos_datos')
             .select('*')
@@ -1935,13 +1937,290 @@ app.get('/api/excel/latest', async (req, res) => {
         }
 
         if (data && data.length > 0) {
-            res.json({ success: true, data: data[0] });
+            const conjunto = data[0];
+            console.log('📋 Conjunto encontrado:', conjunto.nombre);
+            
+            // Verificar si hay datos en el campo data
+            if (!conjunto.data) {
+                console.log('❌ El conjunto no tiene datos en el campo data');
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'No hay datos del Excel disponibles' 
+                });
+            }
+            
+            // Convertir los datos al formato que espera el frontend
+            const responseData = {
+                id: conjunto.id,
+                filename: conjunto.nombre || conjunto.archivo_original,
+                status: 'processed',
+                sheets_data: conjunto.data.sheets || [], // Asegurar que sheets_data exista
+                uploadedAt: conjunto.created_at,
+                totalSheets: conjunto.data.totalSheets || 0
+            };
+            
+            console.log('✅ Datos convertidos exitosamente');
+            console.log('📊 Hojas:', responseData.sheets_data.length);
+            
+            res.json({ success: true, data: responseData });
         } else {
-            res.status(404).json({ success: false, message: 'No se encontraron conjuntos de datos.' });
+            console.log('❌ No se encontraron conjuntos de datos');
+            res.status(404).json({ success: false, error: 'No se encontraron conjuntos de datos.' });
         }
     } catch (error) {
         console.error('Error en /api/excel/latest:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+    }
+});
+
+// Endpoint para procesar mapeo de datos Excel
+app.post('/api/excel/process-mapping', async (req, res) => {
+    try {
+        const { mappingData, fileId } = req.body;
+        
+        console.log('🔄 Procesando mapeo de columnas...');
+        console.log('📊 Mapping data:', mappingData);
+        console.log('🆔 File ID:', fileId);
+        
+        if (!mappingData) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'mappingData es requerido' 
+            });
+        }
+        
+        // Obtener el último Excel procesado
+        const { data: conjuntoData, error: conjuntoError } = await supabase
+            .from('conjuntos_datos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (conjuntoError) {
+            console.error('Error obteniendo conjunto de datos:', conjuntoError);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error obteniendo datos del Excel' 
+            });
+        }
+
+        if (!conjuntoData || conjuntoData.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No se encontraron datos de Excel' 
+            });
+        }
+
+        const conjunto = conjuntoData[0];
+        console.log('📋 Procesando conjunto:', conjunto.nombre);
+
+        // Procesar el mapeo y extraer cuentas del Excel
+        const processedMapping = {
+            id: Date.now().toString(),
+            processedAt: new Date().toISOString(),
+            mapping: mappingData,
+            sourceFile: {
+                name: conjunto.nombre,
+                sheets: conjunto.data?.totalSheets || 0
+            },
+            status: 'processed'
+        };
+
+        // Extraer las cuentas del Excel usando el mapeo
+        const extractedAccounts = await extractAccountsFromExcel(conjunto, mappingData);
+        
+        console.log('✅ Cuentas extraídas:', extractedAccounts.length);
+        console.log('💰 Totales:', extractedAccounts.reduce((sum, acc) => sum + (acc.debit || acc.credit || 0), 0));
+
+        // Guardar las cuentas procesadas en la tabla 'cuentas_contables'
+        try {
+            const accountsToInsert = extractedAccounts.map(account => ({
+                conjunto_id: conjunto.id,
+                numero_cuenta: (account.number || '').toString().substring(0, 20), // Limitar a 20 chars
+                nombre_cuenta: (account.name || '').toString().substring(0, 255), // Limitar longitud
+                debito_actual: account.debit || 0,
+                credito_actual: account.credit || 0,
+                debito_anterior: account.previousYearDebit || 0,
+                credito_anterior: account.previousYearCredit || 0,
+                // saldo: account.balance || 0, // Eliminado - es columna generada
+                clasificado: false, // Por defecto no clasificado
+                created_at: new Date().toISOString()
+            }));
+
+            const { data: insertedAccounts, error: insertError } = await supabase
+                .from('cuentas_contables')
+                .insert(accountsToInsert)
+                .select();
+
+            if (insertError) {
+                console.error('Error insertando cuentas contables:', insertError);
+                console.log('⚠️ Las cuentas se procesaron pero no se guardaron en la tabla cuentas_contables');
+            } else {
+                console.log(`✅ ${insertedAccounts.length} cuentas guardadas en cuentas_contables.`);
+            }
+
+            // Opcionalmente, actualizar el conjunto_datos con un estado más corto
+            const { error: updateConjuntoError } = await supabase
+                .from('conjuntos_datos')
+                .update({ 
+                    estado: 'procesado', // Más corto para evitar error de longitud
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', conjunto.id);
+
+            if (updateConjuntoError) {
+                console.error('Error actualizando estado del conjunto de datos:', updateConjuntoError);
+            }
+
+        } catch (insertError) {
+            console.error('Error general al guardar cuentas procesadas:', insertError);
+            console.log('⚠️ Las cuentas se procesaron pero no se guardaron en la tabla cuentas_contables');
+        }
+        
+        res.json({
+            success: true,
+            message: 'Mapeo procesado correctamente',
+            processedMapping: processedMapping,
+            extractedAccounts: extractedAccounts.length,
+            totalProcessed: extractedAccounts.length,
+            accounts: extractedAccounts // Incluir las cuentas extraídas para que el frontend las use
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/excel/process-mapping:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para ver los datos guardados en conjuntos_datos
+app.get('/api/conjuntos-datos', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .select(`
+                id,
+                nombre,
+                tipo,
+                fecha_importacion,
+                total_debitos,
+                total_creditos,
+                estado,
+                archivo_original,
+                created_at,
+                updated_at
+            `)
+            .order('created_at', { ascending: false })
+            .limit(5); // Solo últimos 5 registros
+
+        if (error) {
+            console.error('Error obteniendo conjuntos de datos:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error obteniendo conjuntos de datos' 
+            });
+        }
+
+        res.json({
+            success: true,
+            data: data || [],
+            total: data ? data.length : 0
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/conjuntos-datos:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para obtener los datos completos de un Excel específico
+app.get('/api/conjuntos-datos/:id/excel-data', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .select('data')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Error obteniendo datos del Excel:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error obteniendo datos del Excel' 
+            });
+        }
+
+        if (!data) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No se encontraron datos del Excel' 
+            });
+        }
+
+        res.json({
+            success: true,
+            excelData: data
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/conjuntos-datos/:id/excel-data:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para obtener las cuentas contables guardadas
+app.get('/api/cuentas-contables', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('cuentas_contables')
+            .select(`
+                id,
+                numero_cuenta,
+                nombre_cuenta,
+                debito_actual,
+                credito_actual,
+                debito_anterior,
+                credito_anterior,
+                clasificado,
+                created_at,
+                conjuntos_datos (
+                    id,
+                    nombre,
+                    archivo_original
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error obteniendo cuentas contables:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error obteniendo cuentas contables' 
+            });
+        }
+
+        res.json({
+            success: true,
+            data: data || [],
+            total: data ? data.length : 0
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/cuentas-contables:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor' 
+        });
     }
 });
 
@@ -2049,6 +2328,21 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                 const workbook = xlsx.read(file.buffer, { type: 'buffer' });
                 const analysis = analyzeExcelLikeCaseWare(workbook, file.originalname);
                 
+                // Preparar los datos completos del Excel para guardar
+                const excelData = {
+                    sheets: workbook.SheetNames.map(sheetName => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+                        return {
+                            sheetName: sheetName,
+                            data: jsonData,
+                            rows: jsonData.length,
+                            columns: jsonData.length > 0 ? jsonData[0].length : 0
+                        };
+                    }),
+                    totalSheets: workbook.SheetNames.length
+                };
+
                 // Guardar en la base de datos (adaptado a estructura existente)
                 if (analysis.success) {
                     try {
@@ -2061,7 +2355,8 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                                 total_debitos: analysis.totals.debits || 0,
                                 total_creditos: analysis.totals.credits || 0,
                                 estado: analysis.isBalanced ? 'balanceado' : 'desbalanceado',
-                                archivo_original: file.originalname
+                                archivo_original: file.originalname,
+                                data: excelData, // <-- AGREGAR LOS DATOS COMPLETOS DEL EXCEL
                                 // user_id se omite temporalmente hasta tener un UUID válido
                             })
                             .select();
@@ -2073,6 +2368,7 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                         } else {
                             analysis.savedToDatabase = true;
                             analysis.databaseId = data[0].id;
+                            console.log('✅ Excel guardado en BD con datos completos');
                         }
                     } catch (dbError) {
                         console.error('Error en base de datos:', dbError);
@@ -2832,6 +3128,102 @@ app.use((error, req, res, next) => {
     console.error('Error no manejado:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
 });
+
+// Función para extraer cuentas del Excel según el mapeo
+async function extractAccountsFromExcel(conjunto, mappingData) {
+    try {
+        const accounts = [];
+        
+        if (!conjunto.data || !conjunto.data.sheets || conjunto.data.sheets.length === 0) {
+            console.error('❌ No hay datos de hojas en el conjunto');
+            return [];
+        }
+        
+        // Obtener la primera hoja
+        const firstSheet = conjunto.data.sheets[0];
+        const sheetData = firstSheet.data;
+        
+        if (!sheetData || sheetData.length <= 1) {
+            console.error('❌ La hoja no tiene datos suficientes');
+            return [];
+        }
+        
+        console.log('📊 Procesando hoja:', firstSheet.sheetName);
+        console.log('📋 Filas totales:', sheetData.length);
+        
+        // Obtener índices de columnas desde el mapeo
+        const accountNumberIndex = parseInt(mappingData.accountNumber) || 0;
+        const accountNameIndex = parseInt(mappingData.accountName) || 1;
+        const currentYearIndex = parseInt(mappingData.currentYear) || 2;
+        const previousYearIndex = parseInt(mappingData.previousYear) || 3;
+        const currentYearDCIndex = mappingData.currentYearDebitCredit === 'debit' ? 'debit' : 'credit';
+        const previousYearDCIndex = mappingData.previousYearDebitCredit === 'debit' ? 'debit' : 'credit';
+        
+        console.log('🗂️ Mapeo de columnas:', {
+            accountNumber: accountNumberIndex,
+            accountName: accountNameIndex,
+            currentYear: currentYearIndex,
+            previousYear: previousYearIndex,
+            currentYearDC: currentYearDCIndex,
+            previousYearDC: previousYearDCIndex
+        });
+        
+        // Procesar cada fila (omitir encabezados)
+        for (let i = 1; i < sheetData.length; i++) {
+            const row = sheetData[i];
+            
+            if (!row || row.length === 0) continue;
+            
+            const accountNumber = row[accountNumberIndex] || '';
+            const accountName = row[accountNameIndex] || '';
+            const currentYearValue = parseFloat(row[currentYearIndex]) || 0;
+            const previousYearValue = parseFloat(row[previousYearIndex]) || 0;
+            
+            // Omitir filas vacías o sin número de cuenta
+            if (!accountNumber.toString().trim() || !accountName.toString().trim()) {
+                continue;
+            }
+            
+            // Determinar valores de débito/crédito según el mapeo
+            let currentYearDebit = 0;
+            let currentYearCredit = 0;
+            let previousYearDebit = 0;
+            let previousYearCredit = 0;
+            
+            if (currentYearDCIndex === 'debit') {
+                currentYearDebit = currentYearValue;
+            } else {
+                currentYearCredit = currentYearValue;
+            }
+            
+            if (previousYearDCIndex === 'debit') {
+                previousYearDebit = previousYearValue;
+            } else {
+                previousYearCredit = previousYearValue;
+            }
+            
+            const account = {
+                row: i + 1,
+                number: accountNumber.toString().trim(),
+                name: accountName.toString().trim(),
+                debit: currentYearDebit,
+                credit: currentYearCredit,
+                previousYearDebit: previousYearDebit,
+                previousYearCredit: previousYearCredit,
+                balance: currentYearDebit - currentYearCredit
+            };
+            
+            accounts.push(account);
+        }
+        
+        console.log('✅ Cuentas extraídas exitosamente:', accounts.length);
+        return accounts;
+        
+    } catch (error) {
+        console.error('❌ Error extrayendo cuentas:', error);
+        return [];
+    }
+}
 
 // Iniciar servidor
 app.listen(PORT, () => {
