@@ -1991,6 +1991,44 @@
                                         </div>
                                     </div>
                                     <div class="group-item">
+                                        <div class="group-header" onclick="toggleGroup('group-patrimonio')">
+                                            <i class="bi bi-chevron-right dropdown-arrow" id="group-patrimonio-arrow"></i>
+                                            <span class="group-name">Patrimonio</span>
+                                            <span class="group-value">0,00</span>
+                                        </div>
+                                        <div class="group-content" id="group-patrimonio-content" style="display: none;">
+                                            <!-- Capital social -->
+                                            <div class="sub-group-item">
+                                                <div class="sub-group-header" onclick="toggleGroup('subgroup-patrimonio-1')">
+                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup-patrimonio-1-arrow"></i>
+                                                    <span class="sub-group-name">Capital social</span>
+                                                    <span class="sub-group-value">0,00</span>
+                                                </div>
+                                                <div class="sub-group-content" id="subgroup-patrimonio-1-content" style="display: none;">
+                                                    <div class="empty-state">
+                                                        <i class="fas fa-inbox"></i>
+                                                        <p>Arrastra aquí las cuentas de capital social</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Reservas y otros componentes -->
+                                            <div class="sub-group-item">
+                                                <div class="sub-group-header" onclick="toggleGroup('subgroup-patrimonio-2')">
+                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup-patrimonio-2-arrow"></i>
+                                                    <span class="sub-group-name">Reservas y otros componentes</span>
+                                                    <span class="sub-group-value">0,00</span>
+                                                </div>
+                                                <div class="sub-group-content" id="subgroup-patrimonio-2-content" style="display: none;">
+                                                    <div class="empty-state">
+                                                        <i class="fas fa-inbox"></i>
+                                                        <p>Arrastra aquí las cuentas de reservas</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="group-item">
                                         <div class="group-header" onclick="toggleGroup('group6')">
                                             <i class="bi bi-chevron-right dropdown-arrow" id="group6-arrow"></i>
                                             <span class="group-name">6 Beneficio bruto</span>
@@ -2798,25 +2836,12 @@
                 
                 <div class="sample-data">
                     <h4>Vista previa de datos:</h4>
-                    <table class="sample-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Número de cuenta</th>
-                                <th>Nombre de la cuenta</th>
-                                <th>Año actual (2024)</th>
-                                <th>Año anterior (2023)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Los datos se cargarán dinámicamente desde el Excel -->
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: #666;">
-                                    <i class="bi bi-hourglass-split"></i> Cargando datos del Excel...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="excelPreviewContainer">
+
+                        <p>Cargando vista previa del archivo Excel...</p>
+
+                    </div>
+
                 </div>
             </div>
             <div class="modal-footer">
@@ -2854,58 +2879,29 @@
         
         async function loadExcelDataForMapping() {
             try {
-                console.log('🔄 Iniciando carga de datos del Excel...');
-                
                 // Obtener el último Excel procesado
                 const response = await fetch('/api/excel/latest');
-                console.log('📡 Respuesta del servidor:', response.status, response.statusText);
-                
                 const result = await response.json();
-                console.log('📦 Datos recibidos:', result);
                 
                 if (!response.ok || !result.success) {
-                    console.error('❌ Error cargando datos del Excel:', result.error);
-                    // Mostrar error en la vista previa
-                    const previewTable = document.querySelector('.sample-table tbody');
-                    if (previewTable) {
-                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
-                            <i class="bi bi-exclamation-triangle"></i> Error: ${result.error || 'Error desconocido'}
-                        </td></tr>`;
-                    }
+                    console.error('Error cargando datos del Excel:', result.error);
                     return;
                 }
                 
                 const excelData = result.data;
-                console.log('📊 Estructura de datos del Excel:', excelData);
-                
                 if (!excelData || !excelData.sheets_data || excelData.sheets_data.length === 0) {
-                    console.error('❌ No hay datos de Excel disponibles');
-                    const previewTable = document.querySelector('.sample-table tbody');
-                    if (previewTable) {
-                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
-                            <i class="bi bi-exclamation-triangle"></i> No hay datos de Excel disponibles
-                        </td></tr>`;
-                    }
+                    console.error('No hay datos de Excel disponibles');
                     return;
                 }
                 
                 // Obtener la primera hoja
                 const firstSheet = excelData.sheets_data[0];
                 const sheetData = firstSheet.data;
-                console.log('📋 Datos de la primera hoja:', sheetData);
                 
                 if (!sheetData || sheetData.length === 0) {
-                    console.error('❌ La hoja de Excel está vacía');
-                    const previewTable = document.querySelector('.sample-table tbody');
-                    if (previewTable) {
-                        previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
-                            <i class="bi bi-exclamation-triangle"></i> La hoja de Excel está vacía
-                        </td></tr>`;
-                    }
+                    console.error('La hoja de Excel está vacía');
                     return;
                 }
-                
-                console.log('✅ Datos cargados correctamente, actualizando vista previa...');
                 
                 // Actualizar las opciones de los selectores de mapeo
                 updateMappingSelectors(sheetData);
@@ -2914,14 +2910,7 @@
                 updateDataPreview(sheetData);
                 
             } catch (error) {
-                console.error('❌ Error cargando datos para mapeo:', error);
-                // Mostrar error en la vista previa
-                const previewTable = document.querySelector('.sample-table tbody');
-                if (previewTable) {
-                    previewTable.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #dc3545;">
-                        <i class="bi bi-exclamation-triangle"></i> Error de conexión: ${error.message}
-                    </td></tr>`;
-                }
+                console.error('Error cargando datos para mapeo:', error);
             }
         }
         
@@ -2983,36 +2972,16 @@
                 rowNumberCell.textContent = index + 2; // +2 porque empezamos desde la fila 2 del Excel
                 tr.appendChild(rowNumberCell);
                 
-                // Agregar todas las celdas de datos disponibles (hasta 5 columnas máximo)
-                for (let i = 0; i < Math.min(5, row.length); i++) {
+                // Agregar las primeras 4 celdas de datos (o las que haya disponibles)
+                for (let i = 0; i < 4; i++) {
                     const cell = document.createElement('td');
-                    let cellValue = row[i] || '';
-                    
-                    // Formatear valores numéricos
-                    if (!isNaN(cellValue) && cellValue !== '') {
-                        cellValue = parseFloat(cellValue);
-                        if (Number.isInteger(cellValue)) {
-                            cellValue = cellValue.toLocaleString('es-MX');
-                        } else {
-                            cellValue = cellValue.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        }
-                    }
-                    
+                    const cellValue = row[i] || '';
                     cell.textContent = cellValue.toString().trim();
-                    tr.appendChild(cell);
-                }
-                
-                // Si hay menos de 5 columnas, agregar celdas vacías
-                for (let i = row.length; i < 5; i++) {
-                    const cell = document.createElement('td');
-                    cell.textContent = '';
                     tr.appendChild(cell);
                 }
                 
                 previewTable.appendChild(tr);
             });
-            
-            console.log('✅ Vista previa actualizada con', dataRows.length, 'filas de datos reales');
         }
 
         function closeColumnMappingModal() {
@@ -3022,11 +2991,6 @@
         }
 
         async function processColumnMapping(event) {
-            // Prevenir comportamiento por defecto si hay un evento
-            if (event && event.preventDefault) {
-                event.preventDefault();
-            }
-            
             // Obtener el tipo de balance seleccionado
             const balanceType = document.querySelector('input[name="balanceType"]:checked')?.value;
             
@@ -3049,7 +3013,7 @@
 
             try {
                 // Mostrar indicador de carga
-                const saveBtn = event ? event.target : document.querySelector('button[onclick*="processColumnMapping"]');
+                const saveBtn = event.target;
                 const originalText = saveBtn.innerHTML;
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
@@ -3102,19 +3066,15 @@
                 alert('Error al procesar los datos: ' + error.message);
             } finally {
                 // Restaurar botón
-                const saveBtn = event ? event.target : document.querySelector('button[onclick*="processColumnMapping"]');
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = originalText;
-                }
+                const saveBtn = event.target;
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
             }
         }
 
         // Función para seleccionar un elemento del menú
         function selectMenuItem(event, section) {
-            if (event && event.preventDefault) {
-                event.preventDefault();
-            }
+            event.preventDefault();
             
             // Ocultar todas las secciones de contenido
             const contentSections = document.querySelectorAll('.content-section');
@@ -5971,6 +5931,125 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 0% { opacity: 1; }
                                 50% { opacity: 0.5; }
                                 100% { opacity: 1; }
+                            }
+                            
+                            /* Estilos para Drag and Drop */
+                            .account-item {
+                                cursor: grab;
+                                transition: all 0.3s ease;
+                                user-select: none;
+                                padding: 8px 12px;
+                                margin: 4px 0;
+                                background: #f8f9fa;
+                                border: 1px solid #dee2e6;
+                                border-radius: 4px;
+                            }
+                            
+                            .account-item:hover {
+                                background: #e9ecef;
+                                border-color: #007bff;
+                            }
+                            
+                            .account-item.selected {
+                                background: #007bff;
+                                color: white;
+                                border-color: #0056b3;
+                                transform: scale(1.02);
+                                box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+                            }
+                            
+                            .btn-remove {
+                                background: #dc3545;
+                                color: white;
+                                border: none;
+                                padding: 2px 6px;
+                                border-radius: 2px;
+                                cursor: pointer;
+                                font-size: 11px;
+                                margin-left: 8px;
+                            }
+                            
+                            .btn-remove:hover {
+                                background: #c82333;
+                            }
+                            
+                            .assigned-account {
+                                background: #28a745;
+                                color: white;
+                                padding: 6px 10px;
+                                margin: 2px 0;
+                                border-radius: 3px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                            }
+                                cursor: grabbing;
+                            }
+                            
+                            .group-content, .sub-group-content {
+                                min-height: 60px;
+                                border: 2px dashed transparent;
+                                transition: all 0.3s ease;
+                                position: relative;
+                            }
+                            
+                            .group-content.drag-over, .sub-group-content.drag-over {
+                                border-color: #007bff;
+                                background: rgba(0, 123, 255, 0.1);
+                            }
+                            
+                            .group-content.drag-over::before, .sub-group-content.drag-over::before {
+                                content: "Soltar aquí";
+                                position: absolute;
+                                top: 50%;
+                                left: 50%;
+                                transform: translate(-50%, -50%);
+                                color: #007bff;
+                                font-weight: bold;
+                                font-size: 14px;
+                                pointer-events: none;
+                            }
+                            
+                            .assigned-account {
+                                background: #e8f5e8;
+                                border-left: 4px solid #28a745;
+                                margin: 5px 0;
+                                padding: 8px 12px;
+                                border-radius: 4px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            }
+                            
+                            .assigned-account:hover {
+                                background: #d4edda;
+                                transform: translateX(2px);
+                            }
+                            
+                            .btn-remove {
+                                background: #dc3545;
+                                color: white;
+                                border: none;
+                                border-radius: 3px;
+                                padding: 4px 8px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                transition: all 0.3s ease;
+                            }
+                            
+                            .btn-remove:hover {
+                                background: #c82333;
+                                transform: scale(1.1);
+                            }
+                            
+                            .group-count {
+                                background: #6c757d;
+                                color: white;
+                                padding: 2px 8px;
+                                border-radius: 12px;
+                                font-size: 12px;
+                                font-weight: bold;
                             }
                         </style>
                     </head>
@@ -12066,17 +12145,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const itemsHtml = accounts
                 .slice(0, 500)
                 .map((a) => {
-                    // Usar los campos de la base de datos
-                    const accountNumber = a.account_number || '';
-                    const accountName = a.account_name || '';
-                    const currentValue = a.current_year_value || 0;
-                    const previousValue = a.previous_year_value || 0;
+                    // Usar los campos del endpoint /api/accounts/unassigned
+                    const accountNumber = a.code || '';
+                    const accountName = a.name || '';
+                    const currentValue = a.value || 0;
                     
                     const displayName = `${accountNumber} ${accountName}`.trim();
                     const displayValue = currentValue != null ? formatCurrency(currentValue) : '';
                     
                     return `
-                        <div class="account-item" style="justify-content: space-between;" data-account-id="${a.id}">
+                        <div class="account-item" style="justify-content: space-between; cursor: pointer;" 
+                             data-account-id="${a.id || a.code}" 
+                             data-account-code="${a.code}"
+                             data-account-name="${a.name}"
+                             data-account-value="${a.value}">
                             <span class="account-name">${displayName || '(sin nombre)'}</span>
                             <span class="account-value">${displayValue}</span>
                         </div>
@@ -12085,15 +12167,350 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 .join('');
 
             container.innerHTML = itemsHtml;
+        
+        // Inicializar sistema de asignación por clic
+        initializeClickAssignment();
+        
+        // Abrir automáticamente todos los grupos y subgrupos para facilitar la asignación
+        openAllGroupsForAssignment();
+    }
+        
+    // Función para abrir todos los grupos y subgrupos
+    function openAllGroupsForAssignment() {
+        // Abrir todos los grupos principales
+        document.querySelectorAll('.group-content').forEach(content => {
+            content.style.display = 'block';
+            const arrow = content.previousElementSibling?.querySelector('.dropdown-arrow');
+            if (arrow) {
+                arrow.classList.remove('bi-chevron-right');
+                arrow.classList.add('bi-chevron-down');
+            }
+        });
+        
+        // Abrir todos los subgrupos
+        document.querySelectorAll('.sub-group-content').forEach(content => {
+            content.style.display = 'block';
+            const arrow = content.previousElementSibling?.querySelector('.dropdown-arrow');
+            if (arrow) {
+                arrow.classList.remove('bi-chevron-right');
+                arrow.classList.add('bi-chevron-down');
+            }
+        });
+        
+        console.log('✅ Todos los grupos y subgrupos han sido abiertos para asignación');
+    }
+        
+    // Sistema de asignación por clic
+    let selectedAccount = null;
+    
+    function initializeClickAssignment() {
+        console.log('🚀 Inicializando sistema de asignación por clic...');
+        
+        // Asignar clic a las cuentas del lado izquierdo
+        const accountItems = document.querySelectorAll('.account-item');
+        console.log('📊 Cuentas encontradas:', accountItems.length);
+        
+        accountItems.forEach((account, index) => {
+            account.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Remover selección anterior
+                document.querySelectorAll('.account-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                // Seleccionar esta cuenta
+                this.classList.add('selected');
+                selectedAccount = {
+                    element: this,
+                    id: this.dataset.accountId,
+                    code: this.dataset.accountCode,
+                    name: this.dataset.accountName,
+                    value: this.dataset.accountValue
+                };
+                
+                console.log('✅ Cuenta seleccionada:', selectedAccount);
+                showNotification(`Cuenta seleccionada: ${selectedAccount.code} - ${selectedAccount.name}`, 'info');
+            });
+        });
+        
+        // Asignar clic a los grupos del lado derecho
+        const groupContainers = document.querySelectorAll('.group-content, .sub-group-content');
+        console.log('📦 Grupos encontrados:', groupContainers.length);
+        
+        groupContainers.forEach((group, index) => {
+            group.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Si no hay cuenta seleccionada, mostrar mensaje
+                if (!selectedAccount) {
+                    showNotification('Por favor, selecciona primero una cuenta del lado izquierdo', 'warning');
+                    return;
+                }
+                
+                // No hacer clic si ya se hizo clic en una cuenta asignada
+                if (e.target.closest('.assigned-account') || e.target.classList.contains('btn-remove')) {
+                    return;
+                }
+                
+                console.log('🎯 Asignando cuenta seleccionada al grupo:', this);
+                assignAccountToGroup(selectedAccount, this);
+            });
+        });
+        
+        console.log('✅ Sistema de asignación por clic inicializado');
+    }
+    
+    function assignAccountToGroup(accountData, groupContent) {
+        console.log('🎯 Asignando cuenta al grupo:', accountData.code, '→', groupContent.id);
+        
+        // Si el grupo está vacío, remover el empty state
+        const emptyState = groupContent.querySelector('.empty-state');
+        if (emptyState) {
+            console.log('🗑️ Removiendo empty state');
+            emptyState.remove();
         }
+        
+        // Crear elemento de cuenta asignada
+        const assignedAccount = createAssignedAccountElement(accountData);
+        console.log('✅ Elemento de cuenta creado:', assignedAccount);
+        
+        // Agregar la cuenta al grupo
+        groupContent.appendChild(assignedAccount);
+        console.log('➕ Cuenta agregada al contenedor');
+        
+        // Ocultar y remover la cuenta original del lado izquierdo
+        accountData.element.style.display = 'none';
+        setTimeout(() => {
+            accountData.element.remove();
+            console.log('🗑️ Cuenta original removida');
+        }, 100);
+        
+        // Limpiar selección
+        selectedAccount = null;
+        document.querySelectorAll('.account-item.selected').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        // Actualizar contadores
+        updateGroupCount(groupContent);
+        updateRemainingCount();
+        
+        // Mostrar notificación
+        showNotification(`Cuenta ${accountData.code} - ${accountData.name} asignada correctamente`, 'success');
+        
+        console.log('✅ Asignación completada exitosamente');
+    }
+    
+    function createAssignedAccountElement(accountData) {
+        console.log('🔨 Creando elemento de cuenta asignada para:', accountData);
+        
+        const div = document.createElement('div');
+        div.className = 'assigned-account';
+        div.dataset.accountId = accountData.id || accountData.code;
+        
+        div.innerHTML = `
+            <span style="flex: 1;">${accountData.code} ${accountData.name}</span>
+            <button class="btn-remove" onclick="removeAccountFromGroup(this)">×</button>
+        `;
+        
+        // Estilos inline para asegurar visibilidad
+        div.style.cssText = `
+            background: #28a745;
+            color: white;
+            padding: 6px 10px;
+            margin: 2px 0;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        `;
+        
+        console.log('✅ Elemento de cuenta creado exitosamente');
+        return div;
+    }
+    
+    function removeAccountFromGroup(button) {
+        const accountElement = button.closest('.assigned-account');
+        const groupContent = accountElement.closest('.group-content');
+        
+        // Obtener datos de la cuenta
+        const accountData = {
+            id: accountElement.dataset.accountId,
+            code: accountElement.textContent.split(' ')[0],
+            name: accountElement.textContent.split(' ').slice(1).join(' ').replace('×', '').trim(),
+            value: '0'
+        };
+        
+        // Remover del grupo
+        accountElement.remove();
+        
+        // Agregar de vuelta a la lista de no asignados
+        addAccountBackToUnassigned(accountData);
+        
+        // Actualizar contador del grupo
+        updateGroupCount(groupContent);
+        
+        // Si el grupo queda vacío, mostrar empty state
+        if (groupContent.querySelectorAll('.assigned-account').length === 0) {
+            groupContent.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No hay cuentas asignadas</p>
+                </div>
+            `;
+        }
+        
+        // Mostrar notificación
+        showNotification(`Cuenta ${accountData.code} - ${accountData.name} removida del grupo`, 'info');
+    }
+    
+    function addAccountBackToUnassigned(accountData) {
+        const container = document.querySelector('.unassigned-accounts-list');
+        if (!container) return;
+        
+        const accountElement = document.createElement('div');
+        accountElement.className = 'account-item';
+        accountElement.style.cssText = 'justify-content: space-between; cursor: pointer;';
+        accountElement.dataset.accountId = accountData.id;
+        accountElement.dataset.accountCode = accountData.code;
+        accountElement.dataset.accountName = accountData.name;
+        accountElement.dataset.accountValue = accountData.value;
+        
+        accountElement.innerHTML = `
+            <span class="account-name">${accountData.code} ${accountData.name}</span>
+            <span class="account-value">${formatCurrency(parseFloat(accountData.value))}</span>
+        `;
+        
+        // Agregar evento de clic
+        accountElement.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remover selección anterior
+            document.querySelectorAll('.account-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Seleccionar esta cuenta
+            this.classList.add('selected');
+            selectedAccount = {
+                element: this,
+                id: this.dataset.accountId,
+                code: this.dataset.accountCode,
+                name: this.dataset.accountName,
+                value: this.dataset.accountValue
+            };
+            
+            console.log('✅ Cuenta seleccionada:', selectedAccount);
+            showNotification(`Cuenta seleccionada: ${selectedAccount.code} - ${selectedAccount.name}`, 'info');
+        });
+        
+        container.appendChild(accountElement);
+        
+        // Actualizar contador de restantes
+        updateRemainingCount();
+    }
+    
+    function updateGroupCount(groupContent) {
+        // Para grupos principales (estructura nueva)
+        const financialGroup = groupContent.closest('.group-item');
+        if (financialGroup) {
+            const groupHeader = financialGroup.querySelector('.group-header');
+            if (groupHeader) {
+                // Buscar el span que contiene el valor del grupo
+                const valueSpan = groupHeader.querySelector('.group-value');
+                const count = groupContent.querySelectorAll('.assigned-account').length;
+                if (valueSpan) {
+                    valueSpan.textContent = count > 0 ? `${count}.00` : '0,00';
+                }
+            }
+        }
+        
+        // Para subgrupos
+        const subGroup = groupContent.closest('.sub-group-item');
+        if (subGroup) {
+            const subGroupHeader = subGroup.querySelector('.sub-group-header');
+            if (subGroupHeader) {
+                const valueSpan = subGroupHeader.querySelector('.sub-group-value');
+                const count = groupContent.querySelectorAll('.assigned-account').length;
+                if (valueSpan) {
+                    valueSpan.textContent = count > 0 ? `${count}.00` : '0,00';
+                }
+            }
+        }
+        
+        // Para la estructura antigua (financial-group)
+        const oldFinancialGroup = groupContent.closest('.financial-group');
+        if (oldFinancialGroup) {
+            const groupHeader = oldFinancialGroup.querySelector('.group-header');
+            if (groupHeader) {
+                const countSpan = groupHeader.querySelector('.group-count');
+                const count = groupContent.querySelectorAll('.assigned-account').length;
+                if (countSpan) {
+                    countSpan.textContent = `${count} cuentas`;
+                }
+            }
+        }
+    }
+    
+    function updateRemainingCount() {
+        const container = document.querySelector('.unassigned-accounts-list');
+        const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+        if (container && countEl) {
+            const count = container.querySelectorAll('.account-item').length;
+            countEl.textContent = `(${count} restantes)`;
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Crear elemento de notificación
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'success' ? '#28a745' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+            color: ${type === 'warning' ? '#212529' : 'white'};
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Animar entrada
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Remover después de 3 segundos
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
         
         // Función para formatear moneda
         function formatCurrency(value) {
             if (typeof value !== 'number') return '';
-            return new Intl.NumberFormat('es-MX', {
-                style: 'currency',
-                currency: 'MXN'
-            }).format(value);
+            // Formato para Quetzales Guatemaltecos (Q)
+            const formattedValue = new Intl.NumberFormat('es-GT', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(Math.abs(value));
+            
+            return `Q${formattedValue}`;
         }
 
         async function loadUnassignedAccountsFromLatestExcel() {

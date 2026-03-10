@@ -2618,15 +2618,7 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 // Endpoint para obtener el último archivo Excel procesado
 app.get('/api/excel/latest', (req, res) => {
     try {
-        console.log('🔍 Verificando excelFilesStorage...');
-        console.log('📊 Cantidad de archivos en storage:', excelFilesStorage.length);
-        
-        if (excelFilesStorage.length > 0) {
-            console.log('📋 Último archivo:', excelFilesStorage[excelFilesStorage.length - 1].originalName);
-        }
-        
         if (excelFilesStorage.length === 0) {
-            console.log('❌ No hay archivos en excelFilesStorage');
             return res.status(404).json({ 
                 success: false, 
                 error: 'No hay archivos Excel procesados' 
@@ -2635,8 +2627,6 @@ app.get('/api/excel/latest', (req, res) => {
         
         // Obtener el archivo más reciente
         const latestFile = excelFilesStorage[excelFilesStorage.length - 1];
-        console.log('✅ Archivo encontrado:', latestFile.originalName);
-        console.log('📊 Hojas:', latestFile.sheets.length);
         
         // Convertir al formato que espera el frontend
         const responseData = {
@@ -2652,8 +2642,6 @@ app.get('/api/excel/latest', (req, res) => {
             uploadedAt: latestFile.uploadedAt,
             totalSheets: latestFile.totalSheets
         };
-        
-        console.log('📤 Enviando respuesta con sheets_data:', responseData.sheets_data.length, 'hojas');
         
         res.json({
             success: true,
