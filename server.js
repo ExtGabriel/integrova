@@ -2519,6 +2519,52 @@ function mapColumns(headers) {
     return mapping;
 }
 
+// Detectar mapeo de columnas para el endpoint de cuentas no asignadas
+function detectColumnMapping(headers) {
+    const mapping = {
+        accountNumber: -1,
+        accountName: -1,
+        currentYear: -1,
+        debit: -1,
+        credit: -1
+    };
+    
+    headers.forEach((header, index) => {
+        if (header) {
+            const h = header.toString().toLowerCase();
+            
+            // Número de cuenta
+            if (h === 'account number' || h === 'cuenta' || h === 'número' || h.includes('account')) {
+                mapping.accountNumber = index;
+            }
+            // Nombre de cuenta
+            else if (h === 'account name' || h === 'nombre' || h === 'descripción' || h.includes('name')) {
+                mapping.accountName = index;
+            }
+            // Current Year (2024)
+            else if (h.includes('current year') || h.includes('2024')) {
+                mapping.currentYear = index;
+                mapping.debit = index; // Usar como débito por defecto
+            }
+            // Previous Year (2023)
+            else if (h.includes('previous year') || h.includes('2023') || h.includes('prior year')) {
+                mapping.credit = index; // Usar como crédito por defecto
+            }
+            // Débitos
+            else if (h.includes('débito') || h.includes('debe') || h.includes('debit')) {
+                mapping.debit = index;
+            }
+            // Créditos
+            else if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
+                mapping.credit = index;
+            }
+        }
+    });
+    
+    console.log('📍 Mapeo detectado:', mapping);
+    return mapping;
+}
+
 // Validar fila de cuenta
 function isValidAccountRow(row) {
     // No es fila válida si está vacía o solo tiene números sin texto
@@ -3063,6 +3109,91 @@ app.get('/api/health', (req, res) => {
 app.use((error, req, res, next) => {
     console.error('Error no manejado:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+});
+
+// Endpoint para obtener cuentas no asignadas
+app.get('/api/accounts/unassigned', async (req, res) => {
+    try {
+        // Obtener el último conjunto de datos del Excel (como en la previsualización)
+        const { data: conjuntoData, error: conjuntoError } = await supabase
+            .from('conjuntos_datos')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {
+            console.error('Error obteniendo datos del Excel:', conjuntoError);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'No se encontraron datos del Excel' 
+            });
+        }
+
+        const conjunto = conjuntoData[0];
+        
+        // Obtener los datos del Excel
+        const excelData = conjunto.data;
+        if (!excelData || !excelData.sheets || excelData.sheets.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No hay datos de Excel disponibles' 
+            });
+        }
+
+        // Obtener la primera hoja
+        const firstSheet = excelData.sheets[0];
+        const sheetData = firstSheet.data;
+        
+        if (!sheetData || sheetData.length <= 1) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'La hoja de Excel está vacía' 
+            });
+        }
+
+        // Obtener encabezados
+        const headers = sheetData[0];
+        
+        // Encontrar índices de columnas automáticamente
+        const mapping = detectColumnMapping(headers);
+        
+        // Extraer cuentas directamente del Excel (ignorando encabezados)
+        const accounts = [];
+        const dataRows = sheetData.slice(1);
+        
+        dataRows.forEach((row, index) => {
+            // Validar que la fila tenga datos
+            if (!row || row.length === 0) return;
+            
+            const accountNumber = extractAccountNumber(row, mapping.accountNumber);
+            const accountName = extractAccountName(row, mapping.accountName);
+            const currentYearValue = extractValue(row, mapping.currentYear);
+            
+            // Validar que tenga número de cuenta o nombre
+            if (!accountNumber && !accountName) return;
+            
+            accounts.push({
+                id: `excel-${index}`, // ID temporal basado en el índice
+                code: accountNumber || `CUENTA-${index}`,
+                name: accountName || '', // Nombre vacío en lugar de 'SIN NOMBRE'
+                value: currentYearValue, // Valor directo del Excel
+                debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
+                credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0
+            });
+        });
+
+        res.json({ 
+            success: true, 
+            data: accounts 
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/accounts/unassigned:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
 });
 
 // Iniciar servidor
