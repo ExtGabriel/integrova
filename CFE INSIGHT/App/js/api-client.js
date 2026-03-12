@@ -1021,6 +1021,11 @@
 
                 const { data, error } = await client.from('users').select('*');
 
+                console.log('🔍 Debug getAll users:', {
+                    totalUsers: data?.length || 0,
+                    users: data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || []
+                });
+
                 if (error) {
                     if (handleTableNotFound(error, 'users')) {
                         return { success: true, data: [] };
@@ -1105,7 +1110,7 @@
                     options: {
                         emailRedirectTo: window.location.origin,
                         data: {
-                            name: userData.name,
+                            full_name: userData.name,
                             role: normalizedRole
                         }
                     }
@@ -1120,11 +1125,10 @@
                 const userRecord = {
                     id: authData.user.id,
                     email: userData.email,
-                    name: userData.name,
+                    full_name: userData.name,
                     role: normalizedRole,
-                    phone: userData.phone || null,
                     team: userData.team || null,
-                    active: true,
+                    is_active: true,
                     username: userData.email.split('@')[0]
                 };
 
@@ -1271,7 +1275,7 @@
 
                 const { data, error } = await client
                     .from('users')
-                    .update({ active: isActive })
+                    .update({ is_active: isActive })
                     .eq('id', userId)
                     .select();
 
@@ -1478,8 +1482,16 @@
 
                 const userRole = window.currentUser.role;
 
+                console.log('🔍 Debug getAccessibleUsers:', {
+                    currentUserRole: userRole,
+                    isAdmin: userRole === 'admin',
+                    totalUsersFromDB: allUsers.data?.length || 0,
+                    allUsers: allUsers.data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || []
+                });
+
                 // Administrador ve todos
                 if (userRole === 'admin') {
+                    console.log('✅ User is admin, returning all users');
                     return allUsers;
                 }
 

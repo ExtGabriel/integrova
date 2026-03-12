@@ -32,7 +32,7 @@
     let canChangeRoles = false;
     let canChangeStatus = false;
     let hasAccessToUsers = false;
-    const ALLOWED_GLOBAL_ROLES = ['admin', 'user'];
+    const ALLOWED_GLOBAL_ROLES = ['admin', 'auditor', 'auditor_senior', 'socio', 'cliente'];
 
     // ==========================================
     // UTILIDADES DEFENSIVAS
@@ -246,7 +246,7 @@
 
         document.getElementById('usersTableBody').innerHTML = `
             <tr>
-                <td colspan="9" class="text-center">
+                <td colspan="8" class="text-center">
                     <div style="padding: 40px;">
                         <i class="bi bi-shield-exclamation" style="font-size: 2.5em; color: #dc3545;"></i>
                         <p style="margin-top: 15px; color: #dc3545;">
@@ -274,6 +274,12 @@
             // Obtener usuarios según permisos
             const result = await API.Users.getAccessibleUsers();
 
+            console.log('🔍 Debug usuarios.js - Resultado API:', {
+                success: result.success,
+                totalUsers: result.data?.length || 0,
+                users: result.data?.map(u => ({ id: u.id, email: u.email, role: u.role, active: u.active })) || []
+            });
+
             if (!result.success) {
                 console.warn('⚠️ API retornó error:', result);
                 allUsers = [];
@@ -291,19 +297,42 @@
             }
 
             // Normalizar datos
-            allUsers = (result.data || []).map(u => ({
-                id: u.id,
-                username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
-                name: u.full_name || u.name || 'Sin nombre',
-                full_name: u.full_name || u.name || 'Sin nombre',
-                email: u.email || 'No disponible',
-                phone: u.phone || 'No disponible',
-                role: u.role || 'Sin rol',
-                team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : (u.group || 'Sin grupo'),
-                active: u.active !== false,
-                password: '••••••••',
-                created_at: u.created_at || null
-            }));
+            console.log('🔍 Debug normalización:', {
+                usuariosRecibidos: result.data?.length || 0,
+                usuariosCrudos: result.data?.map(u => ({ 
+                    id: u.id, 
+                    email: u.email, 
+                    role: u.role, 
+                    is_active: u.is_active,
+                    full_name: u.full_name
+                })) || []
+            });
+
+            allUsers = (result.data || []).map(u => {
+                try {
+                    return {
+                        id: u.id,
+                        username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
+                        name: u.full_name || u.name || 'Sin nombre',
+                        full_name: u.full_name || u.name || 'Sin nombre',
+                        email: u.email || 'No disponible',
+                        phone: u.phone || 'No disponible',
+                        role: u.role || 'Sin rol',
+                        team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : (u.group || 'Sin grupo'),
+                        active: u.is_active === true,  // ← Más seguro: solo true si es explícitamente true
+                        password: '••••••••',
+                        created_at: u.created_at || null
+                    };
+                } catch (err) {
+                    console.error('❌ Error normalizando usuario:', u, err);
+                    return null;
+                }
+            }).filter(u => u !== null); // Eliminar usuarios que fallaron en normalización
+
+            console.log('🔍 Debug después de normalizar:', {
+                usuariosNormalizados: allUsers.length,
+                usuarios: allUsers.map(u => ({ id: u.id, email: u.email, active: u.active }))
+            });
 
             console.log(`✅ ${allUsers.length} usuarios cargados`);
             renderUsers();
@@ -342,7 +371,7 @@
         if (safeUsers.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center text-muted">
+                    <td colspan="8" class="text-center text-muted">
                         <i class="bi bi-inbox"></i> No hay usuarios que mostrar
                     </td>
                 </tr>
@@ -368,11 +397,6 @@
             tdEmail.textContent = user.email;
             row.appendChild(tdEmail);
 
-            // Teléfono
-            const tdPhone = document.createElement('td');
-            tdPhone.textContent = user.phone;
-            row.appendChild(tdPhone);
-
             // Rol (con selector si puede cambiar)
             const tdRole = document.createElement('td');
             if (canChangeRoles) {
@@ -383,7 +407,14 @@
                 ALLOWED_GLOBAL_ROLES.forEach(r => {
                     const option = document.createElement('option');
                     option.value = r;
-                    option.textContent = r === 'admin' ? 'Administrador' : 'Usuario';
+                    const roleLabels = {
+                        'admin': 'Administrador',
+                        'auditor': 'Auditor',
+                        'auditor_senior': 'Auditor Senior',
+                        'socio': 'Socio',
+                        'cliente': 'Cliente'
+                    };
+                    option.textContent = roleLabels[r] || r;
                     select.appendChild(option);
                 });
 
@@ -483,7 +514,7 @@
 
             const normalizedRole = newRole.toLowerCase();
             if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
-                showErrorMsg('Rol inválido. Solo se permiten roles globales: admin o user');
+                showErrorMsg('Rol inválido. Solo se permiten roles globales: admin, auditor, auditor_senior, socio, cliente');
                 loadUsers();
                 return;
             }
@@ -614,7 +645,6 @@
             email: document.getElementById('createUserEmail').value.trim(),
             password: document.getElementById('createUserPassword').value,
             role: document.getElementById('createUserRole').value,
-            phone: document.getElementById('createUserPhone').value.trim() || null,
             team: document.getElementById('createUserTeam').value.trim() || null
         };
 
@@ -634,7 +664,7 @@
         const normalizedRole = userData.role.toLowerCase();
         if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
             errorSection.style.display = 'block';
-            errorMessage.textContent = 'Rol inválido. Solo se permiten roles globales: admin o user';
+            errorMessage.textContent = 'Rol inválido. Solo se permiten roles globales: admin, auditor, auditor_senior, socio, cliente';
             return;
         }
         userData.role = normalizedRole;
@@ -696,8 +726,7 @@
             const matchesQuery = !q ||
                 (u.username || '').toLowerCase().includes(q) ||
                 (u.name || u.full_name || '').toLowerCase().includes(q) ||
-                (u.email || '').toLowerCase().includes(q) ||
-                (u.phone || '').toLowerCase().includes(q);
+                (u.email || '').toLowerCase().includes(q);
 
             const matchesRole = !role || (u.role || '').toLowerCase() === role.toLowerCase();
 

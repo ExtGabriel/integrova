@@ -40,7 +40,10 @@
 
     const GLOBAL_ROLES = {
         ADMIN: 'admin',
-        USER: 'user'
+        AUDITOR: 'auditor',
+        AUDITOR_SENIOR: 'auditor_senior',
+        SOCIO: 'socio',
+        CLIENTE: 'cliente'
     };
 
     /**
@@ -88,7 +91,13 @@
      * @returns {boolean}
      */
     function isValidRole(role) {
-        return role === GLOBAL_ROLES.ADMIN || role === GLOBAL_ROLES.USER;
+        return [
+            GLOBAL_ROLES.ADMIN,
+            GLOBAL_ROLES.AUDITOR,
+            GLOBAL_ROLES.AUDITOR_SENIOR,
+            GLOBAL_ROLES.SOCIO,
+            GLOBAL_ROLES.CLIENTE
+        ].includes(role);
     }
 
     /**
@@ -207,16 +216,55 @@
         },
 
         /**
-         * ¿Es el usuario user normal?
+         * ¿Es el usuario auditor?
          * @param {object|undefined} user - Usuario a verificar (opcional)
          * @returns {boolean}
          */
-        isUser(user) {
+        isAuditor(user) {
             const profile = getProfile(user);
             if (!profile || !profile.role) {
                 return false;
             }
-            return profile.role === GLOBAL_ROLES.USER;
+            return profile.role === GLOBAL_ROLES.AUDITOR;
+        },
+
+        /**
+         * ¿Es el usuario auditor senior?
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
+         */
+        isAuditorSenior(user) {
+            const profile = getProfile(user);
+            if (!profile || !profile.role) {
+                return false;
+            }
+            return profile.role === GLOBAL_ROLES.AUDITOR_SENIOR;
+        },
+
+        /**
+         * ¿Es el usuario socio?
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
+         */
+        isSocio(user) {
+            const profile = getProfile(user);
+            if (!profile || !profile.role) {
+                return false;
+            }
+            return profile.role === GLOBAL_ROLES.SOCIO;
+        },
+
+        /**
+         * ¿Es el usuario cliente?
+         * @param {object|undefined} user - Usuario a verificar (opcional)
+         * @returns {boolean}
+         */
+        isCliente(user) {
+            const profile = getProfile(user);
+            if (!profile || !profile.role) {
+                return false;
+            }
+            return profile.role === GLOBAL_ROLES.CLIENTE;
         },
 
         /**
@@ -358,7 +406,7 @@
     console.log('✅ permissions-helpers.js v4: Sistema de permisos cargado');
     console.log('   Roles globales:', Object.values(GLOBAL_ROLES).join(', '));
     console.log('   Roles por entidad:', Object.values(ENTITY_ROLES).join(', '));
-    console.log('   Métodos globales: isAdmin(), isUser(), requireAdmin(), hasPermission(), getCurrentRole(), getMyProfile()');
+    console.log('   Métodos globales: isAdmin(), isAuditor(), isAuditorSenior(), isSocio(), isCliente(), requireAdmin(), hasPermission(), getCurrentRole(), getMyProfile()');
     console.log('   Métodos por entidad: canViewEntity(), canEditEntity(), canCreateCommitment(), canAudit()');
     console.log('   NOTA: Permisos por entidad basados en entity_users.role');
 
