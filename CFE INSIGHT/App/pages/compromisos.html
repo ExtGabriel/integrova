@@ -533,6 +533,39 @@
             });
         }
 
+        // Función para cargar grupos de trabajo en el select
+        function loadWorkGroupsForSelect() {
+            const select = document.getElementById('commitmentGroup');
+            select.innerHTML = '<option value="">Selecciona un equipo...</option>';
+            
+           
+            const specificTeams = [
+                { id: 1, name: 'Equipo de trabajo Maria Esther Rosales' },
+                { id: 2, name: 'Equipo de trabajo Gabriela Azurdia' }
+            ];
+            
+            specificTeams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team.id;
+                option.textContent = team.name;
+                select.appendChild(option);
+            });
+            
+            // Si hay datos de la API, también agregarlos
+            if (Array.isArray(workGroupsData) && workGroupsData.length > 0) {
+                workGroupsData.forEach(group => {
+                    // Evitar duplicados con los equipos específicos
+                    const isDuplicate = specificTeams.some(team => team.id === group.id);
+                    if (!isDuplicate) {
+                        const option = document.createElement('option');
+                        option.value = group.id;
+                        option.textContent = `Equipo de trabajo ${group.name || group.id}`;
+                        select.appendChild(option);
+                    }
+                });
+            }
+        }
+
         // Función para abrir modal de crear compromiso
         function createCommitment() {
             // Crear modal dinámicamente
@@ -586,6 +619,13 @@
                                         <label for="commitmentEntity" class="form-label">Entidad Asociada *</label>
                                         <input type="text" class="form-control" id="entitySearch" placeholder="Buscar entidad..." oninput="filterEntities()">
                                         <select class="form-control mt-2" id="commitmentEntity" required>
+                                            <!-- Opciones se cargan dinámicamente -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-3 mt-4">
+                                        <label for="commitmentGroup" class="form-label">Equipo de trabajo *</label>
+                                        <select class="form-control" id="commitmentGroup" required>
+                                            <option value="">Selecciona un equipo...</option>
                                             <!-- Opciones se cargan dinámicamente -->
                                         </select>
                                     </div>
@@ -713,6 +753,8 @@
             document.getElementById('createCommitmentForm').reset();
             // Cargar entidades
             loadEntitiesForSelect();
+            // Cargar grupos de trabajo
+            loadWorkGroupsForSelect();
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('createCommitmentModal'));
             modal.show();
@@ -737,7 +779,8 @@
             const startDate = document.getElementById('commitmentStartDate').value;
             const endDate = document.getElementById('commitmentEndDate').value;
             const status = document.getElementById('commitmentStatus').value;
-            const entityId = parseInt(document.getElementById('commitmentEntity').value);
+            const entityId = document.getElementById('commitmentEntity').value; // Keep as string (UUID)
+            const workGroupId = document.getElementById('commitmentGroup').value; // Keep as string (UUID)
 
             // Validación adicional: fecha fin > fecha inicio
             if (new Date(endDate) <= new Date(startDate)) {
@@ -745,22 +788,47 @@
                 return;
             }
 
+            // Validación adicional: grupo de trabajo es requerido
+            if (!workGroupId || workGroupId.trim() === '') {
+                alert('Debe seleccionar un grupo de trabajo.');
+                return;
+            }
+
             // Crear nuevo compromiso
             const newCommitment = {
                 name: name,
                 description: description || '',
-                startDate: startDate,
-                endDate: endDate,
+                start_date: startDate,
+                end_date: endDate,
                 status: status,
-                entityId: entityId
+                entity_id: entityId,
+                work_group_id: workGroupId
             };
+
+            console.log(' Enviando commitment a la API:', newCommitment);
+
+            // Debug: Verificar autenticación
+            const currentUser = getCurrentSession();
+            console.log('🔍 Usuario actual:', currentUser);
+            console.log('🔍 window.currentUser:', window.currentUser);
+            console.log('🔍 window.currentUserReady:', window.currentUserReady);
+
+            // Agregar user_id si está disponible (para RLS)
+            if (currentUser && currentUser.id) {
+                newCommitment.user_id = currentUser.id;
+                console.log('✅ user_id agregado:', currentUser.id);
+            } else {
+                console.warn('⚠️ No hay user_id disponible, esto podría causar error RLS');
+            }
 
             try {
                 // Crear compromiso via API
                 const response = await API.Commitments.create(newCommitment);
+                console.log(' Respuesta de la API:', response);
 
                 if (response.success) {
                     const createdCommitment = response.data;
+                    console.log(' Compromiso creado exitosamente:', createdCommitment);
 
                     // Log de acción
                     const currentUser = getCurrentSession();
@@ -787,11 +855,13 @@
                         });
                     }, { once: true });
                 } else {
-                    console.error('Error creating commitment:', response.error);
+                    console.error(' Error creating commitment:', response.error);
+                    console.error(' Datos enviados:', newCommitment);
                     alert('Error al crear el compromiso: ' + response.error);
                 }
             } catch (error) {
-                console.error('Error saving commitment:', error);
+                console.error(' Error saving commitment:', error);
+                console.error(' Datos que se intentaron guardar:', newCommitment);
                 alert('Error al guardar el compromiso. Intente nuevamente.');
             }
         }

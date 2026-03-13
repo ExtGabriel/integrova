@@ -38,16 +38,316 @@ function navigateTo(page) {
 
 // Initialize dashboard when page loads
 function initializeDashboard() {
-    loadDashboardData();
-    setupEventListeners();
-    updateDashboardUI();
+    // First, restore user session if exists
+    restoreUserSession().then(() => {
+        // Then load dashboard data
+        loadDashboardData();
+        setupEventListeners();
+        updateDashboardUI();
 
-    // Initialize charts after a short delay to ensure data is loaded
-    setTimeout(() => {
-        if (typeof initializeCharts === 'function') {
-            initializeCharts();
+        // Start auto-update for active users
+        startActiveUsersAutoUpdate();
+
+        // Initialize charts after a short delay to ensure data is loaded
+        setTimeout(() => {
+            if (typeof initializeCharts === 'function') {
+                initializeCharts();
+            }
+        }, 500);
+    });
+}
+
+// Restore user session from Supabase on page load
+async function restoreUserSession() {
+    try {
+        console.log('🔄 Restaurando sesión de usuario...');
+        console.log('🔍 API disponible:', !!window.API);
+        console.log('🔍 API.getSession:', typeof window.API?.getSession);
+        console.log('🔍 API.getMyProfile:', typeof window.API?.getMyProfile);
+        
+        // Get current session from Supabase
+        const session = await API.getSession();
+        console.log('🔍 Session result:', session);
+        if (!session) {
+            console.log('ℹ️ No hay sesión activa en Supabase');
+            return;
         }
-    }, 500);
+        
+        // Get user profile
+        const profile = await API.getMyProfile();
+        console.log('🔍 Profile result:', profile);
+        if (!profile) {
+            console.log('ℹ️ No se pudo obtener perfil de usuario');
+            return;
+        }
+        
+        // Restore window.currentUser
+        window.currentUser = profile;
+        console.log('✅ Sesión restaurada para:', profile.username);
+        console.log('🔍 window.currentUser ahora:', window.currentUser);
+        
+        // Register current session as active
+        await registerCurrentSession();
+        
+    } catch (error) {
+        console.error('❌ Error restaurando sesión:', error);
+    }
+}
+
+// Auto-update active users count
+let activeUsersInterval = null;
+
+function startActiveUsersAutoUpdate() {
+    // Clear existing interval if any
+    if (activeUsersInterval) {
+        clearInterval(activeUsersInterval);
+    }
+    
+    // Update every 60 seconds (more reasonable)
+    activeUsersInterval = setInterval(async () => {
+        console.log('🔄 Auto-actualizando usuarios activos...');
+        await updateActiveUsersCount();
+    }, 60000); // 60 seconds
+    
+    console.log('✅ Auto-update activado (cada 60 segundos)');
+}
+
+function stopActiveUsersAutoUpdate() {
+    if (activeUsersInterval) {
+        clearInterval(activeUsersInterval);
+        activeUsersInterval = null;
+        console.log('⏹️ Auto-update detenido');
+    }
+}
+
+// Update only the active users count (not full dashboard)
+async function updateActiveUsersCount() {
+    try {
+        // Register current session first
+        await registerCurrentSession();
+        
+        // Get currently logged-in users
+        const loggedInUsers = await getCurrentlyLoggedInUsers();
+        const activeUsers = loggedInUsers.length;
+        
+        // Update UI
+        const activeUsersElement = document.getElementById('activeUsersCount');
+        if (activeUsersElement) {
+            const oldValue = activeUsersElement.textContent;
+            activeUsersElement.textContent = activeUsers;
+            
+            // Add animation if value changed
+            if (oldValue !== activeUsers.toString()) {
+                activeUsersElement.style.animation = 'none';
+                setTimeout(() => {
+                    activeUsersElement.style.animation = 'fadeInUp 0.5s ease-out';
+                }, 10);
+                
+                console.log(`📊 Usuarios activos actualizado: ${oldValue} → ${activeUsers}`);
+            }
+        }
+        
+        return activeUsers;
+    } catch (error) {
+        console.error('❌ Error actualizando conteo de usuarios activos:', error);
+        return 0;
+    }
+}
+
+// Register current user session if not already logged
+async function registerCurrentSession() {
+    try {
+        if (!window.currentUser?.username) {
+            console.warn('⚠️ No hay usuario actual para registrar sesión');
+            return false;
+        }
+
+        console.log('🔄 Verificando sesión para:', window.currentUser.username);
+
+        // Check if already registered recently (last 10 minutes)
+        const auditResponse = API?.Audit?.getAll
+            ? await API.Audit.getAll()
+            : { success: false, data: [] };
+        
+        if (!auditResponse?.success) {
+            console.warn('⚠️ No se pudieron obtener audit logs para verificar sesión');
+            return false;
+        }
+
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const existingLogin = auditResponse.data.find(record => {
+            const isLogin = record.action === 'login' || 
+                          record.activity_type === 'login';
+            const isRecent = new Date(record.created_at) >= tenMinutesAgo;
+            const isCurrentUser = record.username === window.currentUser.username;
+            return isLogin && isRecent && isCurrentUser;
+        });
+
+        if (existingLogin) {
+            console.log('✅ Sesión ya registrada recientemente para:', window.currentUser.username);
+            return true;
+        }
+
+        // Register current session
+        console.log('🔄 Registrando nueva sesión para:', window.currentUser.username);
+        const result = await API?.logAuditEvent?.('login', {
+            email: window.currentUser.email,
+            success: true,
+            login_time: new Date().toISOString(),
+            session_type: 'page_reload_restored'
+        });
+
+        if (result?.success) {
+            console.log('✅ Sesión restaurada y registrada en audit_logs para:', window.currentUser.username);
+            return true;
+        } else {
+            console.warn('⚠️ No se pudo registrar sesión restaurada:', result?.error);
+            return false;
+        }
+
+    } catch (error) {
+        console.error('❌ Error registrando sesión actual:', error);
+        return false;
+    }
+}
+
+// Get currently logged-in users from recent activities
+async function getCurrentlyLoggedInUsers() {
+    console.log('🔍 Buscando usuarios con sesión activa...');
+    console.log('🔍 window.currentUser actual:', window.currentUser);
+    console.log('🔍 API disponible:', !!window.API);
+    console.log('🔍 API.Audit:', !!window.API?.Audit);
+    
+    try {
+        // Get audit logs (this module exists)
+        const auditResponse = API?.Audit?.getAll
+            ? await API.Audit.getAll()
+            : { success: false, data: [] };
+        
+        console.log('🔍 Audit response:', auditResponse);
+        
+        if (!auditResponse?.success) {
+            console.warn('⚠️ No se pudieron obtener audit logs:', auditResponse);
+            return [];
+        }
+        
+        const auditLogs = auditResponse.data || [];
+        console.log(`📊 Audit logs encontrados: ${auditLogs.length}`);
+        
+        if (auditLogs.length > 0) {
+            console.log('📊 Primeros 3 registros:', auditLogs.slice(0, 3));
+        }
+        
+        // Filter for login activities in the last 2 hours (more generous)
+        const now = new Date();
+        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        
+        // Track user sessions
+        const userSessions = new Map(); // username -> { lastLogin, lastLogout }
+        
+        auditLogs.forEach(record => {
+            const timestampField = record.timestamp || record.created_at;
+            if (!timestampField) return;
+            
+            const recordDate = new Date(timestampField);
+            if (recordDate < twoHoursAgo) return; // Skip very old records
+            
+            const username = record.username || record.user_name;
+            if (!username) return;
+            
+            const isLogin = record.action === 'login' || 
+                          record.activity_type === 'login' ||
+                          record.type === 'login' ||
+                          record.event === 'login';
+            
+            const isLogout = record.action === 'logout' || 
+                           record.activity_type === 'logout' ||
+                           record.type === 'logout' ||
+                           record.event === 'logout';
+            
+            if (isLogin) {
+                const existingSession = userSessions.get(username);
+                if (!existingSession || recordDate > existingSession.lastLogin) {
+                    userSessions.set(username, {
+                        lastLogin: recordDate,
+                        lastLogout: existingSession?.lastLogout || null
+                    });
+                }
+            } else if (isLogout) {
+                const existingSession = userSessions.get(username);
+                if (!existingSession || recordDate > (existingSession.lastLogout || new Date(0))) {
+                    userSessions.set(username, {
+                        lastLogin: existingSession?.lastLogin || new Date(0),
+                        lastLogout: recordDate
+                    });
+                }
+            }
+        });
+        
+        // Determine active users (login after last logout, or no logout)
+        const activeUsers = [];
+        userSessions.forEach((session, username) => {
+            const isActive = session.lastLogin > (session.lastLogout || new Date(0));
+            if (isActive) {
+                activeUsers.push(username);
+            }
+            console.log(`👤 ${username} - Login: ${session.lastLogin}, Logout: ${session.lastLogout}, Activo: ${isActive}`);
+        });
+        
+        // Fallback: if no active users found from audit logs, try to detect active sessions
+        if (activeUsers.length === 0) {
+            console.log('⚠️ No se encontraron usuarios activos en audit_logs, usando fallback...');
+            
+            // Try to register current session and count it
+            const registered = await registerCurrentSession();
+            if (registered) {
+                // Try again after registering
+                const retryResponse = API?.Audit?.getAll
+                    ? await API.Audit.getAll()
+                    : { success: false, data: [] };
+                
+                if (retryResponse?.success && retryResponse.data.length > 0) {
+                    // Process the new logs
+                    const newLogs = retryResponse.data;
+                    const now = new Date();
+                    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+                    
+                    newLogs.forEach(record => {
+                        const timestampField = record.timestamp || record.created_at;
+                        if (!timestampField) return;
+                        
+                        const recordDate = new Date(timestampField);
+                        if (recordDate < twoHoursAgo) return;
+                        
+                        const username = record.username || record.user_name;
+                        if (!username) return;
+                        
+                        const isLogin = record.action === 'login' || 
+                                      record.activity_type === 'login' ||
+                                      record.type === 'login' ||
+                                      record.event === 'login';
+                        
+                        if (isLogin && !activeUsers.includes(username)) {
+                            activeUsers.push(username);
+                        }
+                    });
+                }
+            }
+            
+            // Last resort: at least count current user
+            if (activeUsers.length === 0 && window.currentUser?.username) {
+                activeUsers.push(window.currentUser.username);
+                console.log('🔄 Último fallback - usuario actual detectado:', window.currentUser.username);
+            }
+        }
+        
+        console.log(`🔍 Usuarios con sesión activa (últimas 2 horas): ${activeUsers.length}`, activeUsers);
+        
+        return activeUsers;
+    } catch (error) {
+        console.error('❌ Error getting currently logged in users:', error);
+        return [];
+    }
 }
 
 // Load dashboard data from API endpoints
@@ -85,8 +385,16 @@ async function loadDashboardData() {
             console.warn('⚠️ API.Users.getAll() retornó undefined, usando fallback []');
         }
         const usersData = usersResponse.success && Array.isArray(usersResponse.data) ? usersResponse.data : [];
-        const activeUsers = usersData.filter(user => user.active !== false).length;
+        
+        // Register current session first
+        console.log('🔄 Registrando sesión actual...');
+        await registerCurrentSession();
+        
+        // Get currently logged-in users from recent activities
+        const loggedInUsers = await getCurrentlyLoggedInUsers();
+        const activeUsers = loggedInUsers.length;
         const totalUsers = usersData.length;
+        
         document.getElementById('activeUsersCount').textContent = activeUsers;
         document.getElementById('totalUsersCount').textContent = totalUsers;
 
@@ -178,6 +486,62 @@ function setupEventListeners() {
             iaChatContainer.classList.remove('show');
         }
     });
+
+    // Page visibility change - update when user returns to tab
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            console.log('👁️ Usuario regresó a la pestaña - actualizando conteo...');
+            updateActiveUsersCount();
+        }
+    });
+
+    // Before unload - register logout when user closes tab
+    window.addEventListener('beforeunload', function() {
+        if (window.currentUser?.username) {
+            // Use navigator.sendBeacon for reliable logging during page unload
+            const logoutData = {
+                action: 'logout',
+                activity_type: 'logout',
+                username: window.currentUser.username,
+                email: window.currentUser.email,
+                details: {
+                    logout_time: new Date().toISOString(),
+                    reason: 'tab_closed',
+                    session_duration: 'active'
+                }
+            };
+            
+            // Store in sessionStorage as backup
+            sessionStorage.setItem('pendingLogout', JSON.stringify(logoutData));
+            console.log('🔄 Logout programado al cerrar pestaña');
+        }
+    });
+
+    // Listen for storage events (when another tab logs out)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'pendingLogout') {
+            console.log('🔄 Detectado logout en otra pestaña - actualizando conteo...');
+            setTimeout(updateActiveUsersCount, 1000); // Update after 1 second
+        }
+    });
+
+    // Process any pending logout from sessionStorage
+    const pendingLogout = sessionStorage.getItem('pendingLogout');
+    if (pendingLogout) {
+        try {
+            const logoutData = JSON.parse(pendingLogout);
+            console.log('🔄 Procesando logout pendiente:', logoutData);
+            
+            // Register the logout
+            API.logAuditEvent('logout', logoutData.details).then(() => {
+                sessionStorage.removeItem('pendingLogout');
+                updateActiveUsersCount(); // Update immediately
+            });
+        } catch (error) {
+            console.error('❌ Error procesando logout pendiente:', error);
+            sessionStorage.removeItem('pendingLogout');
+        }
+    }
 }
 
 // Perform global search using optimized backend endpoint

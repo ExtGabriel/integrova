@@ -468,11 +468,20 @@
             disableWithTooltip(btnEdit, 'Edición no disponible');
             actionsDiv.appendChild(btnEdit);
 
-            // Botón Delete (deshabilitado)
+            // Botón Delete (habilitado para admins)
             const btnDelete = document.createElement('button');
             btnDelete.className = 'btn btn-sm btn-danger';
             btnDelete.innerHTML = '<i class="bi bi-trash-fill"></i>';
-            disableWithTooltip(btnDelete, 'Eliminación no disponible');
+            
+            // Solo permitir eliminar si el usuario actual es admin y no es el mismo usuario
+            if (currentUserRole === 'admin' && user.id !== currentUserProfile?.id) {
+                btnDelete.title = 'Eliminar usuario';
+                btnDelete.addEventListener('click', () => deleteUser(user.id, user.name || user.email));
+            } else {
+                disableWithTooltip(btnDelete, user.id === currentUserProfile?.id ? 
+                    'No puedes eliminar tu propio usuario' : 
+                    'Solo administradores pueden eliminar usuarios');
+            }
             actionsDiv.appendChild(btnDelete);
 
             // Botón View (mostrar/ocultar datos sensibles)
@@ -584,6 +593,50 @@
             const errorMsg = interpretApiError(err);
             showErrorMsg(errorMsg);
             loadUsers();
+        }
+    }
+
+    /**
+     * Eliminar un usuario
+     */
+    async function deleteUser(userId, userName) {
+        try {
+            if (!userId) {
+                showErrorMsg('ID de usuario es requerido.');
+                return;
+            }
+
+            // Confirmación del usuario
+            if (!confirm(`¿Estás seguro que deseas eliminar al usuario "${userName}"?\n\n⚠️ Esta acción no se puede deshacer.`)) {
+                return;
+            }
+
+            // Validar que sea administrador
+            if (!PermissionsHelper.isAdmin()) {
+                showErrorMsg('No tienes permiso para eliminar usuarios. Solo administradores pueden hacerlo.');
+                return;
+            }
+
+            showLoading(true);
+            console.log(`🗑️ Eliminando usuario ${userId} (${userName})...`);
+
+            const result = await API.Users.delete(userId);
+            showLoading(false);
+
+            if (!result.success) {
+                const errorMsg = interpretApiError(result.error);
+                console.error('❌ Error al eliminar usuario:', result.error);
+                showErrorMsg(errorMsg);
+                return;
+            }
+
+            showSuccessMsg(`✅ Usuario "${userName}" eliminado correctamente`);
+            loadUsers(); // Recargar la lista
+        } catch (err) {
+            showLoading(false);
+            console.error('❌ Error en deleteUser:', err);
+            const errorMsg = interpretApiError(err);
+            showErrorMsg(errorMsg);
         }
     }
 

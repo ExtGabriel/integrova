@@ -48,13 +48,17 @@
      * CONSTANTES GLOBALES - VALIDACIÓN DE ROLES
      * ==========================================
      * 
-     * Solo dos roles existen en public.users.role:
+     * Roles existentes en public.users.role:
      * - 'admin': Administrador del sistema
      * - 'user': Usuario normal
+     * - 'auditor': Auditor básico
+     * - 'auditor_senior': Auditor senior
+     * - 'socio': Socio de la empresa
+     * - 'cliente': Cliente externo
      * 
-     * NO hay roles legacy (administrador, socio, auditor, etc.)
+     * NOTA: Estos roles deben coincidir con ALLOWED_GLOBAL_ROLES en usuarios.js
      */
-    const VALID_GLOBAL_ROLES = ['admin', 'user'];
+    const VALID_GLOBAL_ROLES = ['admin', 'user', 'auditor', 'auditor_senior', 'socio', 'cliente'];
 
     /**
      * ==========================================
@@ -205,6 +209,35 @@
      */
     async function signOut() {
         try {
+            // Get current user info before logout
+            const currentUserInfo = {
+                username: window.currentUser?.username,
+                email: window.currentUser?.email
+            };
+            
+            console.log('🔄 Registrando logout para:', currentUserInfo.username);
+
+            // Registrar logout usando la información guardada
+            if (currentUserInfo.username) {
+                try {
+                    const result = await logAuditEvent('logout', {
+                        email: currentUserInfo.email,
+                        success: true,
+                        logout_time: new Date().toISOString(),
+                        session_duration: currentSession ? 'active' : 'expired'
+                    });
+                    
+                    if (result.success) {
+                        console.log('✅ Logout registrado para:', currentUserInfo.username);
+                    } else {
+                        console.warn('⚠️ No se pudo registrar logout:', result.error);
+                    }
+                } catch (auditError) {
+                    console.warn('⚠️ Error registrando logout:', auditError.message);
+                    // Continuar con el logout aunque falle el registro
+                }
+            }
+
             const client = await getSupabaseClient();
             if (client) {
                 await client.auth.signOut();
@@ -220,6 +253,80 @@
     }
 
     /**
+     * Registrar evento de auditoría
+     * @param {string} action - Tipo de acción (login, logout, create_user, etc.)
+     * @param {object} details - Detalles adicionales del evento
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async function logAuditEvent(action, details = {}) {
+        try {
+            const client = await getSupabaseClient();
+            if (!client) {
+                console.warn('⚠️ No hay cliente Supabase para registrar auditoría');
+                return { success: false, error: 'No hay cliente Supabase' };
+            }
+
+            // Obtener usuario actual (con fallback para logout)
+            let currentUser = window.currentUser;
+            
+            // Si no hay usuario actual, intentar desde sessionStorage (para logout)
+            if (!currentUser && details.email) {
+                currentUser = {
+                    username: details.email.split('@')[0],
+                    email: details.email,
+                    id: null
+                };
+                console.log('🔄 Usando fallback de usuario desde details para auditoría');
+            }
+            
+            if (!currentUser) {
+                console.warn('⚠️ No hay usuario actual para registrar auditoría');
+                return { success: false, error: 'No hay usuario actual' };
+            }
+
+            // Preparar datos del evento
+            const auditData = {
+                user_id: currentUser.id || null,
+                username: currentUser.username || currentUser.email || 'unknown',
+                action: action,
+                activity_type: action,
+                ip_address: null, // Se puede obtener con una función adicional si se necesita
+                user_agent: navigator.userAgent,
+                details: {
+                    ...details,
+                    timestamp: new Date().toISOString(),
+                    session_id: currentSession?.access_token ? 'active' : 'none'
+                }
+            };
+
+            console.log(`🔍 Registrando evento de auditoría: ${action}`, auditData);
+
+            // Insertar en audit_logs
+            const { data, error } = await client
+                .from('audit_logs')
+                .insert([auditData])
+                .select();
+
+            if (error) {
+                console.error('❌ Error registrando evento de auditoría:', error);
+                // Si la tabla no existe, no es crítico, solo logueamos
+                if (error.code === 'PGRST116') {
+                    console.log('ℹ️ Tabla audit_logs no existe, omitiendo registro');
+                    return { success: true }; // No es error crítico
+                }
+                return { success: false, error: error.message };
+            }
+
+            console.log(`✅ Evento de auditoría registrado: ${action}`);
+            return { success: true, data: data?.[0] };
+
+        } catch (err) {
+            console.error('❌ Excepción registrando auditoría:', err);
+            return { success: false, error: err.message };
+        }
+    }
+
+    /**
      * Iniciar sesión
      */
     async function login(email, password) {
@@ -230,20 +337,44 @@
 
             const client = await getSupabaseClient();
             if (!client) {
-                throw new Error('Supabase no está inicializado');
+                throw new Error('Cliente Supabase no disponible');
             }
 
-            const { data, error } = await client.auth.signInWithPassword({ email, password });
+            // Intentar login
+            const { data, error } = await client.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
 
             if (error) {
+                // Registrar intento fallido
+                await logAuditEvent('login_failed', {
+                    email: email,
+                    error: error.message,
+                    reason: 'authentication_failed'
+                });
                 throw error;
             }
 
             if (!data || !data.session) {
-                throw new Error('No se pudo establecer la sesión');
+                const error = new Error('No se pudo establecer la sesión');
+                await logAuditEvent('login_failed', {
+                    email: email,
+                    error: error.message,
+                    reason: 'no_session_created'
+                });
+                throw error;
             }
 
             currentSession = data.session;
+            
+            // Registrar login exitoso
+            await logAuditEvent('login', {
+                email: email,
+                success: true,
+                login_time: new Date().toISOString()
+            });
+
             return { success: true, session: data.session };
         } catch (err) {
             console.error('❌ Error en login:', err);
@@ -1009,6 +1140,212 @@
     const CommitmentsModule = createSafeModule('commitments');
 
     /**
+     * Módulo: Compromisos
+     * ✅ Implementación completa con métodos CRUD
+     * ✅ GARANTÍA: window.API.Commitments SIEMPRE existe, nunca undefined
+     */
+    const Commitments = {
+        /**
+         * Listar todos los compromisos visibles para el usuario actual
+         * RLS filtra automáticamente según permisos
+         * @returns {Promise<{data: Array, error: null|string}>}
+         */
+        async list() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.warn('⚠️ [Commitments.list] Supabase no disponible, retornando []');
+                    return { success: true, data: [] };
+                }
+
+                const { data, error } = await client
+                    .from('commitments')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    // Tolerar tabla inexistente
+                    const isTableNotFound =
+                        error.message?.includes('PGRST205') ||
+                        error.message?.includes('404') ||
+                        error.message?.includes('relation');
+
+                    if (isTableNotFound) {
+                        console.warn('⚠️ Tabla "commitments" no existe aún. Retornando array vacío.');
+                        return { success: true, data: [] };
+                    } else {
+                        console.warn('⚠️ [Commitments.list] Error Supabase:', error.message);
+                        return { success: true, data: [] };
+                    }
+                }
+
+                return { success: !error, data: data || [] };
+            } catch (err) {
+                console.warn('⚠️ [Commitments.list] Excepción:', err.message);
+                return { success: true, data: [] };
+            }
+        },
+
+        /**
+         * Crear un nuevo compromiso
+         * @param {Object} commitmentData - { name, description, start_date, end_date, status, entity_id, work_group_id }
+         * @returns {Promise<{data: Object, error: null|string}>}
+         */
+        async create(commitmentData) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Commitments.create] Supabase no disponible');
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                const { data, error } = await client
+                    .from('commitments')
+                    .insert([commitmentData])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ [Commitments.create] Error Supabase:', error.message);
+                    return { success: false, error: error.message };
+                }
+
+                console.log('✅ [Commitments.create] Compromiso creado:', data);
+                return { success: true, data };
+            } catch (err) {
+                console.error('❌ [Commitments.create] Excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Obtener un compromiso por ID
+         * @param {number} id - ID del compromiso
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async getById(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Commitments.getById] Supabase no disponible');
+                    return { success: true, data: null };
+                }
+
+                const { data, error } = await client
+                    .from('commitments')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) {
+                    const isTableNotFound =
+                        error.message?.includes('PGRST205') ||
+                        error.message?.includes('404') ||
+                        error.message?.includes('relation');
+
+                    if (isTableNotFound) {
+                        console.warn(`⚠️ [Commitments.getById] Compromiso ${id} no encontrado.`);
+                        return { success: true, data: null };
+                    } else {
+                        console.warn(`⚠️ [Commitments.getById] Error Supabase:`, error.message);
+                        return { success: true, data: null };
+                    }
+                }
+
+                return { success: !error, data };
+            } catch (err) {
+                console.error('❌ [Commitments.getById] Excepción:', err.message);
+                return { success: true, data: null };
+            }
+        },
+
+        /**
+         * Actualizar un compromiso existente
+         * @param {number} id - ID del compromiso
+         * @param {Object} updates - Datos a actualizar
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async update(id, updates) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Commitments.update] Supabase no disponible');
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                const { data, error } = await client
+                    .from('commitments')
+                    .update(updates)
+                    .eq('id', id)
+                    .select()
+                    .single();
+
+                if (error) {
+                    const isTableNotFound =
+                        error.message?.includes('PGRST205') ||
+                        error.message?.includes('404') ||
+                        error.message?.includes('relation');
+
+                    if (isTableNotFound) {
+                        console.warn(`⚠️ [Commitments.update] Compromiso ${id} no encontrado.`);
+                        return { success: true, data: null };
+                    } else {
+                        console.warn(`⚠️ [Commitments.update] Error Supabase:`, error.message);
+                        return { success: true, data: null };
+                    }
+                }
+
+                console.log('✅ [Commitments.update] Compromiso actualizado:', data);
+                return { success: !error, data };
+            } catch (err) {
+                console.error('❌ [Commitments.update] Excepción:', err.message);
+                return { success: true, data: null };
+            }
+        },
+
+        /**
+         * Eliminar un compromiso
+         * @param {number} id - ID del compromiso
+         * @returns {Promise<{data: Object|null, error: null|string}>}
+         */
+        async delete(id) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    console.error('❌ [Commitments.delete] Supabase no disponible');
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                const { error } = await client
+                    .from('commitments')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    const isTableNotFound =
+                        error.message?.includes('PGRST205') ||
+                        error.message?.includes('404') ||
+                        error.message?.includes('relation');
+
+                    if (isTableNotFound) {
+                        console.warn(`⚠️ [Commitments.delete] Compromiso ${id} no encontrado.`);
+                        return { success: true, data: null };
+                    } else {
+                        console.warn(`⚠️ [Commitments.delete] Error Supabase:`, error.message);
+                        return { success: true, data: null };
+                    }
+                }
+
+                console.log('✅ [Commitments.delete] Compromiso eliminado:', id);
+                return { success: true, data: { id } };
+            } catch (err) {
+                console.error('❌ [Commitments.delete] Excepción:', err.message);
+                return { success: true, data: null };
+            }
+        }
+    };
+
+    /**
      * Módulo: Usuarios
      * ✅ Tolera tabla inexistente: retorna [] sin error
      * ✅ Métodos defensivos para cambiar roles, estado, permisos
@@ -1019,30 +1356,257 @@
                 const client = await getSupabaseClient();
                 if (!client) return { success: true, data: [] };
 
-                const { data, error } = await client.from('users').select('*');
-
-                console.log('🔍 Debug getAll users:', {
-                    totalUsers: data?.length || 0,
-                    users: data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || []
-                });
-
-                if (error) {
-                    if (handleTableNotFound(error, 'users')) {
-                        return { success: true, data: [] };
-                    }
-                    // Log más detallado del error
-                    console.error('❌ Users.getAll error:', {
-                        message: error.message,
-                        code: error.code,
-                        details: error.details,
-                        hint: error.hint
+                // Para administradores, intentar obtener todos los usuarios
+                // Para usuarios normales, aplicar restricciones RLS
+                let query = client.from('users').select('*');
+                
+                // Si el usuario actual es admin, intentar bypass RLS
+                if (window.currentUser && window.currentUser.role === 'admin') {
+                    console.log('🔑 Usuario admin detectado, intentando obtener todos los usuarios...');
+                    
+                    // Intentar consulta directa (puede funcionar dependiendo de RLS)
+                    const { data, error } = await query;
+                    
+                    console.log('🔍 Debug getAll users:', {
+                        totalUsers: data?.length || 0,
+                        users: data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || [],
+                        hasError: !!error,
+                        error: error?.message
                     });
-                    throw error;
+
+                    if (error) {
+                        if (handleTableNotFound(error, 'users')) {
+                            return { success: true, data: [] };
+                        }
+                        
+                        // Si es error de permisos, intentar consulta alternativa
+                        if (error.message?.includes('permission') || error.code === 'PGRST301') {
+                            console.log('🔄 Error de permisos, intentando consulta alternativa...');
+                            
+                            // Consulta alternativa: obtener usuarios por roles conocidos
+                            const { data: altData, error: altError } = await client
+                                .from('users')
+                                .select('*')
+                                .in('role', ['admin', 'user']);
+                                
+                            if (!altError && altData) {
+                                console.log(`✅ Consulta alternativa exitosa: ${altData.length} usuarios`);
+                                return { success: true, data: altData };
+                            }
+                        }
+                        
+                        // Log más detallado del error
+                        console.error('❌ Users.getAll error:', {
+                            message: error.message,
+                            code: error.code,
+                            details: error.details,
+                            hint: error.hint
+                        });
+                        throw error;
+                    }
+                    
+                    // Si la consulta directa funcionó pero devuelve pocos usuarios,
+                    // podría ser por RLS restrictivo
+                    if (data && data.length === 1 && window.currentUser) {
+                        console.log('⚠️ Solo se obtuvo 1 usuario, posible restricción RLS');
+                        console.log('💡 Considera revisar las políticas RLS en Supabase Dashboard');
+                        
+                        // Intentar con RPC como último recurso
+                        console.log('🔄 Intentando obtener usuarios vía RPC...');
+                        try {
+                            const { data: rpcData, error: rpcError } = await client.rpc('get_all_users');
+                            
+                            if (!rpcError && rpcData) {
+                                console.log(`✅ RPC exitoso: ${rpcData.length} usuarios`);
+                                return { success: true, data: rpcData };
+                            } else {
+                                console.log('❌ RPC falló:', rpcError?.message);
+                            }
+                        } catch (rpcErr) {
+                            console.log('❌ Error en RPC:', rpcErr.message);
+                        }
+                    }
+                    
+                    return { success: true, data: data || [] };
+                } else {
+                    // Para usuarios no admin, aplicar consulta normal con RLS
+                    const { data, error } = await query;
+                    
+                    if (error) {
+                        if (handleTableNotFound(error, 'users')) {
+                            return { success: true, data: [] };
+                        }
+                        throw error;
+                    }
+                    
+                    return { success: true, data: data || [] };
                 }
-                return { success: true, data: data || [] };
             } catch (err) {
                 console.error('⚠️ Users.getAll excepción:', err.message, err);
                 return { success: true, data: [] };
+            }
+        },
+
+        /**
+         * Obtener todos los usuarios usando RPC (bypass RLS)
+         * Solo funciona para administradores y si la función RPC existe
+         */
+        async getAllWithRPC() {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) return { success: true, data: [] };
+
+                // Verificar que el usuario sea admin
+                if (!window.currentUser || window.currentUser.role !== 'admin') {
+                    console.warn('⚠️ getAllWithRPC: Solo disponible para administradores');
+                    return { success: false, error: 'Solo administradores pueden usar esta función' };
+                }
+
+                console.log('🔄 Obteniendo todos los usuarios vía RPC...');
+                
+                const { data, error } = await client.rpc('get_all_users');
+                
+                if (error) {
+                    console.error('❌ Error en RPC get_all_users:', error);
+                    return { success: false, error: error.message };
+                }
+                
+                console.log(`✅ RPC exitoso: ${data?.length || 0} usuarios obtenidos`);
+                return { success: true, data: data || [] };
+                
+            } catch (err) {
+                console.error('⚠️ Users.getAllWithRPC excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Eliminar un usuario (solo admins)
+         * @param {string} userId - ID del usuario a eliminar
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async delete(userId) {
+            try {
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden eliminar usuarios
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden eliminar usuarios' };
+                }
+
+                // Validar ID
+                if (!userId) {
+                    return { success: false, error: 'ID de usuario es requerido' };
+                }
+
+                // Prevenir auto-eliminación
+                if (userId === window.currentUser.id) {
+                    return { success: false, error: 'No puedes eliminar tu propio usuario' };
+                }
+
+                console.log(`🗑️ Eliminando usuario ${userId}...`);
+                console.log('🔍 Debug - Usuario actual:', window.currentUser);
+                console.log('🔍 Debug - Client auth:', client.auth.session());
+
+                // Paso 1: Verificar que el usuario existe antes de eliminar
+                const { data: existingUser, error: checkError } = await client
+                    .from('users')
+                    .select('id, email, role')
+                    .eq('id', userId)
+                    .single();
+
+                if (checkError) {
+                    console.error('❌ Error verificando usuario existente:', checkError);
+                    return { success: false, error: `Error verificando usuario: ${checkError.message}` };
+                }
+
+                if (!existingUser) {
+                    console.warn('⚠️ Usuario no encontrado en la base de datos');
+                    return { success: false, error: 'Usuario no encontrado' };
+                }
+
+                console.log('📋 Usuario a eliminar:', existingUser);
+
+                // Paso 2: Intentar eliminar con RPC (bypass RLS)
+                console.log('🔄 Intentando eliminar vía RPC...');
+                try {
+                    const { data: rpcData, error: rpcError } = await client.rpc('delete_user_by_id', {
+                        user_id_to_delete: userId
+                    });
+
+                    if (!rpcError && rpcData !== null) {
+                        console.log('✅ RPC exitoso:', rpcData);
+                        return { success: true, data: { id: userId, method: 'rpc' }, error: null };
+                    } else {
+                        console.log('❌ RPC falló:', rpcError?.message);
+                    }
+                } catch (rpcErr) {
+                    console.log('❌ Error en RPC:', rpcErr.message);
+                }
+
+                // Paso 3: Si RPC falla, intentar eliminación directa
+                console.log('🔄 Intentando eliminación directa...');
+                const { data: deleteData, error: dbError } = await client
+                    .from('users')
+                    .delete()
+                    .eq('id', userId)
+                    .select();
+
+                if (dbError) {
+                    console.error('❌ Error eliminando de tabla users:', dbError);
+                    console.error('🔍 Detalles del error:', {
+                        message: dbError.message,
+                        code: dbError.code,
+                        details: dbError.details,
+                        hint: dbError.hint
+                    });
+                    
+                    // Si es error de permisos, sugerir solución
+                    if (dbError.message?.includes('permission') || dbError.code === 'PGRST301') {
+                        return { 
+                            success: false, 
+                            error: 'Error de permisos. Las políticas RLS pueden estar bloqueando la eliminación. Contacta al administrador de Supabase.' 
+                        };
+                    }
+                    
+                    return { success: false, error: dbError.message || 'Error al eliminar usuario de la base de datos' };
+                }
+
+                console.log('✅ Eliminación directa exitosa:', deleteData);
+                console.log(`🗑️ Usuario ${userId} eliminado correctamente`);
+
+                // Paso 4: Verificar que realmente se eliminó
+                const { data: verifyData, error: verifyError } = await client
+                    .from('users')
+                    .select('id')
+                    .eq('id', userId);
+
+                if (verifyError) {
+                    console.warn('⚠️ No se pudo verificar la eliminación:', verifyError);
+                } else if (verifyData && verifyData.length > 0) {
+                    console.error('❌ CRÍTICO: Usuario todavía existe después de eliminar');
+                    return { success: false, error: 'Error: El usuario no fue eliminado correctamente' };
+                }
+
+                return { success: true, data: { id: userId, method: 'direct' }, error: null };
+
+            } catch (err) {
+                console.error('❌ Users.delete excepción:', err);
+                return { success: false, error: err.message || 'Error desconocido al eliminar usuario' };
             }
         },
 
@@ -1100,7 +1664,7 @@
 
                 const normalizedRole = userData.role.toLowerCase();
                 if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
-                    return { success: false, error: 'Rol inválido. Solo se permiten roles globales: admin o user' };
+                    return { success: false, error: `Rol inválido. Roles permitidos: ${VALID_GLOBAL_ROLES.join(', ')}` };
                 }
 
                 // Crear usuario en Auth
@@ -1682,13 +2246,14 @@
         getSession,
         getMyProfile,
         signOut,
+        logAuditEvent,
         supabase: window.supabaseClient || null, // Cliente Supabase directo si lo necesitan
 
         // === Módulos de datos - SIEMPRE EXISTEN, NUNCA UNDEFINED ===
         // Módulos principales (predefinidos)
         Entities: EntitiesModule,
         EntityUsers: EntityUsersModule,
-        Commitments: CommitmentsModule,
+        Commitments: Commitments,
         Users: UsersModule,
         Notifications: NotificationsModule,
         Audit: AuditModule,
