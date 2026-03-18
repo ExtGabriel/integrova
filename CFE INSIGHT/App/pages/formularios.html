@@ -35,7 +35,6 @@
             margin: 0 !important;
         }
 
-        /* Fix for balance selection modal buttons */
         #balanceSelectionModal .modal-footer {
             display: flex !important;
             gap: 12px !important;
@@ -54,6 +53,13 @@
             justify-content: center !important;
             width: auto !important;
             margin: 0 !important;
+        }
+
+        /* Fix for upload buttons - prevent text duplication */
+        .file-actions .btn {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
         }
     </style>
 </head>
@@ -3055,8 +3061,35 @@
         }
         
         function updateMappingSelectors(sheetData) {
-            // Obtener la primera fila como encabezados
-            const headers = sheetData[0] || [];
+            // Intentar encontrar la fila de encabezados más inteligente
+            let headers = [];
+            let headerRowIndex = 0;
+            
+            // Buscar la fila que más parece contener encabezados
+            for (let i = 0; i < Math.min(3, sheetData.length); i++) {
+                const row = sheetData[i];
+                if (row && row.length > 0) {
+                    // Contar cuántas celdas contienen texto no numérico
+                    const textCells = row.filter(cell => {
+                        const cellStr = cell?.toString().trim();
+                        return cellStr && !isNaN(cellStr) === false && cellStr.length > 0;
+                    });
+                    
+                    // Si esta fila tiene más celdas de texto que la actual mejor candidata
+                    if (textCells.length > headers.filter(h => h && !isNaN(h.toString()) === false).length) {
+                        headers = row;
+                        headerRowIndex = i;
+                    }
+                }
+            }
+            
+            // Si no se encontraron buenos encabezados, usar la primera fila
+            if (headers.length === 0) {
+                headers = sheetData[0] || [];
+                headerRowIndex = 0;
+            }
+            
+            console.log('Usando encabezados de la fila', headerRowIndex, ':', headers);
             
             // Actualizar solo los selectores de mapeo de columnas (excluyendo los de débito/crédito)
             const columnSelectors = [
@@ -3077,8 +3110,62 @@
                         if (header && header.toString().trim()) {
                             const option = document.createElement('option');
                             option.value = index.toString();
-                            option.textContent = `Columna ${index + 1}: ${header.toString().trim()}`;
+                            
+                            // Limpiar el nombre del encabezado
+                            let headerText = header.toString().trim();
+                            
+                            // Si el encabezado parece un número, usar un nombre descriptivo
+                            // pero solo para las columnas que correspondan
+                            if (!isNaN(headerText)) {
+                                // Mantener el header original si no es numérico
+                                // Si es numérico, dar un nombre específico según la posición y el selector
+                                if (selectorId === 'currentYearMapping') {
+                                    // Para año actual, solo renombrar las columnas numéricas que podrían ser saldos
+                                    if (index >= 2) { // Asumir que las últimas columnas son los saldos
+                                        headerText = 'Saldo año actual';
+                                    } else {
+                                        headerText = `Columna ${index + 1}`;
+                                    }
+                                } else if (selectorId === 'previousYearMapping') {
+                                    // Para año anterior, solo renombrar las columnas numéricas que podrían ser saldos
+                                    if (index >= 2) { // Asumir que las últimas columnas son los saldos
+                                        headerText = 'Saldo año anterior';
+                                    } else {
+                                        headerText = `Columna ${index + 1}`;
+                                    }
+                                } else if (selectorId === 'accountNumberMapping') {
+                                    // Para número de cuenta, buscar la primera columna que tenga números o texto relevante
+                                    if (index === 0) { // Generalmente la primera columna es el número
+                                        headerText = 'Número de cuenta';
+                                    } else {
+                                        headerText = `Columna ${index + 1}`;
+                                    }
+                                } else if (selectorId === 'accountNameMapping') {
+                                    // Para nombre de cuenta, buscar la segunda columna usualmente
+                                    if (index === 1) { // Generalmente la segunda columna es el nombre
+                                        headerText = 'Nombre de cuenta';
+                                    } else {
+                                        headerText = `Columna ${index + 1}`;
+                                    }
+                                } else {
+                                    headerText = `Columna ${index + 1}`;
+                                }
+                            }
+                            
+                            option.textContent = `Columna ${index + 1}: ${headerText}`;
                             select.appendChild(option);
+                        }
+                    });
+                    
+                    // Añadir un event listener para actualizar el texto visible cuando se selecciona una opción
+                    select.addEventListener('change', function() {
+                        const selectedOption = this.options[this.selectedIndex];
+                        if (selectedOption && selectedOption.value) {
+                            // Actualizar el texto del placeholder para mostrar la selección
+                            const placeholderOption = this.querySelector('option[value=""]');
+                            if (placeholderOption) {
+                                placeholderOption.textContent = selectedOption.textContent;
+                            }
                         }
                     });
                 }
@@ -12731,7 +12818,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const accountName = a.name || '';
                     const currentValue = a.value || 0;
                     
-                    const displayName = `${accountNumber} ${accountName}`.trim();
+                    // Mejorar la visualización cuando no hay nombre
+                    let displayName;
+                    if (accountName && accountName.trim()) {
+                        displayName = `${accountNumber} - ${accountName}`;
+                    } else {
+                        displayName = `${accountNumber} (sin nombre asignado)`;
+                    }
+                    
                     const displayValue = currentValue != null ? formatCurrency(currentValue) : '';
                     
                     return `
@@ -12740,7 +12834,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                              data-account-code="${a.code}"
                              data-account-name="${a.name}"
                              data-account-value="${currentValue}">
-                            <span class="account-name">${displayName || '(sin nombre)'}</span>
+                            <span class="account-name">${displayName}</span>
                             <span class="account-value">${displayValue}</span>
                         </div>
                     `;
