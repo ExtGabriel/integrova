@@ -105,6 +105,87 @@ const upload = multer({
     }
 });
 
+// Endpoint para obtener historial de importaciones en conjuntos_datos
+app.get('/api/datasets/history', async (req, res) => {
+    try {
+        const limit = Math.max(1, parseInt(req.query.limit || '20', 10));
+
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .select('id,nombre,tipo,estado,fecha_importacion,archivo_original,user_id,data,created_at')
+            .order('fecha_importacion', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error obteniendo historial de conjuntos:', error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        const historyItems = (data || []).map((item) => {
+            const meta = item.data && typeof item.data === 'object' && !Array.isArray(item.data)
+                ? item.data
+                : null;
+            const uploadedBy = meta?.importado_por || meta?.uploadedBy || meta?.meta?.uploadedBy || null;
+            const uploadedByName = uploadedBy?.name || uploadedBy?.nombre || uploadedBy?.email || null;
+
+            return {
+                id: item.id,
+                nombre: item.nombre || item.archivo_original || 'Archivo sin nombre',
+                tipo: item.tipo || 'excel_import',
+                estado: item.estado || 'Procesado',
+                fecha_importacion: item.fecha_importacion || item.created_at,
+                archivo_original: item.archivo_original,
+                importado_por: uploadedByName,
+                user_id: item.user_id
+            };
+        });
+
+        const missingUserIds = historyItems
+            .filter(item => !item.importado_por && item.user_id)
+            .map(item => item.user_id);
+
+        let usersById = {};
+        if (missingUserIds.length) {
+            const uniqueIds = [...new Set(missingUserIds)];
+            const { data: usersData, error: usersError } = await supabase
+                .from('users')
+                .select('id, full_name, username, email, name')
+                .in('id', uniqueIds);
+
+            if (usersError) {
+                console.warn('No se pudo resolver usuarios para historial:', usersError.message);
+            } else if (usersData) {
+                usersById = usersData.reduce((acc, user) => {
+                    const displayName = user.full_name || user.name || user.username || user.email || null;
+                    if (displayName) {
+                        acc[user.id] = displayName;
+                    }
+                    return acc;
+                }, {});
+            }
+        }
+
+        const history = historyItems.map(item => ({
+            ...item,
+            importado_por: item.importado_por || usersById[item.user_id] || 'Sin usuario'
+        }));
+
+        res.json({
+            success: true,
+            data: history
+        });
+    } catch (error) {
+        console.error('Error en /api/datasets/history:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor'
+        });
+    }
+});
+
 // Configuración de IA - API keys desde variables de entorno
 const AI_CONFIG = {
     openai: {
@@ -2481,13 +2562,40 @@ async function extractAccountsFromExcel(excelFile, mappingData) {
         return []; // Necesitamos al menos encabezados y una fila de datos
     }
     
+    // Convertir letras de columnas a índices (A=0, B=1, C=2, etc.)
+    function columnToIndex(columnLetter) {
+        if (columnLetter == null) return 0;
+
+        // Si viene como número (ej. "0", 1), interpretarlo como índice base 0
+        const numericValue = Number(columnLetter);
+        if (!Number.isNaN(numericValue)) {
+            return Math.max(0, Math.floor(numericValue));
+        }
+
+        if (typeof columnLetter !== 'string') return 0;
+        const column = columnLetter.toUpperCase().trim();
+        let index = 0;
+        for (let i = 0; i < column.length; i++) {
+            const charCode = column.charCodeAt(i);
+            if (charCode < 65 || charCode > 90) {
+                // Caracter fuera de A-Z, devolvemos 0 para evitar índices negativos
+                return 0;
+            }
+            index = index * 26 + (charCode - 64);
+        }
+        return Math.max(0, index - 1); // Convertir a base 0
+    }
+    
     // Obtener índices de columnas desde el mapeo
-    const accountNumberIndex = parseInt(mappingData.accountNumber);
-    const accountNameIndex = parseInt(mappingData.accountName);
-    const currentYearIndex = parseInt(mappingData.currentYear);
-    const previousYearIndex = parseInt(mappingData.previousYear);
+    const accountNumberIndex = columnToIndex(mappingData.accountNumber);
+    const accountNameIndex = columnToIndex(mappingData.accountName);
+    const currentYearIndex = columnToIndex(mappingData.currentYear);
+    const previousYearIndex = columnToIndex(mappingData.previousYear);
     
     // Procesar cada fila de datos (empezando desde la segunda fila)
+    console.log(`🔍 Procesando ${sheetData.length - 1} filas de datos del Excel`);
+    console.log(`📊 Índices: número=${accountNumberIndex}, nombre=${accountNameIndex}, actual=${currentYearIndex}, anterior=${previousYearIndex}`);
+    
     for (let i = 1; i < sheetData.length; i++) {
         const row = sheetData[i];
         
@@ -2497,9 +2605,13 @@ async function extractAccountsFromExcel(excelFile, mappingData) {
         const currentYearValue = row[currentYearIndex] || '';
         const previousYearValue = row[previousYearIndex] || '';
         
-        // Validar que tenga número y nombre de cuenta
-        if (!accountNumber.toString().trim() || !accountName.toString().trim()) {
-            continue; // Saltar filas vacías o incompletas
+        // Logging para depuración
+        console.log(`📋 Fila ${i}: número="${accountNumber}", nombre="${accountName}", actual="${currentYearValue}", anterior="${previousYearValue}"`);
+        
+        // Validar que tenga al menos número de cuenta (el nombre puede estar vacío)
+        if (!accountNumber.toString().trim()) {
+            console.log(`⚠️ Saltando fila ${i}: no tiene número de cuenta`);
+            continue; // Saltar filas sin número de cuenta
         }
         
         // Crear objeto de cuenta
@@ -2512,11 +2624,11 @@ async function extractAccountsFromExcel(excelFile, mappingData) {
             current_year_debit_credit: mappingData.currentYearDebitCredit || 'both',
             previous_year_debit_credit: mappingData.previousYearDebitCredit || 'both',
             balance_type: mappingData.balanceType || 'balance',
-            status: 'unassigned', // Estado inicial sin asignar
             created_at: new Date().toISOString(),
             source_file: excelFile.originalName
         };
         
+        console.log(`✅ Cuenta creada: ${account.account_number} - "${account.account_name}"`);
         accounts.push(account);
     }
     
@@ -2694,22 +2806,56 @@ app.post('/api/excel/process-mapping', async (req, res) => {
         };
         
         // Extraer las cuentas del Excel usando el mapeo
+        console.log(`🔄 Extrayendo cuentas con mapeo:`, JSON.stringify(mappingData, null, 2));
         const extractedAccounts = await extractAccountsFromExcel(sourceFile, mappingData);
+        console.log(`📊 Se extrajeron ${extractedAccounts.length} cuentas del Excel`);
         
-        // Guardar las cuentas en la base de datos
+        // Mostrar primeras 3 cuentas para depuración
+        if (extractedAccounts.length > 0) {
+            console.log(`🔍 Ejemplos de cuentas extraídas:`);
+            extractedAccounts.slice(0, 3).forEach((acc, idx) => {
+                console.log(`  ${idx + 1}. ${acc.account_number} - "${acc.account_name}" (valor: ${acc.current_year_value})`);
+            });
+        }
+        
+        // Guardar las cuentas en la base de datos usando la estructura existente
         if (extractedAccounts.length > 0) {
             try {
-                const { data: savedAccounts, error: saveError } = await supabase
+                const uploadedBy = req.body?.uploadedBy || null;
+                const estadoImportacion = mappingData?.balanceType === 'final'
+                    ? 'Final'
+                    : mappingData?.balanceType === 'planificacion'
+                        ? 'Planificación'
+                        : 'Procesado';
+
+                // Crear un registro en conjuntos_datos con los datos en formato JSON
+                const conjuntoDatos = {
+                    nombre: sourceFile?.originalName || `Importación Excel - ${new Date().toLocaleDateString()}`,
+                    tipo: 'excel_import',
+                    fecha_importacion: new Date().toISOString(),
+                    total_debitos: extractedAccounts.reduce((sum, acc) => sum + (acc.current_year_value || 0), 0),
+                    total_creditos: 0, // Se puede calcular si es necesario
+                    estado: estadoImportacion,
+                    archivo_original: sourceFile?.originalName || null,
+                    user_id: uploadedBy?.id || null,
+                    data: {
+                        accounts: extractedAccounts,
+                        importado_por: uploadedBy,
+                        balance_type: mappingData?.balanceType || null
+                    }
+                };
+                
+                const { data: savedData, error: saveError } = await supabase
                     .from('conjuntos_datos')
-                    .insert(extractedAccounts)
+                    .insert([conjuntoDatos])
                     .select();
                 
                 if (saveError) {
-                    console.error('Error guardando cuentas en conjuntos_datos:', saveError);
+                    console.error('Error guardando en conjuntos_datos:', saveError);
                     throw saveError;
                 }
                 
-                console.log(`✅ Guardadas ${savedAccounts.length} cuentas en conjuntos_datos`);
+                console.log(`✅ Guardada importación con ${extractedAccounts.length} cuentas en conjuntos_datos`);
                 
             } catch (error) {
                 console.error('Error en base de datos:', error);
@@ -2735,45 +2881,89 @@ app.post('/api/excel/process-mapping', async (req, res) => {
     }
 });
 
-// Endpoint para obtener cuentas sin asignar
+// Endpoint para obtener cuentas sin asignar (desde la columna data JSON)
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
-        const { page = 1, limit = 50, search = '' } = req.query;
+        const { page = 1, limit: limitParam, search = '' } = req.query;
+        const limit = limitParam ? parseInt(limitParam, 10) : null;
+        const pageNumber = limit ? parseInt(page, 10) : 1;
         
+        // Obtener los registros de conjuntos_datos que tienen datos en la columna data
         let query = supabase
             .from('conjuntos_datos')
             .select('*')
-            .eq('status', 'unassigned')
-            .order('created_at', { ascending: false });
+            .eq('tipo', 'excel_import')
+            .order('fecha_importacion', { ascending: false })
+            .limit(1);
         
-        // Aplicar búsqueda si se proporciona
-        if (search && search.trim()) {
-            const searchTerm = search.trim();
-            query = query.or(`account_number.ilike.%${searchTerm}%,account_name.ilike.%${searchTerm}%`);
-        }
+        const { data: conjuntos, error: conjuntosError } = await query;
         
-        // Aplicar paginación
-        const offset = (page - 1) * limit;
-        query = query.range(offset, offset + limit - 1);
-        
-        const { data, error, count } = await query;
-        
-        if (error) {
-            console.error('Error obteniendo cuentas sin asignar:', error);
+        if (conjuntosError) {
+            console.error('Error obteniendo conjuntos de datos:', conjuntosError);
             return res.status(500).json({ 
                 success: false, 
-                error: error.message 
+                error: conjuntosError.message 
             });
         }
         
+        // Extraer todas las cuentas de la columna data JSON
+        let allAccounts = [];
+        if (conjuntos && conjuntos.length > 0) {
+            conjuntos.forEach(conjunto => {
+                const rawData = conjunto.data;
+                const accounts = Array.isArray(rawData)
+                    ? rawData
+                    : Array.isArray(rawData?.accounts)
+                        ? rawData.accounts
+                        : [];
+
+                if (accounts.length) {
+                    accounts.forEach(account => {
+                        allAccounts.push({
+                            id: account.id,
+                            code: account.account_number,
+                            name: account.account_name,
+                            value: account.current_year_value || 0,
+                            // Mantener campos originales
+                            account_number: account.account_number,
+                            account_name: account.account_name,
+                            current_year_value: account.current_year_value,
+                            previous_year_value: account.previous_year_value,
+                            conjunto_id: conjunto.id,
+                            conjunto_nombre: conjunto.nombre,
+                            archivo_original: conjunto.archivo_original,
+                            fecha_importacion: conjunto.fecha_importacion
+                        });
+                    });
+                }
+            });
+        }
+        
+        // Aplicar búsqueda si se proporciona
+        if (search && search.trim()) {
+            const searchTerm = search.trim().toLowerCase();
+            allAccounts = allAccounts.filter(account => 
+                account.code.toLowerCase().includes(searchTerm) || 
+                account.name.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        // Aplicar paginación solo si se solicita límite
+        const paginatedAccounts = limit
+            ? allAccounts.slice((pageNumber - 1) * limit, (pageNumber - 1) * limit + limit)
+            : allAccounts;
+        
+        const datasetExists = allAccounts.length > 0;
+
         res.json({
             success: true,
-            data: data || [],
+            data: paginatedAccounts,
+            datasetExists,
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total: count || 0,
-                totalPages: Math.ceil((count || 0) / limit)
+                page: pageNumber,
+                limit: limit || allAccounts.length,
+                total: allAccounts.length,
+                totalPages: limit ? Math.ceil(allAccounts.length / limit) : 1
             }
         });
         
@@ -2782,6 +2972,65 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error interno del servidor' 
+        });
+    }
+});
+
+// Endpoint para eliminar cuentas sin asignar
+app.delete('/api/accounts/unassigned', async (req, res) => {
+    try {
+        const { ids } = req.body || {};
+
+        if (!Array.isArray(ids) || !ids.length) {
+            return res.status(400).json({
+                success: false,
+                error: 'Se requiere un arreglo de ids para eliminar'
+            });
+        }
+
+        const trimmedIds = ids
+            .map((id) => (typeof id === 'string' ? id.trim() : ''))
+            .filter(Boolean);
+
+        if (!trimmedIds.length) {
+            return res.status(400).json({
+                success: false,
+                error: 'Los ids proporcionados no son válidos'
+            });
+        }
+
+        if (!supabase) {
+            console.warn('⚠️ Supabase no disponible, simulando eliminación de cuentas sin asignar');
+            return res.json({
+                success: true,
+                deleted: trimmedIds.length,
+                simulated: true
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('conjuntos_datos')
+            .delete()
+            .in('id', trimmedIds)
+            .select('id');
+
+        if (error) {
+            console.error('Error eliminando cuentas sin asignar:', error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            deleted: Array.isArray(data) ? data.length : 0
+        });
+    } catch (error) {
+        console.error('Error en DELETE /api/accounts/unassigned:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor'
         });
     }
 });
@@ -2801,7 +3050,6 @@ app.post('/api/accounts/assign', async (req, res) => {
         const { data, error } = await supabase
             .from('conjuntos_datos')
             .update({ 
-                status: 'assigned',
                 assigned_group_id: groupId,
                 assigned_group_name: groupName,
                 assigned_at: new Date().toISOString()
@@ -2846,13 +3094,26 @@ app.post('/api/setup/create-table', async (req, res) => {
                 current_year_debit_credit TEXT DEFAULT 'both',
                 previous_year_debit_credit TEXT DEFAULT 'both',
                 balance_type TEXT DEFAULT 'balance',
-                status TEXT DEFAULT 'unassigned',
                 assigned_group_id TEXT,
                 assigned_group_name TEXT,
                 assigned_at TIMESTAMP WITH TIME ZONE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 source_file TEXT
             );
+
+            ALTER TABLE conjuntos_datos
+                ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'unassigned';
+            ALTER TABLE conjuntos_datos
+                ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT '';
+            ALTER TABLE conjuntos_datos
+                ADD COLUMN IF NOT EXISTS account_number TEXT DEFAULT '';
+            ALTER TABLE conjuntos_datos
+                ADD COLUMN IF NOT EXISTS current_year_value NUMERIC DEFAULT 0;
+            ALTER TABLE conjuntos_datos
+                ADD COLUMN IF NOT EXISTS previous_year_value NUMERIC DEFAULT 0;
+            
+            -- Recargar la caché del esquema de Supabase es automático al hacer DDL, 
+            -- pero asegurarse de que los índices existan ayuda.
             
             CREATE INDEX IF NOT EXISTS idx_conjuntos_datos_status ON conjuntos_datos(status);
             CREATE INDEX IF NOT EXISTS idx_conjuntos_datos_account_number ON conjuntos_datos(account_number);

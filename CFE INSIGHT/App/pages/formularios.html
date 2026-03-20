@@ -2731,6 +2731,33 @@
                     <!-- Main Content -->
                     <div class="data-main-content" id="dataMainContent">
                         <h2>Añadir datos</h2>
+
+                        <!-- Historial de importaciones -->
+                        <div class="card" style="padding: 16px; margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0;">Última importación</h3>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="loadDatasetHistory()">
+                                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Estado</th>
+                                            <th>Fecha de importación</th>
+                                            <th>Importado por</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="datasetHistoryBody">
+                                        <tr>
+                                            <td colspan="4" style="text-align: center; color: #6c757d;">Aún no hay importaciones.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         
                         <!-- Carga de Archivos de Datos -->
                         <div class="upload-section">
@@ -3059,6 +3086,58 @@
                 console.error('Error cargando datos para mapeo:', error);
             }
         }
+
+        function resetAssignAccountsState() {
+            selectedAccount = null;
+
+            // Limpiar selección en la lista izquierda
+            document.querySelectorAll('.unassigned-accounts-list .account-item.selected')
+                .forEach(item => item.classList.remove('selected'));
+
+            // Remover cuentas asignadas de ejecuciones anteriores
+            document.querySelectorAll('.assigned-account').forEach(account => account.remove());
+
+            // Resetear contadores de grupos
+            document.querySelectorAll('.group-content').forEach(groupContent => {
+                if (typeof updateGroupCount === 'function') {
+                    updateGroupCount(groupContent);
+                }
+            });
+
+            // Resetear contador de seleccionados
+            const selectionInfo = document.querySelector('.selection-info span');
+            if (selectionInfo) {
+                selectionInfo.textContent = '0 seleccionados';
+            }
+        }
+
+        function formatStatusBadge(status) {
+            const normalized = (status || '').toString().toLowerCase();
+            let background = '#e7f1ff';
+            let color = '#084298';
+            let dot = '#0d6efd';
+
+            if (normalized.includes('final')) {
+                background = '#e7f1ff';
+                color = '#084298';
+                dot = '#0d6efd';
+            } else if (normalized.includes('plan')) {
+                background = '#e0f2fe';
+                color = '#055160';
+                dot = '#0ea5e9';
+            } else if (normalized.includes('proces')) {
+                background = '#edf6ff';
+                color = '#0a58ca';
+                dot = '#2563eb';
+            }
+
+            return `
+                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; background: ${background}; color: ${color}; border: 1px solid rgba(13, 110, 253, 0.18);">
+                    <i class=\"bi bi-circle-fill\" style=\"font-size: 0.5rem; color: ${dot};\"></i>
+                    ${status || 'Procesado'}
+                </span>
+            `;
+        }
         
         function updateMappingSelectors(sheetData) {
             // Intentar encontrar la fila de encabezados más inteligente
@@ -3273,9 +3352,49 @@
                 }
 
                 // Preparar datos para enviar al servidor (estructura correcta)
+                // Intentar obtener el usuario de múltiples formas
+                let sessionUser = null;
+                
+                // 1. Usar getUserUI() de auth-guard (preferido)
+                if (typeof window.getUserUI === 'function') {
+                    sessionUser = window.getUserUI();
+                    console.log('👤 Usuario desde getUserUI():', sessionUser);
+                }
+                
+                // 2. Fallback a getCurrentSession() local
+                if (!sessionUser && typeof getCurrentSession === 'function') {
+                    sessionUser = getCurrentSession();
+                    console.log('👤 Usuario desde getCurrentSession():', sessionUser);
+                }
+                
+                // 3. Fallback a window.currentUser
+                if (!sessionUser && window.currentUser) {
+                    sessionUser = window.currentUser;
+                    console.log('👤 Usuario desde window.currentUser:', sessionUser);
+                }
+                
+                // 4. Fallback directo a sessionStorage
+                if (!sessionUser) {
+                    try {
+                        const sessionData = sessionStorage.getItem('userUI');
+                        if (sessionData) {
+                            sessionUser = JSON.parse(sessionData);
+                            console.log('👤 Usuario desde sessionStorage directo:', sessionUser);
+                        }
+                    } catch (e) {
+                        console.warn('Error leyendo sessionStorage:', e);
+                    }
+                }
+                
+                console.log('👤 Usuario final detectado para upload:', sessionUser);
                 const payload = {
                     mappingData: mappings,
-                    fileId: fileId
+                    fileId: fileId,
+                    uploadedBy: sessionUser ? {
+                        id: sessionUser.id || sessionUser.user_id || sessionUser.uid || null,
+                        name: sessionUser.name || sessionUser.fullName || sessionUser.nombre || sessionUser.email || null,
+                        email: sessionUser.email || null
+                    } : null
                 };
 
                 // Enviar datos al servidor para procesamiento
@@ -3298,6 +3417,9 @@
 
                 // Mostrar mensaje de éxito
                 alert('✅ Proceso completado:\n• Datos completos del Excel guardados en "conjuntos_datos"\n• Cuentas extraídas guardadas en "cuentas_contables"');
+
+                // Refrescar historial de importaciones
+                loadDatasetHistory();
 
                 // Cerrar modal y volver a la vista principal
                 closeColumnMappingModal();
@@ -12704,6 +12826,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     break;
                 default:
                     dataMainContent.style.display = 'block';
+                    loadDatasetHistory();
                     break;
             }
         }
@@ -12818,12 +12941,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const accountName = a.name || '';
                     const currentValue = a.value || 0;
                     
-                    // Mejorar la visualización cuando no hay nombre
+                    // Mejorar la visualización del nombre de cuenta
                     let displayName;
-                    if (accountName && accountName.trim()) {
+                    if (accountName && accountName.trim() && accountName.trim() !== '(sin nombre asignado)' && accountName.trim() !== accountNumber) {
                         displayName = `${accountNumber} - ${accountName}`;
                     } else {
-                        displayName = `${accountNumber} (sin nombre asignado)`;
+                        // Si no hay nombre válido, mostrar solo el número con un indicador visual
+                        displayName = `${accountNumber} <span style="color: #6c757d; font-size: 0.9em;">[sin nombre]</span>`;
                     }
                     
                     const displayValue = currentValue != null ? formatCurrency(currentValue) : '';
@@ -12991,10 +13115,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
                 
-                console.log('🎯 Asignando cuenta del Excel a la posición de cuenta estática:', selectedAccount.code, '→', this);
+                console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', selectedAccount.code, '→', this);
                 
-                // Reemplazar o agregar junto a la cuenta estática
-                replaceStaticAccountWithExcelAccount(selectedAccount, this, groupContent);
+                // Agregar debajo de la cuenta estática (sin reemplazarla)
+                appendExcelAccountToStaticAccount(selectedAccount, this, groupContent);
             });
         });
         
@@ -13036,140 +13160,85 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         console.log('✅ Cuentas estáticas inicializadas correctamente');
     }
     
-    function replaceStaticAccountWithExcelAccount(excelAccount, staticAccountElement, groupContent) {
-        console.log('🔄 Reemplazando cuenta estática con cuenta del Excel:', excelAccount.code);
-        
-        // Obtener datos de la cuenta estática original
-        const staticNameElement = staticAccountElement.querySelector('.account-name');
-        const staticValueElement = staticAccountElement.querySelector('.account-value');
-        const staticCode = staticAccountElement.dataset.accountCode || '';
-        const staticName = staticAccountElement.dataset.accountName || '';
-        
-        // Crear elemento combinado que muestre ambas cuentas
-        const combinedAccount = document.createElement('div');
-        combinedAccount.className = 'account-item excel-assigned';
-        combinedAccount.style.cssText = `
-            background: linear-gradient(135deg, #a7d9f7 0%, #d0efff 100%); /* Celeste pastel */
-            color: #333;
-            padding: 8px 12px;
-            margin: 3px 0;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid #6cb7e3; /* Borde azul más oscuro */
-            position: relative;
-        `;
-        
-        // Formatear el valor de la cuenta del Excel
-        let excelValue = 0;
-        const valueText = excelAccount.value || '0';
-        
-        console.log('🔍 Valor original del Excel:', valueText);
-        console.log('🔍 Tipo de dato:', typeof valueText);
-        
-        // Limpiar el valor: remover "Q", comas y espacios, luego convertir a número
-        const cleanValue = valueText.replace(/[Q,\s]/g, '').replace(/[^0-9.-]/g, '');
-        excelValue = parseFloat(cleanValue) || 0;
-        
-        console.log('🔍 Valor limpio:', cleanValue);
-        console.log('🔍 Valor convertido:', excelValue);
-        
-        const formattedExcelValue = formatCurrency(excelValue);
-        console.log('🔍 Valor formateado:', formattedExcelValue);
-        
-        combinedAccount.innerHTML = `
-            <div style="flex: 1;">
-                <div style="font-weight: bold; margin-bottom: 2px;">
-                    📊 ${excelAccount.code} ${excelAccount.name}
-                </div>
-                <div style="font-size: 0.85em; opacity: 0.9;">
-                    📍 Reemplaza: ${staticCode} ${staticName}
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-weight: bold; font-size: 0.9em; color: #0056b3;">
-                    ${formattedExcelValue}
-                </div>
-                <button class="btn-remove" onclick="removeExcelAccount(this)" style="margin-top: 2px; background-color: #e3f2fd; color: #0056b3; border: 1px solid #bbdefb;">
-                    ×
-                </button>
-            </div>
-        `;
-        
-        // Agregar datos para referencia
-        combinedAccount.dataset.excelAccountId = excelAccount.id;
-        combinedAccount.dataset.excelAccountCode = excelAccount.code;
-        combinedAccount.dataset.excelAccountName = excelAccount.name;
-        combinedAccount.dataset.excelAccountValue = excelAccount.value;
-        combinedAccount.dataset.originalStaticCode = staticCode;
-        combinedAccount.dataset.originalStaticName = staticName;
-        
-        // Reemplazar la cuenta estática con la combinada
-        staticAccountElement.parentNode.replaceChild(combinedAccount, staticAccountElement);
-        
+    function appendExcelAccountToStaticAccount(excelAccount, staticAccountElement, groupContent) {
+        console.log('🔄 Agregando cuenta del Excel debajo de cuenta estática:', excelAccount.code);
+
+        const assignedAccount = createAssignedAccountElement(excelAccount);
+        assignedAccount.classList.add('assigned-subaccount');
+
+        staticAccountElement.insertAdjacentElement('afterend', assignedAccount);
+
+        // Apply custom styles for sub-accounts (overriding default styles)
+        assignedAccount.style.background = '#eff6ff';
+        assignedAccount.style.color = '#1e293b';
+        assignedAccount.style.padding = '6px 10px';
+        assignedAccount.style.margin = '4px 0 4px 18px';
+        assignedAccount.style.borderRadius = '6px';
+        assignedAccount.style.borderLeft = '3px solid #3b82f6';
+        assignedAccount.style.fontWeight = '500';
+        assignedAccount.style.display = 'flex';
+        assignedAccount.style.justifyContent = 'space-between';
+        assignedAccount.style.alignItems = 'center';
+
         // Ocultar y remover la cuenta original del lado izquierdo
         excelAccount.element.style.display = 'none';
         setTimeout(() => {
             excelAccount.element.remove();
             console.log('🗑️ Cuenta original del Excel removida');
         }, 100);
-        
+
         // Limpiar selección
         selectedAccount = null;
         document.querySelectorAll('.account-item.selected').forEach(item => {
             item.classList.remove('selected');
         });
-        
+
         // Actualizar contadores
         updateGroupCount(groupContent);
         updateRemainingCount();
-        
+
         // Mostrar notificación
-        showNotification(`✅ Cuenta ${excelAccount.code} - ${excelAccount.name} asignada (reemplaza ${staticCode} ${staticName})`, 'success');
-        
-        console.log('✅ Reemplazo completado exitosamente');
+        const staticCode = staticAccountElement.dataset.accountCode || '';
+        const staticName = staticAccountElement.dataset.accountName || '';
+        showNotification(`✅ Cuenta ${excelAccount.code} - ${excelAccount.name} asignada en ${staticCode} ${staticName}`, 'success');
+
+        console.log('✅ Asignación completada exitosamente');
     }
     
-    function removeExcelAccount(button) {
-        const accountElement = button.closest('.excel-assigned');
-        const groupContent = accountElement.closest('.group-content') || accountElement.closest('.sub-group-content');
+    function removeAccountFromGroup(button) {
+        const accountElement = button.closest('.assigned-account');
+        const groupContent = accountElement.closest('.group-content, .sub-group-content');
         
-        // Obtener datos de la cuenta del Excel
-        const excelAccountData = {
-            id: accountElement.dataset.excelAccountId,
-            code: accountElement.dataset.excelAccountCode,
-            name: accountElement.dataset.excelAccountName,
-            value: accountElement.dataset.excelAccountValue
+        // Obtener datos de la cuenta
+        const accountData = {
+            id: accountElement.dataset.accountId,
+            code: accountElement.dataset.accountCode || '',
+            name: accountElement.dataset.accountName || '',
+            value: accountElement.dataset.accountValue || '0'
         };
         
-        // Obtener datos de la cuenta estática original
-        const staticCode = accountElement.dataset.originalStaticCode;
-        const staticName = accountElement.dataset.originalStaticName;
+        // Remover del grupo
+        accountElement.remove();
         
-        // Restaurar la cuenta estática original
-        const restoredStaticAccount = document.createElement('div');
-        restoredStaticAccount.className = 'account-item';
-        restoredStaticAccount.dataset.accountCode = staticCode;
-        restoredStaticAccount.dataset.accountName = staticName;
-        restoredStaticAccount.dataset.accountId = staticCode;
-        
-        restoredStaticAccount.innerHTML = `
-            <span class="account-name">${staticCode} ${staticName}</span>
-            <span class="account-value">0,00</span>
-        `;
-        
-        // Reemplazar la cuenta combinada con la estática restaurada
-        accountElement.parentNode.replaceChild(restoredStaticAccount, accountElement);
-        
-        // Agregar la cuenta del Excel de vuelta a la lista de no asignados
-        addAccountBackToUnassigned(excelAccountData);
+        // Agregar de vuelta a la lista de no asignados
+        addAccountBackToUnassigned(accountData);
         
         // Actualizar contador del grupo
         updateGroupCount(groupContent);
+        updateRemainingCount();
+        
+        // Si el grupo queda vacío, mostrar empty state
+        if (groupContent.querySelectorAll('.assigned-account').length === 0) {
+            groupContent.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No hay cuentas asignadas</p>
+                </div>
+            `;
+        }
         
         // Mostrar notificación
-        showNotification(`Cuenta ${excelAccountData.code} - ${excelAccountData.name} devuelta a la lista`, 'info');
+        showNotification(`Cuenta ${accountData.code} - ${accountData.name} removida del grupo`, 'info');
     }
     
     function addAccountBackToUnassigned(accountData) {
@@ -13253,22 +13322,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const div = document.createElement('div');
         div.className = 'assigned-account';
         div.dataset.accountId = accountData.id || accountData.code;
-        
+        div.dataset.accountCode = accountData.code || '';
+        div.dataset.accountName = accountData.name || '';
+        div.dataset.accountValue = accountData.value ?? '0';
+
+        const rawValue = accountData.value ?? 0;
+        const numericValue = typeof rawValue === 'string'
+            ? parseFloat(rawValue.replace(/[Q,\s]/g, '').replace(/[^0-9.-]/g, ''))
+            : Number(rawValue);
+        const formattedValue = formatCurrency(Number.isFinite(numericValue) ? numericValue : 0);
+
         div.innerHTML = `
-            <span style="flex: 1;">${accountData.code} ${accountData.name}</span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 600;">${accountData.code} ${accountData.name}</span>
+                <span style="font-size: 0.85em; opacity: 0.85;">${formattedValue}</span>
+            </span>
             <button class="btn-remove" onclick="removeAccountFromGroup(this)">×</button>
-        `;
-        
-        // Estilos inline para asegurar visibilidad
-        div.style.cssText = `
-            background: #28a745;
-            color: white;
-            padding: 6px 10px;
-            margin: 2px 0;
-            border-radius: 3px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         `;
         
         console.log('✅ Elemento de cuenta creado exitosamente');
@@ -13277,14 +13346,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     
     function removeAccountFromGroup(button) {
         const accountElement = button.closest('.assigned-account');
-        const groupContent = accountElement.closest('.group-content');
+        const groupContent = accountElement.closest('.group-content, .sub-group-content');
         
         // Obtener datos de la cuenta
         const accountData = {
             id: accountElement.dataset.accountId,
-            code: accountElement.textContent.split(' ')[0],
-            name: accountElement.textContent.split(' ').slice(1).join(' ').replace('×', '').trim(),
-            value: '0'
+            code: accountElement.dataset.accountCode || '',
+            name: accountElement.dataset.accountName || '',
+            value: accountElement.dataset.accountValue || '0'
         };
         
         // Remover del grupo
@@ -13295,6 +13364,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Actualizar contador del grupo
         updateGroupCount(groupContent);
+        updateRemainingCount();
         
         // Si el grupo queda vacío, mostrar empty state
         if (groupContent.querySelectorAll('.assigned-account').length === 0) {
@@ -13456,18 +13526,89 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para formatear moneda
         function formatCurrency(value) {
-            if (typeof value !== 'number') return '';
-            // Formato para Quetzales Guatemaltecos (Q)
-            const formattedValue = new Intl.NumberFormat('es-GT', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(Math.abs(value));
-            
+            if (value == null || value === '' || isNaN(value)) return 'Q0.00';
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) return 'Q0.00';
+            const formattedValue = numValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             return `Q${formattedValue}`;
+        }
+
+        function formatDateTime(value) {
+            if (!value) return 'Sin fecha';
+            try {
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return 'Sin fecha';
+                return date.toLocaleString('es-GT', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return 'Sin fecha';
+            }
+        }
+
+        async function loadDatasetHistory() {
+            const tableBody = document.getElementById('datasetHistoryBody');
+            if (!tableBody) return;
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #6c757d;">Cargando historial...</td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/datasets/history?limit=1`);
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Error cargando historial');
+                }
+
+                const items = result.data || [];
+                if (!items.length) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6c757d;">Aún no hay importaciones.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                const item = items[0];
+                tableBody.innerHTML = `
+                    <tr style="background: #f8fbff; border: 1px solid #e3f0ff;">
+                        <td style="padding: 12px 16px;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-weight: 600; color: #1e293b;">${item.nombre || 'Archivo sin nombre'}</span>
+                                <span style="font-size: 0.85rem; color: #64748b;">${item.archivo_original || 'Archivo Excel'}</span>
+                            </div>
+                        </td>
+                        <td style="padding: 12px 16px;">${formatStatusBadge(item.estado)}</td>
+                        <td style="padding: 12px 16px; color: #475569; font-size: 0.9rem;">
+                            <i class="bi bi-calendar3"></i> ${formatDateTime(item.fecha_importacion)}
+                        </td>
+                        <td style="padding: 12px 16px; color: #475569; font-size: 0.9rem;">
+                            <i class="bi bi-person-circle"></i> ${item.importado_por || 'Sin usuario'}
+                        </td>
+                    </tr>
+                `;
+            } catch (error) {
+                console.error('Error cargando historial:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #dc3545;">Error cargando historial</td>
+                    </tr>
+                `;
+            }
         }
 
         async function loadUnassignedAccountsFromLatestExcel() {
             try {
+                resetAssignAccountsState();
                 const container = document.querySelector('.unassigned-accounts-list');
                 if (container) {
                     container.innerHTML = `
@@ -13487,18 +13628,70 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
 
                 const accounts = result.data || [];
-                renderUnassignedAccounts(accounts);
                 
-                // Actualizar el contador
-                const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
-                if (countEl) {
-                    countEl.textContent = `(${accounts.length} restantes)`;
+                // Verificar si hay datos procesados
+                if (!result.datasetExists || accounts.length === 0) {
+                    // Mostrar mensaje de que no hay datos
+                    renderNoDataState();
+                    // Actualizar el contador a 0
+                    const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+                    if (countEl) {
+                        countEl.textContent = '(0 restantes)';
+                    }
+                } else {
+                    // Hay datos, mostrar las cuentas
+                    renderUnassignedAccounts(accounts);
+                    // Actualizar el contador
+                    const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+                    if (countEl) {
+                        countEl.textContent = `(${accounts.length} restantes)`;
+                    }
                 }
                 
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
-                renderUnassignedAccounts([]);
+                renderNoDataState();
+                const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+                if (countEl) {
+                    countEl.textContent = '(0 restantes)';
+                }
                 alert(err?.message || 'Error cargando cuentas');
+            }
+        }
+
+        function renderNoDataState() {
+            const container = document.querySelector('.unassigned-accounts-list');
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 60px 20px; color: #6c757d;">
+                        <i class="bi bi-file-earmark-excel" style="font-size: 4rem; margin-bottom: 20px; display: block;"></i>
+                        <h4 style="color: #495057; margin-bottom: 15px;">No hay datos de cuentas</h4>
+                        <p style="margin-bottom: 20px; line-height: 1.6;">
+                            Para ver cuentas en esta sección, primero debes:
+                        </p>
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto;">
+                            <div style="margin-bottom: 10px;">
+                                <i class="bi bi-1-circle-fill" style="color: #007bff;"></i>
+                                <strong> Paso 1:</strong> Ir a <strong>"Conjunto de datos"</strong>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <i class="bi bi-2-circle-fill" style="color: #007bff;"></i>
+                                <strong> Paso 2:</strong> Subir un archivo Excel
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <i class="bi bi-3-circle-fill" style="color: #007bff;"></i>
+                                <strong> Paso 3:</strong> Mapear las columnas
+                            </div>
+                            <div>
+                                <i class="bi bi-4-circle-fill" style="color: #007bff;"></i>
+                                <strong> Paso 4:</strong> Guardar los datos
+                            </div>
+                        </div>
+                        <p style="font-size: 0.9em; color: #868e96;">
+                            Una vez procesado el Excel, las cuentas aparecerán aquí para asignarlas a grupos.
+                        </p>
+                    </div>
+                `;
             }
         }
         
@@ -13838,7 +14031,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         document.addEventListener('DOMContentLoaded', function () {
             const initFormularios = function () {
-                const userData = getCurrentSession();
+                const userData = window.getUserUI();
                 if (!userData) {
                     window.location.href = 'login.html';
                     return;

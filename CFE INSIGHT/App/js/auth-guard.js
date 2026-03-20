@@ -70,13 +70,24 @@ if (!window.currentUserReady) {
     }
 
     /**
-     * Obtener los datos de UI del usuario desde sessionStorage
+     * Obtener los datos de UI del usuario desde sessionStorage o window.currentUser
      * @returns {object|null} Datos de UI o null
      */
     function getUserUI() {
         try {
+            // Primero intentar sessionStorage
             const userUIStr = sessionStorage.getItem(USER_UI_KEY);
-            return userUIStr ? JSON.parse(userUIStr) : null;
+            if (userUIStr) {
+                return JSON.parse(userUIStr);
+            }
+            
+            // Fallback a window.currentUser (que es donde auth-guard lo almacena)
+            if (window.currentUser) {
+                console.log('👤 getUserUI: Usando window.currentUser como fallback');
+                return window.currentUser;
+            }
+            
+            return null;
         } catch (error) {
             console.warn('⚠️ Error al obtener userUI:', error.message);
             return null;
