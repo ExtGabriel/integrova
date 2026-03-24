@@ -3534,68 +3534,291 @@
             return { totalDebe, totalHaber, totalDiff: totalDebe - totalHaber, diffs };
         }
 
-        function renderLedgerIntegrity(result, meta) {
-            const tbody = document.getElementById('ledgerIntegrityTableBody');
-            
-            if (!tbody) return;
+        function formatLedgerCurrency(value) {
+            if (!Number.isFinite(value)) return 'Q0.00';
+            const absValue = Math.abs(value);
+            const formatted = absValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const withSymbol = `Q${formatted}`;
+            return value < 0 ? `(${withSymbol})` : withSymbol;
+        }
 
-            // Datos de ejemplo basados en la imagen proporcionada
-            const sampleData = [
-                {
+        function formatLedgerCell(value) {
+            if (value == null || !Number.isFinite(value)) return '-';
+            const color = value < 0 ? '#dc3545' : '#0f172a';
+            return `<span style="color: ${color}; font-weight: 500;">${formatLedgerCurrency(value)}</span>`;
+        }
+
+        function formatLedgerMissingCell() {
+            return '<div style="display: flex; align-items: center; justify-content: center; gap: 6px;"><i class="bi bi-exclamation-triangle" style="color: #f59e0b; font-size: 0.9rem;"></i><span style="color: #6c757d;">Datos faltantes</span></div>';
+        }
+
+        function buildLedgerDiffMap(diffs) {
+            const ledgerMap = new Map();
+            if (!Array.isArray(diffs)) return ledgerMap;
+            diffs.forEach(item => {
+                const codeKey = (item?.code ?? '').toString().trim();
+                const nameKey = (item?.name ?? '').toString().trim();
+                const diffValue = Number(item?.diff ?? 0) || 0;
+
+                if (codeKey) {
+                    ledgerMap.set(codeKey, (ledgerMap.get(codeKey) || 0) + diffValue);
+                } else if (nameKey) {
+                    ledgerMap.set(nameKey, (ledgerMap.get(nameKey) || 0) + diffValue);
+                }
+            });
+            return ledgerMap;
+        }
+
+        function getLedgerSheetData(sheetsData) {
+            if (!Array.isArray(sheetsData)) return null;
+            const keywords = ['debe', 'debit', 'haber', 'credit'];
+            let bestMatch = null;
+            let bestScore = 0;
+
+            sheetsData.forEach(sheet => {
+                const sheetRows = Array.isArray(sheet?.data) ? sheet.data : [];
+                if (!sheetRows.length) return;
+
+                const sampleRows = sheetRows.slice(0, Math.min(6, sheetRows.length));
+                sampleRows.forEach((row, index) => {
+                    const normalized = Array.isArray(row) ? row.map(normalizeHeader) : [];
+                    const score = keywords.reduce((acc, key) => acc + (normalized.includes(key) ? 1 : 0), 0);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = {
+                            name: sheet?.sheet_name || sheet?.name || '',
+                            headers: row || [],
+                            rows: sheetRows.slice(index + 1)
+                        };
+                    }
+                });
+            });
+
+            return bestMatch;
+        }
+
+        function sumAssignedTotals(accounts) {
+            return accounts.reduce((acc, account) => {
+                acc.previous += parseAccountValue(account.dataset.accountPrevValue);
+                acc.current += parseAccountValue(account.dataset.accountValue);
+                return acc;
+            }, { previous: 0, current: 0 });
+        }
+
+        function sumLedgerTotals(accounts, ledgerMap) {
+            return accounts.reduce((total, account) => {
+                const code = (account.dataset.accountCode || '').toString().trim();
+                const name = (account.dataset.accountName || '').toString().trim();
+                if (code && ledgerMap.has(code)) {
+                    return total + (ledgerMap.get(code) || 0);
+                }
+                if (name && ledgerMap.has(name)) {
+                    return total + (ledgerMap.get(name) || 0);
+                }
+                return total;
+            }, 0);
+        }
+
+        function buildLedgerRow({
+            accountName,
+            accountNumber,
+            previous,
+            ledger,
+            current,
+            level,
+            isParent,
+            isSummary,
+            ledgerMissing
+        }) {
+            const ledgerValue = Number.isFinite(ledger) ? ledger : 0;
+            const calculated = previous + ledgerValue;
+            const difference = calculated - current;
+            const hasError = Number.isFinite(difference) ? Math.abs(difference) > 0.01 : false;
+            return {
+                accountName,
+                accountNumber,
+                previous,
+                ledger: ledgerMissing ? null : ledgerValue,
+                calculated,
+                current,
+                difference,
+                level,
+                isParent,
+                isSummary,
+                hasError,
+                ledgerMissing
+            };
+        }
+
+        function buildLedgerIntegrityRows(ledgerMap, ledgerAvailable) {
+            const rows = [];
+            const groups = document.querySelectorAll('.financial-groups-list .group-item');
+            const totals = { previous: 0, ledger: 0, current: 0 };
+
+            const addRowsForContainer = (container, level) => {
+                if (!container) return;
+                Array.from(container.children).forEach(child => {
+                    if (child.classList.contains('sub-group-item')) {
+                        const header = child.querySelector('.sub-group-header .sub-group-name');
+                        const name = header ? header.textContent.trim() : 'Subgrupo';
+                        const content = child.querySelector('.sub-group-content');
+                        const assignedAccounts = content ? Array.from(content.querySelectorAll('.assigned-account')) : [];
+                        const { previous, current } = sumAssignedTotals(assignedAccounts);
+                        const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
+
+                        rows.push(buildLedgerRow({
+                            accountName: name,
+                            accountNumber: '',
+                            previous,
+                            ledger: ledgerTotal,
+                            current,
+                            level,
+                            isParent: true,
+                            isSummary: false,
+                            ledgerMissing: !ledgerAvailable
+                        }));
+
+                        addRowsForContainer(content, level + 1);
+                        return;
+                    }
+
+                    if (child.classList.contains('account-item') && child.classList.contains('static-account')) {
+                        const accountCode = (child.dataset.accountCode || '').toString().trim();
+                        const accountName = (child.dataset.accountName || '').toString().trim();
+                        const previous = parseAccountValue(child.dataset.accountPrevValue);
+                        const current = parseAccountValue(child.dataset.accountValue);
+                        const parentId = child.dataset.accountId || '';
+                        const scope = child.closest('.group-content, .sub-group-content');
+                        const assignedAccounts = scope
+                            ? Array.from(scope.querySelectorAll(`.assigned-account[data-parent-account-id="${parentId}"]`))
+                            : [];
+                        const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
+
+                        rows.push(buildLedgerRow({
+                            accountName: accountName || accountCode,
+                            accountNumber: accountCode,
+                            previous,
+                            ledger: ledgerTotal,
+                            current,
+                            level,
+                            isParent: assignedAccounts.length > 0,
+                            isSummary: false,
+                            ledgerMissing: !ledgerAvailable
+                        }));
+
+                        assignedAccounts.forEach(account => {
+                            const assignedCode = (account.dataset.accountCode || '').toString().trim();
+                            const assignedName = (account.dataset.accountName || '').toString().trim();
+                            const assignedPrev = parseAccountValue(account.dataset.accountPrevValue);
+                            const assignedCurr = parseAccountValue(account.dataset.accountValue);
+                            const assignedLedger = ledgerAvailable
+                                ? sumLedgerTotals([account], ledgerMap)
+                                : 0;
+
+                            rows.push(buildLedgerRow({
+                                accountName: assignedName || assignedCode,
+                                accountNumber: assignedCode,
+                                previous: assignedPrev,
+                                ledger: assignedLedger,
+                                current: assignedCurr,
+                                level: level + 1,
+                                isParent: false,
+                                isSummary: false,
+                                ledgerMissing: !ledgerAvailable
+                            }));
+                        });
+                    }
+                });
+            };
+
+            groups.forEach(group => {
+                const groupNameEl = group.querySelector('.group-header .group-name');
+                const groupName = groupNameEl ? groupNameEl.textContent.trim() : 'Grupo';
+                const groupContent = group.querySelector('.group-content');
+                const assignedAccounts = groupContent ? Array.from(groupContent.querySelectorAll('.assigned-account')) : [];
+                const groupTotals = sumAssignedTotals(assignedAccounts);
+                const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
+
+                totals.previous += groupTotals.previous;
+                totals.current += groupTotals.current;
+                totals.ledger += ledgerTotal;
+
+                rows.push(buildLedgerRow({
+                    accountName: groupName,
+                    accountNumber: '',
+                    previous: groupTotals.previous,
+                    ledger: ledgerTotal,
+                    current: groupTotals.current,
+                    level: 0,
+                    isParent: true,
+                    isSummary: false,
+                    ledgerMissing: !ledgerAvailable
+                }));
+
+                addRowsForContainer(groupContent, 1);
+            });
+
+            if (rows.length) {
+                rows.unshift(buildLedgerRow({
                     accountName: 'SALDO NETO',
                     accountNumber: '',
-                    previousBalance: 'Q0.00',
-                    ledgerAmount: null, // Mostrará icono de datos faltantes
-                    calculatedBalance: 'Q1.970.666,00',
-                    currentBalance: '(Q1.970.666,00)',
-                    difference: 'Q0.00',
-                    hasMissingData: true
-                },
-                {
-                    accountName: '2 Activos corrientes',
-                    accountNumber: '',
-                    previousBalance: 'Q0.00',
-                    ledgerAmount: 'Q2.371.065,00',
-                    calculatedBalance: '(Q2.371.065,00)',
-                    currentBalance: '(Q1.970.666,00)',
-                    difference: '(Q400.399,00)',
-                    hasError: true
-                },
-                {
-                    accountName: '3 Patrimonio y fondos de accionistas',
-                    accountNumber: '',
-                    previousBalance: 'Q0.00',
-                    ledgerAmount: '(Q2.371.065,00)',
-                    calculatedBalance: 'Q2.371.065,00',
-                    currentBalance: 'Q1.970.666,00',
-                    difference: 'Q400.399,00',
-                    hasError: true
-                }
-            ];
+                    previous: totals.previous,
+                    ledger: totals.ledger,
+                    current: totals.current,
+                    level: 0,
+                    isParent: true,
+                    isSummary: true,
+                    ledgerMissing: !ledgerAvailable
+                }));
+            }
 
-            tbody.innerHTML = sampleData.map((row, index) => {
-                const isNegative = (value) => value && value.startsWith('(');
-                const formatCell = (value, hasMissingData = false) => {
-                    if (hasMissingData) {
-                        return '<div style="display: flex; align-items: center; justify-content: center; gap: 4px;"><i class="bi bi-exclamation-triangle" style="color: #ffc107; font-size: 0.9rem;"></i><span style="color: #6c757d;">Datos faltantes</span></div>';
-                    }
-                    if (!value) return '-';
-                    const color = isNegative(value) ? '#dc3545' : '#000000';
-                    return `<span style="color: ${color}; font-weight: 500;">${value}</span>`;
-                };
+            return rows;
+        }
 
-                const rowStyle = row.hasError ? 'background-color: #fff5f5;' : '';
-                const accountNameStyle = row.accountName === 'SALDO NETO' ? 'font-weight: 700; color: #495057;' : 'font-weight: 500;';
+        function renderLedgerIntegrity(rows, meta) {
+            const tbody = document.getElementById('ledgerIntegrityTableBody');
+            if (!tbody) return;
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
+                            <div>No hay cuentas asignadas para calcular la integridad.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = rows.map((row, index) => {
+                const indent = row.level * 20;
+                const rowStyle = row.isSummary
+                    ? 'background-color: #f1f5f9; font-weight: 700;'
+                    : index % 2 === 0 ? 'background-color: #f8f9fa;' : '';
+                const nameStyle = row.isSummary
+                    ? 'font-weight: 700; color: #334155;'
+                    : row.level === 0
+                        ? 'font-weight: 600; color: #334155;'
+                        : 'font-weight: 500; color: #475569;';
+                const ledgerCell = row.ledgerMissing ? formatLedgerMissingCell() : formatLedgerCell(row.ledger);
+                const diffCell = formatLedgerCell(row.difference);
+                const diffColor = row.hasError ? '#dc3545' : '#0f172a';
 
                 return `
                     <tr style="${rowStyle}">
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; ${accountNameStyle}">${row.accountName}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; ${nameStyle}">
+                            <div style="display: flex; align-items: center; margin-left: ${indent}px; gap: 6px;">
+                                ${row.level > 0 ? '<span style="width: 10px; display: inline-block;"></span>' : ''}
+                                ${row.accountName}
+                            </div>
+                        </td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5;">${row.accountNumber || '-'}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.previousBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.ledgerAmount, row.hasMissingData)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.calculatedBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.currentBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600; color: ${row.hasError ? '#dc3545' : '#000000'};">${formatCell(row.difference)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.previous)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${ledgerCell}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.calculated)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.current)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600; color: ${diffColor};">${diffCell}</td>
                     </tr>
                 `;
             }).join('');
@@ -3603,155 +3826,31 @@
 
         async function loadLedgerIntegrityFromLatestExcel() {
             try {
-                // Simular carga con datos de ejemplo basados en la imagen
-                setTimeout(() => {
-                    renderLedgerIntegrity({}, 'Archivo: ejemplo_libro_mayor.xlsx | Estado: Procesado');
-                }, 500);
+                const response = await fetch(`${API_BASE_URL}/api/excel/latest`);
+                const result = await response.json();
+
+                let ledgerAvailable = false;
+                let ledgerMap = new Map();
+                let meta = '';
+
+                if (response.ok && result.success && result.data) {
+                    const sheetsData = result.data.sheets_data || [];
+                    const ledgerSheet = getLedgerSheetData(sheetsData);
+                    if (ledgerSheet) {
+                        const ledgerTotals = extractLedgerTotalsAndDiffs(ledgerSheet);
+                        ledgerMap = buildLedgerDiffMap(ledgerTotals.diffs);
+                        ledgerAvailable = ledgerMap.size > 0;
+                        meta = ledgerSheet.name ? `Hoja: ${ledgerSheet.name}` : '';
+                    }
+                }
+
+                const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
+                renderLedgerIntegrity(rows, meta);
             } catch (err) {
                 console.error('Error cargando integridad del libro mayor:', err);
-                renderLedgerIntegrity({}, '');
+                renderLedgerIntegrity([], '');
                 alert(err?.message || 'Error cargando integridad del libro mayor');
             }
-        }
-
-        function renderLedgerIntegrity(result, meta) {
-            const tbody = document.getElementById('ledgerIntegrityTableBody');
-            if (!tbody) return;
-
-            // Datos de ejemplo basados en la imagen proporcionada
-            const sampleData = [
-                {
-                    accountName: 'SALDO NETO',
-                    accountNumber: '',
-                    previousBalance: '0.00',
-                    ledgerAmount: 'Datos faltantes',
-                    calculatedBalance: '0.00',
-                    currentBalance: '0.00',
-                    difference: '0.00',
-                    hasError: true,
-                    hasMissingData: true,
-                    isParent: true,
-                    level: 0
-                },
-                {
-                    accountName: '2 Activos corrientes',
-                    accountNumber: '',
-                    previousBalance: '1.970.666,00',
-                    ledgerAmount: '',
-                    calculatedBalance: '1.970.666,00',
-                    currentBalance: '2.371.065,00',
-                    difference: '(400.399,00)',
-                    hasError: true,
-                    isParent: true,
-                    level: 0
-                },
-                {
-                    accountName: '2.320 Activos contractuales - corrient',
-                    accountNumber: '',
-                    previousBalance: '1.724.607,00',
-                    ledgerAmount: '',
-                    calculatedBalance: '1.724.607,00',
-                    currentBalance: '2.220.841,00',
-                    difference: '(496.234,00)',
-                    hasError: true,
-                    isParent: false,
-                    level: 1
-                },
-                {
-                    accountName: '2.600 Otros activos - Corriente',
-                    accountNumber: '',
-                    previousBalance: '245.059,00',
-                    ledgerAmount: '',
-                    calculatedBalance: '245.059,00',
-                    currentBalance: '149.224,00',
-                    difference: '95.835,00',
-                    hasError: false,
-                    isParent: false,
-                    level: 1
-                },
-                {
-                    accountName: '2.610 Otros activos financieros - Con',
-                    accountNumber: '',
-                    previousBalance: '1.000,00',
-                    ledgerAmount: '',
-                    calculatedBalance: '1.000,00',
-                    currentBalance: '1.000,00',
-                    difference: '0.00',
-                    hasError: false,
-                    isParent: false,
-                    level: 1
-                },
-                {
-                    accountName: '3 Patrimonio y fondos de accionistas',
-                    accountNumber: '',
-                    previousBalance: '(1.970.666,00)',
-                    ledgerAmount: '',
-                    calculatedBalance: '(1.970.666,00)',
-                    currentBalance: '(2.371.065,00)',
-                    difference: '400.399,00',
-                    hasError: false,
-                    isParent: true,
-                    level: 0
-                },
-                {
-                    accountName: '3.100 Capital y reservas',
-                    accountNumber: '',
-                    previousBalance: '(1.970.666,00)',
-                    ledgerAmount: '',
-                    calculatedBalance: '(1.970.666,00)',
-                    currentBalance: '(2.371.065,00)',
-                    difference: '400.399,00',
-                    hasError: false,
-                    isParent: false,
-                    level: 1
-                }
-            ];
-
-            tbody.innerHTML = sampleData.map((row, index) => {
-                const formatCell = (value, isMissing = false) => {
-                    if (isMissing) {
-                        return `<span style="color: #dc3545; font-weight: 500; font-style: italic;">${value}</span>`;
-                    }
-                    if (!value || value === '-') return '-';
-                    const isNegative = value.includes('-');
-                    const color = isNegative ? '#dc3545' : '#000000';
-                    return `<span style="color: ${color}; font-weight: 500;">Q${value}</span>`;
-                };
-
-                const getIndent = (level) => {
-                    return level * 20;
-                };
-
-                const getExpandIcon = (isParent) => {
-                    if (!isParent) return '<span style="width: 20px; display: inline-block;"></span>';
-                    return '<i class="bi bi-chevron-right" style="cursor: pointer; font-size: 0.8rem; margin-right: 4px;"></i>';
-                };
-
-                const getRowStyle = (level) => {
-                    const baseStyle = index % 2 === 0 ? 'background-color: #f8f9fa;' : '';
-                    const fontWeight = level === 0 ? 'font-weight: 600;' : level === 1 ? 'font-weight: 500;' : '';
-                    return baseStyle + fontWeight;
-                };
-
-                return `
-                    <tr style="${getRowStyle(row.level)}">
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; font-weight: 500;">
-                            <div style="display: flex; align-items: center; margin-left: ${getIndent(row.level)}px;">
-                                ${getExpandIcon(row.isParent)}
-                                ${row.accountName}
-                            </div>
-                        </td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; font-weight: 500;">${row.accountNumber}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.previousBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.ledgerAmount, row.hasMissingData)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.calculatedBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.currentBalance)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600; color: ${row.hasError ? '#dc3545' : '#000000'};">
-                            ${formatCell(row.difference)}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
         }
 
         async function loadCuentasFromLatestExcel() {
@@ -13210,6 +13309,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         staticAccounts.forEach((account, index) => {
             const nameElement = account.querySelector('.account-name');
             const valueElement = account.querySelector('.account-value');
+            const existingPrevValues = account.querySelectorAll('.static-account-value[data-year="previous"]');
+            const existingCurrentValues = account.querySelectorAll('.static-account-value[data-year="current"]');
+
+            existingPrevValues.forEach((span, idx) => {
+                if (idx > 0) span.remove();
+            });
+            existingCurrentValues.forEach((span, idx) => {
+                if (idx > 0) span.remove();
+            });
+
+            const existingPrevSpan = account.querySelector('.static-account-value[data-year="previous"]');
+            const existingCurrentSpan = account.querySelector('.static-account-value[data-year="current"]');
             
             if (nameElement) {
                 const text = nameElement.textContent.trim();
@@ -13229,6 +13340,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     account.dataset.accountValue = currentValue;
                     account.dataset.accountPrevValue = 0;
 
+                    if (existingPrevSpan) existingPrevSpan.remove();
+                    if (existingCurrentSpan) existingCurrentSpan.remove();
+
                     const previousSpan = document.createElement('span');
                     previousSpan.className = 'static-account-value';
                     previousSpan.dataset.year = 'previous';
@@ -13240,6 +13354,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     currentSpan.textContent = formatCurrency(currentValue);
 
                     valueElement.replaceWith(previousSpan, currentSpan);
+                } else if (existingPrevSpan && existingCurrentSpan) {
+                    const prevValue = parseAccountValue(account.dataset.accountPrevValue);
+                    const currentValue = parseAccountValue(account.dataset.accountValue);
+
+                    account.dataset.accountPrevValue = prevValue;
+                    account.dataset.accountValue = currentValue;
+
+                    existingPrevSpan.textContent = formatCurrency(prevValue);
+                    existingCurrentSpan.textContent = formatCurrency(currentValue);
                 } else {
                     account.dataset.accountValue = 0;
                     account.dataset.accountPrevValue = 0;
@@ -13277,6 +13400,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         staticAccountElement.insertAdjacentElement('afterend', assignedAccount);
 
         updateStaticAccountTotals(staticAccountElement, groupContent);
+
+        // Remove any leftover account-value spans from assigned subaccounts
+        assignedAccount.querySelectorAll('.account-value').forEach(value => value.remove());
 
         // Ocultar y remover la cuenta original del lado izquierdo
         console.log('🗑️ Eliminando cuenta original del lado izquierdo:', excelAccount.element);
