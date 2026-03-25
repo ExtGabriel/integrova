@@ -3522,6 +3522,10 @@
             return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        let cachedLedgerMap = new Map();
+        let cachedLedgerAvailable = false;
+        let cachedLedgerMeta = '';
+
         function extractLedgerTotalsAndDiffs(sheet) {
             const headers = Array.isArray(sheet?.headers) ? sheet.headers : [];
             const rows = Array.isArray(sheet?.rows) ? sheet.rows : [];
@@ -3863,7 +3867,7 @@
             }).join('');
         }
 
-        async function loadLedgerIntegrityFromLatestExcel() {
+        async function getLedgerDataFromLatestExcel() {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/excel/latest`);
                 const result = await response.json();
@@ -3883,6 +3887,24 @@
                     }
                 }
 
+                cachedLedgerMap = ledgerMap;
+                cachedLedgerAvailable = ledgerAvailable;
+                cachedLedgerMeta = meta;
+
+                return { ledgerMap, ledgerAvailable, meta };
+            } catch (err) {
+                console.error('Error cargando datos del libro mayor:', err);
+                return {
+                    ledgerMap: cachedLedgerMap,
+                    ledgerAvailable: cachedLedgerAvailable,
+                    meta: cachedLedgerMeta
+                };
+            }
+        }
+
+        async function loadLedgerIntegrityFromLatestExcel() {
+            try {
+                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
                 const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
                 renderLedgerIntegrity(rows, meta);
             } catch (err) {
@@ -3892,84 +3914,100 @@
             }
         }
 
+        function getLedgerValueForAccount(ledgerMap, code, name) {
+            const codeKey = (code || '').toString().trim();
+            const nameKey = (name || '').toString().trim();
+            if (codeKey && ledgerMap.has(codeKey)) {
+                return ledgerMap.get(codeKey) || 0;
+            }
+            if (nameKey && ledgerMap.has(nameKey)) {
+                return ledgerMap.get(nameKey) || 0;
+            }
+            return 0;
+        }
+
+        function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable) {
+            const rows = (Array.isArray(accounts) ? accounts : [])
+                .map(account => {
+                    const code = account.code || account.account_number || '';
+                    const name = account.name || account.account_name || '';
+                    const preliminary = parseAccountValue(account.current_year_value ?? account.value ?? 0);
+                    const adjustmentsRaw = ledgerAvailable
+                        ? getLedgerValueForAccount(ledgerMap, code, name)
+                        : null;
+                    const adjustments = Number.isFinite(adjustmentsRaw) ? adjustmentsRaw : 0;
+                    const finalCurrent = preliminary + adjustments;
+                    const finalPrevious = parseAccountValue(account.previous_year_value ?? 0);
+
+                    return {
+                        accountNumber: code,
+                        accountName: name,
+                        preliminary,
+                        adjustments,
+                        adjustmentsRaw,
+                        finalCurrent,
+                        finalPrevious,
+                        ledgerMissing: !ledgerAvailable
+                    };
+                })
+                .filter(row => row.accountNumber || row.accountName)
+                .sort((a, b) => String(a.accountNumber || a.accountName)
+                    .localeCompare(String(b.accountNumber || b.accountName)));
+
+            return rows;
+        }
+
+        function formatTrialBalanceCell(value, options = {}) {
+            if (options.missing) return formatLedgerMissingCell();
+            return formatLedgerCell(value);
+        }
+
         async function loadCuentasFromLatestExcel() {
             try {
-                // Simular carga con datos de ejemplo basados en la imagen
-                setTimeout(() => {
-                    renderCuentasTable({}, 'Archivo: ejemplo_cuentas.xlsx | Estado: Procesado');
-                }, 500);
+                const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`);
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Error cargando cuentas');
+                }
+
+                const accounts = result.data || [];
+                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable);
+                renderCuentasTable(rows, meta);
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
-                renderCuentasTable({}, '');
+                renderCuentasTable([], '');
                 alert(err?.message || 'Error cargando cuentas');
             }
         }
 
-        function renderCuentasTable(result, meta) {
+        function renderCuentasTable(rows, meta) {
             const tbody = document.getElementById('cuentasTableBody');
             
             if (!tbody) return;
+            if (!Array.isArray(rows) || rows.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
+                            <div>No hay cuentas para mostrar.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
 
-            // Datos de ejemplo basados en la imagen proporcionada
-            const sampleData = [
-                {
-                    accountNumber: '11010102',
-                    accountName: 'Caja chica parques',
-                    preliminary: '1.000,00',
-                    adjustments: '0,00',
-                    final2024: '1.000,00',
-                    final2023: '1.000,00'
-                },
-                {
-                    accountNumber: '11010201',
-                    accountName: 'Fondo estaciones de parqueos',
-                    preliminary: '70.000,00',
-                    adjustments: '0,00',
-                    final2024: '70.000,00',
-                    final2023: '70.000,00'
-                },
-                {
-                    accountNumber: '11020101',
-                    accountName: 'Banco administracion Q',
-                    preliminary: '79.224,00',
-                    adjustments: '0,00',
-                    final2024: '79.224,00',
-                    final2023: '175.059,00'
-                },
-                {
-                    accountNumber: '11030101',
-                    accountName: 'Clientes',
-                    preliminary: '2.220.841,00',
-                    adjustments: '0,00',
-                    final2024: '2.220.841,00',
-                    final2023: '1.724.607,00'
-                },
-                {
-                    accountNumber: '31000000',
-                    accountName: 'Capital social',
-                    preliminary: '(2.371.065,00)',
-                    adjustments: '0,00',
-                    final2024: '(2.371.065,00)',
-                    final2023: '(1.970.666,00)'
-                }
-            ];
-
-            tbody.innerHTML = sampleData.map((row, index) => {
-                const formatCell = (value) => {
-                    if (!value) return '-';
-                    const isNegative = value.includes('-');
-                    const color = isNegative ? '#dc3545' : '#000000';
-                    return `<span style="color: ${color}; font-weight: 500;">Q${value}</span>`;
-                };
-
+            tbody.innerHTML = rows.map((row, index) => {
+                const adjustmentsCell = formatTrialBalanceCell(row.adjustmentsRaw, { missing: row.ledgerMissing });
                 return `
                     <tr style="${index % 2 === 0 ? 'background-color: #f8f9fa;' : ''}">
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:center; font-weight: 500;">${row.accountNumber}</td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; font-weight: 500;">${row.accountName}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.preliminary)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.adjustments)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600;">${formatCell(row.final2024)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatCell(row.final2023)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatTrialBalanceCell(row.preliminary)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${adjustmentsCell}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600;">${formatTrialBalanceCell(row.finalCurrent)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatTrialBalanceCell(row.finalPrevious)}</td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:center;">
                             <div style="display: flex; gap: 4px; justify-content: center;">
                                 <button class="btn btn-sm btn-outline-primary" style="padding: 4px 8px; font-size: 0.8rem;" title="Añadir anotacion">
