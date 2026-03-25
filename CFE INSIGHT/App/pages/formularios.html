@@ -3087,6 +3087,14 @@
             }
         }
 
+        function refreshLedgerIntegrityIfVisible() {
+            const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
+            if (!ledgerIntegritySection) return;
+            const isHidden = ledgerIntegritySection.style.display === 'none';
+            if (isHidden) return;
+            loadLedgerIntegrityFromLatestExcel();
+        }
+
         function resetAssignAccountsState() {
             selectedAccount = null;
 
@@ -3096,6 +3104,8 @@
 
             // Remover cuentas asignadas de ejecuciones anteriores
             document.querySelectorAll('.assigned-account').forEach(account => account.remove());
+
+            resetStaticAccountValues();
 
             // Resetear contadores de grupos
             document.querySelectorAll('.group-content').forEach(groupContent => {
@@ -3109,6 +3119,19 @@
             if (selectionInfo) {
                 selectionInfo.textContent = '0 seleccionados';
             }
+        }
+
+        function resetStaticAccountValues() {
+            document.querySelectorAll('.static-account').forEach(account => {
+                account.dataset.accountValue = 0;
+                account.dataset.accountPrevValue = 0;
+
+                const prevSpan = account.querySelector('.static-account-value[data-year="previous"]');
+                const currentSpan = account.querySelector('.static-account-value[data-year="current"]');
+
+                if (prevSpan) prevSpan.textContent = formatCurrency(0);
+                if (currentSpan) currentSpan.textContent = formatCurrency(0);
+            });
         }
 
         function formatStatusBadge(status) {
@@ -3420,6 +3443,22 @@
 
                 // Refrescar historial de importaciones
                 loadDatasetHistory();
+
+                let newDatasetId = result?.datasetId || result?.dataset_id || result?.data?.dataset_id || result?.data?.id;
+                if (!newDatasetId) {
+                    try {
+                        const historyResponse = await fetch(`${API_BASE_URL}/api/datasets/history?limit=1`);
+                        const historyResult = await historyResponse.json();
+                        newDatasetId = historyResult?.data?.[0]?.id;
+                    } catch (error) {
+                        console.warn('⚠️ No se pudo obtener el nuevo dataset:', error);
+                    }
+                }
+
+                const normalizedNewDatasetId = normalizeDatasetId(newDatasetId);
+                if (normalizedNewDatasetId && normalizedNewDatasetId !== normalizeDatasetId(currentDatasetId)) {
+                    handleDatasetChange(currentDatasetId, normalizedNewDatasetId, { forceReset: true });
+                }
 
                 // Cerrar modal y volver a la vista principal
                 closeColumnMappingModal();
@@ -12936,6 +12975,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     break;
                 case 'integridad-libro':
                     ledgerIntegritySection.style.display = 'block';
+                    restoreAssignedAccounts();
                     loadLedgerIntegrityFromLatestExcel();
                     break;
                 case 'cuentas':
@@ -13042,7 +13082,32 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
             if (!container) return;
 
-            const count = Array.isArray(accounts) ? accounts.length : 0;
+            const datasetIdFromAccounts = Array.isArray(accounts) && accounts.length
+                ? (accounts[0].conjunto_id || accounts[0].datasetId || accounts[0].dataset_id)
+                : null;
+            const normalizedDatasetId = normalizeDatasetId(datasetIdFromAccounts);
+            const normalizedCurrentId = normalizeDatasetId(currentDatasetId);
+            if (normalizedDatasetId && normalizedDatasetId !== normalizedCurrentId) {
+                handleDatasetChange(normalizedCurrentId, normalizedDatasetId);
+            } else if (normalizedDatasetId) {
+                currentDatasetId = normalizedDatasetId;
+                try {
+                    localStorage.setItem(ASSIGNMENTS_LAST_DATASET_KEY, normalizedDatasetId);
+                } catch (error) {
+                    console.warn('⚠️ Error guardando dataset activo:', error);
+                }
+            }
+
+            if (Array.isArray(accounts)) {
+                cachedUnassignedAccounts = accounts.slice();
+                cachedUnassignedDatasetId = normalizedDatasetId || normalizedCurrentId;
+            }
+
+            const filteredAccounts = filterAssignedAccounts(
+                Array.isArray(accounts) ? accounts : [],
+                currentDatasetId
+            );
+            const count = filteredAccounts.length;
             if (countEl) countEl.textContent = `(${count} restantes)`;
 
             if (!count) {
@@ -13055,7 +13120,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
 
-            const itemsHtml = accounts
+            const itemsHtml = filteredAccounts
                 .slice(0, 500)
                 .map((a) => {
                     // Usar los campos del endpoint /api/accounts/unassigned
@@ -13065,6 +13130,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const previousValue = a.previous_year_value ?? a.previousYearValue ?? 0;
                     const numericValue = parseAccountValue(currentValue);
                     const numericPreviousValue = parseAccountValue(previousValue);
+                    const datasetId = a.conjunto_id || a.datasetId || a.dataset_id || currentDatasetId || '';
                     
                     // Mejorar la visualización del nombre de cuenta
                     let displayName;
@@ -13083,7 +13149,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                              data-account-code="${a.code}"
                              data-account-name="${a.name}"
                              data-account-value="${numericValue}"
-                             data-account-prev-value="${numericPreviousValue}">
+                             data-account-prev-value="${numericPreviousValue}"
+                             data-account-dataset-id="${datasetId}">
                             <span class="account-name">${displayName}</span>
                             <span class="account-value">${displayValue}</span>
                         </div>
@@ -13101,6 +13168,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Abrir automáticamente todos los grupos y subgrupos para facilitar la asignación
         openAllGroupsForAssignment();
+
+        restoreAssignedAccounts();
     }
         
     // Función para abrir todos los grupos y subgrupos
@@ -13163,6 +13232,204 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         return Number.isFinite(parsed) ? parsed : 0;
     }
         
+    const ASSIGNMENTS_STORAGE_PREFIX = 'assigned_accounts_v1';
+    const ASSIGNMENTS_LAST_DATASET_KEY = 'assigned_accounts_last_dataset_v1';
+    let currentDatasetId = null;
+    let cachedUnassignedAccounts = [];
+    let cachedUnassignedDatasetId = '';
+
+    function normalizeDatasetId(datasetId) {
+        return datasetId == null ? '' : datasetId.toString().trim();
+    }
+
+    function getAssignmentsStorageKey(datasetId) {
+        const normalized = normalizeDatasetId(datasetId);
+        return `${ASSIGNMENTS_STORAGE_PREFIX}_${normalized}`;
+    }
+
+    function getStoredAssignments(datasetId = currentDatasetId) {
+        try {
+            let resolvedDatasetId = datasetId ? datasetId.toString().trim() : '';
+
+            if (!resolvedDatasetId) {
+                const lastDataset = localStorage.getItem(ASSIGNMENTS_LAST_DATASET_KEY);
+                if (lastDataset) {
+                    resolvedDatasetId = lastDataset;
+                    currentDatasetId = lastDataset;
+                }
+            }
+
+            if (!resolvedDatasetId) {
+                return [];
+            }
+
+            const key = getAssignmentsStorageKey(resolvedDatasetId);
+            const raw = localStorage.getItem(key);
+            let parsed = raw ? JSON.parse(raw) : [];
+            parsed = Array.isArray(parsed) ? parsed : [];
+            return parsed;
+        } catch (error) {
+            console.warn('⚠️ Error leyendo asignaciones guardadas:', error);
+            return [];
+        }
+    }
+
+    function saveStoredAssignments(assignments, datasetId = currentDatasetId) {
+        try {
+            const key = getAssignmentsStorageKey(datasetId);
+            localStorage.setItem(key, JSON.stringify(assignments || []));
+        } catch (error) {
+            console.warn('⚠️ Error guardando asignaciones:', error);
+        }
+    }
+
+    function clearStoredAssignments(datasetId) {
+        try {
+            if (!datasetId) return;
+            localStorage.removeItem(getAssignmentsStorageKey(datasetId));
+        } catch (error) {
+            console.warn('⚠️ Error limpiando asignaciones:', error);
+        }
+    }
+
+    function handleDatasetChange(previousDatasetId, newDatasetId, options = {}) {
+        const prevId = normalizeDatasetId(previousDatasetId);
+        const nextId = normalizeDatasetId(newDatasetId);
+        if (!nextId) return;
+        const forceReset = options?.forceReset === true;
+        const shouldReset = forceReset || (prevId && prevId !== nextId);
+
+        if (shouldReset) {
+            clearStoredAssignments(nextId);
+            resetAssignAccountsState();
+        }
+
+        currentDatasetId = nextId;
+        try {
+            localStorage.setItem(ASSIGNMENTS_LAST_DATASET_KEY, nextId);
+        } catch (error) {
+            console.warn('⚠️ Error guardando dataset activo:', error);
+        }
+    }
+
+    function getAccountKey(accountData) {
+        return (accountData?.id || accountData?.code || accountData?.accountId || '').toString().trim();
+    }
+
+    function persistAssignment(accountData, groupContent, parentAccountId = '') {
+        const accountKey = getAccountKey(accountData);
+        const groupId = groupContent?.id || '';
+        const datasetId = accountData?.datasetId || currentDatasetId;
+        if (!accountKey || !groupId || !datasetId) return;
+
+        const assignments = getStoredAssignments(datasetId)
+            .filter(item => item.accountKey !== accountKey);
+
+        assignments.push({
+            accountKey,
+            id: accountData?.id || accountKey,
+            code: accountData?.code || '',
+            name: accountData?.name || '',
+            value: parseAccountValue(accountData?.value),
+            prevValue: parseAccountValue(accountData?.prevValue),
+            groupContentId: groupId,
+            parentAccountId: parentAccountId || '',
+            datasetId
+        });
+
+        saveStoredAssignments(assignments, datasetId);
+    }
+
+    function removeStoredAssignment(accountData) {
+        const accountKey = getAccountKey(accountData);
+        const datasetId = accountData?.datasetId || currentDatasetId;
+        if (!accountKey || !datasetId) return;
+
+        const assignments = getStoredAssignments(datasetId)
+            .filter(item => item.accountKey !== accountKey);
+        saveStoredAssignments(assignments, datasetId);
+    }
+
+    function filterAssignedAccounts(accounts = [], datasetId = currentDatasetId) {
+        const assignments = getStoredAssignments(datasetId);
+        if (!assignments.length) return accounts;
+        const assignedKeys = new Set(assignments.map(item => item.accountKey));
+        return accounts.filter(account => !assignedKeys.has(getAccountKey(account)));
+    }
+
+    function restoreAssignedAccounts() {
+        const datasetId = normalizeDatasetId(currentDatasetId);
+        if (!datasetId) return;
+        const assignments = getStoredAssignments(datasetId);
+        if (!assignments.length) return;
+
+        assignments.forEach(assignment => {
+            const groupContent = document.getElementById(assignment.groupContentId);
+            if (!groupContent) return;
+
+            const existing = groupContent.querySelector(`.assigned-account[data-account-id="${assignment.accountKey}"]`);
+            if (existing) return;
+
+            const accountData = {
+                id: assignment.id || assignment.accountKey,
+                code: assignment.code || '',
+                name: assignment.name || '',
+                value: assignment.value,
+                prevValue: assignment.prevValue,
+                datasetId: assignment.datasetId
+            };
+
+            const emptyState = groupContent.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            let assignedAccount = null;
+            if (assignment.parentAccountId) {
+                const parentAccount = groupContent.querySelector(
+                    `.static-account[data-account-id="${assignment.parentAccountId}"]`
+                );
+                assignedAccount = createAssignedAccountElement(accountData);
+                assignedAccount.classList.add('assigned-subaccount');
+                assignedAccount.dataset.parentAccountId = assignment.parentAccountId;
+                if (parentAccount) {
+                    parentAccount.insertAdjacentElement('afterend', assignedAccount);
+                    updateStaticAccountTotals(parentAccount, groupContent);
+                } else {
+                    groupContent.appendChild(assignedAccount);
+                }
+            } else {
+                assignedAccount = createAssignedAccountElement(accountData);
+                groupContent.appendChild(assignedAccount);
+            }
+
+            updateGroupCount(groupContent);
+        });
+
+        updateRemainingCount();
+        refreshLedgerIntegrityIfVisible();
+        syncUnassignedAccountsWithAssignments(assignments);
+    }
+
+    function syncUnassignedAccountsWithAssignments(assignments = null) {
+        const container = document.querySelector('.unassigned-accounts-list');
+        if (!container) return;
+
+        const storedAssignments = assignments || getStoredAssignments(currentDatasetId);
+        if (!Array.isArray(storedAssignments) || !storedAssignments.length) return;
+
+        const assignedKeys = new Set(storedAssignments.map(item => item.accountKey));
+        container.querySelectorAll('.account-item').forEach(item => {
+            const key = getAccountKey({
+                id: item.dataset.accountId,
+                code: item.dataset.accountCode
+            });
+            if (assignedKeys.has(key)) {
+                item.remove();
+            }
+        });
+
+        updateRemainingCount();
+    }
+
     // Sistema de asignación por clic
     let selectedAccount = null;
     
@@ -13227,7 +13494,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     code: accountCode,
                     name: accountName,
                     value: numericValue,
-                    prevValue: numericPrevValue
+                    prevValue: numericPrevValue,
+                    datasetId: this.dataset.accountDatasetId || currentDatasetId
                 };
                 
                 console.log('✅ Cuenta seleccionada:', selectedAccount);
@@ -13401,6 +13669,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         updateStaticAccountTotals(staticAccountElement, groupContent);
 
+        persistAssignment(excelAccount, groupContent, staticAccountElement.dataset.accountId || '');
+
         // Remove any leftover account-value spans from assigned subaccounts
         assignedAccount.querySelectorAll('.account-value').forEach(value => value.remove());
 
@@ -13427,6 +13697,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Actualizar contadores
         updateGroupCount(groupContent);
         updateRemainingCount();
+        refreshLedgerIntegrityIfVisible();
 
         // Mostrar notificación
         const staticCode = staticAccountElement.dataset.accountCode || '';
@@ -13446,8 +13717,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             code: accountElement.dataset.accountCode || '',
             name: accountElement.dataset.accountName || '',
             value: parseAccountValue(accountElement.dataset.accountValue),
-            prevValue: parseAccountValue(accountElement.dataset.accountPrevValue)
+            prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
+            datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
         };
+
+        removeStoredAssignment(accountData);
         
         // Remover del grupo
         accountElement.remove();
@@ -13459,16 +13733,28 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         updateGroupCount(groupContent);
         updateRemainingCount();
         
-        // Si el grupo queda vacío, mostrar empty state
+        // Mostrar empty state solo si el contenedor no tiene cuentas estáticas ni subgrupos
         if (groupContent.querySelectorAll('.assigned-account').length === 0) {
-            groupContent.innerHTML = `
-                <div class="empty-state">
+            const hasStaticItems = groupContent.querySelectorAll('.account-item, .sub-group-item').length > 0;
+            const existingEmptyState = groupContent.querySelector('.empty-state');
+
+            if (!hasStaticItems && !existingEmptyState) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
                     <i class="fas fa-inbox"></i>
                     <p>No hay cuentas asignadas</p>
-                </div>
-            `;
+                `;
+                groupContent.appendChild(emptyState);
+            }
+
+            if (hasStaticItems && existingEmptyState) {
+                existingEmptyState.remove();
+            }
         }
         
+        refreshLedgerIntegrityIfVisible();
+
         // Mostrar notificación
         showNotification(`Cuenta ${accountData.code} - ${accountData.name} removida del grupo`, 'info');
     }
@@ -13524,6 +13810,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Agregar la cuenta al grupo
         groupContent.appendChild(assignedAccount);
         console.log('➕ Cuenta agregada al contenedor');
+
+        persistAssignment(accountData, groupContent);
         
         // Ocultar y remover la cuenta original del lado izquierdo
         accountData.element.style.display = 'none';
@@ -13556,6 +13844,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         div.dataset.accountId = accountData.id || accountData.code;
         div.dataset.accountCode = accountData.code || '';
         div.dataset.accountName = accountData.name || '';
+        div.dataset.accountDatasetId = accountData.datasetId || currentDatasetId || '';
         const numericValue = parseAccountValue(accountData.value);
         const numericPrevValue = parseAccountValue(accountData.prevValue);
         div.dataset.accountValue = numericValue;
@@ -13588,8 +13877,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             code: accountElement.dataset.accountCode || '',
             name: accountElement.dataset.accountName || '',
             value: parseAccountValue(accountElement.dataset.accountValue),
-            prevValue: parseAccountValue(accountElement.dataset.accountPrevValue)
+            prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
+            datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
         };
+
+        removeStoredAssignment(accountData);
 
         // Remover del grupo
         accountElement.remove();
@@ -13608,14 +13900,24 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         updateGroupCount(groupContent);
         updateRemainingCount();
 
-        // Si el grupo queda vacío, mostrar empty state
+        // Mostrar empty state solo si el contenedor no tiene cuentas estáticas ni subgrupos
         if (groupContent.querySelectorAll('.assigned-account').length === 0) {
-            groupContent.innerHTML = `
-                <div class="empty-state">
+            const hasStaticItems = groupContent.querySelectorAll('.account-item, .sub-group-item').length > 0;
+            const existingEmptyState = groupContent.querySelector('.empty-state');
+
+            if (!hasStaticItems && !existingEmptyState) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
                     <i class="fas fa-inbox"></i>
                     <p>No hay cuentas asignadas</p>
-                </div>
-            `;
+                `;
+                groupContent.appendChild(emptyState);
+            }
+
+            if (hasStaticItems && existingEmptyState) {
+                existingEmptyState.remove();
+            }
         }
 
         // Mostrar notificación
@@ -13632,6 +13934,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         accountElement.dataset.accountId = accountData.id;
         accountElement.dataset.accountCode = accountData.code;
         accountElement.dataset.accountName = accountData.name;
+        accountElement.dataset.accountDatasetId = accountData.datasetId || currentDatasetId || '';
         const numericValue = parseAccountValue(accountData.value);
         const numericPrevValue = parseAccountValue(accountData.prevValue);
         accountElement.dataset.accountValue = numericValue;
@@ -13660,7 +13963,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 code: this.dataset.accountCode,
                 name: this.dataset.accountName,
                 value: parseAccountValue(this.dataset.accountValue),
-                prevValue: parseAccountValue(this.dataset.accountPrevValue)
+                prevValue: parseAccountValue(this.dataset.accountPrevValue),
+                datasetId: this.dataset.accountDatasetId || currentDatasetId
             };
             
             console.log('✅ Cuenta seleccionada:', selectedAccount);
@@ -13928,9 +14232,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         async function loadUnassignedAccountsFromLatestExcel() {
             try {
-                resetAssignAccountsState();
+                selectedAccount = null;
+                document.querySelectorAll('.unassigned-accounts-list .account-item.selected')
+                    .forEach(item => item.classList.remove('selected'));
                 const container = document.querySelector('.unassigned-accounts-list');
-                if (container) {
+                const shouldShowLoading = container
+                    ? !container.querySelector('.account-item')
+                    : true;
+                if (container && shouldShowLoading) {
                     container.innerHTML = `
                         <div class="empty-state">
                             <i class="bi bi-hourglass-split"></i>
@@ -13955,30 +14264,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('✅ Cuentas procesadas:', accounts.length);
                 
                 // Verificar si hay datos procesados
-                if (!result.datasetExists || accounts.length === 0) {
-                    // Mostrar mensaje de que no hay datos
-                    renderNoDataState();
-                    // Actualizar el contador a 0
-                    const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
-                    if (countEl) {
-                        countEl.textContent = '(0 restantes)';
+                if (result.datasetExists === false || accounts.length === 0) {
+                    const normalizedCurrentId = normalizeDatasetId(currentDatasetId);
+                    const cachedMatches = cachedUnassignedAccounts.length
+                        && (!cachedUnassignedDatasetId || cachedUnassignedDatasetId === normalizedCurrentId);
+
+                    if (cachedMatches) {
+                        renderUnassignedAccounts(cachedUnassignedAccounts);
+                    } else {
+                        // Mostrar mensaje de que no hay datos
+                        renderNoDataState();
+                        // Actualizar el contador a 0
+                        const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+                        if (countEl) {
+                            countEl.textContent = '(0 restantes)';
+                        }
                     }
                 } else {
                     // Hay datos, mostrar las cuentas
                     renderUnassignedAccounts(accounts);
-                    // Actualizar el contador
-                    const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
-                    if (countEl) {
-                        countEl.textContent = `(${accounts.length} restantes)`;
-                    }
                 }
                 
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
-                renderNoDataState();
-                const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
-                if (countEl) {
-                    countEl.textContent = '(0 restantes)';
+                if (cachedUnassignedAccounts.length) {
+                    renderUnassignedAccounts(cachedUnassignedAccounts);
+                } else {
+                    renderNoDataState();
+                    const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
+                    if (countEl) {
+                        countEl.textContent = '(0 restantes)';
+                    }
                 }
                 alert(err?.message || 'Error cargando cuentas');
             }
