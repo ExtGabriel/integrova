@@ -14,6 +14,178 @@ if (missingEnvVars.length > 0) {
 
 console.log('✅ Variables de entorno cargadas correctamente');
 
+// ============================================
+// UTILIDADES DE VALIDACIÓN Y NORMALIZACIÓN
+// ============================================
+
+// REGLA 2: Parsear y validar metadata
+function parseMetadata(metadataInput) {
+    if (!metadataInput) return null;
+
+    // Si ya es objeto, retornarlo
+    if (typeof metadataInput === 'object' && !Array.isArray(metadataInput)) {
+        return metadataInput;
+    }
+
+    // Si es string, intentar parsear
+    if (typeof metadataInput === 'string') {
+        try {
+            const parsed = JSON.parse(metadataInput);
+            if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+                return parsed;
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Error parseando metadata:', error.message);
+            return null;
+        }
+    }
+
+    return null;
+}
+
+// REGLA 4: Validar email con regex
+function validateEmail(email) {
+    if (!email) return true; // Email opcional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// REGLA 3: Normalizar email (trim + lowercase)
+function normalizeEmail(email) {
+    if (!email) return null;
+    return email.toLowerCase().trim();
+}
+
+// REGLA 4: Validar formato de teléfono (mínimo 7 dígitos)
+function validatePhone(phone) {
+    if (!phone) return true; // Phone opcional
+    const digitsOnly = phone.replace(/[^0-9+]/g, '');
+    return digitsOnly.length >= 7 && digitsOnly.length <= 20;
+}
+
+// REGLA 3: Normalizar teléfono (eliminar espacios y caracteres no numéricos excepto +)
+function normalizePhone(phone) {
+    if (!phone) return null;
+    // Eliminar espacios y caracteres especiales excepto +
+    return phone.replace(/[\s\-()]/g, '').trim();
+}
+
+// REGLA 4: Validar relationship_type (solo valores permitidos)
+function validateRelationshipType(value) {
+    if (!value) return true;
+    const validTypes = ['parent', 'child', 'none'];
+    return validTypes.includes(value.toLowerCase());
+}
+
+// REGLA 3: Normalizar relationship_type
+function normalizeRelationshipType(value, isGroup) {
+    if (!isGroup) return 'none';
+    if (!value) return 'none';
+    const normalized = value.toLowerCase().trim();
+    if (normalized === 'padre' || normalized === 'parent') return 'parent';
+    if (normalized === 'hijo' || normalized === 'child') return 'child';
+    return 'none';
+}
+
+// REGLA 3: Normalizar is_group a booleano válido
+function normalizeBoolean(value) {
+    if (value === true || value === 'true' || value === 1 || value === '1') return true;
+    if (value === false || value === 'false' || value === 0 || value === '0') return false;
+    return false;
+}
+
+// REGLA 14: Limitar longitud y sanitizar texto libre
+function sanitizeAndTruncate(text, maxLength = 1024) {
+    if (!text) return null;
+    const trimmed = text.trim();
+    if (trimmed.length > maxLength) {
+        console.warn(`⚠️  Texto truncado de ${trimmed.length} a ${maxLength} caracteres`);
+        return trimmed.substring(0, maxLength);
+    }
+    return trimmed;
+}
+
+// Parsear números con formato de moneda
+function parseNumber(value) {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        // Limpiar formato de moneda y convertir
+        const cleanValue = value.replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleanValue);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+}
+
+// ============================================
+// MIDDLEWARES DE SEGURIDAD Y PERMISOS
+// ============================================
+
+// Middleware para verificar rol de socio o admin
+function isSocioOrAdmin(req, res, next) {
+    const userRole = req.headers['user-role'];
+    if (!userRole || !['socio', 'administrador', 'programador'].includes(userRole)) {
+        return res.status(403).json({
+            success: false,
+            error: 'No tiene permisos para esta acción. Se requiere rol de socio o administrador.'
+        });
+    }
+    next();
+}
+
+// ============================================
+// RATE LIMITING
+// ============================================
+
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutos
+const RATE_LIMIT_MAX_REQUESTS = 1000;
+
+// Middleware de rate limiting
+function rateLimiter(req, res, next) {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+
+    if (!requestCounts.has(ip)) {
+        requestCounts.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+        return next();
+    }
+
+    const record = requestCounts.get(ip);
+
+    // Reiniciar contador si pasó la ventana de tiempo
+    if (now > record.resetTime) {
+        record.count = 1;
+        record.resetTime = now + RATE_LIMIT_WINDOW;
+        return next();
+    }
+
+    // Incrementar contador
+    record.count++;
+
+    // Verificar límite
+    if (record.count > RATE_LIMIT_MAX_REQUESTS) {
+        return res.status(429).json({
+            success: false,
+            error: 'Demasiadas solicitudes. Por favor, intenta más tarde.',
+            retryAfter: Math.ceil((record.resetTime - now) / 1000)
+        });
+    }
+
+    next();
+}
+
+// Limpiar contadores antiguos cada 5 minutos
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of requestCounts.entries()) {
+        if (now > record.resetTime + RATE_LIMIT_WINDOW) {
+            requestCounts.delete(ip);
+        }
+    }
+}, 5 * 60 * 1000);
+
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -52,7 +224,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'user-id'],
     maxAge: 86400 // 24 horas
 };
 
@@ -1923,9 +2095,12 @@ app.post('/api/ai/generate-report', async (req, res) => {
 // Nuevo endpoint para obtener el último conjunto de datos de Excel
 app.get('/api/excel/latest', async (req, res) => {
     try {
+        const userId = req.user?.id || req.headers['user-id'];
+        
         const { data, error } = await supabase
             .from('conjuntos_datos')
             .select('*')
+            .eq('user_id', userId) // <- Filtrar por usuario
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -1982,10 +2157,14 @@ app.post('/api/excel/process-mapping', async (req, res) => {
         }
 
         // Obtener el conjunto de datos de la base de datos
+        const userId = req.user?.id || req.headers['user-id'];
+        
         const { data: conjuntoData, error: conjuntoError } = await supabase
             .from('conjuntos_datos')
             .select('*')
-            .eq('id', fileId);
+            .eq('id', fileId)
+            .eq('user_id', userId) // <- Verificar que pertenezca al usuario
+            .single();
 
         if (conjuntoError) {
             console.error('Error obteniendo conjunto de datos:', conjuntoError);
@@ -1995,14 +2174,14 @@ app.post('/api/excel/process-mapping', async (req, res) => {
             });
         }
 
-        if (!conjuntoData || conjuntoData.length === 0) {
+        if (!conjuntoData) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'No se encontraron datos de Excel' 
+                error: 'No se encontraron datos de Excel o no tienes permiso para acceder' 
             });
         }
 
-        const conjunto = conjuntoData[0];
+        const conjunto = conjuntoData; // <- Ya no es array, es objeto directo
         console.log('📋 Procesando conjunto:', conjunto.nombre);
 
         // Extraer las cuentas del Excel usando el mapeo
@@ -2191,6 +2370,8 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                 // Guardar en la base de datos (adaptado a estructura existente)
                 if (analysis.success) {
                     try {
+                        const userId = req.user?.id || req.headers['user-id'];
+                        
                         const { data, error } = await supabase
                             .from('conjuntos_datos')
                             .insert({
@@ -2201,8 +2382,8 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                                 total_creditos: analysis.totals.credits || 0,
                                 estado: analysis.isBalanced ? 'balanceado' : 'desbalanceado',
                                 archivo_original: file.originalname,
-                                data: excelData // <-- AGREGAR LOS DATOS COMPLETOS DEL EXCEL
-                                // user_id se omite temporalmente hasta tener un UUID válido
+                                data: excelData, // <-- AGREGAR LOS DATOS COMPLETOS DEL EXCEL
+                                user_id: userId // <- AGREGAR USER_ID
                             })
                             .select();
 
@@ -2525,42 +2706,91 @@ function detectColumnMapping(headers) {
         accountNumber: -1,
         accountName: -1,
         currentYear: -1,
+        previousYear: -1,
         debit: -1,
         credit: -1
     };
-    
+
+    const numericHeaderIndexes = [];
+
     headers.forEach((header, index) => {
-        if (header) {
-            const h = header.toString().toLowerCase();
-            
-            // Número de cuenta
-            if (h === 'account number' || h === 'cuenta' || h === 'número' || h.includes('account')) {
+        if (header == null) return;
+
+        const rawHeader = header.toString().trim();
+        const h = rawHeader.toLowerCase();
+
+        if (rawHeader && !isNaN(rawHeader)) {
+            numericHeaderIndexes.push(index);
+        }
+
+        // Número de cuenta
+        if (h.includes('numero') || h.includes('número') || h.includes('num') || h.includes('no.') || h === 'account number') {
+            mapping.accountNumber = index;
+            return;
+        }
+
+        // Nombre de cuenta
+        if (h.includes('nombre') || h.includes('descripción') || h.includes('descripcion') || h === 'account name' || h.includes('name')) {
+            mapping.accountName = index;
+            return;
+        }
+
+        // Columna llamada "Cuenta" suele ser nombre si ya existe número
+        if (h === 'cuenta') {
+            if (mapping.accountNumber >= 0 && mapping.accountNumber !== index) {
+                mapping.accountName = index;
+            } else {
                 mapping.accountNumber = index;
             }
-            // Nombre de cuenta
-            else if (h === 'account name' || h === 'nombre' || h === 'descripción' || h.includes('name')) {
-                mapping.accountName = index;
-            }
-            // Current Year (2024)
-            else if (h.includes('current year') || h.includes('2024')) {
-                mapping.currentYear = index;
-                mapping.debit = index; // Usar como débito por defecto
-            }
-            // Previous Year (2023)
-            else if (h.includes('previous year') || h.includes('2023') || h.includes('prior year')) {
-                mapping.credit = index; // Usar como crédito por defecto
-            }
-            // Débitos
-            else if (h.includes('débito') || h.includes('debe') || h.includes('debit')) {
-                mapping.debit = index;
-            }
-            // Créditos
-            else if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
-                mapping.credit = index;
-            }
+            return;
+        }
+
+        // Current Year (2024)
+        if (h.includes('current year') || h.includes('2024')) {
+            mapping.currentYear = index;
+            mapping.debit = index;
+            return;
+        }
+
+        // Previous Year (2023)
+        if (h.includes('previous year') || h.includes('2023') || h.includes('prior year')) {
+            mapping.previousYear = index;
+            mapping.credit = index;
+            return;
+        }
+
+        // Débitos
+        if (h.includes('débito') || h.includes('debe') || h.includes('debit')) {
+            mapping.debit = index;
+            return;
+        }
+
+        // Créditos
+        if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
+            mapping.credit = index;
         }
     });
-    
+
+    if (mapping.accountName < 0 && mapping.accountNumber >= 0) {
+        const fallbackNameIndex = mapping.accountNumber + 1;
+        if (fallbackNameIndex < headers.length) {
+            mapping.accountName = fallbackNameIndex;
+        }
+    }
+
+    if (mapping.currentYear < 0 && numericHeaderIndexes.length) {
+        mapping.currentYear = numericHeaderIndexes[0];
+        mapping.debit = numericHeaderIndexes[0];
+    }
+
+    if (mapping.previousYear < 0 && numericHeaderIndexes.length > 1) {
+        mapping.previousYear = numericHeaderIndexes[1];
+    }
+
+    if (mapping.credit < 0 && mapping.previousYear >= 0) {
+        mapping.credit = mapping.previousYear;
+    }
+
     console.log('📍 Mapeo detectado:', mapping);
     return mapping;
 }
@@ -2765,6 +2995,7 @@ function analyzeSheetQuality(dataRows) {
 app.post('/api/excel/save-accounts', async (req, res) => {
     try {
         const { accounts, totalDebits, totalCredits, fileName } = req.body;
+        const userId = req.user?.id || req.headers['user-id'];
         
         if (!accounts || !Array.isArray(accounts)) {
             return res.status(400).json({ success: false, error: 'Datos de cuentas inválidos' });
@@ -2779,7 +3010,9 @@ app.post('/api/excel/save-accounts', async (req, res) => {
                 fecha_importacion: new Date().toISOString(),
                 total_debitos: totalDebits,
                 total_creditos: totalCredits,
-                estado: 'procesado'
+                estado: 'procesado',
+                user_id: userId,
+                importado_por: userId // <- Guardar quién importó
             }])
             .select()
             .single();
@@ -2922,7 +3155,10 @@ function generateFinancialStatements(accounts, classifications) {
 // Endpoint para obtener conjuntos de datos
 app.get('/api/excel/datasets', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        // Primero obtener los conjuntos de datos
+        const { data: datasets, error: datasetsError } = await supabase
             .from('conjuntos_datos')
             .select(`
                 *,
@@ -2934,11 +3170,143 @@ app.get('/api/excel/datasets', async (req, res) => {
                     grupo_financiero
                 )
             `)
+            .eq('user_id', userId) // <- Filtrar por usuario
             .order('fecha_importacion', { ascending: false });
 
-        if (error) throw error;
+        if (datasetsError) throw datasetsError;
 
-        res.json({ success: true, data: data });
+        console.log('📊 Datasets obtenidos:', datasets?.length || 0);
+        if (datasets && datasets.length > 0) {
+            console.log('🔍 Primer dataset:', {
+                id: datasets[0].id,
+                importado_por: datasets[0].importado_por,
+                nombre: datasets[0].nombre
+            });
+        }
+
+        // Si hay datasets, obtener información de usuarios por separado
+        if (datasets && datasets.length > 0) {
+            // Obtener IDs únicos de usuarios desde user_id (importado_por está vacío)
+            const userIds = [...new Set(datasets.map(d => d.user_id).filter(Boolean))];
+            
+            console.log('👤 IDs de usuarios encontrados:', userIds);
+            
+            if (userIds.length > 0) {
+                // Obtener usuarios desde la tabla users - intentar con full_name específicamente
+                let users = null;
+                let usersError = null;
+                
+                // Opción 1: Intentar con raw_user_meta_data
+                const { data: users1, error: error1 } = await supabase
+                    .from('users')
+                    .select('id, email, raw_user_meta_data')
+                    .in('id', userIds);
+                
+                if (!error1 && users1) {
+                    users = users1;
+                    console.log('✅ Usuarios encontrados con raw_user_meta_data');
+                } else {
+                    console.log('❌ Error con raw_user_meta_data, intentando user_metadata...');
+                    // Opción 2: Intentar con user_metadata
+                    const { data: users2, error: error2 } = await supabase
+                        .from('users')
+                        .select('id, email, user_metadata')
+                        .in('id', userIds);
+                    
+                    if (!error2 && users2) {
+                        // Mapear user_metadata a raw_user_meta_data para consistencia
+                        users = users2.map(u => ({
+                            ...u,
+                            raw_user_meta_data: u.user_metadata
+                        }));
+                        console.log('✅ Usuarios encontrados con user_metadata');
+                    } else {
+                        console.log('❌ Error con user_metadata, intentando solo full_name...');
+                        // Opción 3: Intentar específicamente con full_name
+                        const { data: users3, error: error3 } = await supabase
+                            .from('users')
+                            .select('id, email, full_name')
+                            .in('id', userIds);
+                        
+                        if (!error3 && users3) {
+                            users = users3;
+                            console.log('✅ Usuarios encontrados con full_name');
+                        } else {
+                            console.log('❌ Error con full_name, usando solo email...');
+                            // Opción 4: Último fallback - solo email
+                            const { data: users4, error: error4 } = await supabase
+                                .from('users')
+                                .select('id, email')
+                                .in('id', userIds);
+                            
+                            if (!error4 && users4) {
+                                users = users4;
+                                console.log('✅ Usuarios encontrados con email únicamente');
+                            } else {
+                                usersError = error4 || error3 || error2 || error1;
+                            }
+                        }
+                    }
+                }
+                
+                console.log('🔍 Usuarios encontrados:', users?.length || 0);
+                if (users) {
+                    console.log('👤 Primer usuario completo:', users[0]);
+                }
+                
+                if (!usersError && users) {
+                    // Crear mapa de usuarios para lookup rápido
+                    const userMap = users.reduce((map, user) => {
+                        // Extraer nombre desde múltiples campos en orden de preferencia
+                        let userName = user.email || 'Usuario';
+                        
+                        // 1. Priorizar full_name sobre todo
+                        if (user.full_name) {
+                            userName = user.full_name;
+                            console.log(`📛 Nombre desde full_name: ${userName}`);
+                        }
+                        // 2. Intentar desde raw_user_meta_data (JSON)
+                        else if (user.raw_user_meta_data) {
+                            try {
+                                const metaData = typeof user.raw_user_meta_data === 'string' 
+                                    ? JSON.parse(user.raw_user_meta_data) 
+                                    : user.raw_user_meta_data;
+                                userName = metaData.name || metaData.nombre || metaData.display_name || metaData.full_name || user.email || 'Usuario';
+                                console.log(`📛 Nombre desde raw_user_meta_data: ${userName}`);
+                            } catch (e) {
+                                console.warn('⚠️ Error parseando raw_user_meta_data:', e);
+                            }
+                        }
+                        // 3. Extraer nombre del email como último fallback
+                        if (userName === user.email && user.email) {
+                            const emailName = user.email.split('@')[0];
+                            userName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+                            console.log(`📛 Nombre desde email: ${userName}`);
+                        }
+                        
+                        map[user.id] = {
+                            ...user,
+                            name: userName
+                        };
+                        return map;
+                    }, {});
+                    
+                    // Agregar información del usuario a cada dataset usando user_id
+                    datasets.forEach(dataset => {
+                        if (dataset.user_id && userMap[dataset.user_id]) {
+                            dataset.users = userMap[dataset.user_id];
+                            console.log(`✅ Dataset ${dataset.id}: Usuario asignado = ${userMap[dataset.user_id].name}`);
+                        } else {
+                            console.log(`❌ Dataset ${dataset.id}: No se encontró usuario para user_id=${dataset.user_id}`);
+                        }
+                    });
+                } else {
+                    console.error('❌ Error obteniendo usuarios:', usersError);
+                }
+            }
+        }
+
+        res.json({ success: true, data: datasets || [] });
 
     } catch (error) {
         console.error('Error obteniendo conjuntos de datos:', error);
@@ -3114,10 +3482,13 @@ app.use((error, req, res, next) => {
 // Endpoint para obtener cuentas no asignadas
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
-        // Obtener el último conjunto de datos del Excel (como en la previsualización)
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        // Obtener el último conjunto de datos del Excel del usuario actual
         const { data: conjuntoData, error: conjuntoError } = await supabase
             .from('conjuntos_datos')
             .select('*')
+            .eq('user_id', userId) // <- Filtrar por usuario
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -3168,6 +3539,7 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             const accountNumber = extractAccountNumber(row, mapping.accountNumber);
             const accountName = extractAccountName(row, mapping.accountName);
             const currentYearValue = extractValue(row, mapping.currentYear);
+            const previousYearValue = extractValue(row, mapping.previousYear);
             
             // Validar que tenga número de cuenta o nombre
             if (!accountNumber && !accountName) return;
@@ -3177,8 +3549,11 @@ app.get('/api/accounts/unassigned', async (req, res) => {
                 code: accountNumber || `CUENTA-${index}`,
                 name: accountName || '', // Nombre vacío en lugar de 'SIN NOMBRE'
                 value: currentYearValue, // Valor directo del Excel
+                current_year_value: currentYearValue,
+                previous_year_value: previousYearValue,
                 debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
-                credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0
+                credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
+                conjunto_id: conjunto.id // <- Agregar ID del dataset para que frontend lo use
             });
         });
 

@@ -251,6 +251,18 @@ if (!window.currentUserReady) {
                         window.currentUser = result.data;
                         console.log(`✅ window.currentUser asignado: ${result.data.name} (${result.data.role})`);
 
+                        // Persistir en sessionStorage para otras páginas (formularios, etc.)
+                        try {
+                            if (typeof window.setSessionWithExpiry === 'function') {
+                                window.setSessionWithExpiry(result.data);
+                            } else {
+                                sessionStorage.setItem(USER_UI_KEY, JSON.stringify(result.data));
+                                window.appSession = result.data;
+                            }
+                        } catch (persistErr) {
+                            console.warn('⚠️ No se pudo persistir userUI en sessionStorage:', persistErr?.message || persistErr);
+                        }
+
                         // ✅ RESOLVER LA PROMESA GLOBAL
                         window.__resolveCurrentUser(result.data);
                         console.log('✅ window.currentUserReady RESUELTA');
