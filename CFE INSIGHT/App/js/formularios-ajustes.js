@@ -1,5 +1,48 @@
 (() => {
     const STORAGE_KEY = 'ajustes_formularios_v1';
+
+    // Función para obtener el año del Excel cargado
+    function getExcelYear() {
+        // Intentar obtener el año de los datos cargados en la aplicación
+        try {
+            // Buscar en localStorage datos del Excel
+            const excelData = localStorage.getItem('excel_data_current');
+            if (excelData) {
+                const parsed = JSON.parse(excelData);
+                // Extraer año de los datos si existe
+                if (parsed.year || parsed.año) {
+                    return parseInt(parsed.year || parsed.año);
+                }
+                // Intentar obtener de alguna columna de datos
+                if (parsed.data && parsed.data.length > 0) {
+                    const firstRow = parsed.data[0];
+                    // Buscar columnas que puedan contener años
+                    const yearColumns = ['Año', 'anio', 'year', 'periodo', 'period'];
+                    for (const col of yearColumns) {
+                        if (firstRow[col]) {
+                            const year = parseInt(firstRow[col]);
+                            if (year && year > 2000 && year < 2100) {
+                                return year;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Intentar obtener de la URL o parámetros
+            const urlParams = new URLSearchParams(window.location.search);
+            const yearParam = urlParams.get('year') || urlParams.get('año');
+            if (yearParam) {
+                return parseInt(yearParam);
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('No se pudo obtener el año del Excel:', error);
+            return null;
+        }
+    }
+
     const YEAR_RESOLVERS = {
         'anio-corriente': () => {
             // Intentar obtener el año del Excel cargado, si no hay, usar año actual
@@ -35,6 +78,7 @@
         const openButton = document.getElementById('btnNuevoAjuste');
         const closeButton = document.getElementById('closeAjusteModal');
         const cancelButton = document.getElementById('cancelAjusteModal');
+        const deleteButton = document.getElementById('deleteAjusteModal');
         const form = document.getElementById('ajusteForm');
         const numeroField = document.getElementById('ajusteNumero');
         const tipoSelect = document.getElementById('ajusteTipo');
@@ -64,6 +108,7 @@
         openButton.addEventListener('click', () => openAjusteModal());
         closeButton?.addEventListener('click', () => closeAjusteModal());
         cancelButton?.addEventListener('click', () => closeAjusteModal());
+        deleteButton?.addEventListener('click', () => handleDeleteAjuste());
 
         modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) {
@@ -190,7 +235,17 @@
             form.reset();
             detalleItems = [];
             renderDetailItems();
-            updateNumeroField();
+            
+            // Solo actualizar el número si no está en modo edición
+            if (!modalBackdrop.dataset.editingId) {
+                updateNumeroField();
+            }
+            
+            // Ocultar el botón de eliminar para nuevos ajustes
+            if (deleteButton) {
+                deleteButton.style.display = 'none';
+            }
+            
             selectorSearchInput && (selectorSearchInput.value = '');
             resetDescripcionEditor();
             modalBackdrop.removeAttribute('hidden');
@@ -209,35 +264,122 @@
             openButton?.focus();
         }
 
+        function handleDeleteAjuste() {
+            const editingId = modalBackdrop.dataset.editingId;
+            
+            if (!editingId) {
+                notify('No se puede eliminar: no hay un ajuste seleccionado para editar', 'error');
+                return;
+            }
+
+            // Confirmar eliminación
+            if (confirm('¿Estás seguro de que deseas eliminar este ajuste? Esta acción no se puede deshacer.')) {
+                // Eliminar el ajuste del array
+                const ajusteIndex = ajustes.findIndex(a => a.id === editingId);
+                if (ajusteIndex !== -1) {
+                    const ajusteEliminado = ajustes[ajusteIndex];
+                    ajustes.splice(ajusteIndex, 1);
+                    
+                    // Guardar cambios y actualizar la lista
+                    saveAjustes();
+                    renderAjustes();
+                    closeAjusteModal();
+                    
+                    notify(`Ajuste #${ajusteEliminado.numero} eliminado correctamente`, 'success');
+                    console.log('Ajuste eliminado:', ajusteEliminado);
+                } else {
+                    notify('No se encontró el ajuste para eliminar', 'error');
+                }
+                
+                // Limpiar el modo edición
+                delete modalBackdrop.dataset.editingId;
+            }
+        }
+
         function handleFormSubmit(event) {
             event.preventDefault();
-
+            
+            console.log('=== INICIANDO GUARDADO DE AJUSTE ===');
+            console.log('detalleItems:', detalleItems);
+            
+            // Verificar que los elementos del formulario existan
+            console.log('Elementos del formulario:');
+            console.log('- numeroField:', numeroField);
+            console.log('- tipoSelect:', tipoSelect);
+            console.log('- periodoSelect:', periodoSelect);
+            console.log('- entidadSelect:', entidadSelect);
+            console.log('- descripcionTextarea:', descripcionTextarea);
+            
             if (!detalleItems.length) {
+                console.log('ERROR: No hay detalles en el ajuste');
                 notify('Agrega al menos una línea en Detalles antes de guardar.', 'warning');
                 return;
             }
 
-            const hasEmptyAmount = detalleItems.some((item) => !Number.isFinite(item.amount) || item.amount <= 0);
+            const hasEmptyAmount = detalleItems.some((item) => !Number.isFinite(item.amount) || item.amount < 0);
             if (hasEmptyAmount) {
-                notify('Completa el monto de cada línea antes de guardar.', 'warning');
+                console.log('ERROR: Hay montos vacíos o inválidos');
+                notify('Completa el monto de cada línea con valores válidos antes de guardar.', 'warning');
                 return;
             }
 
-            const numero = parseInt(numeroField.value, 10) || computeNextNumber();
-            const tipoValue = tipoSelect.value;
-            const tipoLabel = (tipoSelect.options[tipoSelect.selectedIndex]?.text || tipoValue || '').trim();
-            const periodoValue = periodoSelect.value;
-            const periodoLabel = (periodoSelect.options[periodoSelect.selectedIndex]?.text || periodoValue || '').trim();
+            const hasZeroAmount = detalleItems.some((item) => !Number.isFinite(item.amount) || item.amount === 0);
+            if (hasZeroAmount) {
+                console.log('ADVERTENCIA: Hay montos en 0');
+                notify('Algunas líneas tienen monto en 0. El ajuste se guardará pero puedes querer revisar los montos.', 'info');
+            }
+
+            // Obtener valores de los campos con validación
+            const numero = parseInt(numeroField?.value, 10) || computeNextNumber();
+            const tipoValue = tipoSelect?.value || '';
+            const tipoLabel = tipoSelect?.options[tipoSelect?.selectedIndex]?.text || tipoValue || '';
+            const periodoValue = periodoSelect?.value || '';
+            const periodoLabel = periodoSelect?.options[periodoSelect?.selectedIndex]?.text || periodoValue || '';
             const periodoYear = resolvePeriodYear(periodoValue);
-            const entidadValue = entidadSelect.value;
-            const entidadLabel = (entidadSelect.options[entidadSelect.selectedIndex]?.text || entidadValue || '').trim();
-            const descripcionValue = descripcionTextarea.value.trim();
+            const entidadValue = entidadSelect?.value || '';
+            const entidadLabel = entidadSelect?.options[entidadSelect?.selectedIndex]?.text || entidadValue || '';
+            const descripcionValue = descripcionTextarea?.value?.trim() || '';
+
+            console.log('Valores del formulario:');
+            console.log('- numero:', numero);
+            console.log('- tipoValue:', tipoValue);
+            console.log('- periodoValue:', periodoValue);
+            console.log('- entidadValue:', entidadValue);
+            console.log('- descripcion:', descripcionValue);
+
+            // Validar campos requeridos
+            if (!tipoValue) {
+                console.log('ERROR: No se ha seleccionado tipo de ajuste');
+                notify('Por favor selecciona un tipo de ajuste', 'warning');
+                tipoSelect?.focus();
+                return;
+            }
+
+            if (!periodoValue) {
+                console.log('ERROR: No se ha seleccionado período');
+                notify('Por favor selecciona un período', 'warning');
+                periodoSelect?.focus();
+                return;
+            }
+
+            if (!entidadValue) {
+                console.log('ERROR: No se ha seleccionado entidad');
+                notify('Por favor selecciona una entidad', 'warning');
+                entidadSelect?.focus();
+                return;
+            }
+
+            console.log('Datos completos del ajuste:', {
+                numero, tipoValue, periodoValue, entidadValue, 
+                descripcion: descripcionValue, detalles: detalleItems
+            });
 
             // Verificar si es modo edición
             const editingId = modalBackdrop.dataset.editingId;
             
             if (editingId) {
                 // Modo edición: actualizar ajuste existente
+                console.log('MODO EDICIÓN - Actualizando ajuste:', editingId);
                 const ajusteIndex = ajustes.findIndex(a => a.id === editingId);
                 if (ajusteIndex !== -1) {
                     ajustes[ajusteIndex] = {
@@ -261,11 +403,13 @@
                     closeAjusteModal();
                     notify('Ajuste actualizado correctamente', 'success');
                 } else {
+                    console.log('ERROR: No se encontró el ajuste para editar');
                     notify('No se encontró el ajuste para editar', 'error');
                 }
                 delete modalBackdrop.dataset.editingId;
             } else {
                 // Modo creación: crear nuevo ajuste
+                console.log('MODO CREACIÓN - Creando nuevo ajuste');
                 const newAjuste = {
                     id: uniqueId('ajuste'),
                     numero,
@@ -282,12 +426,16 @@
                     createdAt: new Date().toISOString()
                 };
                 
+                console.log('Nuevo ajuste a crear:', newAjuste);
+                
                 ajustes.push(newAjuste);
                 saveAjustes();
                 renderAjustes();
                 closeAjusteModal();
                 notify('Ajuste creado correctamente', 'success');
             }
+            
+            console.log('=== AJUSTE GUARDADO EXITOSAMENTE ===');
         }
 
         function renderAdjustments() {
@@ -308,6 +456,10 @@
             ajustes.forEach((ajuste) => {
                 adjustmentsList.appendChild(createAdjustmentCard(ajuste));
             });
+        }
+
+        function renderAjustes() {
+            renderAdjustments();
         }
 
         function renderDetailItems() {
@@ -456,15 +608,18 @@ function updateNumeroField() {
             title.innerHTML = `
                 <div class="ajuste-card__title">
                     <span class="ajuste-card__title-text">Ajuste</span>
-                    <input type="number" class="ajuste-card__number-input" value="${ajuste.numero}" data-ajuste-id="${ajuste.id}" min="1">
+                    <span class="ajuste-card__number">${ajuste.numero}</span>
                     <span class="ajuste-card__title-text">- ${ajuste.periodoYear}</span>
                 </div>
-                <div class="ajuste-card__meta">${ajuste.tipoLabel} - ${ajuste.periodoLabel}</div>
             `;
 
             const entity = document.createElement('div');
             entity.className = 'ajuste-card__entity';
             entity.textContent = ajuste.entidadLabel;
+
+            const typePeriod = document.createElement('div');
+            typePeriod.className = 'ajuste-card__type-period';
+            typePeriod.textContent = `${ajuste.tipoLabel} - ${ajuste.periodoLabel}`;
 
             const description = document.createElement('div');
             description.className = 'ajuste-card__description';
@@ -499,6 +654,7 @@ function updateNumeroField() {
 
             card.appendChild(title);
             card.appendChild(entity);
+            card.appendChild(typePeriod);
             card.appendChild(description);
             card.appendChild(detailsWrapper);
 
@@ -565,46 +721,7 @@ function updateNumeroField() {
                 }
             });
 
-            // Agregar event listener para el input del número
-            const numberInput = title.querySelector('.ajuste-card__number-input');
-            
-            // Hacer el input editable
-            numberInput.addEventListener('click', (e) => {
-                e.target.select();
-            });
-            
-            numberInput.addEventListener('focus', (e) => {
-                e.target.select();
-            });
-            
-            numberInput.addEventListener('change', (e) => {
-                const newNumber = parseInt(e.target.value, 10);
-                if (Number.isFinite(newNumber) && newNumber > 0) {
-                    // Actualizar el número del ajuste
-                    ajuste.numero = newNumber;
-                    saveAjustes();
-                    notify('Número de ajuste actualizado', 'success');
-                } else {
-                    // Restaurar valor original si es inválido
-                    e.target.value = ajuste.numero;
-                    notify('Número inválido. Debe ser mayor a 0.', 'error');
-                }
-            });
-
-            // Prevenir que el Enter en el input recargue la página
-            numberInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.target.blur();
-                }
-            });
-            
             // Prevenir propagación del clic para evitar conflictos con otros eventos
-            numberInput.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-            
-            // Agregar event listener de prueba al wrapper principal
             mainWrapper.addEventListener('click', (e) => {
                 console.log('Clic en wrapper principal:', e.target);
             });
@@ -630,47 +747,6 @@ function updateNumeroField() {
             detail.groupLabel = item.groupLabel || '';
             detail.valueSource = item;
             detail.amount = Number.isFinite(item.value) ? item.value : detail.amount;
-        }
-
-        function getExcelYear() {
-            // Intentar obtener el año de los datos cargados en la aplicación
-            try {
-                // Buscar en localStorage datos del Excel
-                const excelData = localStorage.getItem('excel_data_current');
-                if (excelData) {
-                    const parsed = JSON.parse(excelData);
-                    // Extraer año de los datos si existe
-                    if (parsed.year || parsed.año) {
-                        return parseInt(parsed.year || parsed.año);
-                    }
-                    // Intentar obtener de alguna columna de datos
-                    if (parsed.data && parsed.data.length > 0) {
-                        const firstRow = parsed.data[0];
-                        // Buscar columnas que puedan contener años
-                        const yearColumns = ['Año', 'anio', 'year', 'periodo', 'period'];
-                        for (const col of yearColumns) {
-                            if (firstRow[col]) {
-                                const year = parseInt(firstRow[col]);
-                                if (year && year > 2000 && year < 2100) {
-                                    return year;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Intentar obtener de la URL o parámetros
-                const urlParams = new URLSearchParams(window.location.search);
-                const yearParam = urlParams.get('year') || urlParams.get('año');
-                if (yearParam) {
-                    return parseInt(yearParam);
-                }
-                
-                return null;
-            } catch (error) {
-                console.warn('No se pudo obtener el año del Excel:', error);
-                return null;
-            }
         }
 
         function resolvePeriodYear(value) {
@@ -722,98 +798,355 @@ function updateNumeroField() {
                 }));
                 
                 renderDetailItems();
-                updateNumeroField();
+                // NO llamar a updateNumeroField() en modo edición para mantener el número original
                 
                 // Marcar como modo edición
                 modalBackdrop.dataset.editingId = ajuste.id;
                 
+                // Mostrar el botón de eliminar
+                if (deleteButton) {
+                    deleteButton.style.display = 'inline-block';
+                }
+                
                 console.log('Editando ajuste:', ajuste);
+                console.log('Número del ajuste original:', ajuste.numero);
                 console.log('Detalles cargados:', detalleItems);
             }, 100);
         }
 
         function openNotesModal(ajuste) {
-            console.log('openNotesModal llamado con:', ajuste);
-            
-            // Crear modal para notas con estilo similar a la imagen
             const modal = document.createElement('div');
-            modal.className = 'modal-backdrop';
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-            `;
-            
+            modal.className = 'ajuste-notes-backdrop';
+            Object.assign(modal.style, {
+                position: 'fixed',
+                inset: '0',
+                background: 'rgba(15, 23, 42, 0.55)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: '1300',
+                backdropFilter: 'blur(2px)'
+            });
+
             const dialog = document.createElement('div');
-            dialog.className = 'notes-modal';
-            dialog.style.cssText = `
-                background: #fff;
-                border-radius: 12px;
-                width: 400px;
-                max-width: 90%;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-                overflow: hidden;
-            `;
-            
+            dialog.className = 'ajuste-notes-modal';
+            Object.assign(dialog.style, {
+                width: 'min(520px, 92%)',
+                borderRadius: '16px',
+                background: '#ffffff',
+                boxShadow: '0 28px 60px -24px rgba(15, 23, 42, 0.25)',
+                display: 'grid',
+                gridTemplateRows: 'auto 1fr auto',
+                overflow: 'hidden',
+                animation: 'ajusteNotesFade 0.25s ease-out'
+            });
             dialog.innerHTML = `
-                <div style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #374151;">Notas del Ajuste ${ajuste.numero}</h3>
-                    <button type="button" class="notes-modal__close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; padding: 0;">&times;</button>
+                <div class="ajuste-notes-modal__header">
+                    <h3 class="ajuste-notes-modal__title">Notas del Ajuste #${ajuste.numero}</h3>
+                    <button type="button" class="ajuste-notes-modal__close" aria-label="Cerrar notas">&times;</button>
                 </div>
-                <div style="padding: 20px;">
-                    <textarea 
-                        id="notes-textarea" 
-                        placeholder="Agregar notas u observaciones..." 
-                        style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.5;"
-                    >${ajuste.notas || ''}</textarea>
-                    <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
-                        <button type="button" class="notes-modal__cancel" style="padding: 8px 16px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; color: #374151;">Cancelar</button>
-                        <button type="button" class="notes-modal__save" style="padding: 8px 16px; border: none; background: #3b82f6; color: #fff; border-radius: 6px; cursor: pointer; font-size: 14px;">Guardar</button>
+                <div class="ajuste-notes-modal__body">
+                    <label class="ajuste-notes-modal__label" for="notes-textarea">Notas y observaciones</label>
+                    <div class="ajuste-notes-modal__toolbar">
+                        <div class="ajuste-notes-modal__toolbar-group">
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="bold" title="Negrita">
+                                <i class="bi bi-type-bold"></i>
+                            </button>
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="italic" title="Cursiva">
+                                <i class="bi bi-type-italic"></i>
+                            </button>
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="underline" title="Subrayado">
+                                <i class="bi bi-type-underline"></i>
+                            </button>
+                        </div>
+                        <div class="ajuste-notes-modal__toolbar-group">
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertUnorderedList" title="Lista con viñetas">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
+                                <i class="bi bi-list-ol"></i>
+                            </button>
+                        </div>
+                        <div class="ajuste-notes-modal__toolbar-group">
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyLeft" title="Alinear a la izquierda">
+                                <i class="bi bi-text-left"></i>
+                            </button>
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyCenter" title="Centrar">
+                                <i class="bi bi-text-center"></i>
+                            </button>
+                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyRight" title="Alinear a la derecha">
+                                <i class="bi bi-text-right"></i>
+                            </button>
+                        </div>
                     </div>
+                    <textarea id="notes-textarea" class="ajuste-notes-modal__textarea" placeholder="Escribe aquí tus notas, observaciones o comentarios sobre este ajuste...">${ajuste.notas || ''}</textarea>
+                </div>
+                <div class="ajuste-notes-modal__actions">
+                    <button type="button" class="btn-outline ajuste-notes-modal__action ajuste-notes-modal__action--cancel">Cancelar</button>
+                    <button type="button" class="btn-primary ajuste-notes-modal__action ajuste-notes-modal__action--save">Guardar notas</button>
                 </div>
             `;
-            
+
             modal.appendChild(dialog);
             document.body.appendChild(modal);
-            console.log('Modal agregado al DOM');
+            disableBodyScroll();
+
+            const textarea = dialog.querySelector('#notes-textarea');
+            const closeButton = dialog.querySelector('.ajuste-notes-modal__close');
+            const cancelButton = dialog.querySelector('.ajuste-notes-modal__action--cancel');
+            const saveButton = dialog.querySelector('.ajuste-notes-modal__action--save');
+            const header = dialog.querySelector('.ajuste-notes-modal__header');
+            const title = dialog.querySelector('.ajuste-notes-modal__title');
+            const label = dialog.querySelector('.ajuste-notes-modal__label');
+            const actions = dialog.querySelector('.ajuste-notes-modal__actions');
+            const body = dialog.querySelector('.ajuste-notes-modal__body');
+            const toolbar = dialog.querySelector('.ajuste-notes-modal__toolbar');
+            const toolbarButtons = toolbar.querySelectorAll('.ajuste-notes-modal__toolbar-btn');
             
-            // Event listeners
-            const close = () => {
-                console.log('Cerrando modal');
-                if (document.body.contains(modal)) {
-                    document.body.removeChild(modal);
+            // Estilos para la barra de herramientas
+            Object.assign(toolbar.style, {
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 16px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                flexWrap: 'wrap'
+            });
+
+            const toolbarGroups = toolbar.querySelectorAll('.ajuste-notes-modal__toolbar-group');
+            toolbarGroups.forEach(group => {
+                group.style.display = 'flex';
+                group.style.gap = '4px';
+                group.style.padding = '0 8px';
+                group.style.borderRight = '1px solid #cbd5e1';
+                group.style.alignItems = 'center';
+            });
+            toolbarGroups[toolbarGroups.length - 1].style.borderRight = 'none';
+
+            // Estilos y funcionalidad para los botones de la toolbar
+            toolbarButtons.forEach(btn => {
+                Object.assign(btn.style, {
+                    padding: '6px 8px',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    color: '#64748b',
+                    transition: 'background 0.2s ease, color 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px'
+                });
+
+                btn.addEventListener('mouseover', () => {
+                    btn.style.background = 'rgba(37, 99, 235, 0.1)';
+                    btn.style.color = '#2563eb';
+                });
+                btn.addEventListener('mouseout', () => {
+                    btn.style.background = 'transparent';
+                    btn.style.color = '#64748b';
+                });
+                btn.addEventListener('mousedown', () => {
+                    btn.style.background = 'rgba(37, 99, 235, 0.2)';
+                });
+                btn.addEventListener('mouseup', () => {
+                    btn.style.background = 'rgba(37, 99, 235, 0.1)';
+                });
+
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const command = btn.dataset.command;
+                    textarea.focus();
+                    
+                    // Para formato simple con marcadores
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const selectedText = textarea.value.substring(start, end);
+                    let formattedText = '';
+
+                    switch(command) {
+                        case 'bold':
+                            formattedText = `**${selectedText}**`;
+                            break;
+                        case 'italic':
+                            formattedText = `*${selectedText}*`;
+                            break;
+                        case 'underline':
+                            formattedText = `__${selectedText}__`;
+                            break;
+                        case 'insertUnorderedList':
+                            formattedText = selectedText.split('\n').map(line => `• ${line}`).join('\n');
+                            break;
+                        case 'insertOrderedList':
+                            formattedText = selectedText.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
+                            break;
+                        case 'justifyLeft':
+                            formattedText = `<<${selectedText}>>`;
+                            break;
+                        case 'justifyCenter':
+                            formattedText = `==${selectedText}==`;
+                            break;
+                        case 'justifyRight':
+                            formattedText = `>>${selectedText}<<`;
+                            break;
+                        default:
+                            formattedText = selectedText;
+                    }
+
+                    textarea.value = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+                    textarea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+                    textarea.focus();
+                });
+            });
+
+            Object.assign(header.style, {
+                padding: '20px 28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+                borderBottom: '1px solid #e2e8f0'
+            });
+
+            title.style.margin = '0';
+            title.style.fontSize = '1.05rem';
+            title.style.fontWeight = '600';
+            title.style.color = '#1e293b';
+
+            Object.assign(closeButton.style, {
+                border: 'none',
+                background: 'transparent',
+                color: '#64748b',
+                fontSize: '1.6rem',
+                lineHeight: '1',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                borderRadius: '8px',
+                transition: 'background 0.2s ease, color 0.2s ease'
+            });
+
+
+            Object.assign(body.style, {
+                padding: '24px 28px',
+                display: 'grid',
+                gap: '12px'
+            });
+
+            label.style.fontSize = '0.9rem';
+            label.style.fontWeight = '500';
+            label.style.color = '#334155';
+
+            Object.assign(textarea.style, {
+                minHeight: '180px',
+                resize: 'vertical',
+                borderRadius: '12px',
+                border: '1px solid #cbd5e1',
+                padding: '14px 16px',
+                fontSize: '0.95rem',
+                fontFamily: 'inherit',
+                lineHeight: '1.6',
+                boxShadow: 'inset 0 1px 2px rgba(15, 23, 42, 0.05)',
+                transition: 'border 0.2s ease, boxShadow 0.2s ease'
+            });
+
+            textarea.addEventListener('focus', () => {
+                textarea.style.outline = 'none';
+                textarea.style.border = '1px solid #2563eb';
+                textarea.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.18)';
+            });
+            textarea.addEventListener('blur', () => {
+                textarea.style.border = '1px solid #cbd5e1';
+                textarea.style.boxShadow = 'inset 0 1px 2px rgba(15, 23, 42, 0.05)';
+            });
+
+            Object.assign(actions.style, {
+                padding: '20px 28px 24px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc'
+            });
+
+            const baseButtonStyles = {
+                minWidth: '140px',
+                justifyContent: 'center',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '10px',
+                fontWeight: '600',
+                padding: '10px 20px',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                border: 'none',
+                transition: 'transform 0.15s ease, box-shadow 0.2s ease'
+            };
+
+            Object.assign(cancelButton.style, {
+                ...baseButtonStyles,
+                background: '#ffffff',
+                color: '#334155',
+                border: '1px solid #cbd5e1'
+            });
+
+
+            Object.assign(saveButton.style, {
+                ...baseButtonStyles,
+                background: '#0d6efd',
+                color: '#ffffff',
+                boxShadow: '0 12px 24px -18px rgba(13, 110, 253, 0.7)'
+            });
+
+
+            const closeModal = () => {
+                modal.removeEventListener('click', onBackdropClick);
+                document.removeEventListener('keydown', onKeyDown);
+                enableBodyScroll();
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
                 }
             };
-            
-            dialog.querySelector('.notes-modal__close').addEventListener('click', close);
-            dialog.querySelector('.notes-modal__cancel').addEventListener('click', close);
-            dialog.querySelector('.notes-modal__save').addEventListener('click', () => {
-                const notes = dialog.querySelector('#notes-textarea').value;
+
+            const onBackdropClick = (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            };
+
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            };
+
+            closeButton.addEventListener('click', closeModal);
+            cancelButton.addEventListener('click', closeModal);
+            saveButton.addEventListener('click', () => {
+                const notes = textarea.value.trim();
                 ajuste.notas = notes;
                 saveAjustes();
+                renderAjustes();
                 notify('Notas guardadas correctamente', 'success');
-                close();
+                closeModal();
             });
-            
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) close();
-            });
-            
-            // Enfocar el textarea al abrir
+
+            modal.addEventListener('click', onBackdropClick);
+            document.addEventListener('keydown', onKeyDown);
+
             setTimeout(() => {
-                const textarea = dialog.querySelector('#notes-textarea');
-                if (textarea) {
-                    textarea.focus();
-                    console.log('Textarea enfocado');
+                textarea.focus();
+                if (textarea.value) {
+                    const length = textarea.value.length;
+                    textarea.setSelectionRange(length, length);
                 }
-            }, 100);
+            }, 50);
         }
 
         function computeNextNumber() {
@@ -881,6 +1214,7 @@ function updateNumeroField() {
                 if (code && name && !seen.has(code)) {
                     seen.add(code);
                     accounts.push({
+                        id: `account-${code}`,
                         code,
                         name,
                         value,
@@ -902,6 +1236,7 @@ function updateNumeroField() {
                         if (code && name && !seen.has(code) && code !== 'No hay cuentas disponibles') {
                             seen.add(code);
                             accounts.push({
+                                id: `account-${code}`,
                                 code,
                                 name,
                                 value: preliminaryValue,
@@ -1004,6 +1339,29 @@ function updateNumeroField() {
                 return window.formatCurrency(numericValue);
             }
             return `Q${numericValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        function createDetailFromItem(type, item) {
+            const detail = {
+                id: uniqueId('detail'),
+                type: type,
+                code: item.code || '',
+                name: item.name || '',
+                label: item.label || item.name || '',
+                meta: item.meta || (type === 'group' ? 'Agrupamiento' : 'Cuenta'),
+                groupLabel: item.groupLabel || '',
+                parentLabel: item.parentLabel || '',
+                amount: Number.isFinite(item.value) && item.value > 0 ? item.value : 0,
+                nature: 'debe', // Por defecto es debe
+                valueSource: item
+            };
+            
+            // Si el item tiene un id, guardarlo como referencia
+            if (item.id) {
+                detail.itemId = item.id;
+            }
+            
+            return detail;
         }
 
         function uniqueId(prefix = 'id') {
