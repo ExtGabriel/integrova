@@ -3665,6 +3665,22 @@
         let cachedLedgerMap = new Map();
         let cachedLedgerAvailable = false;
         let cachedLedgerMeta = '';
+        let cachedTrialBalanceAccounts = [];
+        let cachedGruposFinancierosRows = [];
+
+        function getLocalAdjustmentsMapSafe() {
+            try {
+                const map = typeof window.getLocalAdjustmentsMap === 'function'
+                    ? window.getLocalAdjustmentsMap()
+                    : null;
+
+                if (map instanceof Map) return map;
+                if (Array.isArray(map)) return new Map(map);
+            } catch (err) {
+                console.warn('No se pudo obtener el mapa de ajustes locales:', err);
+            }
+            return new Map();
+        }
 
         function extractLedgerTotalsAndDiffs(sheet) {
             const headers = Array.isArray(sheet?.headers) ? sheet.headers : [];
@@ -4161,16 +4177,31 @@
             return 0;
         }
 
-        function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable) {
+        function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             const rows = (Array.isArray(accounts) ? accounts : [])
                 .map(account => {
                     const code = account.code || account.account_number || '';
                     const name = account.name || account.account_name || '';
                     const preliminary = parseAccountValue(account.current_year_value ?? account.value ?? 0);
-                    const adjustmentsRaw = ledgerAvailable
+                    const localAdj = (() => {
+                        const codeKey = (code || '').toString().trim();
+                        if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
+
+                        const nameKey = (name || '').toString().trim();
+                        if (nameKey && localAdjustmentsMap.has(nameKey)) return localAdjustmentsMap.get(nameKey) || 0;
+
+                        return 0;
+                    })();
+
+                    const adjustmentsRawRemote = ledgerAvailable
                         ? getLedgerValueForAccount(ledgerMap, code, name)
                         : null;
-                    const adjustments = Number.isFinite(adjustmentsRaw) ? adjustmentsRaw : 0;
+
+                    const mergedAdjustmentsRaw = Number.isFinite(adjustmentsRawRemote)
+                        ? adjustmentsRawRemote + localAdj
+                        : (Number.isFinite(localAdj) ? localAdj : null);
+
+                    const adjustments = Number.isFinite(mergedAdjustmentsRaw) ? mergedAdjustmentsRaw : 0;
                     const finalCurrent = preliminary + adjustments;
                     const finalPrevious = parseAccountValue(account.previous_year_value ?? 0);
 
@@ -4179,10 +4210,10 @@
                         accountName: name,
                         preliminary,
                         adjustments,
-                        adjustmentsRaw,
+                        adjustmentsRaw: mergedAdjustmentsRaw,
                         finalCurrent,
                         finalPrevious,
-                        ledgerMissing: !ledgerAvailable
+                        ledgerMissing: !ledgerAvailable && !Number.isFinite(mergedAdjustmentsRaw)
                     };
                 })
                 .filter(row => row.accountNumber || row.accountName)
@@ -4211,8 +4242,11 @@
                 }
 
                 const accounts = result.data || [];
+                cachedTrialBalanceAccounts = accounts;
+
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable);
+                const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 renderCuentasTable(rows, meta);
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
@@ -4220,6 +4254,29 @@
                 alert(err?.message || 'Error cargando cuentas');
             }
         }
+
+        // Re-render la tabla de cuentas cuando cambian los ajustes locales
+        document.addEventListener('localAdjustmentsUpdated', () => {
+            if (!cachedAccounts.length) return;
+
+            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+            const rows = buildAccountRows(cachedAccounts, cachedLedgerMap, cachedLedgerAvailable, localAdjustmentsMap);
+            renderAccountTable(rows, cachedLedgerAvailable);
+        });
+
+        // Re-render la tabla de grupos financieros cuando cambien los ajustes locales
+        document.addEventListener('localAdjustmentsUpdated', () => {
+            if (!cachedGruposFinancierosRows.length) return;
+
+            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+            const rows = buildGruposFinancierosRows(
+                cachedLedgerMap,
+                cachedLedgerAvailable,
+                localAdjustmentsMap
+            );
+            cachedGruposFinancierosRows = rows;
+            renderGruposFinancieros(rows, cachedLedgerMeta);
+        });
 
         function renderCuentasTable(rows, meta) {
             const tbody = document.getElementById('cuentasTableBody');
@@ -4315,7 +4372,9 @@
             try {
                 initializeStaticAccounts();
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                const rows = buildGruposFinancierosRows(ledgerMap, ledgerAvailable);
+                const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                const rows = buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap);
+                cachedGruposFinancierosRows = rows;
                 renderGruposFinancieros(rows, meta);
             } catch (err) {
                 console.error('Error cargando grupos financieros:', err);
@@ -4324,7 +4383,7 @@
             }
         }
 
-        function buildGruposFinancierosRows(ledgerMap, ledgerAvailable) {
+        function buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             const rows = [];
             const groups = document.querySelectorAll('.financial-groups-list .group-item');
             const assignments = getStoredAssignments(currentDatasetId) || [];
@@ -4357,9 +4416,19 @@
                 return items.reduce((acc, item) => {
                     const preliminary = parseAccountValue(item.value);
                     const previous = parseAccountValue(item.prevValue);
-                    const adjustments = ledgerAvailable
+                    const localAdj = (() => {
+                        const codeKey = (item.code || '').toString().trim();
+                        if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
+
+                        const nameKey = (item.name || '').toString().trim();
+                        if (nameKey && localAdjustmentsMap.has(nameKey)) return localAdjustmentsMap.get(nameKey) || 0;
+
+                        return 0;
+                    })();
+
+                    const adjustments = (ledgerAvailable
                         ? getLedgerValueForAccount(ledgerMap, item.code, item.name)
-                        : 0;
+                        : 0) + localAdj;
                     acc.preliminary += preliminary;
                     acc.adjustments += adjustments;
                     acc.finalPrevious += previous;
@@ -4369,9 +4438,19 @@
 
             const buildAssignedRow = (assignment, level, parentId) => {
                 const preliminary = parseAccountValue(assignment.value);
-                const adjustments = ledgerAvailable
+                const localAdj = (() => {
+                    const codeKey = (assignment.code || '').toString().trim();
+                    if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
+
+                    const nameKey = (assignment.name || '').toString().trim();
+                    if (nameKey && localAdjustmentsMap.has(nameKey)) return localAdjustmentsMap.get(nameKey) || 0;
+
+                    return 0;
+                })();
+
+                const adjustments = (ledgerAvailable
                     ? getLedgerValueForAccount(ledgerMap, assignment.code, assignment.name)
-                    : 0;
+                    : 0) + localAdj;
                 const finalCurrent = preliminary + adjustments;
                 const finalPrevious = parseAccountValue(assignment.prevValue);
                 const label = stripAccountPrefix(assignment.name || assignment.code || '');
@@ -4383,7 +4462,7 @@
                     finalPrevious,
                     level,
                     isParent: false,
-                    ledgerMissing: !ledgerAvailable,
+                    ledgerMissing: !ledgerAvailable && !Number.isFinite(adjustments),
                     rowId: nextRowId(),
                     parentId: parentId || ''
                 };
@@ -4423,7 +4502,7 @@
                             finalPrevious: totals.finalPrevious,
                             level,
                             isParent: true,
-                            ledgerMissing: !ledgerAvailable,
+                            ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
                             rowId,
                             parentId: parentRowId || '',
                             hasChildren: hasRenderableChildren(content)
@@ -4453,7 +4532,7 @@
                             finalPrevious: totals.finalPrevious,
                             level,
                             isParent: parentAssignments.length > 0,
-                            ledgerMissing: !ledgerAvailable,
+                            ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
                             rowId,
                             parentId: parentRowId || '',
                             hasChildren: parentAssignments.length > 0
@@ -4488,7 +4567,7 @@
                     finalPrevious: totals.finalPrevious,
                     level: 0,
                     isParent: true,
-                    ledgerMissing: !ledgerAvailable,
+                    ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
                     rowId,
                     parentId: '',
                     hasChildren: hasRenderableChildren(groupContent)
@@ -5484,7 +5563,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <button onclick="viewUploadedFile('${marcadorId}')" style="
-                            background: #28a745;
+                            background: #1d4ed8;
                             color: white;
                             border: none;
                             padding: 12px 16px;
@@ -5494,12 +5573,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             text-align: left;
                             display: flex;
                             align-items: center;
-                        " onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">
+                        " onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">
                             <i class="bi bi-eye" style="margin-right: 10px;"></i>
                             Ver archivo
                         </button>
                         <button onclick="downloadUploadedFile('${marcadorId}')" style="
-                            background: #17a2b8;
+                            background: #2563eb;
                             color: white;
                             border: none;
                             padding: 12px 16px;
@@ -5509,7 +5588,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             text-align: left;
                             display: flex;
                             align-items: center;
-                        " onmouseover="this.style.background='#138496'" onmouseout="this.style.background='#17a2b8'">
+                        " onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                             <i class="bi bi-download" style="margin-right: 10px;"></i>
                             Descargar archivo
                         </button>
@@ -5696,7 +5775,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         fileColor = '#217346';
                     } else if (fileType.includes('image')) {
                         fileIcon = 'bi-file-earmark-image';
-                        fileColor = '#28a745';
+                        fileColor = '#2563eb';
                     } else if (fileType.includes('zip') || fileType.includes('rar')) {
                         fileIcon = 'bi-file-earmark-zip';
                         fileColor = '#6c757d';
@@ -5855,14 +5934,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             </div>
                             <div style="display: flex; gap: 10px;">
                                 <button onclick="downloadUploadedFile('${marcadorId}')" style="
-                                    background: #28a745;
+                                    background: #2563eb;
                                     color: white;
                                     border: none;
                                     padding: 8px 16px;
                                     border-radius: 6px;
                                     cursor: pointer;
                                     font-size: 12px;
-                                ">
+                                " onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                     <i class="bi bi-download"></i> Descargar
                                 </button>
                                 <button onclick="closeFileViewModal()" style="
@@ -6188,16 +6267,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Crear el HTML de la carpeta
             const folderHTML = `
-                <div class="folder-item" id="${folderId}" style="margin: 10px 0; padding: 15px; background: #f8f9fa; border: 2px solid #4CAF50; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; animation: slideInLeft 0.3s ease-out;">
+                <div class="folder-item" id="${folderId}" style="margin: 10px 0; padding: 15px; background: #f8f9fa; border: 2px solid #1d4ed8; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; animation: slideInLeft 0.3s ease-out;">
                     <div style="display: flex; align-items: center;">
-                        <i class="bi bi-folder-fill" style="color: #4CAF50; font-size: 1.5rem; margin-right: 12px;"></i>
-                        <span style="font-weight: 600; color: #37474F;">${folderName}</span>
+                        <i class="bi bi-folder-fill" style="color: #1d4ed8; font-size: 1.5rem; margin-right: 12px;"></i>
+                        <span style="font-weight: 600; color: #1d4ed8;">${folderName}</span>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="editFolder('${folderId}')" style="background: none; border: none; color: #2196F3; cursor: pointer; font-size: 1.1rem;" title="Editar">
+                        <button onclick="editFolder('${folderId}')" style="background: none; border: none; color: #0ea5e9; cursor: pointer; font-size: 1.1rem;" title="Editar">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button onclick="deleteFolder('${folderId}')" style="background: none; border: none; color: #f44336; cursor: pointer; font-size: 1.1rem;" title="Eliminar">
+                        <button onclick="deleteFolder('${folderId}')" style="background: none; border: none; color: #e11d48; cursor: pointer; font-size: 1.1rem;" title="Eliminar">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -6877,7 +6956,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <p class="document-date">Creado: ${new Date().toLocaleDateString()}</p>
                         </div>
                         <div class="document-actions">
-                            <button class="btn btn-success btn-edit-document" onclick="openDocumentWorkspace('${documentName}', '${documentId}', '${documentType}')">EDIT</button>
+                            <button class="btn btn-primary btn-edit-document" onclick="openDocumentWorkspace('${documentName}', '${documentId}', '${documentType}')">EDIT</button>
                         </div>
                     `;
                     

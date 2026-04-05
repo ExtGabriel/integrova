@@ -1191,6 +1191,7 @@ function updateNumeroField() {
 
         function saveAjustes() {
             saveAdjustmentsToStorage(ajustes);
+            broadcastAdjustmentsUpdate();
         }
 
         function saveAdjustmentsToStorage(data) {
@@ -1200,6 +1201,40 @@ function updateNumeroField() {
                 console.warn('No se pudieron guardar los ajustes:', error);
             }
         }
+
+        function computeAdjustmentsMap() {
+            const map = new Map();
+
+            ajustes.forEach((ajuste) => {
+                (ajuste.detalles || []).forEach((detail) => {
+                    if (detail.type !== 'account') return;
+
+                    const code = (detail.code || '').trim();
+                    if (!code) return;
+
+                    const rawAmount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                    const signedAmount = detail.nature === 'haber' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+
+                    map.set(code, (map.get(code) || 0) + signedAmount);
+                });
+            });
+
+            return map;
+        }
+
+        function broadcastAdjustmentsUpdate() {
+            const map = computeAdjustmentsMap();
+            document.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
+                detail: {
+                    adjustments: Array.from(map.entries())
+                }
+            }));
+        }
+
+        // Exponer mapa de ajustes locales para otras secciones (Datos/Cuentas)
+        window.getLocalAdjustmentsMap = function () {
+            return computeAdjustmentsMap();
+        };
 
         function collectAssignedAccounts() {
             const elements = document.querySelectorAll('.financial-groups-list .assigned-account');
