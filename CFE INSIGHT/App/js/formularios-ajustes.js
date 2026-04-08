@@ -68,12 +68,16 @@
         return 0;
     };
 
+    const USER_SESSION_STORAGE_KEY = 'userUI';
+    const LOCAL_USER_STORAGE_KEYS = ['currentUser', 'auth_user'];
+
     let ajustes = [];
     let detalleItems = [];
     let selectorState = null;
     let openModalCounter = 0;
+    let currentUserProfile = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const modalBackdrop = document.getElementById('ajusteModal');
         const openButton = document.getElementById('btnNuevoAjuste');
         const closeButton = document.getElementById('closeAjusteModal');
@@ -102,8 +106,17 @@
             return;
         }
 
+        try {
+            await loadCurrentUserProfile();
+        } catch (error) {
+            console.warn('No se pudo precargar el usuario actual para notas de ajustes:', error);
+        }
+
         ajustes = loadAdjustmentsFromStorage();
         renderAdjustments();
+        
+        // Inicializar el badge de notificaciones
+        updateNotesNotificationBadge();
 
         openButton.addEventListener('click', () => openAjusteModal());
         closeButton?.addEventListener('click', () => closeAjusteModal());
@@ -460,6 +473,8 @@
 
         function renderAjustes() {
             renderAdjustments();
+            // Actualizar el badge de notificaciones después de renderizar
+            updateNotesNotificationBadge();
         }
 
         function renderDetailItems() {
@@ -670,6 +685,7 @@ function updateNumeroField() {
                 </button>
                 <button type="button" class="ajuste-card__action-btn" data-action="notes" title="Agregar notas">
                     <i class="bi bi-chat-left-text"></i>
+                    ${ajuste.notasArray && ajuste.notasArray.length > 0 ? `<span class="ajuste-card__notes-count">${ajuste.notasArray.length}</span>` : ''}
                 </button>
             `;
             
@@ -814,76 +830,131 @@ function updateNumeroField() {
             }, 100);
         }
 
+        function renderNotesList(notesArray) {
+            if (!notesArray || notesArray.length === 0) {
+                return `
+                    <div class="ajuste-notes-modal__empty-notes">
+                        <i class="bi bi-chat-left-text" style="font-size: 2rem; color: #cbd5e1;"></i>
+                        <p style="color: #94a3b8; margin: 8px 0 0 0;">No hay notas aún</p>
+                    </div>
+                `;
+            }
+
+            return notesArray.map(note => {
+                const authorName = getNoteAuthorName(note);
+                return `
+                <div class="ajuste-notes-modal__note-item" data-note-id="${note.id}">
+                    <div class="ajuste-notes-modal__note-header">
+                        <span class="ajuste-notes-modal__note-user">
+                            <i class="bi bi-person-circle"></i> ${authorName}
+                        </span>
+                        <span class="ajuste-notes-modal__note-time">
+                            <i class="bi bi-clock"></i> ${note.createdAt}
+                        </span>
+                        <button type="button" class="ajuste-notes-modal__delete-btn" data-note-id="${note.id}" title="Eliminar nota">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="ajuste-notes-modal__note-text">
+                        ${note.html || note.text}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function updateNotesNotificationBadge() {
+            // Contar solo ajustes que tienen notas (no solo ajustes creados)
+            const adjustmentsWithNotes = ajustes.filter(ajuste => 
+                ajuste.notasArray && ajuste.notasArray.length > 0
+            );
+            
+            const totalNotes = adjustmentsWithNotes.reduce((total, ajuste) => {
+                return total + ajuste.notasArray.length;
+            }, 0);
+
+            // Obtener el badge del play icon
+            const playIcon = document.querySelector('.menu-logo .bi-play-circle');
+            if (playIcon) {
+                // Buscar o crear el badge
+                let badge = playIcon.parentElement.querySelector('.notes-notification-badge');
+                
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'notes-notification-badge';
+                    playIcon.parentElement.style.position = 'relative';
+                    playIcon.parentElement.appendChild(badge);
+                }
+
+                // Mostrar u ocultar el badge SOLO si hay notas reales
+                if (totalNotes > 0) {
+                    badge.textContent = totalNotes > 99 ? '99+' : totalNotes;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+
         function openNotesModal(ajuste) {
             const modal = document.createElement('div');
             modal.className = 'ajuste-notes-backdrop';
-            Object.assign(modal.style, {
-                position: 'fixed',
-                inset: '0',
-                background: 'rgba(15, 23, 42, 0.55)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: '1300',
-                backdropFilter: 'blur(2px)'
-            });
 
             const dialog = document.createElement('div');
             dialog.className = 'ajuste-notes-modal';
-            Object.assign(dialog.style, {
-                width: 'min(520px, 92%)',
-                borderRadius: '16px',
-                background: '#ffffff',
-                boxShadow: '0 28px 60px -24px rgba(15, 23, 42, 0.25)',
-                display: 'grid',
-                gridTemplateRows: 'auto 1fr auto',
-                overflow: 'hidden',
-                animation: 'ajusteNotesFade 0.25s ease-out'
-            });
+            // Inicializar array de notas si no existe
+            if (!ajuste.notasArray) {
+                ajuste.notasArray = [];
+            }
+
             dialog.innerHTML = `
                 <div class="ajuste-notes-modal__header">
                     <h3 class="ajuste-notes-modal__title">Notas del Ajuste #${ajuste.numero}</h3>
                     <button type="button" class="ajuste-notes-modal__close" aria-label="Cerrar notas">&times;</button>
                 </div>
                 <div class="ajuste-notes-modal__body">
-                    <label class="ajuste-notes-modal__label" for="notes-textarea">Notas y observaciones</label>
-                    <div class="ajuste-notes-modal__toolbar">
-                        <div class="ajuste-notes-modal__toolbar-group">
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="bold" title="Negrita">
-                                <i class="bi bi-type-bold"></i>
-                            </button>
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="italic" title="Cursiva">
-                                <i class="bi bi-type-italic"></i>
-                            </button>
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="underline" title="Subrayado">
-                                <i class="bi bi-type-underline"></i>
-                            </button>
-                        </div>
-                        <div class="ajuste-notes-modal__toolbar-group">
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertUnorderedList" title="Lista con viñetas">
-                                <i class="bi bi-list-ul"></i>
-                            </button>
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
-                                <i class="bi bi-list-ol"></i>
-                            </button>
-                        </div>
-                        <div class="ajuste-notes-modal__toolbar-group">
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyLeft" title="Alinear a la izquierda">
-                                <i class="bi bi-text-left"></i>
-                            </button>
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyCenter" title="Centrar">
-                                <i class="bi bi-text-center"></i>
-                            </button>
-                            <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyRight" title="Alinear a la derecha">
-                                <i class="bi bi-text-right"></i>
-                            </button>
-                        </div>
+                    <div class="ajuste-notes-modal__notes-list" id="notes-list">
+                        ${renderNotesList(ajuste.notasArray)}
                     </div>
-                    <textarea id="notes-textarea" class="ajuste-notes-modal__textarea" placeholder="Escribe aquí tus notas, observaciones o comentarios sobre este ajuste...">${ajuste.notas || ''}</textarea>
+                    <div class="ajuste-notes-modal__new-note">
+                        <label class="ajuste-notes-modal__label" for="notes-textarea">Nueva nota</label>
+                        <div class="ajuste-notes-modal__toolbar">
+                            <div class="ajuste-notes-modal__toolbar-group">
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="bold" title="Negrita">
+                                    <i class="bi bi-type-bold"></i>
+                                </button>
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="italic" title="Cursiva">
+                                    <i class="bi bi-type-italic"></i>
+                                </button>
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="underline" title="Subrayado">
+                                    <i class="bi bi-type-underline"></i>
+                                </button>
+                            </div>
+                            <div class="ajuste-notes-modal__toolbar-group">
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertUnorderedList" title="Lista con viñetas">
+                                    <i class="bi bi-list-ul"></i>
+                                </button>
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="insertOrderedList" title="Lista numerada">
+                                    <i class="bi bi-list-ol"></i>
+                                </button>
+                            </div>
+                            <div class="ajuste-notes-modal__toolbar-group">
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyLeft" title="Alinear a la izquierda">
+                                    <i class="bi bi-text-left"></i>
+                                </button>
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyCenter" title="Centrar">
+                                    <i class="bi bi-text-center"></i>
+                                </button>
+                                <button type="button" class="ajuste-notes-modal__toolbar-btn" data-command="justifyRight" title="Alinear a la derecha">
+                                    <i class="bi bi-text-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="notes-textarea" class="ajuste-notes-modal__textarea" contenteditable="true" placeholder="Escribe aquí tu nota..."></div>
+                    </div>
                 </div>
                 <div class="ajuste-notes-modal__actions">
-                    <button type="button" class="btn-outline ajuste-notes-modal__action ajuste-notes-modal__action--cancel">Cancelar</button>
-                    <button type="button" class="btn-primary ajuste-notes-modal__action ajuste-notes-modal__action--save">Guardar notas</button>
+                    <button type="button" class="ajuste-notes-modal__action ajuste-notes-modal__action--cancel">Cancelar</button>
+                    <button type="button" class="ajuste-notes-modal__action ajuste-notes-modal__action--save">Agregar nota</button>
                 </div>
             `;
 
@@ -895,215 +966,95 @@ function updateNumeroField() {
             const closeButton = dialog.querySelector('.ajuste-notes-modal__close');
             const cancelButton = dialog.querySelector('.ajuste-notes-modal__action--cancel');
             const saveButton = dialog.querySelector('.ajuste-notes-modal__action--save');
-            const header = dialog.querySelector('.ajuste-notes-modal__header');
-            const title = dialog.querySelector('.ajuste-notes-modal__title');
-            const label = dialog.querySelector('.ajuste-notes-modal__label');
-            const actions = dialog.querySelector('.ajuste-notes-modal__actions');
-            const body = dialog.querySelector('.ajuste-notes-modal__body');
-            const toolbar = dialog.querySelector('.ajuste-notes-modal__toolbar');
-            const toolbarButtons = toolbar.querySelectorAll('.ajuste-notes-modal__toolbar-btn');
-            
-            // Estilos para la barra de herramientas
-            Object.assign(toolbar.style, {
-                display: 'flex',
-                gap: '8px',
-                padding: '12px 16px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                marginBottom: '8px',
-                flexWrap: 'wrap'
-            });
+            const toolbarButtons = dialog.querySelectorAll('.ajuste-notes-modal__toolbar-btn');
 
-            const toolbarGroups = toolbar.querySelectorAll('.ajuste-notes-modal__toolbar-group');
-            toolbarGroups.forEach(group => {
-                group.style.display = 'flex';
-                group.style.gap = '4px';
-                group.style.padding = '0 8px';
-                group.style.borderRight = '1px solid #cbd5e1';
-                group.style.alignItems = 'center';
+            let savedRange = null;
+
+            const saveSelection = () => {
+                const selection = window.getSelection();
+                if (!selection || selection.rangeCount === 0) {
+                    return;
+                }
+                const range = selection.getRangeAt(0);
+                if (!textarea.contains(range.commonAncestorContainer)) {
+                    return;
+                }
+                savedRange = range.cloneRange();
+            };
+
+            const restoreSelection = () => {
+                if (!savedRange) {
+                    return;
+                }
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(savedRange);
+            };
+
+            ['mouseup', 'keyup', 'mouseleave', 'input', 'focus'].forEach(evt => {
+                textarea.addEventListener(evt, saveSelection);
             });
-            toolbarGroups[toolbarGroups.length - 1].style.borderRight = 'none';
 
             // Estilos y funcionalidad para los botones de la toolbar
             toolbarButtons.forEach(btn => {
-                Object.assign(btn.style, {
-                    padding: '6px 8px',
-                    border: 'none',
-                    background: 'transparent',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#64748b',
-                    transition: 'background 0.2s ease, color 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '28px',
-                    height: '28px'
-                });
-
-                btn.addEventListener('mouseover', () => {
-                    btn.style.background = 'rgba(37, 99, 235, 0.1)';
-                    btn.style.color = '#2563eb';
-                });
-                btn.addEventListener('mouseout', () => {
-                    btn.style.background = 'transparent';
-                    btn.style.color = '#64748b';
-                });
-                btn.addEventListener('mousedown', () => {
-                    btn.style.background = 'rgba(37, 99, 235, 0.2)';
-                });
-                btn.addEventListener('mouseup', () => {
-                    btn.style.background = 'rgba(37, 99, 235, 0.1)';
-                });
-
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     const command = btn.dataset.command;
-                    textarea.focus();
                     
-                    // Para formato simple con marcadores
-                    const start = textarea.selectionStart;
-                    const end = textarea.selectionEnd;
-                    const selectedText = textarea.value.substring(start, end);
-                    let formattedText = '';
-
-                    switch(command) {
-                        case 'bold':
-                            formattedText = `**${selectedText}**`;
-                            break;
-                        case 'italic':
-                            formattedText = `*${selectedText}*`;
-                            break;
-                        case 'underline':
-                            formattedText = `__${selectedText}__`;
-                            break;
-                        case 'insertUnorderedList':
-                            formattedText = selectedText.split('\n').map(line => `• ${line}`).join('\n');
-                            break;
-                        case 'insertOrderedList':
-                            formattedText = selectedText.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
-                            break;
-                        case 'justifyLeft':
-                            formattedText = `<<${selectedText}>>`;
-                            break;
-                        case 'justifyCenter':
-                            formattedText = `==${selectedText}==`;
-                            break;
-                        case 'justifyRight':
-                            formattedText = `>>${selectedText}<<`;
-                            break;
-                        default:
-                            formattedText = selectedText;
-                    }
-
-                    textarea.value = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
-                    textarea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+                    // Aplicar comandos de formato real al contenteditable
                     textarea.focus();
+                    restoreSelection();
+                    
+                    try {
+                        // Comandos de formato estándar del navegador
+                        if (['bold', 'italic', 'underline'].includes(command)) {
+                            document.execCommand(command, false, null);
+                        } else if (['insertUnorderedList', 'insertOrderedList'].includes(command)) {
+                            document.execCommand(command, false, null);
+                        } else if (['justifyLeft', 'justifyCenter', 'justifyRight'].includes(command)) {
+                            document.execCommand(command, false, null);
+                        }
+                    } catch (error) {
+                        console.warn('Comando no soportado:', command, error);
+                        
+                        // Fallback para navegadores que no soportan execCommand
+                        const selection = window.getSelection();
+                        if (selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            const selectedText = range.toString();
+                            
+                            if (selectedText) {
+                                let formattedElement;
+                                
+                                switch(command) {
+                                    case 'bold':
+                                        formattedElement = document.createElement('strong');
+                                        break;
+                                    case 'italic':
+                                        formattedElement = document.createElement('em');
+                                        break;
+                                    case 'underline':
+                                        formattedElement = document.createElement('u');
+                                        break;
+                                    default:
+                                        return;
+                                }
+                                
+                                formattedElement.textContent = selectedText;
+                                range.deleteContents();
+                                range.insertNode(formattedElement);
+                                range.selectNodeContents(formattedElement);
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            }
+                        }
+                    }
+                    
+                    // Mantener el foco en el editor
+                    textarea.focus();
+                    saveSelection();
                 });
             });
-
-            Object.assign(header.style, {
-                padding: '20px 28px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '16px',
-                background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-                borderBottom: '1px solid #e2e8f0'
-            });
-
-            title.style.margin = '0';
-            title.style.fontSize = '1.05rem';
-            title.style.fontWeight = '600';
-            title.style.color = '#1e293b';
-
-            Object.assign(closeButton.style, {
-                border: 'none',
-                background: 'transparent',
-                color: '#64748b',
-                fontSize: '1.6rem',
-                lineHeight: '1',
-                cursor: 'pointer',
-                padding: '4px 6px',
-                borderRadius: '8px',
-                transition: 'background 0.2s ease, color 0.2s ease'
-            });
-
-
-            Object.assign(body.style, {
-                padding: '24px 28px',
-                display: 'grid',
-                gap: '12px'
-            });
-
-            label.style.fontSize = '0.9rem';
-            label.style.fontWeight = '500';
-            label.style.color = '#334155';
-
-            Object.assign(textarea.style, {
-                minHeight: '180px',
-                resize: 'vertical',
-                borderRadius: '12px',
-                border: '1px solid #cbd5e1',
-                padding: '14px 16px',
-                fontSize: '0.95rem',
-                fontFamily: 'inherit',
-                lineHeight: '1.6',
-                boxShadow: 'inset 0 1px 2px rgba(15, 23, 42, 0.05)',
-                transition: 'border 0.2s ease, boxShadow 0.2s ease'
-            });
-
-            textarea.addEventListener('focus', () => {
-                textarea.style.outline = 'none';
-                textarea.style.border = '1px solid #2563eb';
-                textarea.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.18)';
-            });
-            textarea.addEventListener('blur', () => {
-                textarea.style.border = '1px solid #cbd5e1';
-                textarea.style.boxShadow = 'inset 0 1px 2px rgba(15, 23, 42, 0.05)';
-            });
-
-            Object.assign(actions.style, {
-                padding: '20px 28px 24px',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                borderTop: '1px solid #e2e8f0',
-                background: '#f8fafc'
-            });
-
-            const baseButtonStyles = {
-                minWidth: '140px',
-                justifyContent: 'center',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderRadius: '10px',
-                fontWeight: '600',
-                padding: '10px 20px',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                border: 'none',
-                transition: 'transform 0.15s ease, box-shadow 0.2s ease'
-            };
-
-            Object.assign(cancelButton.style, {
-                ...baseButtonStyles,
-                background: '#ffffff',
-                color: '#334155',
-                border: '1px solid #cbd5e1'
-            });
-
-
-            Object.assign(saveButton.style, {
-                ...baseButtonStyles,
-                background: '#0d6efd',
-                color: '#ffffff',
-                boxShadow: '0 12px 24px -18px rgba(13, 110, 253, 0.7)'
-            });
-
 
             const closeModal = () => {
                 modal.removeEventListener('click', onBackdropClick);
@@ -1128,13 +1079,108 @@ function updateNumeroField() {
 
             closeButton.addEventListener('click', closeModal);
             cancelButton.addEventListener('click', closeModal);
-            saveButton.addEventListener('click', () => {
-                const notes = textarea.value.trim();
-                ajuste.notas = notes;
+            
+            // Event listener para botones de eliminar nota
+            dialog.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.ajuste-notes-modal__delete-btn');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const noteId = parseInt(deleteBtn.dataset.noteId);
+                    if (noteId && confirm('¿Estás seguro de que deseas eliminar esta nota?')) {
+                        // Eliminar la nota del array
+                        ajuste.notasArray = ajuste.notasArray.filter(note => note.id !== noteId);
+                        
+                        // Actualizar el campo notas para compatibilidad
+                        ajuste.notas = ajuste.notasArray.map(n => 
+                            `[${n.createdAt}] ${n.username}: ${n.text}`
+                        ).join('\n\n');
+                        
+                        // Guardar y actualizar
+                        saveAjustes();
+                        renderAjustes();
+                        
+                        // Actualizar la lista de notas en el modal
+                        const notesList = dialog.querySelector('#notes-list');
+                        if (notesList) {
+                            notesList.innerHTML = renderNotesList(ajuste.notasArray);
+                        }
+                        
+                        // Mostrar notificación
+                        notify('Nota eliminada correctamente', 'success');
+                        
+                        // Actualizar el badge de notificaciones
+                        updateNotesNotificationBadge();
+                    }
+                }
+            });
+            
+            saveButton.addEventListener('click', async () => {
+                // Obtener el contenido del contenteditable div
+                const noteHtml = textarea.innerHTML;
+                const noteText = textarea.textContent || textarea.innerText;
+
+                if (!noteText.trim()) {
+                    notify('Por favor escribe una nota antes de guardar', 'warning');
+                    return;
+                }
+
+                let authorProfile = null;
+                let authorName = 'Usuario';
+
+                try {
+                    authorProfile = await loadCurrentUserProfile();
+                    authorName = getUserDisplayName(authorProfile);
+                } catch (error) {
+                    console.warn('No se pudo obtener el usuario actual al guardar la nota:', error);
+                }
+
+                // Crear nueva nota con información del usuario y timestamp
+                const newNote = {
+                    id: Date.now(),
+                    text: noteText.trim(),
+                    html: noteHtml, // Guardar el HTML con formato
+                    username: authorName,
+                    authorName,
+                    userId: authorProfile?.id || null,
+                    userEmail: authorProfile?.email || null,
+                    timestamp: new Date().toISOString(),
+                    createdAt: new Date().toLocaleString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                };
+
+                // Agregar la nota al array
+                ajuste.notasArray.push(newNote);
+
+                // Actualizar el campo notas para compatibilidad (solo texto plano)
+                ajuste.notas = ajuste.notasArray.map(n => 
+                    `[${n.createdAt}] ${n.username}: ${n.text}`
+                ).join('\n\n');
+
+                // Guardar y actualizar
                 saveAjustes();
                 renderAjustes();
-                notify('Notas guardadas correctamente', 'success');
-                closeModal();
+                
+                // Actualizar la lista de notas en el modal
+                const notesList = dialog.querySelector('#notes-list');
+                if (notesList) {
+                    notesList.innerHTML = renderNotesList(ajuste.notasArray);
+                }
+                
+                // Limpiar el contenteditable div
+                textarea.innerHTML = '';
+                textarea.textContent = '';
+                
+                // Mostrar notificación
+                notify('Nota agregada correctamente', 'success');
+                
+                // Actualizar el badge de notificaciones
+                updateNotesNotificationBadge();
             });
 
             modal.addEventListener('click', onBackdropClick);
@@ -1142,9 +1188,15 @@ function updateNumeroField() {
 
             setTimeout(() => {
                 textarea.focus();
-                if (textarea.value) {
-                    const length = textarea.value.length;
-                    textarea.setSelectionRange(length, length);
+                // Para contenteditable, no necesitamos seleccionar texto si está vacío
+                if (!textarea.textContent.trim()) {
+                    // Colocar cursor al inicio
+                    const range = document.createRange();
+                    const selection = window.getSelection();
+                    range.selectNodeContents(textarea);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
                 }
             }, 50);
         }
@@ -1155,6 +1207,35 @@ function updateNumeroField() {
             }
             const max = ajustes.reduce((acc, item) => Math.max(acc, Number(item.numero) || 0), 0);
             return max + 1;
+        }
+
+        function getNoteAuthorName(note) {
+            if (!note || typeof note !== 'object') {
+                return 'Usuario';
+            }
+
+            const candidates = [
+                note.username,
+                note.authorName,
+                note.userName,
+                note.user,
+                note.createdBy,
+                note.name,
+                note.userFullName,
+                note.user_username
+            ];
+
+            for (const value of candidates) {
+                if (typeof value === 'string' && value.trim()) {
+                    return value.trim();
+                }
+            }
+
+            if (typeof note.userEmail === 'string' && note.userEmail.includes('@')) {
+                return note.userEmail.split('@')[0] || 'Usuario';
+            }
+
+            return 'Usuario';
         }
 
         function disableBodyScroll() {
@@ -1182,11 +1263,189 @@ function updateNumeroField() {
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (!raw) return [];
                 const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
+                const ajustes = Array.isArray(parsed) ? parsed : [];
+                
+                // Migrar notas antiguas al nuevo formato
+                ajustes.forEach(ajuste => {
+                    if (!ajuste.notasArray && ajuste.notas) {
+                        // Convertir notas antiguas al nuevo formato
+                        ajuste.notasArray = [];
+                        
+                        // Si las notas tienen el formato nuevo ya, parsearlas
+                        if (ajuste.notas.includes('[') && ajuste.notas.includes(']:')) {
+                            const lines = ajuste.notas.split('\n\n').filter(line => line.trim());
+                            lines.forEach(line => {
+                                const match = line.match(/^\[([^\]]+)\]\s*([^:]+):\s*(.+)$/);
+                                if (match) {
+                                    const migratedNote = {
+                                        id: Date.now() + Math.random(),
+                                        text: match[3].trim(),
+                                        html: match[3].trim(), // Para notas antiguas, texto plano como HTML
+                                        username: match[2].trim(),
+                                        authorName: match[2].trim(),
+                                        timestamp: new Date(match[1]).toISOString(),
+                                        createdAt: match[1]
+                                    };
+
+                                    ajuste.notasArray.push(migratedNote);
+                                }
+                            });
+                        } else {
+                            // Nota simple antigua, crear una entrada con usuario por defecto
+                            const legacyNote = {
+                                id: Date.now(),
+                                text: ajuste.notas,
+                                html: ajuste.notas, // Para notas antiguas, texto plano como HTML
+                                username: 'Usuario anterior',
+                                authorName: 'Usuario anterior',
+                                timestamp: new Date().toISOString(),
+                                createdAt: new Date().toLocaleString('es-ES', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                            };
+
+                            ajuste.notasArray.push(legacyNote);
+                        }
+                    } else if (!ajuste.notasArray) {
+                        // Inicializar array vacío si no existe
+                        ajuste.notasArray = [];
+                    }
+
+                    if (Array.isArray(ajuste.notasArray)) {
+                        ajuste.notasArray.forEach(note => {
+                            const normalizedName = getNoteAuthorName(note);
+                            note.username = normalizedName;
+                            if (!note.authorName) {
+                                note.authorName = normalizedName;
+                            }
+                            if (note.email && !note.userEmail) {
+                                note.userEmail = note.email;
+                            }
+                        });
+                    }
+                });
+                
+                return ajustes;
             } catch (error) {
                 console.warn('No se pudieron cargar los ajustes almacenados:', error);
                 return [];
             }
+        }
+
+        function parseJsonSafe(value) {
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                console.warn('No se pudo parsear JSON de usuario almacenado:', error);
+                return null;
+            }
+        }
+
+        function getUserFromSessionStorage() {
+            try {
+                const stored = sessionStorage.getItem(USER_SESSION_STORAGE_KEY);
+                return stored ? parseJsonSafe(stored) : null;
+            } catch (error) {
+                console.warn('No se pudo obtener usuario desde sessionStorage:', error);
+                return null;
+            }
+        }
+
+        function getUserFromLocalStorage() {
+            for (const key of LOCAL_USER_STORAGE_KEYS) {
+                try {
+                    const stored = localStorage.getItem(key);
+                    if (!stored) continue;
+                    const parsed = parseJsonSafe(stored);
+                    if (parsed) {
+                        return parsed;
+                    }
+                } catch (error) {
+                    console.warn(`No se pudo obtener usuario desde localStorage (${key}):`, error);
+                }
+            }
+            return null;
+        }
+
+        function getUserDisplayName(user) {
+            if (!user || typeof user !== 'object') {
+                return 'Usuario';
+            }
+
+            const candidates = [
+                user.name,
+                user.full_name,
+                user.fullName,
+                user.username,
+                user.displayName
+            ];
+
+            for (const value of candidates) {
+                if (typeof value === 'string' && value.trim()) {
+                    return value.trim();
+                }
+            }
+
+            if (typeof user.email === 'string' && user.email.includes('@')) {
+                return user.email.split('@')[0] || user.email;
+            }
+
+            return 'Usuario';
+        }
+
+        async function loadCurrentUserProfile(forceReload = false) {
+            if (!forceReload && currentUserProfile) {
+                return currentUserProfile;
+            }
+
+            let user = null;
+
+            if (typeof window.getUserUI === 'function') {
+                try {
+                    user = window.getUserUI();
+                } catch (error) {
+                    console.warn('No se pudo obtener usuario mediante getUserUI:', error);
+                }
+            }
+
+            if (!user) {
+                user = getUserFromSessionStorage();
+            }
+
+            if (!user && window.appSession) {
+                user = window.appSession;
+            }
+
+            if (!user && window.currentUser) {
+                user = window.currentUser;
+            }
+
+            if (!user) {
+                user = getUserFromLocalStorage();
+            }
+
+            if (!user && window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                try {
+                    user = await window.currentUserReady;
+                } catch (error) {
+                    console.warn('No se pudo resolver window.currentUserReady:', error);
+                }
+            }
+
+            if (!user && window.currentUser) {
+                user = window.currentUser;
+            }
+
+            if (user && typeof user === 'object') {
+                currentUserProfile = user;
+                return currentUserProfile;
+            }
+
+            return null;
         }
 
         function saveAjustes() {

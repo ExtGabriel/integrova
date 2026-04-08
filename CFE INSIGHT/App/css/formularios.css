@@ -11,6 +11,390 @@ html, body {
 }
 
 /* ========================================
+   ESTILOS PARA MODAL DE NOTAS
+   ======================================== */
+
+.ajuste-notes-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 1300;
+}
+
+.ajuste-notes-modal {
+    width: min(520px, 92%);
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 28px 60px -24px rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: ajusteNotesFade 0.25s ease-out;
+}
+
+@keyframes ajusteNotesFade {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.ajuste-notes-modal__header {
+    padding: 22px 28px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ajuste-notes-modal__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.ajuste-notes-modal__close {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 8px;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.ajuste-notes-modal__close:hover {
+    background: rgba(148, 163, 184, 0.2);
+    color: #0f172a;
+    transform: scale(1.05);
+}
+
+.ajuste-notes-modal__body {
+    padding: 26px 28px;
+    display: grid;
+    gap: 18px;
+    background: #f8fafc;
+}
+
+.ajuste-notes-modal__notes-list {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px dashed #cbd5f5;
+    border-radius: 14px;
+    padding: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(241,245,249,0.65) 100%);
+    display: grid;
+    gap: 12px;
+}
+
+.ajuste-notes-modal__empty-notes {
+    text-align: center;
+    padding: 28px 12px;
+    color: #94a3b8;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+}
+
+.ajuste-notes-modal__note-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 16px -12px rgba(15, 23, 42, 0.4);
+    display: grid;
+    gap: 10px;
+}
+
+.ajuste-notes-modal__note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    gap: 8px;
+}
+
+.ajuste-notes-modal__note-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.ajuste-notes-modal__note-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.ajuste-notes-modal__delete-btn {
+    padding: 4px 6px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #ef4444;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    opacity: 0.7;
+}
+
+.ajuste-notes-modal__delete-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    transform: scale(1.05);
+    opacity: 1;
+}
+
+.ajuste-notes-modal__delete-btn:active {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(0.95);
+}
+
+.ajuste-notes-modal__note-text {
+    color: #0f172a;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.ajuste-notes-modal__new-note {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 18px 20px 20px;
+    display: grid;
+    gap: 12px;
+    box-shadow: 0 10px 28px -18px rgba(15, 23, 42, 0.35);
+}
+
+.ajuste-notes-modal__label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.ajuste-notes-modal__toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f1f5f9;
+    border: 1px solid #dbe2ef;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+
+.ajuste-notes-modal__toolbar-group {
+    display: flex;
+    gap: 4px;
+    padding: 0 8px;
+    border-right: 1px solid rgba(148, 163, 184, 0.35);
+    align-items: center;
+}
+
+.ajuste-notes-modal__toolbar-group:last-child {
+    border-right: none;
+}
+
+.ajuste-notes-modal__toolbar-btn {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #64748b;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.ajuste-notes-modal__toolbar-btn:hover {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.ajuste-notes-modal__toolbar-btn:active {
+    background: rgba(37, 99, 235, 0.2);
+    transform: scale(0.95);
+}
+
+.ajuste-notes-modal__textarea {
+    width: 100%;
+    min-height: 120px;
+    max-height: 240px;
+    resize: vertical;
+    border-radius: 12px;
+    border: 1px solid #d0d9e6;
+    padding: 16px;
+    font-size: 0.97rem;
+    font-family: "Nunito", "Segoe UI", sans-serif;
+    line-height: 1.7;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+    overflow-y: auto;
+    background: #ffffff;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ajuste-notes-modal__textarea:empty:before {
+    content: attr(placeholder);
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.ajuste-notes-modal__textarea:focus {
+    border: 1px solid #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+.ajuste-notes-modal__actions {
+    padding: 20px 28px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.ajuste-notes-modal__action {
+    min-width: 140px;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 10px 22px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.ajuste-notes-modal__action--cancel {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #d0d9e6;
+}
+
+.ajuste-notes-modal__action--cancel:hover {
+    background: #f1f5f9;
+}
+
+.ajuste-notes-modal__action--save {
+    background: linear-gradient(135deg, #1d4ed8 0%, #0d6efd 100%);
+    color: #ffffff;
+    box-shadow: 0 18px 28px -20px rgba(29, 78, 216, 0.7);
+}
+
+.ajuste-notes-modal__action--save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 32px -18px rgba(29, 78, 216, 0.6);
+}
+
+/* ========================================
+   ESTILOS PARA NOTIFICACIONES DE NOTAS
+   ======================================== */
+
+/* Badge de notificaciones para el play icon */
+.notes-notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.5);
+    animation: notesBadgePop 0.3s ease-out;
+    z-index: 10;
+}
+
+@keyframes notesBadgePop {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Estilos para la lista de notas en el modal */
+/* ========================================
+   ESTILOS PARA INDICADORES DE NOTAS EN TARJETAS
+   ======================================== */
+
+.ajuste-card__notes-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #dc3545;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 1px 4px;
+    border-radius: 8px;
+    min-width: 14px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(220, 53, 69, 0.5);
+    animation: cardNotesBadgePop 0.3s ease-out;
+    z-index: 5;
+}
+
+@keyframes cardNotesBadgePop {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Posicionamiento relativo para el botón de notas */
+.ajuste-card__action-btn[data-action="notes"] {
+    position: relative;
+}
+
+/* ========================================
    ESTILOS PARA SECCIÓN DE AJUSTES
    ======================================== */
 
@@ -2811,6 +3195,84 @@ html, body {
     .form-title {
         font-size: 1.1rem;
     }
+}
+
+.ajuste-notes-modal__textarea {
+    width: 100%;
+    min-height: 150px;
+    max-height: 300px;
+    resize: vertical;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    line-height: 1.6;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+    overflow-y: auto;
+    background: white;
+    outline: none;
+}
+
+.ajuste-notes-modal__textarea:empty:before {
+    content: attr(placeholder);
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.ajuste-notes-modal__textarea:focus {
+    border: 1px solid #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+/* Estilos para la barra de herramientas */
+.ajuste-notes-modal__toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.ajuste-notes-modal__toolbar-group {
+    display: flex;
+    gap: 4px;
+    padding: 0 8px;
+    border-right: 1px solid #cbd5e1;
+    align-items: center;
+}
+
+.ajuste-notes-modal__toolbar-group:last-child {
+    border-right: none;
+}
+
+.ajuste-notes-modal__toolbar-btn {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #64748b;
+    transition: background 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.ajuste-notes-modal__toolbar-btn:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+.ajuste-notes-modal__toolbar-btn:active {
+    background: rgba(37, 99, 235, 0.2);
 }
 
 /* Animaciones */
