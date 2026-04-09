@@ -3528,34 +3528,65 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         // Encontrar índices de columnas automáticamente
         const mapping = detectColumnMapping(headers);
         
-        // Extraer cuentas directamente del Excel (ignorando encabezados)
-        const accounts = [];
-        const dataRows = sheetData.slice(1);
-        
-        dataRows.forEach((row, index) => {
-            // Validar que la fila tenga datos
-            if (!row || row.length === 0) return;
+        // Obtener cuentas desde la base de datos con sus UUIDs reales
+        console.log('Obteniendo cuentas desde cuentas_contables...');
+        const { data: dbAccounts, error: dbError } = await supabase
+            .from('cuentas_contables')
+            .select('*')
+            .eq('conjunto_id', conjunto.id)
+            .order('created_at');
             
-            const accountNumber = extractAccountNumber(row, mapping.accountNumber);
-            const accountName = extractAccountName(row, mapping.accountName);
-            const currentYearValue = extractValue(row, mapping.currentYear);
-            const previousYearValue = extractValue(row, mapping.previousYear);
+        if (dbError) {
+            console.error('Error obteniendo cuentas de la base de datos:', dbError);
+            // Fallback: usar el método antiguo del Excel
+            const accounts = [];
+            const dataRows = sheetData.slice(1);
             
-            // Validar que tenga número de cuenta o nombre
-            if (!accountNumber && !accountName) return;
-            
-            accounts.push({
-                id: `excel-${index}`, // ID temporal basado en el índice
-                code: accountNumber || `CUENTA-${index}`,
-                name: accountName || '', // Nombre vacío en lugar de 'SIN NOMBRE'
-                value: currentYearValue, // Valor directo del Excel
-                current_year_value: currentYearValue,
-                previous_year_value: previousYearValue,
-                debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
-                credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
-                conjunto_id: conjunto.id // <- Agregar ID del dataset para que frontend lo use
+            dataRows.forEach((row, index) => {
+                if (!row || row.length === 0) return;
+                
+                const accountNumber = extractAccountNumber(row, mapping.accountNumber);
+                const accountName = extractAccountName(row, mapping.accountName);
+                const currentYearValue = extractValue(row, mapping.currentYear);
+                const previousYearValue = extractValue(row, mapping.previousYear);
+                
+                if (!accountNumber && !accountName) return;
+                
+                accounts.push({
+                    id: `excel-${index}`,
+                    code: accountNumber || `CUENTA-${index}`,
+                    name: accountName || '',
+                    value: currentYearValue,
+                    current_year_value: currentYearValue,
+                    previous_year_value: previousYearValue,
+                    debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
+                    credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
+                    conjunto_id: conjunto.id
+                });
             });
-        });
+            
+            res.json({ 
+                success: true, 
+                data: accounts,
+                datasetExists: true
+            });
+            return;
+        }
+        
+        console.log(`Encontradas ${dbAccounts.length} cuentas en la base de datos`);
+        
+        // Transformar las cuentas de la base de datos al formato que espera el frontend
+        const accounts = dbAccounts.map(account => ({
+            id: account.id, // <- UUID real de la base de datos
+            code: account.numero_cuenta,
+            name: account.nombre_cuenta,
+            value: account.debito_actual - account.credito_actual,
+            current_year_value: account.debito_actual,
+            previous_year_value: account.debito_anterior - account.credito_anterior,
+            debit: account.debito_actual,
+            credit: account.credito_actual,
+            conjunto_id: account.conjunto_id
+        }));
 
         res.json({ 
             success: true, 
@@ -3571,11 +3602,481 @@ app.get('/api/accounts/unassigned', async (req, res) => {
     }
 });
 
+// ============================================
+// ENDPOINTS PARA ACCOUNT ASSIGNMENTS
+// ============================================
+
+// Guardar asignación de cuenta
+app.post('/api/assignments/save', async (req, res) => {
+    try {
+        console.log('=== INICIO GUARDAR ASIGNACIÓN ===');
+        console.log('Headers:', req.headers);
+        
+        const { 
+            datasetId, 
+            accountId, 
+            groupContentId, 
+            parentAccountId, 
+            position, 
+            meta 
+        } = req.body;
+        
+        console.log('Parsed data:', {
+            datasetId,
+            accountId,
+            groupContentId,
+            parentAccountId,
+            position,
+            meta
+        });
+        
+        const userId = req.headers['user-id'];
+        console.log('User ID from header:', userId);
+        
+        if (!userId || !datasetId || !accountId || !groupContentId) {
+            console.error('Faltan datos requeridos:', { datasetId, accountId, groupContentId });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos: datasetId, accountId, groupContentId' 
+            });
+        }
+        
+        // Manejar datasetId de prueba
+        let realDatasetId = datasetId;
+        if (datasetId === 'test-dataset-id') {
+            realDatasetId = '00000000-0000-0000-0000-000000000001';
+            console.log('Usando datasetId de prueba:', realDatasetId);
+        }
+
+        // Primero buscar el UUID real de la cuenta si accountId no es UUID
+        let realAccountId = accountId;
+        
+        // Detectar si es un ID de prueba o no es un UUID válido
+        const isTestAccount = accountId && (
+            accountId.toString().startsWith('excel-') || 
+            accountId.toString().startsWith('local-') || 
+            accountId.toString().startsWith('db-account-') || 
+            !accountId.includes('-')
+        );
+        
+        if (isTestAccount) {
+            // Si ya es UUID (contiene guiones), usarlo directamente
+            if (accountId.includes('-')) {
+                realAccountId = accountId;
+                console.log('AccountId ya es UUID válido:', realAccountId);
+            } else {
+                // Para IDs de prueba, generar UUID directamente sin buscar en BD
+                console.log('Generando UUID para ID de prueba:', accountId);
+                realAccountId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
+                console.log('UUID generado:', realAccountId);
+            }
+        }
+        
+        // Asegurar que userId sea un UUID válido
+        let realUserId = userId;
+        if (!userId || !userId.includes('-')) {
+            realUserId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
+            console.log('UUID generado para user:', realUserId);
+        }
+        
+        console.log('Intentando insertar en account_assignments...');
+        const insertData = {
+            dataset_id: realDatasetId,
+            account_id: realAccountId,
+            group_content_id: groupContentId,
+            parent_account_id: parentAccountId || null,
+            position: position || 0,
+            user_id: realUserId,
+            meta: meta || {}
+        };
+        
+        console.log('Datos a insertar:', insertData);
+
+        const { data, error } = await supabase
+            .from('account_assignments')
+            .insert(insertData)
+            .select()
+            .single();
+
+        console.log('Supabase response:', { data, error });
+
+        if (error) {
+            console.error('Error guardando asignación:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+
+        console.log('Assignment saved successfully:', data);
+        res.json({ 
+            success: true, 
+            assignment: data 
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint de asignaciones:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando asignación' 
+        });
+    }
+});
+
+// Obtener asignaciones de un dataset
+app.get('/api/assignments/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        const { data, error } = await supabase
+            .from('account_assignments')
+            .select(`
+                *,
+                cuentas_contables(id, code, name),
+                users(id, email)
+            `)
+            .eq('dataset_id', datasetId)
+            .order('position');
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            assignments: data || [] 
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo asignaciones:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo asignaciones' 
+        });
+    }
+});
+
+// Eliminar asignación
+app.delete('/api/assignments/:assignmentId', async (req, res) => {
+    try {
+        const { assignmentId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        const { error } = await supabase
+            .from('account_assignments')
+            .delete()
+            .eq('id', assignmentId)
+            .eq('user_id', userId); // Solo el dueño puede eliminar
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            message: 'Asignación eliminada' 
+        });
+
+    } catch (error) {
+        console.error('Error eliminando asignación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error eliminando asignación' 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINTS PARA AJUSTES FINANCIEROS
+// ============================================
+
+// Guardar ajuste financiero
+app.post('/api/adjustments/save', async (req, res) => {
+    try {
+        const { 
+            datasetId, 
+            accountId, 
+            assignmentId, 
+            adjustmentType, 
+            moneda, 
+            monto, 
+            descripcion, 
+            htmlContenido, 
+            adjuntos 
+        } = req.body;
+        
+        const userId = req.headers['user-id'];
+        
+        if (!userId || !datasetId || !monto) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('ajustes_financieros')
+            .insert({
+                dataset_id: datasetId,
+                account_id: accountId || null,
+                assignment_id: assignmentId || null,
+                adjustment_type: adjustmentType || 'manual',
+                moneda: moneda || 'GTQ',
+                monto: monto,
+                descripcion: descripcion || null,
+                html_contenido: htmlContenido || null,
+                adjuntos: adjuntos || null,
+                created_by: userId
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            adjustment: data 
+        });
+
+    } catch (error) {
+        console.error('Error guardando ajuste:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando ajuste' 
+        });
+    }
+});
+
+// Obtener ajustes de un dataset
+app.get('/api/adjustments/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        const { data, error } = await supabase
+            .from('ajustes_financieros')
+            .select(`
+                *,
+                cuentas_contables(id, code, name),
+                users(id, email)
+            `)
+            .eq('dataset_id', datasetId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            adjustments: data || [] 
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo ajustes:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo ajustes' 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINTS PARA LEDGER INTEGRITY
+// ============================================
+
+// Guardar validación de libro mayor
+app.post('/api/ledger-integrity/save', async (req, res) => {
+    try {
+        const { datasetId, results, status } = req.body;
+        const userId = req.headers['user-id'];
+        
+        if (!userId || !datasetId || !results) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos' 
+            });
+        }
+
+        // Crear el run principal
+        const { data: run, error: runError } = await supabase
+            .from('ledger_integrity_runs')
+            .insert({
+                dataset_id: datasetId,
+                user_id: userId,
+                status: status || 'completed',
+                meta: { 
+                    totalAccounts: results.length,
+                    generatedAt: new Date().toISOString()
+                }
+            })
+            .select()
+            .single();
+
+        if (runError) throw runError;
+
+        // Guardar cada fila de resultados
+        const rows = results.map(result => ({
+            run_id: run.id,
+            account_id: result.accountId || null,
+            group_content_id: result.groupContentId || null,
+            label: result.label || '',
+            account_code: result.accountCode || '',
+            level: result.level || 0,
+            is_group: result.isGroup || false,
+            prelim: result.prelim || 0,
+            ledger: result.ledger || null,
+            adjustments: result.adjustments || 0,
+            current: result.current || 0,
+            previous: result.previous || null,
+            difference: result.difference || null,
+            order_index: result.orderIndex || 0,
+            flags: result.flags || null
+        }));
+
+        const { data: insertedRows, error: rowsError } = await supabase
+            .from('ledger_integrity_rows')
+            .insert(rows)
+            .select();
+
+        if (rowsError) throw rowsError;
+
+        res.json({ 
+            success: true, 
+            run: run,
+            rows: insertedRows || []
+        });
+
+    } catch (error) {
+        console.error('Error guardando validación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando validación' 
+        });
+    }
+});
+
+// Endpoint para verificar datos guardados en la base de datos
+app.get('/api/verify-database-data', async (req, res) => {
+    try {
+        // Contar registros en cada tabla usando Supabase
+        const [conjuntosResult, assignmentsResult, adjustmentsResult, ledgerResult] = await Promise.all([
+            supabase.from('conjuntos_datos').select('*', { count: 'exact', head: true }),
+            supabase.from('account_assignments').select('*', { count: 'exact', head: true }),
+            supabase.from('ajustes_financieros').select('*', { count: 'exact', head: true }),
+            supabase.from('ledger_integrity_runs').select('*', { count: 'exact', head: true })
+        ]);
+        
+        // Obtener últimos registros
+        const [latestConjuntos, latestAssignments, latestAdjustments] = await Promise.all([
+            supabase.from('conjuntos_datos').select('archivo_original, created_at').order('created_at', { ascending: false }).limit(1),
+            supabase.from('account_assignments').select('*').order('created_at', { ascending: false }).limit(3),
+            supabase.from('ajustes_financieros').select('*').order('created_at', { ascending: false }).limit(3)
+        ]);
+        
+        // Verificar errores
+        if (conjuntosResult.error) throw conjuntosResult.error;
+        if (assignmentsResult.error) throw assignmentsResult.error;
+        if (adjustmentsResult.error) throw adjustmentsResult.error;
+        if (ledgerResult.error) throw ledgerResult.error;
+        
+        if (latestConjuntos.error) throw latestConjuntos.error;
+        if (latestAssignments.error) throw latestAssignments.error;
+        if (latestAdjustments.error) throw latestAdjustments.error;
+        
+        res.json({
+            success: true,
+            data: {
+                counts: {
+                    conjuntos_datos: conjuntosResult.count || 0,
+                    account_assignments: assignmentsResult.count || 0,
+                    ajustes_financieros: adjustmentsResult.count || 0,
+                    ledger_integrity_runs: ledgerResult.count || 0
+                },
+                latest: {
+                    excel_file: latestConjuntos.data && latestConjuntos.data.length > 0 ? {
+                        filename: latestConjuntos.data[0].archivo_original,
+                        created_at: latestConjuntos.data[0].created_at
+                    } : null,
+                    recent_assignments: latestAssignments.data || [],
+                    recent_adjustments: latestAdjustments.data || []
+                },
+                timestamp: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error verificando datos:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Error verificando datos' 
+        });
+    }
+});
+
+// Endpoint temporal para obtener datasets sin autenticación (solo para debug)
+app.get('/api/debug/datasets', async (req, res) => {
+    try {
+        const { data: datasets, error: datasetsError } = await supabase
+            .from('conjuntos_datos')
+            .select('id, nombre, user_id, fecha_importacion')
+            .order('fecha_importacion', { ascending: false })
+            .limit(5);
+
+        if (datasetsError) throw datasetsError;
+
+        console.log('Debug - Datasets encontrados:', datasets?.length || 0);
+
+        res.json({
+            success: true,
+            data: datasets || []
+        });
+        
+    } catch (error) {
+        console.error('Error en debug datasets:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Endpoint temporal para ver estructura de tablas
+app.get('/api/debug/tables', async (req, res) => {
+    try {
+        const tableName = req.query.table || 'conjuntos_datos';
+        
+        const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(1);
+        
+        if (error) {
+            return res.json({ success: false, error: error.message, table: tableName });
+        }
+        
+        if (data && data.length > 0) {
+            const columns = Object.keys(data[0]);
+            res.json({ 
+                success: true, 
+                table: tableName,
+                columns: columns,
+                sampleRow: data[0] 
+            });
+        } else {
+            res.json({ 
+                success: true, 
+                table: tableName,
+                message: 'No data found',
+                columns: [] 
+            });
+        }
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
-    console.log(`📁 Archivos estáticos servidos desde: ${path.join(__dirname, 'App')}`);
-    console.log(`📊 Procesamiento de archivos Excel habilitado`);
+    console.log(`\ud83d\ude80 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
+    console.log(`\ud83d\udcc1 Archivos est\u00e1ticos servidos desde: ${path.join(__dirname, 'App')}`);
+    console.log(`\ud83d\udcca Procesamiento de archivos Excel habilitado`);
+    console.log(`\ud83d\udcdd Account Assignments API habilitada`);
 });
 
 module.exports = app;

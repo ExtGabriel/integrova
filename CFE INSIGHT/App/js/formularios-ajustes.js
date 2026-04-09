@@ -1455,7 +1455,33 @@ function updateNumeroField() {
 
         function saveAdjustmentsToStorage(data) {
             try {
+                // 1. Guardar en localStorage (sistema actual)
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                
+                // 2. Guardar en base de datos (nuevo sistema)
+                if (window.saveFinancialAdjustment && currentDatasetId) {
+                    // Guardar cada ajuste individualmente
+                    data.ajustes.forEach(async (ajuste) => {
+                        try {
+                            await saveFinancialAdjustment({
+                                datasetId: currentDatasetId,
+                                adjustmentType: ajuste.tipo || 'manual',
+                                moneda: ajuste.moneda || 'GTQ',
+                                monto: ajuste.monto || 0,
+                                descripcion: ajuste.descripcion || '',
+                                htmlContenido: ajuste.htmlContenido || '',
+                                adjuntos: ajuste.adjuntos || null,
+                                meta: {
+                                    detalles: ajuste.detalles || [],
+                                    creado: ajuste.creado,
+                                    modificado: ajuste.modificado
+                                }
+                            });
+                        } catch (error) {
+                            console.warn('Error guardando ajuste en base de datos:', error);
+                        }
+                    });
+                }
             } catch (error) {
                 console.warn('No se pudieron guardar los ajustes:', error);
             }
@@ -1679,6 +1705,72 @@ function updateNumeroField() {
                 const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
                 return map[match] || match;
             });
+        }
+
+        // Función para sincronizar ajustes con la base de datos
+        async function syncAdjustmentsWithDatabase() {
+            try {
+                console.log(' Sincronizando ajustes con la base de datos...');
+                
+                if (!currentDatasetId) {
+                    console.log(' No hay datasetId, omitiendo sincronización de ajustes');
+                    return;
+                }
+                
+                // Verificar si hay conexión a la base de datos
+                if (window.getFinancialAdjustments) {
+                    const isConnected = await window.checkDatabaseConnection();
+                    if (!isConnected) {
+                        console.log(' Sin conexión a la base de datos, usando localStorage para ajustes');
+                        return;
+                    }
+                    
+                    // Cargar ajustes desde la base de datos
+                    const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
+                    console.log(' Ajustes cargados desde base de datos:', dbAdjustments.length);
+                    
+                    // Convertir ajustes de la base de datos al formato local
+                    const convertedAdjustments = dbAdjustments.map(adj => ({
+                        id: adj.id,
+                        tipo: adj.adjustment_type,
+                        moneda: adj.moneda,
+                        monto: adj.monto,
+                        descripcion: adj.descripcion,
+                        htmlContenido: adj.html_contenido,
+                        adjuntos: adj.adjuntos,
+                        creado: adj.created_at,
+                        modificado: adj.updated_at,
+                        detalles: adj.meta?.detalles || []
+                    }));
+                    
+                    // Si hay ajustes en la base de datos, actualizar el localStorage
+                    if (convertedAdjustments.length > 0) {
+                        const currentData = {
+                            ajustes: convertedAdjustments,
+                            lastModified: new Date().toISOString()
+                        };
+                        
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
+                        
+                        // Recargar los ajustes en la aplicación
+                        if (typeof loadAjustes === 'function') {
+                            loadAjustes();
+                        }
+                        
+                        console.log(' Ajustes sincronizados y UI actualizada');
+                    }
+                } else {
+                    console.log(' Función de base de datos no disponible para ajustes');
+                }
+                
+            } catch (error) {
+                console.error(' Error en sincronización de ajustes con base de datos:', error);
+            }
+        }
+
+        // Iniciar sincronización de ajustes si estamos en el contexto correcto
+        if (typeof currentDatasetId !== 'undefined' && currentDatasetId) {
+            syncAdjustmentsWithDatabase();
         }
     });
 })();

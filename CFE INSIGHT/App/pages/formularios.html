@@ -8,9 +8,9 @@
     <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="../css/styles.css">
-    <link rel="stylesheet" href="../css/formularios.css">
-    <link rel="stylesheet" href="../css/assessment.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/formularios.css">
+    <link rel="stylesheet" href="/css/assessment.css">
     <style>
         /* Fix for column mapping modal buttons */
         #columnMappingModal .modal-footer {
@@ -1623,6 +1623,9 @@
                                     <div class="right-header">
                                         <button class="btn btn-outline-secondary">Seleccionar todo</button>
                                         <button class="btn btn-outline-danger">Borrar cuentas seleccionadas</button>
+                                        <button class="btn btn-info" onclick="verifyDatabaseData()" title="Verificar datos en base de datos">
+                                            <i class="bi bi-database-check"></i> Verificar
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="search-bar-container">
@@ -4158,6 +4161,33 @@
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
                 const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
                 renderLedgerIntegrity(rows, meta);
+                
+                // Guardar resultados en la base de datos
+                if (window.saveLedgerIntegrityResults && currentDatasetId && rows.length > 0) {
+                    try {
+                        const convertedRows = rows.map(row => ({
+                            accountId: row.accountId || null,
+                            groupContentId: row.groupContentId || null,
+                            label: row.label || '',
+                            accountCode: row.accountCode || '',
+                            level: row.level || 0,
+                            isGroup: row.isGroup || false,
+                            prelim: row.prelim || 0,
+                            ledger: row.ledger || null,
+                            adjustments: row.adjustments || 0,
+                            current: row.current || 0,
+                            previous: row.previous || null,
+                            difference: row.difference || null,
+                            orderIndex: row.orderIndex || 0,
+                            flags: row.flags || null
+                        }));
+                        
+                        await saveLedgerIntegrityResults(currentDatasetId, convertedRows, 'completed');
+                        console.log(' Resultados de ledger integrity guardados en base de datos');
+                    } catch (dbError) {
+                        console.warn(' Error guardando ledger integrity en base de datos:', dbError);
+                    }
+                }
             } catch (err) {
                 console.error('Error cargando integridad del libro mayor:', err);
                 renderLedgerIntegrity([], '');
@@ -13820,10 +13850,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const datasetId = accountData?.datasetId || currentDatasetId;
         if (!accountKey || !groupId || !datasetId) return;
 
-        const assignments = getStoredAssignments(datasetId)
-            .filter(item => item.accountKey !== accountKey);
-
-        assignments.push({
+        // Preparar datos para guardar
+        const assignmentData = {
             accountKey,
             id: accountData?.id || accountKey,
             code: accountData?.code || '',
@@ -13833,9 +13861,63 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             groupContentId: groupId,
             parentAccountId: parentAccountId || '',
             datasetId
-        });
+        };
 
+        // 1. Guardar en localStorage (sistema actual - fallback)
+        const assignments = getStoredAssignments(datasetId)
+            .filter(item => item.accountKey !== accountKey);
+
+        assignments.push(assignmentData);
         saveStoredAssignments(assignments, datasetId);
+
+        // 2. Guardar en base de datos (nuevo sistema)
+        console.log(' Intentando guardar asignación en base de datos...');
+        console.log(' - accountData:', accountData);
+        console.log(' - groupId:', groupId);
+        console.log(' - datasetId:', datasetId);
+        
+        // Esperar a que saveAccountAssignment esté disponible
+        const waitForSaveFunction = () => {
+            return new Promise((resolve) => {
+                const checkFunction = () => {
+                    if (window.saveAccountAssignment) {
+                        resolve(window.saveAccountAssignment);
+                    } else {
+                        setTimeout(checkFunction, 100);
+                    }
+                };
+                checkFunction();
+            });
+        };
+        
+        waitForSaveFunction().then(saveAccountAssignment => {
+            console.log(' - saveAccountAssignment disponible:', !!saveAccountAssignment);
+            
+            const assignmentData = {
+                accountId: accountData?.id || accountKey,
+                groupContentId: groupId,
+                parentAccountId: parentAccountId || null,
+                position: assignments.length - 1,
+                datasetId: datasetId,
+                meta: {
+                    accountKey,
+                    code: accountData?.code || '',
+                    name: accountData?.name || '',
+                    value: parseAccountValue(accountData?.value),
+                    prevValue: parseAccountValue(accountData?.prevValue)
+                }
+            };
+            
+            console.log(' - assignmentData:', assignmentData);
+            
+            saveAccountAssignment(assignmentData).then(() => {
+                console.log(' ✅ Asignación guardada en base de datos');
+            }).catch(error => {
+                console.warn('❌ Database save failed, using localStorage only:', error);
+            });
+        }).catch(error => {
+            console.warn('❌ No se pudo cargar saveAccountAssignment:', error);
+        });
     }
 
     function removeStoredAssignment(accountData) {
@@ -13843,9 +13925,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const datasetId = accountData?.datasetId || currentDatasetId;
         if (!accountKey || !datasetId) return;
 
+        // 1. Eliminar de localStorage (sistema actual)
         const assignments = getStoredAssignments(datasetId)
             .filter(item => item.accountKey !== accountKey);
         saveStoredAssignments(assignments, datasetId);
+
+        // 2. Eliminar de la base de datos (nuevo sistema)
+        // Buscar la asignación en localStorage para obtener el ID de la base de datos
+        const assignmentToDelete = assignments.find(item => item.accountKey === accountKey);
+        
+        if (window.deleteAccountAssignment && assignmentToDelete?.id) {
+            deleteAccountAssignment(assignmentToDelete.id).catch(error => {
+                console.warn('Database delete failed, localStorage updated only:', error);
+            });
+        }
     }
 
     function filterAssignedAccounts(accounts = [], datasetId = currentDatasetId) {
@@ -14061,12 +14154,251 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
         });
         
-        console.log('✅ Sistema de asignación por clic inicializado');
+        console.log(' Sistema de asignación por clic inicializado');
     }
     
+    // Función para sincronizar asignaciones con la base de datos
+    async function syncAssignmentsWithDatabase() {
+        try {
+            console.log(' Sincronizando asignaciones con la base de datos...');
+            
+            if (!currentDatasetId) {
+                console.log(' No hay datasetId, omitiendo sincronización');
+                return;
+            }
+            
+            // Verificar si hay conexión a la base de datos
+            if (window.checkDatabaseConnection) {
+                const isConnected = await checkDatabaseConnection();
+                if (!isConnected) {
+                    console.log(' Sin conexión a la base de datos, usando localStorage');
+                    return;
+                }
+                
+                // Cargar y sincronizar asignaciones
+                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId);
+                console.log(' Asignaciones sincronizadas:', syncedAssignments.length);
+                
+                // Actualizar la UI si hay asignaciones cargadas
+                if (syncedAssignments.length > 0) {
+                    restoreAssignedAccounts();
+                    updateAllGroupCounts();
+                    updateRemainingCount();
+                    console.log(' UI actualizada con asignaciones sincronizadas');
+                }
+            } else {
+                console.log(' Función de base de datos no disponible');
+            }
+            
+        } catch (error) {
+            console.error(' Error en sincronización con base de datos:', error);
+        }
+    }
+    
+    initializeClickAssignment();
+    syncAssignmentsWithDatabase();
+    
+    // Función para verificar datos en la base de datos
+    window.verifyDatabaseData = async function() {
+        try {
+            showNotification('Verificando datos en la base de datos...', 'info');
+            
+            const response = await fetch('/api/verify-database-data');
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Error verificando datos');
+            }
+            
+            const data = result.data;
+            
+            // Crear modal con los resultados
+            const modal = document.createElement('div');
+            modal.className = 'modal fade show';
+            modal.style.display = 'block';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-database-check"></i> Verificación de Base de Datos
+                            </h5>
+                            <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Conteo de Registros</h6>
+                                    <table class="table table-sm">
+                                        <tr><td>Conjuntos de Datos:</td><td><strong>${data.counts.conjuntos_datos}</strong></td></tr>
+                                        <tr><td>Asignaciones:</td><td><strong>${data.counts.account_assignments}</strong></td></tr>
+                                        <tr><td>Ajustes Financieros:</td><td><strong>${data.counts.ajustes_financieros}</strong></td></tr>
+                                        <tr><td>Validaciones Ledger:</td><td><strong>${data.counts.ledger_integrity_runs}</strong></td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Actividad Reciente</h6>
+                                    ${data.latest.excel_file ? `
+                                        <p><strong>Último Excel:</strong><br>
+                                        ${data.latest.excel_file.filename}<br>
+                                        <small>${new Date(data.latest.excel_file.created_at).toLocaleString()}</small></p>
+                                    ` : '<p>No hay archivos Excel</p>'}
+                                    
+                                    ${data.latest.recent_assignments.length > 0 ? `
+                                        <p><strong>Asignaciones recientes:</strong></p>
+                                        <ul class="small">
+                                            ${data.latest.recent_assignments.map(a => 
+                                                `<li>${a.account_code} - ${a.account_name}</li>`
+                                            ).join('')}
+                                        </ul>
+                                    ` : '<p>No hay asignaciones recientes</p>'}
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle"></i> 
+                                Última verificación: ${new Date(data.timestamp).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cerrar</button>
+                            <button type="button" class="btn btn-primary" onclick="verifyDatabaseData()">Actualizar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            showNotification('Verificación completada', 'success');
+            
+        } catch (error) {
+            console.error('Error verificando datos:', error);
+            showNotification('Error verificando datos: ' + error.message, 'error');
+        }
+    };
+
+    // Función global para sincronizar todos los datos con la base de datos
+    window.syncAllDataWithDatabase = async function() {
+        try {
+            showNotification('Iniciando sincronización con base de datos...', 'info');
+            
+            if (!currentDatasetId) {
+                showNotification('No hay un dataset activo para sincronizar', 'warning');
+                return;
+            }
+            
+            // Verificar conexión
+            if (!window.checkDatabaseConnection) {
+                showNotification('Funciones de base de datos no disponibles', 'error');
+                return;
+            }
+            
+            const isConnected = await checkDatabaseConnection();
+            if (!isConnected) {
+                showNotification('Sin conexión a la base de datos', 'error');
+                return;
+            }
+            
+            let syncCount = 0;
+            
+            // 1. Sincronizar asignaciones
+            try {
+                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId);
+                if (syncedAssignments.length > 0) {
+                    restoreAssignedAccounts();
+                    updateAllGroupCounts();
+                    updateRemainingCount();
+                    syncCount += syncedAssignments.length;
+                    console.log(' Asignaciones sincronizadas:', syncedAssignments.length);
+                }
+            } catch (error) {
+                console.warn('Error sincronizando asignaciones:', error);
+            }
+            
+            // 2. Sincronizar ajustes financieros
+            try {
+                if (window.getFinancialAdjustments) {
+                    const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
+                    if (dbAdjustments.length > 0) {
+                        // Actualizar localStorage con ajustes de la base de datos
+                        const STORAGE_KEY = 'ajustes_formularios_v1';
+                        const convertedAdjustments = dbAdjustments.map(adj => ({
+                            id: adj.id,
+                            tipo: adj.adjustment_type,
+                            moneda: adj.moneda,
+                            monto: adj.monto,
+                            descripcion: adj.descripcion,
+                            htmlContenido: adj.html_contenido,
+                            adjuntos: adj.adjuntos,
+                            creado: adj.created_at,
+                            modificado: adj.updated_at,
+                            detalles: adj.meta?.detalles || []
+                        }));
+                        
+                        const currentData = {
+                            ajustes: convertedAdjustments,
+                            lastModified: new Date().toISOString()
+                        };
+                        
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
+                        syncCount += dbAdjustments.length;
+                        console.log(' Ajustes sincronizados:', dbAdjustments.length);
+                    }
+                }
+            } catch (error) {
+                console.warn('Error sincronizando ajustes:', error);
+            }
+            
+            // 3. Sincronizar validación de libro mayor
+            try {
+                if (window.getLedgerIntegrityResults) {
+                    const ledgerResults = await getLedgerIntegrityResults(currentDatasetId);
+                    if (ledgerResults.length > 0) {
+                        // Actualizar UI con resultados de ledger integrity
+                        syncCount += ledgerResults.length;
+                        console.log(' Resultados de ledger integrity sincronizados:', ledgerResults.length);
+                    }
+                }
+            } catch (error) {
+                console.warn('Error sincronizando ledger integrity:', error);
+            }
+            
+            // 4. Sincronizar datos del Excel
+            try {
+                if (window.getExcelData) {
+                    const excelData = await getExcelData(currentDatasetId);
+                    if (excelData) {
+                        // Actualizar localStorage con datos del Excel
+                        localStorage.setItem('excel_data_current', JSON.stringify(excelData));
+                        syncCount += 1;
+                        console.log(' Datos del Excel sincronizados');
+                    }
+                }
+            } catch (error) {
+                console.warn('Error sincronizando datos del Excel:', error);
+            }
+            
+            // Actualizar contadores y UI
+            updateAllGroupCounts();
+            updateRemainingCount();
+            
+            if (syncCount > 0) {
+                showNotification(`Sincronización completada: ${syncCount} elementos actualizados`, 'success');
+            } else {
+                showNotification('No hay datos nuevos para sincronizar', 'info');
+            }
+            
+        } catch (error) {
+            console.error('Error en sincronización manual:', error);
+            showNotification('Error en la sincronización: ' + error.message, 'error');
+        }
+    };
+
     // Función para inicializar cuentas estáticas del lado derecho
     function initializeStaticAccounts() {
-        console.log('🔧 Inicializando cuentas estáticas del lado derecho...');
+        console.log(' Inicializando cuentas estáticas del lado derecho...');
         
         // Agregar data-attributes a las cuentas estáticas para mejor manejo
         const staticAccounts = document.querySelectorAll('.financial-groups-list .account-item');
@@ -14153,11 +14485,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         });
         
-        console.log('✅ Cuentas estáticas inicializadas correctamente');
+        console.log(' Cuentas estáticas inicializadas correctamente');
     }
     
     function appendExcelAccountToStaticAccount(excelAccount, staticAccountElement, groupContent) {
-        console.log('🔄 Agregando cuenta del Excel debajo de cuenta estática:', excelAccount.code);
+        console.log('=== INICIO APPEND EXCEL ACCOUNT ===');
+        console.log('excelAccount completo:', excelAccount);
+        console.log('excelAccount.id:', excelAccount.id);
+        console.log('excelAccount.code:', excelAccount.code);
+        console.log('¿Es UUID válido?', excelAccount.id && excelAccount.id.includes('-'));
+
+        console.log(' Agregando cuenta del Excel debajo de cuenta estática:', excelAccount.code);
 
         const assignedAccount = createAssignedAccountElement(excelAccount);
         assignedAccount.classList.add('assigned-subaccount');
@@ -14167,6 +14505,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         updateStaticAccountTotals(staticAccountElement, groupContent);
 
+        console.log('Llamando a persistAssignment con...');
         persistAssignment(excelAccount, groupContent, staticAccountElement.dataset.accountId || '');
 
         // Remove any leftover account-value spans from assigned subaccounts
@@ -14748,6 +15087,24 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <p>Cargando cuentas...</p>
                         </div>
                     `;
+                }
+
+                // Primero obtener el último dataset para establecer currentDatasetId
+                console.log('📡 Obteniendo último dataset...');
+                const latestResponse = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                    headers: {
+                        'user-id': getCurrentUserId()
+                    }
+                });
+                const latestResult = await latestResponse.json();
+                
+                if (latestResponse.ok && latestResult.success && latestResult.data) {
+                    currentDatasetId = latestResult.data.id;
+                    localStorage.setItem(getAssignmentsLastDatasetKey(), currentDatasetId);
+                    console.log('✅ Dataset actual establecido:', currentDatasetId);
+                } else {
+                    console.warn('⚠️ No se encontró ningún dataset');
+                    currentDatasetId = null;
                 }
 
                 // Cargar cuentas desde la base de datos
@@ -21285,10 +21642,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     </div>
 
     
-    <script src="../js/formularios-ajustes.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/api-client.js"></script>
-    <script src="../js/auth-guard.js"></script>
+    <script src="/js/database-api.js"></script>
+    <script>
+        // Verificar que database-api.js se cargó correctamente
+        console.log('Verificando carga de database-api.js...');
+        console.log('saveAccountAssignment disponible:', typeof window.saveAccountAssignment);
+        console.log('saveAssignmentDual disponible:', typeof window.saveAssignmentDual);
+        
+        // Si no está disponible, intentar cargarlo manualmente
+        if (typeof window.saveAccountAssignment === 'undefined') {
+            console.log('Cargando database-api.js manualmente...');
+            const script = document.createElement('script');
+            script.src = '/js/database-api.js';
+            script.onload = function() {
+                console.log('database-api.js cargado manualmente');
+                console.log('saveAccountAssignment disponible:', typeof window.saveAccountAssignment);
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    <script src="/js/formularios-ajustes.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/api-client.js"></script>
+    <script src="/js/auth-guard.js"></script>
 
     <!-- Modal para seleccionar roles -->
     <div id="rolesModal" class="modal">
