@@ -128,6 +128,165 @@ async function deleteAccountAssignment(assignmentId) {
 }
 
 // ============================================
+// GRUPOS FINANCIEROS
+// ============================================
+
+/**
+ * Guarda un grupo financiero en la base de datos
+ * @param {Object} groupData - Datos del grupo financiero
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFinancialGroup(groupData) {
+    try {
+        console.log('Saving financial group to database:', groupData);
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            },
+            body: JSON.stringify({
+                datasetId: groupData.datasetId || currentDatasetId,
+                groupId: groupData.id,
+                name: groupData.name,
+                type: groupData.type || 'group',
+                parentLabel: groupData.parentLabel || null,
+                value: groupData.value || 0,
+                meta: groupData.meta || null
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error guardando grupo financiero');
+        }
+
+        console.log('Financial group saved successfully:', result.group);
+        return result.group;
+
+    } catch (error) {
+        console.error('Error in saveFinancialGroup:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene todos los grupos financieros de un dataset
+ * @param {string} datasetId - ID del dataset
+ * @returns {Promise<Array>} Array de grupos financieros
+ */
+async function getFinancialGroups(datasetId) {
+    try {
+        console.log('Loading financial groups from database for dataset:', datasetId);
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${datasetId}`, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo grupos financieros');
+        }
+
+        console.log('Financial groups loaded:', result.groups);
+        return result.groups;
+
+    } catch (error) {
+        console.error('Error in getFinancialGroups:', error);
+        return [];
+    }
+}
+
+// ============================================
+// CUENTAS CONTABLES
+// ============================================
+
+/**
+ * Guarda una cuenta contable en la base de datos
+ * @param {Object} accountData - Datos de la cuenta contable
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveAccount(accountData) {
+    try {
+        console.log('Saving account to database:', accountData);
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            },
+            body: JSON.stringify({
+                datasetId: accountData.datasetId || currentDatasetId,
+                code: accountData.code,
+                name: accountData.name,
+                value: accountData.value || 0,
+                currentYearValue: accountData.currentYearValue || 0,
+                previousYearValue: accountData.previousYearValue || 0,
+                debit: accountData.debit || 0,
+                credit: accountData.credit || 0,
+                meta: accountData.meta || null
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error guardando cuenta contable');
+        }
+
+        console.log('Account saved successfully:', result.account);
+        return result.account;
+
+    } catch (error) {
+        console.error('Error in saveAccount:', error);
+        throw error;
+    }
+}
+
+/**
+ * Guarda múltiples cuentas contables en lote
+ * @param {Array} accountsData - Array de datos de cuentas
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveAccountsBatch(accountsData) {
+    try {
+        console.log('Saving accounts batch to database:', accountsData.length, 'accounts');
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/batch-save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            },
+            body: JSON.stringify({
+                datasetId: currentDatasetId,
+                accounts: accountsData
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error guardando cuentas en lote');
+        }
+
+        console.log('Accounts batch saved successfully:', result);
+        return result;
+
+    } catch (error) {
+        console.error('Error in saveAccountsBatch:', error);
+        throw error;
+    }
+}
+
+// ============================================
 // AJUSTES FINANCIEROS
 // ============================================
 
@@ -170,6 +329,102 @@ async function saveFinancialAdjustment(adjustmentData) {
 
     } catch (error) {
         console.error('Error in saveFinancialAdjustment:', error);
+        throw error;
+    }
+}
+
+/**
+ * Guarda ajustes de cuentas desde la sección Cuentas en la base de datos
+ * @param {string} datasetId - ID del dataset
+ * @param {Map} adjustmentsMap - Mapa de ajustes locales (código -> valor)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveAccountAdjustments(datasetId, adjustmentsMap) {
+    try {
+        console.log('Saving account adjustments to database:', { datasetId, adjustmentsCount: adjustmentsMap.size });
+        
+        if (!datasetId || !adjustmentsMap || adjustmentsMap.size === 0) {
+            console.log('No adjustments to save');
+            return { success: true, message: 'No adjustments to save' };
+        }
+
+        // Convertir el mapa a array para enviar a la API
+        const adjustments = Array.from(adjustmentsMap.entries()).map(([accountKey, amount]) => ({
+            datasetId,
+            adjustmentType: 'account_adjustment',
+            moneda: 'GTQ',
+            monto: amount,
+            descripcion: `Ajuste de cuenta: ${accountKey}`,
+            accountKey: accountKey // Para identificar la cuenta específica
+        }));
+
+        // Guardar cada ajuste individualmente
+        const results = [];
+        for (const adjustment of adjustments) {
+            try {
+                const result = await saveFinancialAdjustment(adjustment);
+                results.push({ success: true, adjustment });
+            } catch (error) {
+                console.error('Error saving individual adjustment:', error);
+                results.push({ success: false, error: error.message, adjustment });
+            }
+        }
+
+        const successCount = results.filter(r => r.success).length;
+        console.log(`Account adjustments saved: ${successCount}/${results.length}`);
+
+        return {
+            success: successCount > 0,
+            total: results.length,
+            successCount,
+            results
+        };
+
+    } catch (error) {
+        console.error('Error in saveAccountAdjustments:', error);
+        throw error;
+    }
+}
+
+/**
+ * Guarda los resultados calculados de grupos financieros en la base de datos
+ * @param {string} datasetId - ID del dataset
+ * @param {Array} results - Resultados calculados de grupos financieros
+ * @param {string} status - Estado del cálculo
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFinancialGroupsResults(datasetId, results, status = 'completed') {
+    try {
+        console.log('Saving financial groups results:', { datasetId, resultsCount: results.length });
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            },
+            body: JSON.stringify({
+                datasetId,
+                results,
+                status
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error guardando resultados de grupos financieros');
+        }
+
+        console.log('Financial groups results saved successfully:', { 
+            runId: result.run.id, 
+            rowsCount: result.rows.length 
+        });
+        
+        return result;
+
+    } catch (error) {
+        console.error('Error in saveFinancialGroupsResults:', error);
         throw error;
     }
 }
@@ -249,6 +504,199 @@ async function saveLedgerIntegrityResults(datasetId, results, status = 'complete
     } catch (error) {
         console.error('Error in saveLedgerIntegrityResults:', error);
         throw error;
+    }
+}
+
+// ============================================
+// FUNCIONES DE GUARDADO DUAL (LocalStorage + Database)
+// ============================================
+
+/**
+ * Guarda un grupo financiero en ambos sistemas (localStorage y base de datos)
+ * @param {Object} groupData - Datos del grupo financiero
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFinancialGroupDual(groupData) {
+    try {
+        // 1. Guardar en localStorage
+        const localStorageResult = saveStoredFinancialGroup(groupData);
+        
+        // 2. Guardar en base de datos
+        const databaseResult = await saveFinancialGroup(groupData);
+        
+        console.log('Financial group saved to both systems:', {
+            localStorage: localStorageResult,
+            database: databaseResult
+        });
+        
+        return {
+            success: true,
+            localStorage: localStorageResult,
+            database: databaseResult
+        };
+
+    } catch (error) {
+        console.error('Error in saveFinancialGroupDual:', error);
+        
+        // Si falla la base de datos, al menos guardar en localStorage
+        try {
+            const localStorageResult = saveStoredFinancialGroup(groupData);
+            console.warn('Database save failed, localStorage backup successful:', localStorageResult);
+            
+            return {
+                success: true,
+                localStorage: localStorageResult,
+                database: null,
+                warning: 'Database save failed, using localStorage only'
+            };
+        } catch (localStorageError) {
+            console.error('Both systems failed:', { databaseError: error, localStorageError });
+            throw error;
+        }
+    }
+}
+
+/**
+ * Guarda una cuenta contable en ambos sistemas (localStorage y base de datos)
+ * @param {Object} accountData - Datos de la cuenta contable
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveAccountDual(accountData) {
+    try {
+        // 1. Guardar en localStorage
+        const localStorageResult = saveStoredAccount(accountData);
+        
+        // 2. Guardar en base de datos
+        const databaseResult = await saveAccount(accountData);
+        
+        console.log('Account saved to both systems:', {
+            localStorage: localStorageResult,
+            database: databaseResult
+        });
+        
+        return {
+            success: true,
+            localStorage: localStorageResult,
+            database: databaseResult
+        };
+
+    } catch (error) {
+        console.error('Error in saveAccountDual:', error);
+        
+        // Si falla la base de datos, al menos guardar en localStorage
+        try {
+            const localStorageResult = saveStoredAccount(accountData);
+            console.warn('Database save failed, localStorage backup successful:', localStorageResult);
+            
+            return {
+                success: true,
+                localStorage: localStorageResult,
+                database: null,
+                warning: 'Database save failed, using localStorage only'
+            };
+        } catch (localStorageError) {
+            console.error('Both systems failed:', { databaseError: error, localStorageError });
+            throw error;
+        }
+    }
+}
+
+// ============================================
+// FUNCIONES LOCALSTORAGE PARA GRUPOS Y CUENTAS
+// ============================================
+
+/**
+ * Guarda un grupo financiero en localStorage
+ * @param {Object} groupData - Datos del grupo financiero
+ * @returns {Object} Resultado del guardado local
+ */
+function saveStoredFinancialGroup(groupData) {
+    try {
+        const datasetId = groupData.datasetId || currentDatasetId;
+        const userId = getCurrentUserId();
+        
+        if (!datasetId || !userId) {
+            console.warn('Missing datasetId or userId for localStorage save');
+            return null;
+        }
+        
+        const storageKey = `financial_groups_v1_${userId}_${datasetId}`;
+        const existingGroups = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        // Remove existing group for same ID if exists
+        const filteredGroups = existingGroups.filter(g => g.id !== groupData.id);
+        
+        // Add new group
+        const newGroup = {
+            id: groupData.id || `local_${Date.now()}`,
+            name: groupData.name,
+            type: groupData.type || 'group',
+            parentLabel: groupData.parentLabel || null,
+            value: groupData.value || 0,
+            meta: groupData.meta || {},
+            datasetId: datasetId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        filteredGroups.push(newGroup);
+        localStorage.setItem(storageKey, JSON.stringify(filteredGroups));
+        
+        console.log('Financial group saved to localStorage:', newGroup);
+        return newGroup;
+        
+    } catch (error) {
+        console.error('Error saving financial group to localStorage:', error);
+        return null;
+    }
+}
+
+/**
+ * Guarda una cuenta contable en localStorage
+ * @param {Object} accountData - Datos de la cuenta contable
+ * @returns {Object} Resultado del guardado local
+ */
+function saveStoredAccount(accountData) {
+    try {
+        const datasetId = accountData.datasetId || currentDatasetId;
+        const userId = getCurrentUserId();
+        
+        if (!datasetId || !userId) {
+            console.warn('Missing datasetId or userId for localStorage save');
+            return null;
+        }
+        
+        const storageKey = `accounts_v1_${userId}_${datasetId}`;
+        const existingAccounts = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        // Remove existing account for same code if exists
+        const filteredAccounts = existingAccounts.filter(a => a.code !== accountData.code);
+        
+        // Add new account
+        const newAccount = {
+            id: accountData.id || `local_${Date.now()}`,
+            code: accountData.code,
+            name: accountData.name,
+            value: accountData.value || 0,
+            currentYearValue: accountData.currentYearValue || 0,
+            previousYearValue: accountData.previousYearValue || 0,
+            debit: accountData.debit || 0,
+            credit: accountData.credit || 0,
+            meta: accountData.meta || {},
+            datasetId: datasetId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        filteredAccounts.push(newAccount);
+        localStorage.setItem(storageKey, JSON.stringify(filteredAccounts));
+        
+        console.log('Account saved to localStorage:', newAccount);
+        return newAccount;
+        
+    } catch (error) {
+        console.error('Error saving account to localStorage:', error);
+        return null;
     }
 }
 
@@ -639,6 +1087,8 @@ window.getAccountAssignments = getAccountAssignments;
 window.deleteAccountAssignment = deleteAccountAssignment;
 window.saveFinancialAdjustment = saveFinancialAdjustment;
 window.getFinancialAdjustments = getFinancialAdjustments;
+window.saveAccountAdjustments = saveAccountAdjustments;
+window.saveFinancialGroupsResults = saveFinancialGroupsResults;
 window.saveLedgerIntegrityResults = saveLedgerIntegrityResults;
 window.saveAssignmentDual = saveAssignmentDual;
 window.loadAndSyncAssignments = loadAndSyncAssignments;
@@ -647,17 +1097,31 @@ window.syncAllDataToDatabase = syncAllDataToDatabase;
 window.getExcelData = getExcelData;
 window.saveExcelData = saveExcelData;
 window.deleteExcelData = deleteExcelData;
+
+// Nuevas funciones para grupos financieros y cuentas
+window.saveFinancialGroup = saveFinancialGroup;
+window.getFinancialGroups = getFinancialGroups;
+window.saveAccount = saveAccount;
+window.saveAccountsBatch = saveAccountsBatch;
+
+// Funciones duales (localStorage + base de datos)
+window.saveFinancialGroupDual = saveFinancialGroupDual;
+window.saveAccountDual = saveAccountDual;
+window.saveStoredFinancialGroup = saveStoredFinancialGroup;
+window.saveStoredAccount = saveStoredAccount;
 window.saveStoredAssignment = saveStoredAssignment;
 window.getStoredAssignments = getStoredAssignments;
 
 // Debug: Verificar que el archivo se cargó correctamente
 console.log('✅ database-api.js cargado correctamente');
-console.log('✅ Funciones disponibles:', {
+console.log('Funciones disponibles:', {
     saveAccountAssignment: !!window.saveAccountAssignment,
     getAccountAssignments: !!window.getAccountAssignments,
     deleteAccountAssignment: !!window.deleteAccountAssignment,
     saveFinancialAdjustment: !!window.saveFinancialAdjustment,
     getFinancialAdjustments: !!window.getFinancialAdjustments,
+    saveAccountAdjustments: !!window.saveAccountAdjustments,
+    saveFinancialGroupsResults: !!window.saveFinancialGroupsResults,
     saveLedgerIntegrityResults: !!window.saveLedgerIntegrityResults,
     getExcelData: !!window.getExcelData,
     saveExcelData: !!window.saveExcelData,

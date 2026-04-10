@@ -3951,6 +3951,80 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
     }
 });
 
+// ENDPOINTS PARA FINANCIAL GROUPS RESULTS
+// ============================================
+
+// Guardar resultados de grupos financieros
+app.post('/api/financial-groups-results/save', async (req, res) => {
+    try {
+        const { datasetId, results, status } = req.body;
+        const userId = req.headers['user-id'];
+        
+        if (!userId || !datasetId || !results) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos' 
+            });
+        }
+
+        // Crear el snapshot principal
+        const { data: snapshot, error: snapshotError } = await supabase
+            .from('financial_group_snapshots')
+            .insert({
+                dataset_id: datasetId,
+                user_id: userId,
+                status: status || 'completed',
+                meta: { 
+                    totalRows: results.length,
+                    generatedAt: new Date().toISOString()
+                }
+            })
+            .select()
+            .single();
+
+        if (snapshotError) throw snapshotError;
+
+        // Guardar cada fila de resultados
+        const rows = results.map(result => ({
+            snapshot_id: snapshot.id,
+            group_content_id: result.rowId || null,
+            parent_row_id: result.parentId || null,
+            name: result.accountName || '',
+            level: result.level || 0,
+            is_group: result.isParent || false,
+            prelim: result.preliminary || 0,
+            adjustments: result.adjustments || 0,
+            current: result.finalCurrent || 0,
+            previous: result.finalPrevious || 0,
+            order_index: 0,
+            metadata: {
+                hasChildren: result.hasChildren || false,
+                ledgerMissing: result.ledgerMissing || false
+            }
+        }));
+
+        const { data: insertedRows, error: rowsError } = await supabase
+            .from('financial_group_rows')
+            .insert(rows)
+            .select();
+
+        if (rowsError) throw rowsError;
+
+        res.json({ 
+            success: true, 
+            snapshot: snapshot,
+            rows: insertedRows || []
+        });
+
+    } catch (error) {
+        console.error('Error guardando resultados de grupos financieros:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando resultados de grupos financieros' 
+        });
+    }
+});
+
 // Endpoint para verificar datos guardados en la base de datos
 app.get('/api/verify-database-data', async (req, res) => {
     try {
@@ -4071,12 +4145,333 @@ app.get('/api/debug/tables', async (req, res) => {
     }
 });
 
+// ============================================
+// API PARA GRUPOS FINANCIEROS
+// ============================================
+
+// Guardar un grupo financiero
+app.post('/api/financial-groups/save', async (req, res) => {
+    try {
+        const { datasetId, groupId, name, type, parentLabel, value, meta } = req.body;
+        const userId = req.headers['user-id'];
+        
+        if (!datasetId || !groupId || !name) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos: datasetId, groupId, name' 
+            });
+        }
+        
+        console.log('Guardando grupo financiero:', { datasetId, groupId, name, userId });
+        
+        const { data, error } = await supabase
+            .from('financial_groups')
+            .insert({
+                dataset_id: datasetId,
+                group_id: groupId,
+                name: name,
+                type: type || 'group',
+                parent_label: parentLabel || null,
+                value: value || 0,
+                meta: meta || null,
+                user_id: userId
+            })
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('Error guardando grupo financiero:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        console.log('Grupo financiero guardado exitosamente:', data);
+        res.json({ 
+            success: true, 
+            group: data 
+        });
+        
+    } catch (error) {
+        console.error('Error en endpoint de grupos financieros:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando grupo financiero' 
+        });
+    }
+});
+
+// Obtener grupos financieros de un dataset
+app.get('/api/financial-groups/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        const { data, error } = await supabase
+            .from('financial_groups')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: true });
+        
+        if (error) {
+            console.error('Error obteniendo grupos financieros:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            groups: data || [] 
+        });
+        
+    } catch (error) {
+        console.error('Error en endpoint de grupos financieros:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo grupos financieros' 
+        });
+    }
+});
+
+// ============================================
+// API PARA CUENTAS CONTABLES
+// ============================================
+
+// Guardar una cuenta contable
+app.post('/api/accounts/save', async (req, res) => {
+    try {
+        const { datasetId, code, name, value, currentYearValue, previousYearValue, debit, credit, meta } = req.body;
+        const userId = req.headers['user-id'];
+        
+        if (!datasetId || !code || !name) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos: datasetId, code, name' 
+            });
+        }
+        
+        console.log('Guardando cuenta contable:', { datasetId, code, name, userId });
+        
+        const { data, error } = await supabase
+            .from('cuentas_contables')
+            .insert({
+                conjunto_id: datasetId,
+                code: code,
+                name: name,
+                value: value || 0,
+                current_year_value: currentYearValue || 0,
+                previous_year_value: previousYearValue || 0,
+                debit: debit || 0,
+                credit: credit || 0,
+                meta: meta || null
+            })
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('Error guardando cuenta contable:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        console.log('Cuenta contable guardada exitosamente:', data);
+        res.json({ 
+            success: true, 
+            account: data 
+        });
+        
+    } catch (error) {
+        console.error('Error en endpoint de cuentas contables:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando cuenta contable' 
+        });
+    }
+});
+
+// Guardar cuentas contables en lote
+app.post('/api/accounts/batch-save', async (req, res) => {
+    try {
+        const { datasetId, accounts } = req.body;
+        const userId = req.headers['user-id'];
+        
+        if (!datasetId || !accounts || !Array.isArray(accounts)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos: datasetId, accounts (array)' 
+            });
+        }
+        
+        console.log('Guardando cuentas en lote:', { datasetId, count: accounts.length, userId });
+        
+        // Preparar datos para inserción
+        const accountsToInsert = accounts.map(account => ({
+            conjunto_id: datasetId,
+            code: account.code,
+            name: account.name,
+            value: account.value || 0,
+            current_year_value: account.currentYearValue || 0,
+            previous_year_value: account.previousYearValue || 0,
+            debit: account.debit || 0,
+            credit: account.credit || 0,
+            meta: account.meta || null
+        }));
+        
+        const { data, error } = await supabase
+            .from('cuentas_contables')
+            .insert(accountsToInsert)
+            .select();
+        
+        if (error) {
+            console.error('Error guardando cuentas en lote:', error);
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        console.log('Cuentas guardadas en lote exitosamente:', data?.length || 0);
+        res.json({ 
+            success: true, 
+            accounts: data || [],
+            count: data?.length || 0
+        });
+        
+    } catch (error) {
+        console.error('Error en endpoint de cuentas en lote:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando cuentas en lote' 
+        });
+    }
+});
+
+// Endpoint para crear tabla financial_groups directamente
+app.post('/api/create-financial-groups-table', async (req, res) => {
+    try {
+        console.log('Creando tabla financial_groups...');
+        
+        // SQL para crear la tabla
+        const createTableSQL = `
+            CREATE TABLE IF NOT EXISTS public.financial_groups (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                dataset_id UUID NOT NULL REFERENCES public.conjuntos_datos(id) ON DELETE CASCADE,
+                group_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT DEFAULT 'group',
+                parent_label TEXT,
+                value DECIMAL DEFAULT 0,
+                meta JSONB DEFAULT '{}',
+                user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+            );
+        `;
+        
+        const { data, error } = await supabase.rpc('exec_sql', { sql_statement: createTableSQL });
+        
+        if (error) {
+            console.error('Error creando tabla financial_groups:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+        
+        console.log('Tabla financial_groups creada exitosamente');
+        
+        // Crear índices
+        const indexSQL = `
+            CREATE INDEX IF NOT EXISTS idx_financial_groups_dataset_id ON public.financial_groups(dataset_id);
+            CREATE INDEX IF NOT EXISTS idx_financial_groups_user_id ON public.financial_groups(user_id);
+            CREATE INDEX IF NOT EXISTS idx_financial_groups_group_id ON public.financial_groups(group_id);
+        `;
+        
+        const indexStatements = indexSQL.split(';').filter(stmt => stmt.trim());
+        
+        for (const statement of indexStatements) {
+            await supabase.rpc('exec_sql', { sql_statement: statement.trim() });
+        }
+        
+        console.log('Índices creados exitosamente');
+        
+        res.json({ 
+            success: true, 
+            message: 'Tabla financial_groups creada exitosamente' 
+        });
+        
+    } catch (error) {
+        console.error('Error creando tabla financial_groups:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Endpoint para verificar columnas de cuentas_contables
+app.post('/api/fix-cuentas-contables', async (req, res) => {
+    try {
+        console.log('Verificando/actualizando tabla cuentas_contables...');
+        
+        // Añadir columnas si no existen
+        const alterSQL = `
+            ALTER TABLE public.cuentas_contables 
+            ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}';
+            
+            ALTER TABLE public.cuentas_contables 
+            ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+            
+            ALTER TABLE public.cuentas_contables 
+            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+        `;
+        
+        const statements = alterSQL.split(';').filter(stmt => stmt.trim());
+        const results = [];
+        
+        for (const statement of statements) {
+            try {
+                const { data, error } = await supabase.rpc('exec_sql', { sql_statement: statement });
+                
+                if (error) {
+                    console.log('Error en alter table:', error);
+                    results.push({ statement: statement.substring(0, 50) + '...', error: error.message });
+                } else {
+                    console.log('Alter table OK:', statement.substring(0, 50) + '...');
+                    results.push({ statement: statement.substring(0, 50) + '...', success: true });
+                }
+            } catch (err) {
+                console.log('Error ejecutando alter:', err.message);
+                results.push({ statement: statement.substring(0, 50) + '...', error: err.message });
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Tabla cuentas_contables verificada/actualizada',
+            results: results
+        });
+        
+    } catch (error) {
+        console.error('Error verificando cuentas_contables:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`\ud83d\ude80 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
     console.log(`\ud83d\udcc1 Archivos est\u00e1ticos servidos desde: ${path.join(__dirname, 'App')}`);
     console.log(`\ud83d\udcca Procesamiento de archivos Excel habilitado`);
     console.log(`\ud83d\udcdd Account Assignments API habilitada`);
+    console.log(`\ud83d\udcca Financial Groups API habilitada`);
+    console.log(`\ud83d\udcca Accounts API habilitada`);
 });
 
 module.exports = app;

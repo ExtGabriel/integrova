@@ -4208,11 +4208,20 @@
         }
 
         function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
+            console.log('DEBUG: buildTrialBalanceRows - accounts:', accounts.slice(0, 2));
             const rows = (Array.isArray(accounts) ? accounts : [])
                 .map(account => {
                     const code = account.code || account.account_number || '';
                     const name = account.name || account.account_name || '';
-                    const preliminary = parseAccountValue(account.current_year_value ?? account.value ?? 0);
+                    console.log('DEBUG: account values:', {
+                        code,
+                        name,
+                        current_year_value: account.current_year_value,
+                        value: account.value,
+                        previous_year_value: account.previous_year_value
+                    });
+                    const preliminary = account.current_year_value ?? account.value ?? 0;
+                    console.log('DEBUG: preliminary calculated:', preliminary);
                     const localAdj = (() => {
                         const codeKey = (code || '').toString().trim();
                         if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
@@ -4233,7 +4242,7 @@
 
                     const adjustments = Number.isFinite(mergedAdjustmentsRaw) ? mergedAdjustmentsRaw : 0;
                     const finalCurrent = preliminary + adjustments;
-                    const finalPrevious = parseAccountValue(account.previous_year_value ?? 0);
+                    const finalPrevious = account.previous_year_value ?? 0;
 
                     return {
                         accountNumber: code,
@@ -4295,7 +4304,7 @@
         });
 
         // Re-render la tabla de grupos financieros cuando cambien los ajustes locales
-        document.addEventListener('localAdjustmentsUpdated', () => {
+        document.addEventListener('localAdjustmentsUpdated', async () => {
             if (!cachedGruposFinancierosRows.length) return;
 
             const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
@@ -4306,6 +4315,31 @@
             );
             cachedGruposFinancierosRows = rows;
             renderGruposFinancieros(rows, cachedLedgerMeta);
+
+            // Guardar resultados calculados en la base de datos
+            if (window.saveFinancialGroupsResults && currentDatasetId && rows.length > 0) {
+                try {
+                    console.log('Guardando resultados de grupos financieros en base de datos...');
+                    const convertedRows = rows.map(row => ({
+                        accountName: row.accountName || '',
+                        preliminary: row.preliminary || 0,
+                        adjustments: row.adjustments || 0,
+                        finalCurrent: row.finalCurrent || 0,
+                        finalPrevious: row.finalPrevious || 0,
+                        level: row.level || 0,
+                        isParent: row.isParent || false,
+                        rowId: row.rowId || '',
+                        parentId: row.parentId || '',
+                        hasChildren: row.hasChildren || false,
+                        ledgerMissing: row.ledgerMissing || false
+                    }));
+                    
+                    const result = await saveFinancialGroupsResults(currentDatasetId, convertedRows, 'completed');
+                    console.log('Resultados de grupos financieros guardados:', result);
+                } catch (error) {
+                    console.warn('Error guardando resultados de grupos financieros en base de datos:', error);
+                }
+            }
         });
 
         function renderCuentasTable(rows, meta) {
@@ -5060,6 +5094,9 @@
             // Cargar datos iniciales inmediatamente
             restoreOriginalOptions('padre');
             restoreOriginalOptions('hijo');
+            
+            // Cargar historial de datasets automáticamente
+            loadDatasetHistory();
             
             // Intentar cargar desde API (opcional)
             setTimeout(() => {
@@ -13463,7 +13500,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // FUNCIONES PARA NAVEGACIÓN DE DATOS
         // ========================================
         
-        function selectDataSection(sectionName) {
+        async function selectDataSection(sectionName) {
             // Ocultar todas las secciones
             const asignarCuentasSection = document.getElementById('asignarCuentasSection');
             const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
@@ -13482,10 +13519,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 case 'asignar-cuentas':
                     asignarCuentasSection.style.display = 'block';
                     loadUnassignedAccountsFromLatestExcel();
+                    // Esperar a que currentDatasetId esté disponible antes de restaurar asignaciones
+                    setTimeout(async () => {
+                        if (currentDatasetId) {
+                            await restoreAssignedAccounts();
+                        } else {
+                            // Reintentar después de un breve delay
+                            setTimeout(async () => {
+                                if (currentDatasetId) {
+                                    await restoreAssignedAccounts();
+                                }
+                            }, 500);
+                        }
+                    }, 100);
                     break;
                 case 'integridad-libro':
                     ledgerIntegritySection.style.display = 'block';
-                    restoreAssignedAccounts();
+                    await restoreAssignedAccounts();
                     loadLedgerIntegrityFromLatestExcel();
                     break;
                 case 'cuentas':
@@ -13719,8 +13769,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function parseAccountValue(rawValue) {
+        console.log('DEBUG parseAccountValue - rawValue:', rawValue, 'type:', typeof rawValue);
         if (rawValue == null) return 0;
-        if (typeof rawValue === 'number') return rawValue;
+        if (typeof rawValue === 'number') {
+            console.log('DEBUG parseAccountValue - returning number:', rawValue);
+            return rawValue;
+        }
 
         if (typeof rawValue !== 'string') {
             const numeric = Number(rawValue);
@@ -13948,10 +14002,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         return accounts.filter(account => !assignedKeys.has(getAccountKey(account)));
     }
 
-    function restoreAssignedAccounts() {
+    async function restoreAssignedAccounts() {
         const datasetId = normalizeDatasetId(currentDatasetId);
         if (!datasetId) return;
-        const assignments = getStoredAssignments(datasetId);
+        
+        let assignments = [];
+        
+        try {
+            // Intentar cargar desde la base de datos primero (producción)
+            if (window.getAccountAssignments) {
+                const dbAssignments = await window.getAccountAssignments(datasetId);
+                assignments = dbAssignments || [];
+                console.log('Cargadas', assignments.length, 'asignaciones desde base de datos');
+            }
+        } catch (error) {
+            console.warn('Error cargando desde BD, usando localStorage:', error);
+        }
+        
+        // Si no hay datos de BD, usar localStorage como fallback
+        if (!assignments.length) {
+            assignments = getStoredAssignments(datasetId) || [];
+            console.log('Cargadas', assignments.length, 'asignaciones desde localStorage');
+        }
+        
         if (!assignments.length) return;
 
         assignments.forEach(assignment => {

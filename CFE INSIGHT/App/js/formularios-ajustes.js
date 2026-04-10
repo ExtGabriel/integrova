@@ -1461,7 +1461,7 @@ function updateNumeroField() {
                 // 2. Guardar en base de datos (nuevo sistema)
                 if (window.saveFinancialAdjustment && currentDatasetId) {
                     // Guardar cada ajuste individualmente
-                    data.ajustes.forEach(async (ajuste) => {
+                    data.forEach(async (ajuste) => {
                         try {
                             await saveFinancialAdjustment({
                                 datasetId: currentDatasetId,
