@@ -4207,21 +4207,46 @@
             return 0;
         }
 
+        function getNumericValue(account, keys) {
+            if (!account) return null;
+            for (const key of keys) {
+                if (Object.prototype.hasOwnProperty.call(account, key)) {
+                    const rawValue = account[key];
+                    if (rawValue === '' || rawValue === null || rawValue === undefined) continue;
+                    const parsed = Number(rawValue);
+                    if (Number.isFinite(parsed)) {
+                        return parsed;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function computeNetBalance(account, debitKeys, creditKeys, fallbackKeys) {
+            const debit = getNumericValue(account, debitKeys);
+            const credit = getNumericValue(account, creditKeys);
+
+            if (debit !== null || credit !== null) {
+                return (debit ?? 0) - (credit ?? 0);
+            }
+
+            const fallback = getNumericValue(account, fallbackKeys);
+            return fallback !== null ? fallback : 0;
+        }
+
         function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             console.log('DEBUG: buildTrialBalanceRows - accounts:', accounts.slice(0, 2));
             const rows = (Array.isArray(accounts) ? accounts : [])
                 .map(account => {
                     const code = account.code || account.account_number || '';
                     const name = account.name || account.account_name || '';
-                    console.log('DEBUG: account values:', {
-                        code,
-                        name,
-                        current_year_value: account.current_year_value,
-                        value: account.value,
-                        previous_year_value: account.previous_year_value
-                    });
-                    const preliminary = account.current_year_value ?? account.value ?? 0;
-                    console.log('DEBUG: preliminary calculated:', preliminary);
+                    const preliminary = computeNetBalance(
+                        account,
+                        ['debit', 'debito_actual', 'current_year_debit', 'currentYearDebit'],
+                        ['credit', 'credito_actual', 'current_year_credit', 'currentYearCredit'],
+                        ['value', 'saldo', 'current_year_value']
+                    );
+
                     const localAdj = (() => {
                         const codeKey = (code || '').toString().trim();
                         if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
@@ -4242,7 +4267,12 @@
 
                     const adjustments = Number.isFinite(mergedAdjustmentsRaw) ? mergedAdjustmentsRaw : 0;
                     const finalCurrent = preliminary + adjustments;
-                    const finalPrevious = account.previous_year_value ?? 0;
+                    const finalPrevious = computeNetBalance(
+                        account,
+                        ['previousYearDebit', 'previous_year_debit', 'debito_anterior'],
+                        ['previousYearCredit', 'previous_year_credit', 'credito_anterior'],
+                        ['previous_year_value', 'saldo_anterior']
+                    );
 
                     return {
                         accountNumber: code,

@@ -3733,7 +3733,7 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             .from('account_assignments')
             .select(`
                 *,
-                cuentas_contables(id, code, name),
+                cuentas_contables(id, numero_cuenta, nombre_cuenta),
                 users(id, email)
             `)
             .eq('dataset_id', datasetId)
@@ -3854,7 +3854,7 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
             .from('ajustes_financieros')
             .select(`
                 *,
-                cuentas_contables(id, code, name),
+                cuentas_contables(id, numero_cuenta, nombre_cuenta),
                 users(id, email)
             `)
             .eq('dataset_id', datasetId)

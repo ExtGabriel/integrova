@@ -1453,6 +1453,20 @@ function updateNumeroField() {
             broadcastAdjustmentsUpdate();
         }
 
+        function computeAdjustmentTotal(ajuste) {
+            if (!ajuste || !Array.isArray(ajuste.detalles)) {
+                return 0;
+            }
+
+            return ajuste.detalles.reduce((total, detail) => {
+                const amount = Number(detail?.amount);
+                if (!Number.isFinite(amount) || amount <= 0) {
+                    return total;
+                }
+                return total + Math.abs(amount);
+            }, 0);
+        }
+
         function saveAdjustmentsToStorage(data) {
             try {
                 // 1. Guardar en localStorage (sistema actual)
@@ -1463,18 +1477,26 @@ function updateNumeroField() {
                     // Guardar cada ajuste individualmente
                     data.forEach(async (ajuste) => {
                         try {
+                            const totalMonto = computeAdjustmentTotal(ajuste);
+
+                            if (totalMonto <= 0) {
+                                console.warn('Ajuste omitido para guardado en BD: monto total inválido', ajuste);
+                                return;
+                            }
+
                             await saveFinancialAdjustment({
                                 datasetId: currentDatasetId,
                                 adjustmentType: ajuste.tipo || 'manual',
                                 moneda: ajuste.moneda || 'GTQ',
-                                monto: ajuste.monto || 0,
+                                monto: totalMonto,
                                 descripcion: ajuste.descripcion || '',
                                 htmlContenido: ajuste.htmlContenido || '',
                                 adjuntos: ajuste.adjuntos || null,
                                 meta: {
                                     detalles: ajuste.detalles || [],
                                     creado: ajuste.creado,
-                                    modificado: ajuste.modificado
+                                    modificado: ajuste.modificado,
+                                    totalMonto
                                 }
                             });
                         } catch (error) {
