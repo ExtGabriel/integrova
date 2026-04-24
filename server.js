@@ -2101,7 +2101,8 @@ app.get('/api/excel/latest', async (req, res) => {
             .from('conjuntos_datos')
             .select('*')
             .eq('user_id', userId) // <- Filtrar por usuario
-            .order('created_at', { ascending: false })
+            .eq('is_active', true)
+            .order('fecha_importacion', { ascending: false })
             .limit(1);
 
         if (error) {
@@ -2371,7 +2372,18 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                 if (analysis.success) {
                     try {
                         const userId = req.user?.id || req.headers['user-id'];
-                        
+
+                        if (userId) {
+                            const { error: deactivateError } = await supabase
+                                .from('conjuntos_datos')
+                                .update({ is_active: false })
+                                .eq('user_id', userId);
+
+                            if (deactivateError) {
+                                console.warn('⚠️ Error desactivando datasets anteriores:', deactivateError);
+                            }
+                        }
+
                         const { data, error } = await supabase
                             .from('conjuntos_datos')
                             .insert({
@@ -2383,7 +2395,8 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                                 estado: analysis.isBalanced ? 'balanceado' : 'desbalanceado',
                                 archivo_original: file.originalname,
                                 data: excelData, // <-- AGREGAR LOS DATOS COMPLETOS DEL EXCEL
-                                user_id: userId // <- AGREGAR USER_ID
+                                user_id: userId, // <- AGREGAR USER_ID
+                                is_active: true
                             })
                             .select();
 
@@ -3001,6 +3014,17 @@ app.post('/api/excel/save-accounts', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Datos de cuentas inválidos' });
         }
 
+        if (userId) {
+            const { error: deactivateError } = await supabase
+                .from('conjuntos_datos')
+                .update({ is_active: false })
+                .eq('user_id', userId);
+
+            if (deactivateError) {
+                console.warn('⚠️ Error desactivando datasets anteriores (save-accounts):', deactivateError);
+            }
+        }
+
         // Crear registro del conjunto de datos
         const { data: dataset, error: datasetError } = await supabase
             .from('conjuntos_datos')
@@ -3012,7 +3036,8 @@ app.post('/api/excel/save-accounts', async (req, res) => {
                 total_creditos: totalCredits,
                 estado: 'procesado',
                 user_id: userId,
-                importado_por: userId // <- Guardar quién importó
+                importado_por: userId, // <- Guardar quién importó
+                is_active: true
             }])
             .select()
             .single();
@@ -3171,7 +3196,9 @@ app.get('/api/excel/datasets', async (req, res) => {
                 )
             `)
             .eq('user_id', userId) // <- Filtrar por usuario
-            .order('fecha_importacion', { ascending: false });
+            .eq('is_active', true)
+            .order('fecha_importacion', { ascending: false })
+            .limit(1);
 
         if (datasetsError) throw datasetsError;
 
@@ -3311,6 +3338,117 @@ app.get('/api/excel/datasets', async (req, res) => {
     } catch (error) {
         console.error('Error obteniendo conjuntos de datos:', error);
         res.status(500).json({ success: false, error: 'Error obteniendo conjuntos de datos' });
+    }
+});
+
+// Endpoint para eliminar un dataset completo (conjuntos de datos y relacionados)
+app.delete('/api/conjuntos/:id', async (req, res) => {
+    try {
+        const datasetId = req.params.id;
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        if (!datasetId) {
+            return res.status(400).json({ success: false, error: 'ID del dataset es requerido' });
+        }
+        
+        console.log(`🗑️ Eliminando dataset ${datasetId} para usuario ${userId}`);
+        
+        // 1. Verificar que el dataset exista y pertenezca al usuario
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('*')
+            .eq('id', datasetId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (datasetError || !dataset) {
+            return res.status(404).json({ success: false, error: 'Dataset no encontrado o no pertenece al usuario' });
+        }
+        
+        // 2. Eliminar cuentas contables relacionadas
+        const { error: cuentasError } = await supabase
+            .from('cuentas_contables')
+            .delete()
+            .eq('conjunto_id', datasetId);
+            
+        if (cuentasError) {
+            console.error('Error eliminando cuentas contables:', cuentasError);
+            // Continuar aunque falle la eliminación de cuentas
+        }
+        
+        // 3. Eliminar asignaciones de cuentas
+        const { error: assignmentsError } = await supabase
+            .from('account_assignments')
+            .delete()
+            .eq('dataset_id', datasetId);
+            
+        if (assignmentsError) {
+            console.error('Error eliminando asignaciones:', assignmentsError);
+            // Continuar aunque falle la eliminación de asignaciones
+        }
+        
+        // 4. Eliminar ajustes financieros relacionados
+        const { error: adjustmentsError } = await supabase
+            .from('ajustes_financieros')
+            .delete()
+            .eq('dataset_id', datasetId);
+            
+        if (adjustmentsError) {
+            console.error('Error eliminando ajustes:', adjustmentsError);
+            // Continuar aunque falle la eliminación de ajustes
+        }
+        
+        // 5. Eliminar grupos financieros relacionados
+        const { error: groupsError } = await supabase
+            .from('financial_groups')
+            .delete()
+            .eq('dataset_id', datasetId);
+            
+        if (groupsError) {
+            console.error('Error eliminando grupos financieros:', groupsError);
+            // Continuar aunque falle la eliminación de grupos
+        }
+        
+        // 6. Eliminar validaciones de ledger relacionadas
+        const { error: ledgerError } = await supabase
+            .from('ledger_integrity_runs')
+            .delete()
+            .eq('dataset_id', datasetId);
+            
+        if (ledgerError) {
+            console.error('Error eliminando validaciones ledger:', ledgerError);
+            // Continuar aunque falle la eliminación de validaciones
+        }
+        
+        // 7. Finalmente eliminar el dataset principal
+        const { error: deleteError } = await supabase
+            .from('conjuntos_datos')
+            .delete()
+            .eq('id', datasetId);
+            
+        if (deleteError) {
+            console.error('Error eliminando dataset principal:', deleteError);
+            throw new Error('Error eliminando el dataset principal');
+        }
+        
+        console.log(`✅ Dataset ${datasetId} eliminado completamente`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Dataset eliminado exitosamente',
+            deletedDataset: {
+                id: dataset.id,
+                nombre: dataset.nombre,
+                archivo_original: dataset.archivo_original
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error eliminando dataset:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Error eliminando dataset' 
+        });
     }
 });
 
@@ -3484,12 +3622,13 @@ app.get('/api/accounts/unassigned', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         
-        // Obtener el último conjunto de datos del Excel del usuario actual
+        // Obtener el conjunto de datos activo del usuario actual
         const { data: conjuntoData, error: conjuntoError } = await supabase
             .from('conjuntos_datos')
             .select('*')
             .eq('user_id', userId) // <- Filtrar por usuario
-            .order('created_at', { ascending: false })
+            .eq('is_active', true) // <- Solo datasets activos
+            .order('fecha_importacion', { ascending: false })
             .limit(1);
 
         if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {

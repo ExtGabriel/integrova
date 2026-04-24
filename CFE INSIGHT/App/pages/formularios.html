@@ -1623,9 +1623,6 @@
                                     <div class="right-header">
                                         <button class="btn btn-outline-secondary">Seleccionar todo</button>
                                         <button class="btn btn-outline-danger">Borrar cuentas seleccionadas</button>
-                                        <button class="btn btn-info" onclick="verifyDatabaseData()" title="Verificar datos en base de datos">
-                                            <i class="bi bi-database-check"></i> Verificar
-                                        </button>
                                     </div>
                                 </div>
                                 <div class="search-bar-container">
@@ -2865,9 +2862,14 @@
                         <div class="card" style="padding: 16px; margin-bottom: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h3 style="margin: 0;">Última importación</h3>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="loadDatasetHistory()">
-                                    <i class="bi bi-arrow-clockwise"></i> Actualizar
-                                </button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="loadDatasetHistory()">
+                                        <i class="bi bi-arrow-clockwise"></i> Actualizar
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteCurrentDataset()" id="deleteDatasetBtn" style="display: none;" title="Eliminar archivo actual">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </div>
                             </div>
                             <div class="table-container">
                                 <table class="data-table">
@@ -3295,35 +3297,71 @@
             `;
         }
         
-        function updateMappingSelectors(sheetData) {
-            // Intentar encontrar la fila de encabezados más inteligente
+        function isLikelyExcelDate(value) {
+            return typeof value === 'number' && Number.isFinite(value) && value > 20000 && value < 60000;
+        }
+
+        function excelSerialToDate(serial) {
+            const excelEpoch = Date.UTC(1899, 11, 30);
+            const millisecondsPerDay = 24 * 60 * 60 * 1000;
+            const wholeDays = Math.floor(serial);
+            const fractional = serial - wholeDays;
+            const date = new Date(excelEpoch + wholeDays * millisecondsPerDay + Math.round(fractional * millisecondsPerDay));
+            return date;
+        }
+
+        function formatExcelCell(value) {
+            if (value === null || value === undefined) return '';
+
+            if (value instanceof Date) {
+                return value.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            }
+
+            if (typeof value === 'number') {
+                if (isLikelyExcelDate(value)) {
+                    const date = excelSerialToDate(value);
+                    return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                }
+                return value.toString();
+            }
+
+            const trimmed = value.toString().trim();
+            return trimmed;
+        }
+
+        function detectSheetHeaders(sheetData) {
             let headers = [];
             let headerRowIndex = 0;
-            
-            // Buscar la fila que más parece contener encabezados
-            for (let i = 0; i < Math.min(3, sheetData.length); i++) {
+            let bestScore = -1;
+
+            const rowsToInspect = Math.min(5, sheetData.length);
+            for (let i = 0; i < rowsToInspect; i++) {
                 const row = sheetData[i];
-                if (row && row.length > 0) {
-                    // Contar cuántas celdas contienen texto no numérico
-                    const textCells = row.filter(cell => {
-                        const cellStr = cell?.toString().trim();
-                        return cellStr && !isNaN(cellStr) === false && cellStr.length > 0;
-                    });
-                    
-                    // Si esta fila tiene más celdas de texto que la actual mejor candidata
-                    if (textCells.length > headers.filter(h => h && !isNaN(h.toString()) === false).length) {
-                        headers = row;
-                        headerRowIndex = i;
-                    }
+                if (!row || row.length === 0) continue;
+
+                const rowValues = row.map(cell => cell?.toString().trim());
+                const textCells = rowValues.filter(cellStr => {
+                    if (!cellStr) return false;
+                    return Number.isNaN(Number(cellStr));
+                });
+
+                if (textCells.length > bestScore) {
+                    bestScore = textCells.length;
+                    headers = row;
+                    headerRowIndex = i;
                 }
             }
-            
-            // Si no se encontraron buenos encabezados, usar la primera fila
-            if (headers.length === 0) {
-                headers = sheetData[0] || [];
+
+            if (headers.length === 0 && sheetData.length > 0) {
+                headers = sheetData[0];
                 headerRowIndex = 0;
             }
-            
+
+            return { headers, headerRowIndex };
+        }
+
+        function updateMappingSelectors(sheetData) {
+            const { headers, headerRowIndex } = detectSheetHeaders(sheetData);
             console.log('Usando encabezados de la fila', headerRowIndex, ':', headers);
             
             // Actualizar solo los selectores de mapeo de columnas (excluyendo los de débito/crédito)
@@ -3347,41 +3385,31 @@
                             option.value = index.toString();
                             
                             // Limpiar el nombre del encabezado
-                            let headerText = header.toString().trim();
-                            
-                            // Si el encabezado parece un número, usar un nombre descriptivo
-                            // pero solo para las columnas que correspondan
-                            if (!isNaN(headerText)) {
-                                // Mantener el header original si no es numérico
-                                // Si es numérico, dar un nombre específico según la posición y el selector
+                            const rawValue = header;
+                            const formattedHeader = formatExcelCell(rawValue);
+                            const isDateHeader = isLikelyExcelDate(rawValue) || rawValue instanceof Date;
+                            const isNumericHeader = typeof rawValue === 'number' && !isDateHeader;
+                            let headerText = formattedHeader;
+
+                            if (!headerText) {
+                                headerText = `Columna ${index + 1}`;
+                            } else if (isNumericHeader) {
                                 if (selectorId === 'currentYearMapping') {
-                                    // Para año actual, solo renombrar las columnas numéricas que podrían ser saldos
-                                    if (index >= 2) { // Asumir que las últimas columnas son los saldos
+                                    if (index >= 2) {
                                         headerText = 'Saldo año actual';
                                     } else {
                                         headerText = `Columna ${index + 1}`;
                                     }
                                 } else if (selectorId === 'previousYearMapping') {
-                                    // Para año anterior, solo renombrar las columnas numéricas que podrían ser saldos
-                                    if (index >= 2) { // Asumir que las últimas columnas son los saldos
+                                    if (index >= 2) {
                                         headerText = 'Saldo año anterior';
                                     } else {
                                         headerText = `Columna ${index + 1}`;
                                     }
                                 } else if (selectorId === 'accountNumberMapping') {
-                                    // Para número de cuenta, buscar la primera columna que tenga números o texto relevante
-                                    if (index === 0) { // Generalmente la primera columna es el número
-                                        headerText = 'Número de cuenta';
-                                    } else {
-                                        headerText = `Columna ${index + 1}`;
-                                    }
+                                    headerText = index === 0 ? 'Número de cuenta' : `Columna ${index + 1}`;
                                 } else if (selectorId === 'accountNameMapping') {
-                                    // Para nombre de cuenta, buscar la segunda columna usualmente
-                                    if (index === 1) { // Generalmente la segunda columna es el nombre
-                                        headerText = 'Nombre de cuenta';
-                                    } else {
-                                        headerText = `Columna ${index + 1}`;
-                                    }
+                                    headerText = index === 1 ? 'Nombre de cuenta' : `Columna ${index + 1}`;
                                 } else {
                                     headerText = `Columna ${index + 1}`;
                                 }
@@ -3416,15 +3444,21 @@
             const previewHeader = document.querySelector('.sample-table thead');
             if (!previewTable || !previewHeader) return;
             
+            const { headers, headerRowIndex } = detectSheetHeaders(sheetData);
             // Actualizar encabezados con los datos reales del Excel
-            const headers = sheetData[0] || [];
             const headerRow = previewHeader.querySelector('tr');
             if (headerRow && headers.length > 0) {
                 headerRow.innerHTML = '<th>#</th>';
                 // Agregar hasta 4 encabezados de columna
                 for (let i = 0; i < Math.min(4, headers.length); i++) {
                     const th = document.createElement('th');
-                    th.textContent = headers[i] ? headers[i].toString().trim() : `Columna ${i + 1}`;
+                    const rawHeader = headers[i];
+                    let headerText = formatExcelCell(rawHeader);
+                    const isNumericHeader = typeof rawHeader === 'number' && !isLikelyExcelDate(rawHeader);
+                    if (!headerText || isNumericHeader) {
+                        headerText = `Columna ${i + 1}`;
+                    }
+                    th.textContent = headerText;
                     headerRow.appendChild(th);
                 }
             }
@@ -3433,7 +3467,8 @@
             previewTable.innerHTML = '';
             
             // Mostrar primeras 5 filas de datos (excluyendo encabezados)
-            const dataRows = sheetData.slice(1, 6); // Filas 2-6 del Excel
+            const dataStartIndex = headerRowIndex + 1;
+            const dataRows = sheetData.slice(dataStartIndex, dataStartIndex + 5);
             
             if (dataRows.length === 0) {
                 previewTable.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No hay datos para mostrar</td></tr>';
@@ -3445,14 +3480,14 @@
                 
                 // Agregar número de fila
                 const rowNumberCell = document.createElement('td');
-                rowNumberCell.textContent = index + 2; // +2 porque empezamos desde la fila 2 del Excel
+                rowNumberCell.textContent = dataStartIndex + index + 1;
                 tr.appendChild(rowNumberCell);
                 
                 // Agregar las primeras 4 celdas de datos (o las que haya disponibles)
                 for (let i = 0; i < 4; i++) {
                     const cell = document.createElement('td');
-                    const cellValue = row[i] || '';
-                    cell.textContent = cellValue.toString().trim();
+                    const cellValue = formatExcelCell(row[i]);
+                    cell.textContent = cellValue;
                     tr.appendChild(cell);
                 }
                 
@@ -3579,7 +3614,9 @@
                 // Mostrar mensaje de éxito
                 alert('✅ Proceso completado:\n• Datos completos del Excel guardados en "conjuntos_datos"\n• Cuentas extraídas guardadas en "cuentas_contables"');
 
-                // Refrescar historial de importaciones
+                // REINICIAR COMPLETAMENTE la aplicación (se subió nuevo archivo)
+                resetAllDataOnNewFile();
+                // Cargar el historial actualizado
                 loadDatasetHistory();
 
                 let newDatasetId = result?.datasetId || result?.dataset_id || result?.data?.dataset_id || result?.data?.id;
@@ -4188,6 +4225,11 @@
                         console.warn(' Error guardando ledger integrity en base de datos:', dbError);
                     }
                 }
+                
+                // Marcar como cargado exitosamente
+                dataLoadState.ledgerIntegrity = true;
+                console.log('✅ Integridad del libro marcada como cargada');
+                
             } catch (err) {
                 console.error('Error cargando integridad del libro mayor:', err);
                 renderLedgerIntegrity([], '');
@@ -4317,6 +4359,11 @@
                 const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
                 const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 renderCuentasTable(rows, meta);
+                
+                // Marcar como cargado exitosamente
+                dataLoadState.cuentas = true;
+                console.log('✅ Cuentas marcadas como cargadas');
+                
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
                 renderCuentasTable([], '');
@@ -4470,6 +4517,11 @@
                 const rows = buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 cachedGruposFinancierosRows = rows;
                 renderGruposFinancieros(rows, meta);
+                
+                // Marcar como cargado exitosamente
+                dataLoadState.gruposFinancieros = true;
+                console.log('✅ Grupos financieros marcados como cargados');
+                
             } catch (err) {
                 console.error('Error cargando grupos financieros:', err);
                 renderGruposFinancieros([], '');
@@ -13419,7 +13471,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function getCurrentUserId() {
             const sessionUser = (typeof window.getUserUI === 'function') ? window.getUserUI() : null;
             const fallbackUser = sessionUser || getCurrentSession();
-            return fallbackUser?.id || fallbackUser?.user_id || fallbackUser?.uid || '';
+            // Priorizar el UUID real (id) sobre otros campos
+            const userId = fallbackUser?.id || fallbackUser?.user_id || fallbackUser?.uid || '';
+            console.log('🔍 getCurrentUserId devolviendo:', userId, 'de usuario:', fallbackUser);
+            return userId;
         }
 
         function logoutLocal() {
@@ -13530,6 +13585,186 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // FUNCIONES PARA NAVEGACIÓN DE DATOS
         // ========================================
         
+        // Variables globales para controlar el estado de carga
+        const dataLoadState = {
+            datasetHistory: false,
+            unassignedAccounts: false,
+            ledgerIntegrity: false,
+            cuentas: false,
+            gruposFinancieros: false
+        };
+        
+        // Función para forzar recarga de todas las secciones
+        function forceRefreshAllData() {
+            console.log('🔄 Forzando recarga de todos los datos...');
+            Object.keys(dataLoadState).forEach(key => {
+                dataLoadState[key] = false;
+            });
+        }
+        
+        // Función completa de reinicio cuando se sube nuevo archivo
+        function resetAllDataOnNewFile() {
+            console.log('🧹 REINICIANDO TODA LA APLICACIÓN - Nuevo archivo subido');
+            
+            // 1. Reiniciar variables de estado de carga
+            Object.keys(dataLoadState).forEach(key => {
+                dataLoadState[key] = false;
+            });
+            console.log('✅ Estados de carga reiniciados');
+            
+            // 2. Limpiar currentDatasetId y variables relacionadas
+            currentDatasetId = null;
+            console.log('✅ currentDatasetId reiniciado');
+            
+            // 3. Limpiar caché en memoria
+            cachedUnassignedAccounts = [];
+            cachedUnassignedDatasetId = null;
+            cachedLedgerMap = new Map();
+            cachedLedgerAvailable = false;
+            cachedLedgerMeta = '';
+            cachedAccounts = [];
+            cachedAssignments = new Map();
+            cachedGruposFinancierosRows = [];
+            cachedTrialBalanceAccounts = [];
+            console.log('✅ Caché en memoria limpiada');
+            
+            // 4. Limpiar localStorage de datos específicos del dataset
+            try {
+                // Limpiar asignaciones guardadas (nuevos y legacy)
+                Object.keys(localStorage).forEach(key => {
+                    if (
+                        key.startsWith('assignments_') ||
+                        key.startsWith('assigned_accounts_v1_') ||
+                        key.startsWith('assigned_accounts_last_dataset_v1_')
+                    ) {
+                        localStorage.removeItem(key);
+                    }
+                });
+
+                // Limpiar claves específicas relacionadas con datasets y cachés
+                localStorage.removeItem('currentDatasetId');
+                localStorage.removeItem('lastDatasetId');
+                localStorage.removeItem('assignmentsLastDataset');
+                localStorage.removeItem('excel_data_current');
+
+                // Clave nueva que controla el último dataset por usuario
+                try {
+                    const lastDatasetKey = getAssignmentsLastDatasetKey();
+                    localStorage.removeItem(lastDatasetKey);
+                } catch (keyError) {
+                    console.warn('⚠️ Error eliminando clave de último dataset:', keyError);
+                }
+
+                console.log('✅ localStorage limpiado');
+            } catch (error) {
+                console.warn('⚠️ Error limpiando localStorage:', error);
+            }
+            
+            // 5. Reiniciar variables de estado de la UI
+            selectedAccount = null;
+            
+            // 6. Limpiar contenido visual de todas las secciones
+            try {
+                // Limpiar tabla de historial
+                const historyBody = document.getElementById('datasetHistoryBody');
+                if (historyBody) {
+                    historyBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6c757d;">
+                                <i class="bi bi-hourglass-split"></i>
+                                <p>Cargando historial...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Limpiar lista de cuentas sin asignar
+                const unassignedContainer = document.querySelector('.unassigned-accounts-list');
+                if (unassignedContainer) {
+                    unassignedContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-hourglass-split"></i>
+                            <p>Cargando cuentas...</p>
+                        </div>
+                    `;
+                }
+                
+                // Limpiar tabla de integridad del libro mayor
+                const ledgerBody = document.getElementById('ledgerIntegrityTableBody');
+                if (ledgerBody) {
+                    ledgerBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <i class="bi bi-hourglass-split"></i>
+                                <p>Cargando integridad del libro mayor...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Limpiar tabla de cuentas
+                const cuentasBody = document.getElementById('cuentasTableBody');
+                if (cuentasBody) {
+                    cuentasBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <i class="bi bi-hourglass-split"></i>
+                                <p>Cargando cuentas...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Limpiar tabla de grupos financieros
+                const gruposBody = document.getElementById('gruposFinancierosTableBody');
+                if (gruposBody) {
+                    gruposBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <i class="bi bi-hourglass-split"></i>
+                                <p>Cargando grupos financieros...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Limpiar grupos financieros visuales
+                const financialGroupsList = document.querySelector('.financial-groups-list');
+                if (financialGroupsList) {
+                    const assignedAccounts = financialGroupsList.querySelectorAll('.assigned-account');
+                    assignedAccounts.forEach(account => account.remove());
+                }
+                
+                console.log('✅ Contenido visual limpiado');
+            } catch (error) {
+                console.warn('⚠️ Error limpiando contenido visual:', error);
+            }
+            
+            // 7. Reiniciar contadores
+            try {
+                updateRemainingCount();
+                document.querySelectorAll('.group-count').forEach(counter => {
+                    counter.textContent = '(0)';
+                });
+                console.log('✅ Contadores reiniciados');
+            } catch (error) {
+                console.warn('⚠️ Error reiniciando contadores:', error);
+            }
+            
+            // 8. Forzar recarga de eventos y listeners si es necesario
+            try {
+                // Limpiar selecciones activas
+                document.querySelectorAll('.account-item.selected').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                console.log('✅ Selecciones activas limpiadas');
+            } catch (error) {
+                console.warn('⚠️ Error limpiando selecciones:', error);
+            }
+            
+            console.log('🎉 REINICIO COMPLETO FINALIZADO - Sistema listo para nuevo archivo');
+        }
+        
         async function selectDataSection(sectionName) {
             // Ocultar todas las secciones
             const asignarCuentasSection = document.getElementById('asignarCuentasSection');
@@ -13548,37 +13783,69 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             switch(sectionName) {
                 case 'asignar-cuentas':
                     asignarCuentasSection.style.display = 'block';
-                    loadUnassignedAccountsFromLatestExcel();
-                    // Esperar a que currentDatasetId esté disponible antes de restaurar asignaciones
-                    setTimeout(async () => {
+                    // Solo cargar si no se ha cargado antes
+                    if (!dataLoadState.unassignedAccounts) {
+                        console.log('📊 Cargando cuentas sin asignar (primera vez)...');
+                        loadUnassignedAccountsFromLatestExcel();
+                        // Esperar a que currentDatasetId esté disponible antes de restaurar asignaciones
+                        setTimeout(async () => {
+                            if (currentDatasetId) {
+                                await restoreAssignedAccounts();
+                            } else {
+                                // Reintentar después de un breve delay
+                                setTimeout(async () => {
+                                    if (currentDatasetId) {
+                                        await restoreAssignedAccounts();
+                                    }
+                                }, 500);
+                            }
+                        }, 100);
+                    } else {
+                        console.log('✅ Cuentas sin asignar ya cargadas, omitiendo recarga');
+                        // Solo restaurar asignaciones si es necesario
                         if (currentDatasetId) {
                             await restoreAssignedAccounts();
-                        } else {
-                            // Reintentar después de un breve delay
-                            setTimeout(async () => {
-                                if (currentDatasetId) {
-                                    await restoreAssignedAccounts();
-                                }
-                            }, 500);
                         }
-                    }, 100);
+                    }
                     break;
                 case 'integridad-libro':
                     ledgerIntegritySection.style.display = 'block';
-                    await restoreAssignedAccounts();
-                    loadLedgerIntegrityFromLatestExcel();
+                    if (!dataLoadState.ledgerIntegrity) {
+                        console.log('📊 Cargando integridad del libro (primera vez)...');
+                        await restoreAssignedAccounts();
+                        loadLedgerIntegrityFromLatestExcel();
+                    } else {
+                        console.log('✅ Integridad del libro ya cargada, omitiendo recarga');
+                        // Solo restaurar asignaciones si es necesario
+                        await restoreAssignedAccounts();
+                    }
                     break;
                 case 'cuentas':
                     cuentasSection.style.display = 'block';
-                    loadCuentasFromLatestExcel();
+                    if (!dataLoadState.cuentas) {
+                        console.log('📊 Cargando cuentas (primera vez)...');
+                        loadCuentasFromLatestExcel();
+                    } else {
+                        console.log('✅ Cuentas ya cargadas, omitiendo recarga');
+                    }
                     break;
                 case 'grupos-financieros':
                     gruposFinancierosSection.style.display = 'block';
-                    loadGruposFinancierosFromLatestExcel();
+                    if (!dataLoadState.gruposFinancieros) {
+                        console.log('📊 Cargando grupos financieros (primera vez)...');
+                        loadGruposFinancierosFromLatestExcel();
+                    } else {
+                        console.log('✅ Grupos financieros ya cargados, omitiendo recarga');
+                    }
                     break;
                 default:
                     dataMainContent.style.display = 'block';
-                    loadDatasetHistory();
+                    if (!dataLoadState.datasetHistory) {
+                        console.log('📊 Cargando historial de datasets (primera vez)...');
+                        loadDatasetHistory();
+                    } else {
+                        console.log('✅ Historial de datasets ya cargado, omitiendo recarga');
+                    }
                     break;
             }
         }
@@ -13912,7 +14179,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const forceReset = options?.forceReset === true;
         const shouldReset = forceReset || (prevId && prevId !== nextId);
 
-        if (shouldReset) {
+        // Si es un reinicio forzado (nuevo archivo subido), limpiar completamente todo
+        if (forceReset) {
+            console.log('🔄 handleDatasetChange detectó forceReset - Ejecutando reinicio completo');
+            resetAllDataOnNewFile();
+        } else if (shouldReset) {
+            // Si es solo cambio de dataset, limpiar asignaciones pero no todo
             clearStoredAssignments(nextId);
         }
 
@@ -15137,12 +15409,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
 
                 const items = result.data || [];
+                const deleteBtn = document.getElementById('deleteDatasetBtn');
+                
                 if (!items.length) {
                     tableBody.innerHTML = `
                         <tr>
                             <td colspan="4" style="text-align: center; color: #6c757d;">Aún no hay importaciones.</td>
                         </tr>
                     `;
+                    // Ocultar botón de eliminar si no hay datasets
+                    if (deleteBtn) deleteBtn.style.display = 'none';
                     return;
                 }
 
@@ -15164,6 +15440,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </td>
                     </tr>
                 `;
+                
+                // Mostrar botón de eliminar si hay dataset actual
+                if (deleteBtn) {
+                    deleteBtn.style.display = 'inline-flex';
+                    deleteBtn.setAttribute('data-dataset-id', item.id);
+                    deleteBtn.setAttribute('data-dataset-name', item.nombre || 'Archivo sin nombre');
+                }
+                
+                // Marcar como cargado exitosamente
+                dataLoadState.datasetHistory = true;
+                console.log('✅ Historial de datasets marcado como cargado');
             } catch (error) {
                 console.error('Error cargando historial:', error);
                 tableBody.innerHTML = `
@@ -15171,6 +15458,88 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         <td colspan="4" style="text-align: center; color: #dc3545;">Error cargando historial</td>
                     </tr>
                 `;
+            }
+        }
+
+        async function deleteCurrentDataset() {
+            const deleteBtn = document.getElementById('deleteDatasetBtn');
+            if (!deleteBtn) return;
+            
+            const datasetId = deleteBtn.getAttribute('data-dataset-id');
+            const datasetName = deleteBtn.getAttribute('data-dataset-name');
+            
+            if (!datasetId) {
+                showNotification('No hay dataset seleccionado para eliminar', 'warning');
+                return;
+            }
+            
+            // Confirmación del usuario
+            const confirmed = confirm(
+                `¿Estás seguro que deseas eliminar el archivo "${datasetName}"?\n\n` +
+                `Esta acción eliminará permanentemente:\n` +
+                `• Los datos del archivo Excel\n` +
+                `• Las cuentas extraídas\n` +
+                `• Las asignaciones guardadas\n` +
+                `• Los ajustes financieros\n\n` +
+                `Esta acción no se puede deshacer.`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                // Deshabilitar botón durante la eliminación
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
+                
+                // Eliminar dataset del backend
+                const response = await fetch(`${API_BASE_URL}/api/conjuntos/${datasetId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'user-id': getCurrentUserId()
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Error eliminando dataset');
+                }
+                
+                showNotification(`Archivo "${datasetName}" eliminado exitosamente`, 'success');
+                
+                // Reiniciar completamente el sistema (similar a cuando se sube nuevo archivo)
+                resetAllDataOnNewFile();
+                
+                // Mostrar estado vacío en lugar de cargar siguiente dataset
+                const tableBody = document.getElementById('datasetHistoryBody');
+                
+                if (tableBody) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6c757d;">Aún no hay importaciones.</td>
+                        </tr>
+                    `;
+                }
+                
+                // Marcar historial como actualizado para evitar recarga inmediata
+                dataLoadState.datasetHistory = true;
+
+                // Ocultar botón de eliminar
+                if (deleteBtn) {
+                    deleteBtn.style.display = 'none';
+                    deleteBtn.removeAttribute('data-dataset-id');
+                    deleteBtn.removeAttribute('data-dataset-name');
+                }
+                
+            } catch (error) {
+                console.error('Error eliminando dataset:', error);
+                showNotification(`Error eliminando archivo: ${error.message}`, 'error');
+            } finally {
+                // Restaurar botón solo si existe
+                if (deleteBtn) {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Eliminar';
+                }
             }
         }
 
@@ -15250,6 +15619,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     // Hay datos, mostrar las cuentas
                     renderUnassignedAccounts(accounts);
                 }
+                
+                // Marcar como cargado exitosamente
+                dataLoadState.unassignedAccounts = true;
+                console.log('✅ Cuentas sin asignar marcadas como cargadas');
                 
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
