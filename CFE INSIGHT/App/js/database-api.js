@@ -87,8 +87,9 @@ async function getAccountAssignments(datasetId) {
             throw new Error(result.error || 'Error obteniendo asignaciones');
         }
 
-        console.log('Assignments loaded:', result.assignments.length);
-        return result.assignments;
+        const assignments = (result.assignments || []).map(convertDatabaseAssignmentToLocalStorage);
+        console.log('Assignments loaded:', assignments.length);
+        return assignments;
 
     } catch (error) {
         console.error('Error in getAccountAssignments:', error);
@@ -828,14 +829,29 @@ function mergeAssignments(databaseAssignments, localStorageAssignments) {
  * @returns {Object} Asignación en formato localStorage
  */
 function convertDatabaseAssignmentToLocalStorage(dbAssignment) {
+    const meta = dbAssignment?.meta || {};
+    const rawAccountId = dbAssignment.account_id || meta.accountId || meta.accountKey;
+    const accountId = rawAccountId ? rawAccountId.toString().trim() : '';
+    const accountKey = meta.accountKey || accountId;
+    const rawGroupContentId = dbAssignment.group_content_id || meta.groupContentId || meta.group_content_id;
+    const groupContentId = rawGroupContentId ? rawGroupContentId.toString().trim() : '';
+    const parentAccountId = dbAssignment.parent_account_id || meta.parentAccountId || null;
+    const datasetId = (dbAssignment.dataset_id || meta.datasetId || '').toString().trim();
+    const position = Number.isFinite(dbAssignment.position) ? dbAssignment.position : (Number.isFinite(meta.position) ? meta.position : 0);
+
     return {
         id: dbAssignment.id,
-        accountId: dbAssignment.account_id,
-        groupContentId: dbAssignment.group_content_id,
-        parentAccountId: dbAssignment.parent_account_id,
-        position: dbAssignment.position,
-        datasetId: dbAssignment.dataset_id,
-        meta: dbAssignment.meta || {},
+        accountId,
+        accountKey,
+        groupContentId,
+        parentAccountId,
+        position,
+        datasetId,
+        code: meta.code || meta.accountCode || '',
+        name: meta.name || meta.accountName || '',
+        value: meta.value ?? meta.currentValue ?? meta.current ?? 0,
+        prevValue: meta.prevValue ?? meta.previousValue ?? 0,
+        meta,
         createdAt: dbAssignment.created_at,
         updatedAt: dbAssignment.updated_at
     };

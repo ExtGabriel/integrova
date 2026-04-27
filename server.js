@@ -4376,7 +4376,8 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
     }
 });
 
-// ============================================
+// Obtener assignments de un dataset
+app.get('/api/assignments/:datasetId', async (req, res) => {
 // API PARA CUENTAS CONTABLES
 // ============================================
 

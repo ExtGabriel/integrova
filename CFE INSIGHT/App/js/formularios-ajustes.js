@@ -1450,7 +1450,17 @@ function updateNumeroField() {
 
         function saveAjustes() {
             saveAdjustmentsToStorage(ajustes);
-            broadcastAdjustmentsUpdate();
+            // Dispatch event immediately to update Cuentas table
+            try {
+                document.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
+                    detail: {
+                        adjustments: Array.from(computeAdjustmentsMap().entries())
+                    }
+                }));
+                console.log('✅ localAdjustmentsUpdated dispatched after saving adjustment');
+            } catch (error) {
+                console.warn('⚠️ Error dispatching localAdjustmentsUpdated:', error);
+            }
         }
 
         function computeAdjustmentTotal(ajuste) {

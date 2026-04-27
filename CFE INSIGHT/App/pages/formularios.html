@@ -1675,11 +1675,11 @@
                                                     <span class="sub-group-value">0,00</span>
                                                 </div>
                                                 <div class="sub-group-content" id="subgroup1-1-content" style="display: none;">
-                                                    <div class="account-item">
+                                                    <div class="account-item static-account" data-account-id="1.100.100" data-account-code="1.100.100" data-account-name="1.100.100 Propiedad, planta y equipo – Costo" data-account-value="0" data-account-prev-value="0">
                                                         <span class="account-name">1.100.100 Propiedad, planta y equipo – Costo</span>
                                                         <span class="account-value">0,00</span>
                                                     </div>
-                                                    <div class="account-item">
+                                                    <div class="account-item static-account" data-account-id="1.100.910" data-account-code="1.100.910" data-account-name="1.100.910 Propiedad, planta y equipo – Depreciación acumulada y deterioro" data-account-value="0" data-account-prev-value="0">
                                                         <span class="account-name">1.100.910 Propiedad, planta y equipo – Depreciación acumulada y deterioro</span>
                                                         <span class="account-value">0,00</span>
                                                     </div>
@@ -4532,7 +4532,27 @@
         function buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             const rows = [];
             const groups = document.querySelectorAll('.financial-groups-list .group-item');
-            const assignments = getStoredAssignments(currentDatasetId) || [];
+            
+            // Load assignments from database first, then fallback to localStorage
+            let assignments = [];
+            try {
+                if (window.getAccountAssignments) {
+                    const dbAssignments = window.getAccountAssignments(currentDatasetId);
+                    if (dbAssignments && dbAssignments.length > 0) {
+                        assignments = dbAssignments;
+                        console.log('✅ Grupos Financieros: Usando', assignments.length, 'asignaciones desde base de datos');
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cargando asignaciones desde BD para Grupos Financieros:', error);
+            }
+            
+            // Fallback to localStorage if no database assignments
+            if (!assignments.length) {
+                assignments = getStoredAssignments(currentDatasetId) || [];
+                console.log('📁 Grupos Financieros: Usando', assignments.length, 'asignaciones desde localStorage');
+            }
+            
             const assignmentsByGroup = new Map();
             let rowCounter = 0;
             const nextRowId = () => `financial-row-${rowCounter++}`;
@@ -14206,6 +14226,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const datasetId = accountData?.datasetId || currentDatasetId;
         if (!accountKey || !groupId || !datasetId) return;
 
+        // Verificar si es una cuenta estática (solo guardar en localStorage, no en BD)
+        const isStaticAccount = !accountData?.id || accountData.id === accountData.code || 
+                               (typeof accountData.id === 'string' && !accountData.id.includes('-'));
+        
+        console.log('🔍 Tipo de cuenta:', isStaticAccount ? 'ESTÁTICA (solo localStorage)' : 'DE EXCEL (guardar en BD)');
+
         // Preparar datos para guardar
         const assignmentData = {
             accountKey,
@@ -14226,27 +14252,28 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         assignments.push(assignmentData);
         saveStoredAssignments(assignments, datasetId);
 
-        // 2. Guardar en base de datos (nuevo sistema)
-        console.log(' Intentando guardar asignación en base de datos...');
-        console.log(' - accountData:', accountData);
-        console.log(' - groupId:', groupId);
-        console.log(' - datasetId:', datasetId);
-        
-        // Esperar a que saveAccountAssignment esté disponible
-        const waitForSaveFunction = () => {
-            return new Promise((resolve) => {
-                const checkFunction = () => {
-                    if (window.saveAccountAssignment) {
-                        resolve(window.saveAccountAssignment);
-                    } else {
-                        setTimeout(checkFunction, 100);
-                    }
-                };
-                checkFunction();
-            });
-        };
-        
-        waitForSaveFunction().then(saveAccountAssignment => {
+        // 2. Guardar en base de datos (nuevo sistema) - SOLO para cuentas del Excel
+        if (!isStaticAccount) {
+            console.log(' Intentando guardar asignación en base de datos...');
+            console.log(' - accountData:', accountData);
+            console.log(' - groupId:', groupId);
+            console.log(' - datasetId:', datasetId);
+            
+            // Esperar a que saveAccountAssignment esté disponible
+            const waitForSaveFunction = () => {
+                return new Promise((resolve) => {
+                    const checkFunction = () => {
+                        if (window.saveAccountAssignment) {
+                            resolve(window.saveAccountAssignment);
+                        } else {
+                            setTimeout(checkFunction, 100);
+                        }
+                    };
+                    checkFunction();
+                });
+            };
+            
+            waitForSaveFunction().then(saveAccountAssignment => {
             console.log(' - saveAccountAssignment disponible:', !!saveAccountAssignment);
             
             const assignmentData = {
@@ -14274,6 +14301,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }).catch(error => {
             console.warn('❌ No se pudo cargar saveAccountAssignment:', error);
         });
+        } else {
+            console.log('📋 Cuenta estática detectada - Solo guardando en localStorage, no se intenta BD');
+        }
     }
 
     function removeStoredAssignment(accountData) {
