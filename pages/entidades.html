@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Gestión de Entidades</title>
+    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/entidades.css">
+
+    <style>
+        /* Estilos para los nuevos campos de grupo empresarial */
+        #entityGroupOptions,
+        #modifyEntityGroupOptions {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #0d6efd;
+            margin-top: 10px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-check-label strong {
+            color: #0d6efd;
+        }
+
+        #entityGroupOptions .form-check,
+        #modifyEntityGroupOptions .form-check {
+            padding: 10px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        #entityGroupOptions .form-check:hover,
+        #modifyEntityGroupOptions .form-check:hover {
+            background-color: #e7f1ff;
+        }
+
+        #entityGroupOptions .form-check-input:checked~.form-check-label,
+        #modifyEntityGroupOptions .form-check-input:checked~.form-check-label {
+            font-weight: 600;
+            color: #0d6efd;
+        }
+
+        /* Estilos para el selector de Empresa Padre */
+        #entityParentSelector,
+        #modifyEntityParentSelector {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        #entityParentSelector label,
+        #modifyEntityParentSelector label {
+            color: #856404;
+            font-weight: 600;
+        }
+
+        #entityParentSelector select,
+        #modifyEntityParentSelector select {
+            border: 2px solid #ffc107;
+        }
+
+        #entityParentSelector select:focus,
+        #modifyEntityParentSelector select:focus {
+            border-color: #ff9800;
+            box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header con 3 columnas -->
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title"><i class="bi bi-building"></i> Gestión de Entidades</h1>
+        </div>
+
+        <div class="header-center">
+            <div class="search-input">
+                <i class="bi bi-search"></i>
+                <input id="searchInput" type="text" placeholder="Buscar entidades...">
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button id="createEntityBtn" class="header-btn" onclick="createEntity()" title="Crear Entidad">
+                <i class="bi bi-plus-circle"></i>
+            </button>
+            <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Regresar">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            <button class="header-btn" onclick="logout()" title="Salir">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="entidades-container">
+            <div class="filters-row">
+                <div class="custom-select" id="customSelect">
+                    <div class="select-selected" id="selectSelected">Estado</div>
+                    <i class="bi bi-chevron-down custom-arrow"></i>
+                    <div class="select-items select-hide" id="selectItems">
+                        <div data-value="todos" class="same-as-selected">Todos</div>
+                        <div data-value="activa">Activa <i class="bi bi-check-lg"></i></div>
+                        <div data-value="inactiva">Inactiva <i class="bi bi-check-lg"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="entities-list">
+                <!-- Las entidades se renderizarán dinámicamente aquí -->
+            </div>
+            <div id="noResults" class="no-results">No se encontraron entidades.</div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear Entidad -->
+    <div class="modal fade" id="createEntityModal" tabindex="-1" aria-labelledby="createEntityModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createEntityModalLabel">Crear Nueva Entidad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createEntityForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entityName" class="form-label">Nombre de la Entidad *</label>
+                                    <input type="text" class="form-control" id="entityName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entityCommercial" class="form-label">Nombre Comercial</label>
+                                    <input type="text" class="form-control" id="entityCommercial">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entityEnterprise" class="form-label">Nombre Empresarial</label>
+                                    <input type="text" class="form-control" id="entityEnterprise">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entityCountry" class="form-label">País *</label>
+                                    <input type="text" class="form-control" id="entityCountry" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="entityAddress" class="form-label">Dirección</label>
+                            <textarea class="form-control" id="entityAddress" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="entityEmail" class="form-label">Correo Electrónico *</label>
+                                    <input type="email" class="form-control" id="entityEmail"
+                                        placeholder="ejemplo@correo.com">
+                                    <small class="text-muted">Requerido si no hay teléfono</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="entityPhone" class="form-label">Teléfono *</label>
+                                    <input type="tel" class="form-control" id="entityPhone"
+                                        placeholder="+507 1234-5678">
+                                    <small class="text-muted">Requerido si no hay correo</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="entityEncargado" class="form-label">Encargado</label>
+                                    <select class="form-control" id="entityEncargado">
+                                        <option value="">Seleccionar Encargado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="entityIsGroup"
+                                    onchange="toggleGroupOptions('entity')">
+                                <label class="form-check-label" for="entityIsGroup">
+                                    <strong>¿Es parte de un grupo empresarial?</strong>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="entityGroupOptions" class="mb-3" style="display: none;">
+                            <label class="form-label">Tipo de Empresa en el Grupo</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="entityGroupType"
+                                        id="entityParent" value="padre" onchange="toggleParentSelector('entity')">
+                                    <label class="form-check-label" for="entityParent" style="white-space: nowrap;">
+                                        <i class="bi bi-building"></i> Empresa Padre
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="entityGroupType" id="entityChild"
+                                        value="hijo" onchange="toggleParentSelector('entity')">
+                                    <label class="form-check-label" for="entityChild" style="white-space: nowrap;">
+                                        <i class="bi bi-diagram-3"></i> Empresa Hijo
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Selector de Empresa Padre (solo para subsidiarias) -->
+                            <div id="entityParentSelector" class="mt-3" style="display: none;">
+                                <label for="entityParentId" class="form-label">
+                                    <i class="bi bi-link-45deg"></i> Seleccionar Empresa Padre *
+                                </label>
+                                <select class="form-control" id="entityParentId">
+                                    <option value="">-- Seleccione la Empresa Padre --</option>
+                                </select>
+                                <small class="text-muted">Esta subsidiaria pertenecerá al grupo de la empresa
+                                    seleccionada</small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNewEntity()">Crear Entidad</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Modificar Entidad -->
+    <div class="modal fade" id="modifyEntityModal" tabindex="-1" aria-labelledby="modifyEntityModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modifyEntityModalLabel">Modificar Entidad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modifyEntityForm">
+                        <input type="hidden" id="modifyEntityId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modifyEntityName" class="form-label">Nombre de la Entidad *</label>
+                                    <input type="text" class="form-control" id="modifyEntityName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modifyEntityCommercial" class="form-label">Nombre Comercial</label>
+                                    <input type="text" class="form-control" id="modifyEntityCommercial">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modifyEntityEnterprise" class="form-label">Nombre Empresarial</label>
+                                    <input type="text" class="form-control" id="modifyEntityEnterprise">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modifyEntityCountry" class="form-label">País *</label>
+                                    <input type="text" class="form-control" id="modifyEntityCountry" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modifyEntityAddress" class="form-label">Dirección</label>
+                            <textarea class="form-control" id="modifyEntityAddress" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="modifyEntityEmail" class="form-label">Correo Electrónico *</label>
+                                    <input type="email" class="form-control" id="modifyEntityEmail"
+                                        placeholder="ejemplo@correo.com">
+                                    <small class="text-muted">Requerido si no hay teléfono</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="modifyEntityPhone" class="form-label">Teléfono *</label>
+                                    <input type="tel" class="form-control" id="modifyEntityPhone"
+                                        placeholder="+507 1234-5678">
+                                    <small class="text-muted">Requerido si no hay correo</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="modifyEntityEncargado" class="form-label">Encargado</label>
+                                    <select class="form-control" id="modifyEntityEncargado">
+                                        <option value="">Seleccionar Encargado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="modifyEntityIsGroup"
+                                    onchange="toggleGroupOptions('modifyEntity')">
+                                <label class="form-check-label" for="modifyEntityIsGroup">
+                                    <strong>¿Es parte de un grupo empresarial?</strong>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="modifyEntityGroupOptions" class="mb-3" style="display: none;">
+                            <label class="form-label">Tipo de Empresa en el Grupo</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="modifyEntityGroupType"
+                                        id="modifyEntityParent" value="padre"
+                                        onchange="toggleParentSelector('modifyEntity')">
+                                    <label class="form-check-label" for="modifyEntityParent"
+                                        style="white-space: nowrap;">
+                                        <i class="bi bi-building"></i> Empresa Padre
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="modifyEntityGroupType"
+                                        id="modifyEntityChild" value="hijo"
+                                        onchange="toggleParentSelector('modifyEntity')">
+                                    <label class="form-check-label" for="modifyEntityChild"
+                                        style="white-space: nowrap;">
+                                        <i class="bi bi-diagram-3"></i> Empresa Hijo
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Selector de Empresa Padre (solo para subsidiarias) -->
+                            <div id="modifyEntityParentSelector" class="mt-3" style="display: none;">
+                                <label for="modifyEntityParentId" class="form-label">
+                                    <i class="bi bi-link-45deg"></i> Seleccionar Empresa Padre *
+                                </label>
+                                <select class="form-control" id="modifyEntityParentId">
+                                    <option value="">-- Seleccione la Empresa Padre --</option>
+                                </select>
+                                <small class="text-muted">Esta subsidiaria pertenecerá al grupo de la empresa
+                                    seleccionada</small>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Usuarios Asignados -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-people-fill"></i> Usuarios Asignados a esta Entidad
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-success" id="btnAssignUser"
+                                    onclick="openAssignUserModal()" style="display: none;">
+                                    <i class="bi bi-person-plus"></i> Asignar Usuario
+                                </button>
+                            </div>
+                            <div id="entityUsersLoadingSection" style="display: none;">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <span class="ms-2 text-muted">Cargando usuarios...</span>
+                                </div>
+                            </div>
+                            <div id="entityUsersErrorSection" class="alert alert-warning" style="display: none;">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <span id="entityUsersErrorMessage">Error al cargar usuarios</span>
+                            </div>
+                            <div id="entityUsersTableSection" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Nombre</th>
+                                                <th>Email</th>
+                                                <th>Rol en la Entidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="entityUsersTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="entityUsersEmptySection" class="text-muted text-center py-3"
+                                style="display: none;">
+                                <i class="bi bi-inbox"></i> No hay usuarios asignados a esta entidad
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveModifiedEntity()">Guardar
+                        Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Éxito -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="successModalLabel">Operación Exitosa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <p id="successMessage" class="mt-3">La operación se realizó correctamente.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Asignar Usuario a Entidad -->
+    <div class="modal fade" id="assignUserModal" tabindex="-1" aria-labelledby="assignUserModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignUserModalLabel">
+                        <i class="bi bi-person-plus"></i> Asignar Usuario a Entidad
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignUserForm">
+                        <input type="hidden" id="assignUserEntityId">
+
+                        <div class="mb-3">
+                            <label for="assignUserSelect" class="form-label">Seleccionar Usuario *</label>
+                            <select class="form-select" id="assignUserSelect" required>
+                                <option value="">-- Seleccione un usuario --</option>
+                            </select>
+                            <small class="text-muted">Solo usuarios con roles de administración o auditoría</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assignUserRole" class="form-label">Rol en la Entidad *</label>
+                            <select class="form-select" id="assignUserRole" required>
+                                <option value="">-- Seleccione un rol --</option>
+                                <option value="admin">Administrador</option>
+                                <option value="member">Miembro</option>
+                                <option value="viewer">Observador</option>
+                            </select>
+                            <small class="text-muted">Define los permisos del usuario en esta entidad</small>
+                        </div>
+
+                        <div id="assignUserError" class="alert alert-danger" style="display: none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span id="assignUserErrorMessage"></span>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAssignUser()">
+                        <i class="bi bi-check-lg"></i> Asignar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div class="modal fade" id="deleteEntityModal" tabindex="-1" aria-labelledby="deleteEntityModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteEntityModalLabel">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
+                    <p id="deleteMessage" class="mt-3">¿Está seguro de que desea eliminar esta entidad? Esta acción no
+                        se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDeleteEntity()">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Tema Oscuro/Claro -->
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <i class="bi bi-moon"></i>
+    </button>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // Toggle Tema Oscuro/Claro
+        function toggleTheme() {
+            const body = document.body;
+            const toggleBtn = document.querySelector('.theme-toggle i');
+            body.classList.toggle('dark-theme');
+            if (body.classList.contains('dark-theme')) {
+                toggleBtn.className = 'bi bi-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                toggleBtn.className = 'bi bi-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Aplicar tema guardado
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.querySelector('.theme-toggle i').className = 'bi bi-sun';
+            }
+        });
+    </script>
+    <script>
+        // Array para almacenar entidades desde la API
+        let entitiesData = [];
+
+        // Array en memoria para logs de acciones (sin persistencia)
+        let actionRecords = [];
+
+        // Función para cargar entidades desde la API
+        async function loadEntitiesFromAPI() {
+            try {
+                API.showLoading(true);
+                const response = await API.Entities.getAll();
+                // El servidor devuelve {success: true, data: [entidades]}
+                const entities = response.success && response.data ? response.data : [];
+
+                if (Array.isArray(entities) && entities.length >= 0) {
+                    // Convertir array de API a objeto con índices numéricos para compatibilidad
+                    entitiesData = {};
+                    entities.forEach((entity, index) => {
+                        // Extraer metadata si existe
+                        const metadata = entity.metadata || {};
+
+                        // Construir información de contacto (formato: Email: xxx | Tel: xxx)
+                        const email = entity.email || metadata.email || '';
+                        const phone = entity.phone || metadata.phone || '';
+                        let contactInfo = '';
+                        if (email && phone) {
+                            contactInfo = `Email: ${email} | Tel: ${phone}`;
+                        } else if (email) {
+                            contactInfo = `Email: ${email}`;
+                        } else if (phone) {
+                            contactInfo = `Tel: ${phone}`;
+                        }
+
+                        // Determinar tipo de grupo desde columnas o metadata
+                        const isGroup = entity.is_group !== undefined ? entity.is_group : (metadata.es_grupo || false);
+                        const relationshipType = entity.relationship_type || metadata.relationship_type || 'none';
+                        let groupType = '';
+                        if (isGroup && relationshipType !== 'none') {
+                            groupType = relationshipType === 'parent' ? 'padre' : relationshipType === 'child' ? 'hijo' : '';
+                        }
+                        const parentId = metadata.parent_id || null;
+
+                        entitiesData[index] = {
+                            id: entity.id,
+                            name: entity.name,
+                            commercial: entity.entity_id || '',
+                            enterprise: entity.description || '',
+                            country: entity.country || metadata.country || '',
+                            address: entity.address || metadata.address || '',
+                            contact: contactInfo,
+                            email: email,
+                            phone: phone,
+                            state: entity.status,
+                            date: new Date(entity.created_at).toLocaleDateString('es-ES'),
+                            encargado: entity.encargado || metadata.encargado || 'No asignado',
+                            // Campos de grupo empresarial
+                            isGroup: isGroup,
+                            groupType: groupType,
+                            parentId: parentId
+                        };
+
+                        // Log detallado de cada entidad cargada
+                        console.log(`📋 Entidad ${index}: ${entity.name}`, {
+                            id: entity.id,
+                            email: email,
+                            phone: phone,
+                            isGroup: isGroup,
+                            groupType: groupType,
+                            parentId: parentId,
+                            rawEntity: entity
+                        });
+                    });
+                    console.log('✅ Entidades cargadas:', Object.keys(entitiesData).length);
+                } else {
+                    console.error('Error loading entities:', response.error || 'Invalid response data');
+                    entitiesData = {};
+                }
+            } catch (error) {
+                console.error('Error loading entities from API:', error);
+                entitiesData = {};
+            } finally {
+                API.showLoading(false);
+            }
+        }
+
+        // Función para poblar select de encargados con roles autorizados (SOLO desde API)
+        async function populateEncargadoSelect(selectId) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '<option value="">Cargando encargados...</option>';
+
+            try {
+                console.log('🔄 Cargando usuarios desde la API...');
+
+                const response = await API.Users.getAll();
+
+                console.log('📦 Respuesta completa de la API:', response);
+                console.log('📊 Tipo de respuesta:', typeof response);
+                console.log('🔍 Keys de respuesta:', response ? Object.keys(response) : 'null');
+
+                if (!response) {
+                    console.error('❌ Respuesta nula de la API');
+                    select.innerHTML = '<option value="">Error: No hay respuesta del servidor. Verifica que el servidor esté corriendo.</option>';
+                    return;
+                }
+
+                if (!response.success) {
+                    console.error('❌ Error en la respuesta de la API:', response.error);
+                    select.innerHTML = '<option value="">Error: ' + (response.error || 'Error desconocido') + '</option>';
+                    return;
+                }
+
+                if (!response.data) {
+                    console.error('❌ No hay datos en la respuesta');
+                    select.innerHTML = '<option value="">Error: Respuesta sin datos</option>';
+                    return;
+                }
+
+                const users = response.data;
+                console.log('✅ Total usuarios recibidos:', users.length);
+                console.log('📋 Usuarios completos:', users);
+
+                if (users.length === 0) {
+                    console.error('❌ No hay usuarios en la base de datos');
+                    select.innerHTML = '<option value="">No hay usuarios en la base de datos</option>';
+                    return;
+                }
+
+                // Mostrar todos los roles disponibles
+                const rolesEncontrados = [...new Set(users.map(u => u.role))];
+                console.log('🎭 Roles encontrados en BD:', rolesEncontrados);
+
+                // Roles permitidos para ser encargados
+                const allowedRoles = ['socio', 'administrador', 'supervisor', 'auditor_senior', 'auditor senior', 'admin'];
+
+                select.innerHTML = '<option value="">Seleccionar Encargado</option>';
+
+                let hasOptions = false;
+                users.forEach(user => {
+                    const userRole = user.role ? user.role.toLowerCase().trim() : '';
+                    const userName = user.name || user.full_name || user.username || 'Sin nombre';
+
+                    console.log(`👤 Usuario: ${userName}, Rol: "${userRole}"`);
+
+                    // Mostrar TODOS los usuarios para depuración
+                    if (userRole && userName) {
+                        const option = document.createElement('option');
+                        option.value = userName;
+
+                        // Mostrar nombre con su rol entre paréntesis
+                        const roleLabel = {
+                            'socio': 'Socio',
+                            'administrador': 'Admin',
+                            'admin': 'Admin',
+                            'supervisor': 'Supervisor',
+                            'auditor_senior': 'Auditor Sr.',
+                            'auditor senior': 'Auditor Sr.',
+                            'auditor': 'Auditor',
+                            'programador': 'Programador'
+                        }[userRole] || userRole.charAt(0).toUpperCase() + userRole.slice(1);
+
+                        option.textContent = `${userName} (${roleLabel})`;
+                        select.appendChild(option);
+                        hasOptions = true;
+
+                        // Marcar si cumple con roles permitidos
+                        if (allowedRoles.includes(userRole)) {
+                            console.log(`  ✓ Usuario autorizado como encargado`);
+                        }
+                    }
+                });
+
+                if (!hasOptions) {
+                    console.error('❌ No se encontraron usuarios válidos');
+                    console.warn('Roles permitidos:', allowedRoles);
+                    select.innerHTML = '<option value="">No hay encargados disponibles</option>';
+                } else {
+                    console.log(`✅ Se cargaron ${select.options.length - 1} encargados en total`);
+                }
+
+            } catch (error) {
+                console.error('❌ Error crítico cargando usuarios:', error);
+                console.error('Stack trace:', error.stack);
+                select.innerHTML = '<option value="">Error: No se pudo cargar la lista de usuarios</option>';
+            }
+        }
+
+        // Función para mostrar/ocultar opciones de grupo empresarial
+        function toggleGroupOptions(prefix) {
+            const checkbox = document.getElementById(prefix + 'IsGroup');
+            const groupOptions = document.getElementById(prefix + 'GroupOptions');
+
+            if (checkbox.checked) {
+                groupOptions.style.display = 'block';
+            } else {
+                groupOptions.style.display = 'none';
+                // Limpiar selección al ocultar
+                const radios = document.getElementsByName(prefix + 'GroupType');
+                radios.forEach(radio => radio.checked = false);
+                // Ocultar selector de Empresa Padre
+                const parentSelector = document.getElementById(prefix + 'ParentSelector');
+                if (parentSelector) {
+                    parentSelector.style.display = 'none';
+                }
+            }
+        }
+
+        // Función para mostrar/ocultar selector de Empresa Padre según el tipo seleccionado
+        function toggleParentSelector(prefix) {
+            const childRadio = document.getElementById(prefix + 'Child');
+            const parentSelector = document.getElementById(prefix + 'ParentSelector');
+
+            if (childRadio && childRadio.checked) {
+                // Mostrar selector y poblar con empresas padre
+                parentSelector.style.display = 'block';
+                populateParentEntitySelect(prefix + 'ParentId', prefix === 'modifyEntity' ? document.getElementById('modifyEntityId').value : null);
+            } else {
+                // Ocultar selector
+                parentSelector.style.display = 'none';
+                // Limpiar selección
+                const select = document.getElementById(prefix + 'ParentId');
+                if (select) select.value = '';
+            }
+        }
+
+        // Función para poblar select de empresas padre
+        function populateParentEntitySelect(selectId, excludeId = null) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '<option value="">-- Seleccione la Empresa Padre --</option>';
+
+            // Filtrar solo entidades que sean Empresa Padre
+            Object.values(entitiesData).forEach(entity => {
+                // Excluir la entidad actual (al modificar) y solo mostrar empresas padre
+                if (entity.groupType === 'padre' && entity.id !== excludeId) {
+                    const option = document.createElement('option');
+                    option.value = entity.id;
+                    option.textContent = entity.name;
+                    select.appendChild(option);
+                }
+            });
+
+            // Si no hay empresas padre disponibles, mostrar mensaje
+            if (select.options.length === 1) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No hay empresas padre disponibles';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        }
+
+        // Función de validación de estructura de grupos
+        function validateGroupStructure(entityId, isGroup, groupType, parentId) {
+            // Si no es parte de un grupo, no hay validaciones
+            if (!isGroup) {
+                return { valid: true };
+            }
+
+            // Si es empresa hijo, debe tener empresa padre
+            if (groupType === 'hijo' && !parentId) {
+                return {
+                    valid: false,
+                    message: 'Las empresas subsidiarias deben tener asignada una Empresa Padre.'
+                };
+            }
+
+            // Si es empresa padre, no puede tener empresa padre asignada
+            if (groupType === 'padre' && parentId) {
+                return {
+                    valid: false,
+                    message: 'Las empresas matriz no pueden ser subsidiarias de otra empresa.'
+                };
+            }
+
+            // Validar que la empresa padre no sea ella misma
+            if (entityId && parentId && entityId === parseInt(parentId)) {
+                return {
+                    valid: false,
+                    message: 'Una empresa no puede ser su propia empresa padre.'
+                };
+            }
+
+            // Validar ciclos: la empresa padre no puede ser subsidiaria de esta entidad
+            // Solo validar si entityId existe (no es una nueva entidad)
+            if (entityId && parentId) {
+                const parentEntity = Object.values(entitiesData).find(e => e.id === parseInt(parentId));
+                // Verificar que el padre no sea subsidiaria de esta entidad
+                if (parentEntity && parentEntity.parentId === entityId) {
+                    return {
+                        valid: false,
+                        message: 'Estructura circular detectada: la empresa padre seleccionada es subsidiaria de esta entidad.'
+                    };
+                }
+            }
+
+            return { valid: true };
+        }
+
+        // Función para abrir modal de crear entidad
+        async function createEntity() {
+            // Limpiar formulario
+            document.getElementById('createEntityForm').reset();
+            // Poblar select de encargados desde la API
+            await populateEncargadoSelect('entityEncargado');
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('createEntityModal'));
+            modal.show();
+        }
+
+        // Función para abrir modal de modificar entidad
+        async function modifyEntity(entityId) {
+            console.log('modifyEntity called with:', entityId, typeof entityId);
+            // Buscar la entidad por su ID real, no por el índice
+            const data = Object.values(entitiesData).find(entity => {
+                console.log('Comparing:', entity.id, '===', entityId, '>', entity.id == entityId);
+                return entity.id == entityId; // Usar == para comparar sin tipo
+            });
+            if (!data) {
+                console.error('Entidad no encontrada:', entityId);
+                return;
+            }
+
+            // Llenar formulario con datos existentes
+            document.getElementById('modifyEntityId').value = data.id;
+            document.getElementById('modifyEntityName').value = data.name;
+            document.getElementById('modifyEntityCommercial').value = data.commercial || '';
+            document.getElementById('modifyEntityEnterprise').value = data.enterprise || '';
+            document.getElementById('modifyEntityCountry').value = data.country;
+            document.getElementById('modifyEntityAddress').value = data.address || '';
+
+            // Parsear información de contacto existente (Email: xxx | Tel: xxx)
+            let email = '';
+            let phone = '';
+            if (data.contact) {
+                const emailMatch = data.contact.match(/Email:\s*([^\|]+)/);
+                const phoneMatch = data.contact.match(/Tel:\s*(.+)/);
+                if (emailMatch) email = emailMatch[1].trim();
+                if (phoneMatch) phone = phoneMatch[1].trim();
+            }
+            document.getElementById('modifyEntityEmail').value = email;
+            document.getElementById('modifyEntityPhone').value = phone;
+
+            // Configurar grupo empresarial si existe la metadata
+            const isGroup = data.isGroup || false;
+            const groupType = data.groupType || '';
+
+            document.getElementById('modifyEntityIsGroup').checked = isGroup;
+            if (isGroup) {
+                document.getElementById('modifyEntityGroupOptions').style.display = 'block';
+                if (groupType === 'padre') {
+                    document.getElementById('modifyEntityParent').checked = true;
+                    // Ocultar selector de empresa padre
+                    document.getElementById('modifyEntityParentSelector').style.display = 'none';
+                } else if (groupType === 'hijo') {
+                    document.getElementById('modifyEntityChild').checked = true;
+                    // Mostrar y poblar selector de empresa padre
+                    document.getElementById('modifyEntityParentSelector').style.display = 'block';
+                    populateParentEntitySelect('modifyEntityParentId', data.id);
+                    // Seleccionar la empresa padre actual si existe
+                    if (data.parentId) {
+                        document.getElementById('modifyEntityParentId').value = data.parentId;
+                    }
+                }
+            } else {
+                document.getElementById('modifyEntityGroupOptions').style.display = 'none';
+                document.getElementById('modifyEntityParentSelector').style.display = 'none';
+            }
+
+            // Poblar select de encargados y seleccionar el actual
+            await populateEncargadoSelect('modifyEntityEncargado');
+            document.getElementById('modifyEntityEncargado').value = data.encargado || '';
+
+            // Cargar usuarios asignados a la entidad
+            await loadEntityUsers(data.id);
+
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('modifyEntityModal'));
+            modal.show();
+        }
+
+        // Variable global para almacenar el ID de la entidad actual
+        let currentEntityId = null;
+
+        /**
+         * Cargar y mostrar usuarios asignados a una entidad
+         * @param {number} entityId - ID de la entidad
+         */
+        async function loadEntityUsers(entityId) {
+            // Guardar el ID de la entidad actual
+            currentEntityId = entityId;
+
+            // Mostrar/ocultar botón de asignar según permisos
+            checkAssignUserPermissions();
+            // Mostrar sección de carga
+            document.getElementById('entityUsersLoadingSection').style.display = 'block';
+            document.getElementById('entityUsersErrorSection').style.display = 'none';
+            document.getElementById('entityUsersTableSection').style.display = 'none';
+            document.getElementById('entityUsersEmptySection').style.display = 'none';
+
+            try {
+                // Verificar que la API esté disponible
+                if (!window.API || !window.API.EntityUsers) {
+                    throw new Error('API.EntityUsers no está disponible');
+                }
+
+                const response = await API.EntityUsers.listByEntity(entityId);
+                console.log('👥 Usuarios asignados:', response);
+
+                // Ocultar loading
+                document.getElementById('entityUsersLoadingSection').style.display = 'none';
+
+                if (response.error) {
+                    // Mostrar error
+                    document.getElementById('entityUsersErrorSection').style.display = 'block';
+                    document.getElementById('entityUsersErrorMessage').textContent = response.error;
+                    return;
+                }
+
+                const users = response.data || [];
+
+                if (users.length === 0) {
+                    // Mostrar mensaje de vacío
+                    document.getElementById('entityUsersEmptySection').style.display = 'block';
+                    return;
+                }
+
+                // Renderizar tabla de usuarios
+                const tbody = document.getElementById('entityUsersTableBody');
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sanitizeHTML(user.user_name)}</td>
+                        <td>${sanitizeHTML(user.user_email)}</td>
+                        <td><span class="badge bg-info">${sanitizeHTML(user.role || 'member')}</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('entityUsersTableSection').style.display = 'block';
+            } catch (error) {
+                console.error('❌ Error cargando usuarios asignados:', error);
+                document.getElementById('entityUsersLoadingSection').style.display = 'none';
+                document.getElementById('entityUsersErrorSection').style.display = 'block';
+                document.getElementById('entityUsersErrorMessage').textContent = error.message || 'Error desconocido';
+            }
+        }
+
+        /**
+         * Sanitizar HTML para prevenir XSS
+         */
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        /**
+         * Verificar permisos para mostrar el botón de asignar usuarios
+         */
+        function checkAssignUserPermissions() {
+            const btnAssignUser = document.getElementById('btnAssignUser');
+            if (!btnAssignUser) return;
+
+            // Verificar si el usuario actual tiene permisos
+            if (window.currentUser && window.currentUser.role) {
+                const userRole = window.currentUser.role.toLowerCase().trim();
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                if (adminRoles.includes(userRole)) {
+                    btnAssignUser.style.display = 'inline-block';
+                } else {
+                    btnAssignUser.style.display = 'none';
+                }
+            } else {
+                btnAssignUser.style.display = 'none';
+            }
+        }
+
+        /**
+         * Abrir modal para asignar usuario
+         */
+        async function openAssignUserModal() {
+            if (!currentEntityId) {
+                alert('Error: No se pudo identificar la entidad');
+                return;
+            }
+
+            // Limpiar formulario
+            document.getElementById('assignUserForm').reset();
+            document.getElementById('assignUserEntityId').value = currentEntityId;
+            document.getElementById('assignUserError').style.display = 'none';
+
+            // Cargar lista de usuarios
+            await loadUsersForAssignment();
+
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('assignUserModal'));
+            modal.show();
+        }
+
+        /**
+         * Cargar usuarios disponibles para asignar
+         */
+        async function loadUsersForAssignment() {
+            const select = document.getElementById('assignUserSelect');
+            select.innerHTML = '<option value="">-- Cargando usuarios... --</option>';
+
+            try {
+                if (!window.API || !window.API.Users) {
+                    throw new Error('API.Users no está disponible');
+                }
+
+                const response = await API.Users.getAll();
+
+                if (!response.success || !response.data) {
+                    throw new Error('Error al cargar usuarios');
+                }
+
+                const users = response.data;
+                select.innerHTML = '<option value="">-- Seleccione un usuario --</option>';
+
+                // Filtrar solo usuarios con roles permitidos
+                const allowedRoles = ['socio', 'administrador', 'supervisor', 'auditor_senior', 'auditor senior', 'admin', 'programador'];
+
+                users.forEach(user => {
+                    const userRole = user.role ? user.role.toLowerCase().trim() : '';
+                    if (allowedRoles.includes(userRole)) {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        const userName = user.name || user.full_name || user.username || 'Sin nombre';
+                        const userEmail = user.email || '';
+                        option.textContent = `${userName} (${userRole})${userEmail ? ' - ' + userEmail : ''}`;
+                        select.appendChild(option);
+                    }
+                });
+
+                if (select.options.length === 1) {
+                    select.innerHTML = '<option value="">-- No hay usuarios disponibles --</option>';
+                }
+            } catch (error) {
+                console.error('❌ Error cargando usuarios:', error);
+                select.innerHTML = '<option value="">-- Error al cargar usuarios --</option>';
+            }
+        }
+
+        /**
+         * Confirmar y ejecutar asignación de usuario
+         */
+        async function confirmAssignUser() {
+            const form = document.getElementById('assignUserForm');
+            const errorSection = document.getElementById('assignUserError');
+            const errorMessage = document.getElementById('assignUserErrorMessage');
+
+            // Validar formulario
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const entityId = document.getElementById('assignUserEntityId').value;
+            const userId = document.getElementById('assignUserSelect').value;
+            const role = document.getElementById('assignUserRole').value;
+
+            // Validación adicional
+            if (!entityId || !userId || !role) {
+                errorSection.style.display = 'block';
+                errorMessage.textContent = 'Todos los campos son requeridos';
+                return;
+            }
+
+            try {
+                API.showLoading(true);
+                errorSection.style.display = 'none';
+
+                // Verificar que la API esté disponible
+                if (!window.API || !window.API.EntityUsers) {
+                    throw new Error('API.EntityUsers no está disponible');
+                }
+
+                const response = await API.EntityUsers.create(entityId, userId, role);
+                console.log('✅ Respuesta de asignación:', response);
+
+                if (response.error) {
+                    // Mostrar error
+                    errorSection.style.display = 'block';
+                    errorMessage.textContent = response.error;
+                    return;
+                }
+
+                // Éxito: cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('assignUserModal'));
+                if (modal) modal.hide();
+
+                // Recargar lista de usuarios asignados
+                await loadEntityUsers(entityId);
+
+                // Mostrar mensaje de éxito
+                document.getElementById('successMessage').textContent = 'Usuario asignado exitosamente a la entidad.';
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+
+            } catch (error) {
+                console.error('❌ Error asignando usuario:', error);
+                errorSection.style.display = 'block';
+                errorMessage.textContent = error.message || 'Error desconocido al asignar usuario';
+            } finally {
+                API.showLoading(false);
+            }
+        }
+
+        // Función para abrir modal de eliminación de entidad
+        function deleteEntity(entityId) {
+            // Buscar la entidad por su ID real, no por el índice
+            const data = Object.values(entitiesData).find(entity => entity.id === entityId);
+            if (!data) {
+                console.error('Entidad no encontrada:', entityId);
+                return;
+            }
+
+            // Mostrar nombre de la entidad en el mensaje de confirmación
+            document.getElementById('deleteMessage').textContent = `¿Está seguro de que desea eliminar la entidad "${data.name}"? Esta acción no se puede deshacer.`;
+
+            // Guardar el ID de la entidad a eliminar en un atributo global o variable
+            window.entityToDelete = entityId;
+
+            // Mostrar modal de confirmación
+            const modal = new bootstrap.Modal(document.getElementById('deleteEntityModal'));
+            modal.show();
+        }
+
+        // Función para mostrar/ocultar detalles de una entidad (con toggle y nuevo campo encargado)
+        function showDetails(entityId, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const clickedCard = event.currentTarget;
+            const isActive = clickedCard.classList.contains('active');
+
+            if (isActive) {
+                // Toggle: Contraer si ya está expandida
+                clickedCard.classList.remove('active');
+                const detailsSection = document.getElementById('detailsSection' + entityId);
+                if (detailsSection) {
+                    detailsSection.classList.remove('show');
+                }
+            } else {
+                // Expandir: Cerrar todas las otras primero
+                const allDetailsSections = document.querySelectorAll('.details-section');
+                allDetailsSections.forEach(section => section.classList.remove('show'));
+
+                const allCards = document.querySelectorAll('.entity-card');
+                allCards.forEach(card => card.classList.remove('active'));
+
+                // Activar la seleccionada
+                clickedCard.classList.add('active');
+
+                // Obtener datos de la entidad
+                const data = entitiesData[entityId];
+                if (!data) return;
+
+                // Log the action
+                const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                logAction(window.currentUser?.name || 'Usuario', 'visualizo_detalles_entidad', data.name, null, timestamp);
+
+                // Mostrar la sección específica de detalles
+                const detailsSection = document.getElementById('detailsSection' + entityId);
+                if (detailsSection) {
+                    detailsSection.classList.add('show');
+                }
+
+                // Log para depuración
+                console.log('📄 Mostrando detalles de entidad:', {
+                    id: data.id,
+                    name: data.name,
+                    email: data.email,
+                    phone: data.phone,
+                    contact: data.contact,
+                    isGroup: data.isGroup,
+                    groupType: data.groupType,
+                    parentId: data.parentId
+                });
+
+                // Actualizar todos los campos dinámicamente con IDs únicos (incluyendo nuevo encargado)
+                document.getElementById('detailId' + entityId).textContent = data.id;
+                document.getElementById('detailCommercial' + entityId).textContent = data.commercial;
+                document.getElementById('detailEnterprise' + entityId).textContent = data.enterprise;
+                document.getElementById('detailCountry' + entityId).textContent = data.country;
+                document.getElementById('detailAddress' + entityId).textContent = data.address;
+                document.getElementById('detailContact' + entityId).textContent = data.contact || 'Sin información de contacto';
+                document.getElementById('detailState' + entityId).textContent = data.state;
+                document.getElementById('detailDate' + entityId).textContent = data.date;
+                document.getElementById('detailEncargado' + entityId).textContent = data.encargado || 'No asignado'; // Nueva línea para encargado
+
+                // Determinar y mostrar tipo de grupo
+                let groupTypeText = 'Independiente';
+                if (data.isGroup && data.groupType) {
+                    if (data.groupType === 'padre') {
+                        groupTypeText = '🏢 Empresa Padre';
+                    } else if (data.groupType === 'hijo') {
+                        groupTypeText = '🏪 Empresa Subsidiaria';
+                        // Si tiene padre, mostrar su nombre
+                        if (data.parentId) {
+                            const parentEntity = Object.values(entitiesData).find(e => e.id === data.parentId);
+                            if (parentEntity) {
+                                groupTypeText += ` (de ${parentEntity.name})`;
+                            }
+                        }
+                    }
+                }
+                document.getElementById('detailGroupType' + entityId).textContent = groupTypeText;
+
+                // Generar lista de compromisos dinámicamente en el ID específico
+                const compromisosList = document.getElementById('compromisosList' + entityId);
+                if (compromisosList) {
+                    compromisosList.innerHTML = ''; // Limpiar lista anterior
+                    if (data.compromisos && data.compromisos.length > 0) {
+                        data.compromisos.forEach(compromiso => {
+                            const li = document.createElement('li');
+                            li.innerHTML = `
+                                <span>${compromiso.title} - ${compromiso.status}</span>
+                                <span style="font-size: 0.8em; color: #888;">${compromiso.fecha}</span>
+                            `;
+                            compromisosList.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement('li');
+                        li.textContent = 'No hay compromisos registrados.';
+                        compromisosList.appendChild(li);
+                    }
+                }
+
+                // Mostrar/ocultar botones de acción basados en rol de usuario
+                const userRole = window.currentUser?.role;
+                const entityActions = document.getElementById('entityActions' + entityId);
+                if (entityActions) {
+                    if (userRole === 'administrador' || userRole === 'programador') {
+                        entityActions.style.display = 'block';
+                    } else {
+                        entityActions.style.display = 'none';
+                    }
+                }
+            }
+
+            // Reaplicar filtros después del toggle para consistencia
+            filterEntities();
+        }
+
+        // Función para guardar nueva entidad
+        async function saveNewEntity() {
+            const form = document.getElementById('createEntityForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Obtener valores del formulario
+            const name = sanitizeInput(document.getElementById('entityName').value.trim());
+            const commercial = sanitizeInput(document.getElementById('entityCommercial').value.trim());
+            const enterprise = sanitizeInput(document.getElementById('entityEnterprise').value.trim());
+            const country = sanitizeInput(document.getElementById('entityCountry').value.trim());
+            const address = sanitizeInput(document.getElementById('entityAddress').value.trim());
+            const email = sanitizeInput(document.getElementById('entityEmail').value.trim());
+            const phone = sanitizeInput(document.getElementById('entityPhone').value.trim());
+            const encargado = sanitizeInput(document.getElementById('entityEncargado').value.trim());
+
+            // Obtener información de grupo empresarial
+            const isGroup = document.getElementById('entityIsGroup').checked;
+            let groupType = '';
+            let parentId = null;
+
+            if (isGroup) {
+                const selectedRadio = document.querySelector('input[name="entityGroupType"]:checked');
+                if (selectedRadio) {
+                    groupType = selectedRadio.value;
+                } else {
+                    alert('Error: Si la entidad es parte de un grupo, debe seleccionar si es Empresa Padre o Hijo.');
+                    return;
+                }
+
+                // Si es empresa hijo, obtener la empresa padre
+                if (groupType === 'hijo') {
+                    parentId = document.getElementById('entityParentId').value;
+                }
+            }
+
+            // Validar estructura de grupos
+            const structureValidation = validateGroupStructure(null, isGroup, groupType, parentId);
+            if (!structureValidation.valid) {
+                alert('Error de Estructura: ' + structureValidation.message);
+                return;
+            }
+
+            // Validar que al menos un campo de contacto esté lleno
+            if (!email && !phone) {
+                alert('Error: Debe proporcionar al menos un correo electrónico o un teléfono.');
+                return;
+            }
+
+            // Validar formato de email si está presente
+            if (email && !validateEmail(email)) {
+                alert('Error: El formato del correo electrónico no es válido.');
+                return;
+            }
+
+            // Validar formato de teléfono si está presente
+            if (phone && !validatePhone(phone)) {
+                alert('Error: El formato del teléfono no es válido.');
+                return;
+            }
+
+            // Normalizar email a lowercase
+            const normalizedEmail = email ? email.toLowerCase().trim() : '';
+
+            // Normalizar phone (eliminar espacios, guiones, paréntesis)
+            const normalizedPhone = phone ? phone.replace(/[\s\-()]/g, '').trim() : '';
+
+            // Validar que entity_id (commercial) no esté vacío
+            if (!commercial || commercial.trim() === '') {
+                alert('Error: El campo "ID Comercial" es obligatorio.');
+                return;
+            }
+
+            // Determinar relationship_type
+            let relationshipType = 'none';
+            if (isGroup && groupType) {
+                relationshipType = groupType === 'padre' ? 'parent' : groupType === 'hijo' ? 'child' : 'none';
+            }
+
+            // Crear nueva entidad con COLUMNAS EXPLÍCITAS + METADATA SINCRONIZADO
+            const newEntity = {
+                // Columnas principales
+                name: name,
+                entity_id: commercial || '',
+                description: enterprise || '',
+                status: 'activa',
+
+                // Columnas explícitas (nuevas)
+                country: country || null,
+                address: address || null,
+                email: normalizedEmail || null,
+                phone: normalizedPhone || null,
+                encargado: encargado || null,
+                is_group: isGroup,
+                relationship_type: relationshipType,
+
+                // Metadata sincronizado con las columnas
+                metadata: {
+                    country: country || null,
+                    address: address || null,
+                    email: normalizedEmail || null,
+                    phone: normalizedPhone || null,
+                    encargado: encargado || null,
+                    es_grupo: isGroup,
+                    relationship_type: relationshipType,
+                    parent_id: parentId ? parseInt(parentId) : null
+                }
+            };
+
+            try {
+                console.log('📤 Enviando nueva entidad:', newEntity);
+                API.showLoading(true);
+                const response = await API.Entities.create(newEntity);
+                console.log('📥 Respuesta de la API:', response);
+
+                // En Supabase, CREATE exitoso tiene error === null
+                if (response && response.error === null) {
+                    // Log de acción
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    logAction(window.currentUser?.name || 'Usuario', 'creo_entidad', name, null, timestamp);
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createEntityModal'));
+                    modal.hide();
+
+                    // Recargar entidades desde Supabase antes de mostrar el mensaje de éxito
+                    await loadEntitiesFromAPI();
+                    renderEntities();
+                    filterEntities();
+
+                    // Mostrar mensaje de éxito
+                    setTimeout(() => {
+                        document.getElementById('successMessage').textContent = 'Entidad creada exitosamente.';
+                        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                        successModal.show();
+                    }, 100);
+                } else {
+                    console.error('❌ Error creating entity:', response);
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido';
+                    alert('Error al crear la entidad: ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('❌ Exception creating entity:', error);
+                console.error('Stack trace:', error.stack);
+                alert('Error al crear la entidad: ' + error.message + '\n\nRevisa la consola para más detalles.');
+            } finally {
+                API.showLoading(false);
+            }
+        }
+
+        // Función para guardar entidad modificada
+        async function saveModifiedEntity() {
+            const form = document.getElementById('modifyEntityForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const entityId = parseInt(document.getElementById('modifyEntityId').value);
+
+            // Obtener valores del formulario
+            const name = sanitizeInput(document.getElementById('modifyEntityName').value.trim());
+            const commercial = sanitizeInput(document.getElementById('modifyEntityCommercial').value.trim());
+            const enterprise = sanitizeInput(document.getElementById('modifyEntityEnterprise').value.trim());
+            const country = sanitizeInput(document.getElementById('modifyEntityCountry').value.trim());
+            const address = sanitizeInput(document.getElementById('modifyEntityAddress').value.trim());
+            const email = sanitizeInput(document.getElementById('modifyEntityEmail').value.trim());
+            const phone = sanitizeInput(document.getElementById('modifyEntityPhone').value.trim());
+            const encargado = sanitizeInput(document.getElementById('modifyEntityEncargado').value.trim());
+
+            // Obtener información de grupo empresarial
+            const isGroup = document.getElementById('modifyEntityIsGroup').checked;
+            let groupType = '';
+            let parentId = null;
+
+            if (isGroup) {
+                const selectedRadio = document.querySelector('input[name="modifyEntityGroupType"]:checked');
+                if (selectedRadio) {
+                    groupType = selectedRadio.value;
+                } else {
+                    alert('Error: Si la entidad es parte de un grupo, debe seleccionar si es Empresa Padre o Hijo.');
+                    return;
+                }
+
+                // Si es empresa hijo, obtener la empresa padre
+                if (groupType === 'hijo') {
+                    parentId = document.getElementById('modifyEntityParentId').value;
+                }
+            }
+
+            // Validar estructura de grupos
+            const structureValidation = validateGroupStructure(entityId, isGroup, groupType, parentId);
+            if (!structureValidation.valid) {
+                alert('Error de Estructura: ' + structureValidation.message);
+                return;
+            }
+
+            // Validar que al menos un campo de contacto esté lleno
+            if (!email && !phone) {
+                alert('Error: Debe proporcionar al menos un correo electrónico o un teléfono.');
+                return;
+            }
+
+            // Validar formato de email si está presente
+            if (email && !validateEmail(email)) {
+                alert('Error: El formato del correo electrónico no es válido.');
+                return;
+            }
+
+            // Validar formato de teléfono si está presente
+            if (phone && !validatePhone(phone)) {
+                alert('Error: El formato del teléfono no es válido.');
+                return;
+            }
+
+            // Normalizar email a lowercase
+            const normalizedEmail = email ? email.toLowerCase().trim() : '';
+
+            // Normalizar phone (eliminar espacios, guiones, paréntesis)
+            const normalizedPhone = phone ? phone.replace(/[\s\-()]/g, '').trim() : '';
+
+            // Validar que entity_id (commercial) no esté vacío
+            if (!commercial || commercial.trim() === '') {
+                alert('Error: El campo "ID Comercial" es obligatorio.');
+                return;
+            }
+
+            // Determinar relationship_type
+            let relationshipType = 'none';
+            if (isGroup && groupType) {
+                relationshipType = groupType === 'padre' ? 'parent' : groupType === 'hijo' ? 'child' : 'none';
+            }
+
+            // Crear objeto de actualización con COLUMNAS EXPLÍCITAS + METADATA SINCRONIZADO
+            const updatedEntity = {
+                // Columnas principales
+                name: name,
+                entity_id: commercial || '',
+                description: enterprise || '',
+
+                // Columnas explícitas (nuevas)
+                country: country || null,
+                address: address || null,
+                email: normalizedEmail || null,
+                phone: normalizedPhone || null,
+                encargado: encargado || null,
+                is_group: isGroup,
+                relationship_type: relationshipType,
+
+                // Metadata sincronizado con las columnas
+                metadata: {
+                    country: country || null,
+                    address: address || null,
+                    email: normalizedEmail || null,
+                    phone: normalizedPhone || null,
+                    encargado: encargado || null,
+                    es_grupo: isGroup,
+                    relationship_type: relationshipType,
+                    parent_id: parentId ? parseInt(parentId) : null
+                }
+            };
+
+            try {
+                console.log('📝 Actualizando entidad ID:', entityId, updatedEntity);
+                API.showLoading(true);
+                const response = await API.Entities.update(entityId, updatedEntity);
+                console.log('📥 Respuesta de actualización:', response);
+
+                // En Supabase, UPDATE exitoso tiene error === null
+                if (response && response.error === null) {
+                    // Log de acción
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    logAction(window.currentUser?.name || 'Usuario', 'modifico_entidad', name, null, timestamp);
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modifyEntityModal'));
+                    modal.hide();
+
+                    // Recargar entidades desde Supabase antes de mostrar el mensaje de éxito
+                    await loadEntitiesFromAPI();
+                    renderEntities();
+                    filterEntities();
+
+                    // Mostrar mensaje de éxito
+                    setTimeout(() => {
+                        document.getElementById('successMessage').textContent = 'Entidad modificada exitosamente.';
+                        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                        successModal.show();
+                    }, 100);
+                } else {
+                    console.error('❌ Error updating entity:', response);
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido';
+                    alert('Error al modificar la entidad: ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('❌ Exception updating entity:', error);
+                console.error('Stack trace:', error.stack);
+                alert('Error al modificar la entidad: ' + error.message + '\n\nRevisa la consola para más detalles.');
+            } finally {
+                API.showLoading(false);
+            }
+        }
+
+        // Función para confirmar eliminación de entidad
+        async function confirmDeleteEntity() {
+            const entityId = window.entityToDelete;
+            if (!entityId) {
+                alert('Error: No se pudo identificar la entidad a eliminar.');
+                return;
+            }
+
+            // Buscar la entidad por su ID real
+            const entityData = Object.values(entitiesData).find(entity => entity.id === entityId);
+            if (!entityData) {
+                alert('Error: No se pudo identificar la entidad a eliminar.');
+                return;
+            }
+
+            const entityName = entityData.name;
+
+            // Validar si es empresa padre con subsidiarias
+            if (entityData.groupType === 'padre') {
+                const hasChildren = Object.values(entitiesData).some(entity =>
+                    entity.parentId === entityId
+                );
+
+                if (hasChildren) {
+                    alert('Error: No se puede eliminar esta Empresa Padre porque tiene subsidiarias asociadas.\n\n' +
+                        'Por favor, primero reasigne o elimine las empresas subsidiarias antes de continuar.');
+
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEntityModal'));
+                    if (modal) modal.hide();
+                    return;
+                }
+            }
+
+            try {
+                API.showLoading(true);
+                console.log('Intentando eliminar entidad ID:', entityId);
+
+                const response = await API.Entities.delete(entityId);
+                console.log('Respuesta de eliminación:', response);
+
+                // En Supabase, DELETE exitoso tiene error === null
+                if (response && response.error === null) {
+                    // Log de acción
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    logAction(window.currentUser?.name || 'Usuario', 'elimino_entidad', entityName, null, timestamp);
+
+                    // Cerrar modal de confirmación
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEntityModal'));
+                    if (modal) modal.hide();
+
+                    // Mostrar mensaje de éxito en modal
+                    document.getElementById('successMessage').textContent = 'Entidad eliminada exitosamente.';
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+
+                    // Recargar entidades después de cerrar el modal de éxito
+                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+                        loadEntitiesFromAPI().then(() => {
+                            renderEntities();
+                            filterEntities();
+                        });
+                    }, { once: true });
+                } else {
+                    const errorMsg = response?.error?.message || response?.error || 'Error desconocido al eliminar la entidad';
+                    console.error('Error deleting entity:', errorMsg);
+                    alert('Error al eliminar la entidad: ' + errorMsg + '\n\nPosibles causas:\n- La entidad tiene compromisos asociados\n- No tienes permisos suficientes\n- Problema de conexión con la base de datos');
+
+                    // Cerrar modal de confirmación
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEntityModal'));
+                    if (modal) modal.hide();
+                }
+            } catch (error) {
+                console.error('Error deleting entity:', error);
+                const errorDetails = error.message || JSON.stringify(error);
+                alert('Error al eliminar la entidad: ' + errorDetails + '\n\nPor favor, revisa la consola del navegador para más detalles.');
+
+                // Cerrar modal de confirmación
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteEntityModal'));
+                if (modal) modal.hide();
+            } finally {
+                API.showLoading(false);
+            }
+        }
+
+        // Función para log de acciones (solo en memoria, sin persistencia)
+        function logAction(username, action, entity, commitment, timestamp) {
+            actionRecords.push({ id: Date.now(), username, action, entity, commitment, timestamp });
+            // Los logs se mantienen solo mientras la sesión esté activa
+            console.log('📝 Acción registrada:', { username, action, entity, timestamp });
+        }
+
+        function logout() {
+            window.location.href = 'login.html';
+        }
+
+        // Cargar entidades al iniciar - MOVIDO a window.protectPage() al final
+        // loadEntitiesFromAPI().then(() => {
+        //     renderEntities();
+        // });
+
+        // Función para filtrar entidades (búsqueda + estado) - Con fix: toLowerCase() y trim() para match exacto en "activa"/"inactiva"
+        function filterEntities() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterState = currentValue; // Use global currentValue instead of non-existent filterSelect
+            const cards = document.querySelectorAll('.entity-card');
+            let visibleCount = 0;
+
+            cards.forEach((card, index) => {
+                const name = card.querySelector('.entity-name').textContent.toLowerCase().trim();
+                const idText = card.querySelector('.entity-summary div:first-child').textContent.toLowerCase().trim();
+                const stateElement = card.querySelector('.entity-state');
+                const state = stateElement ? stateElement.textContent.toLowerCase().trim() : '';
+
+                const matchesSearch = searchTerm === '' || name.includes(searchTerm) || idText.includes(searchTerm);
+                const matchesFilter = filterState === 'todos' || state === filterState;
+
+                if (matchesSearch && matchesFilter) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                    // Cerrar detalles y active si se oculta
+                    const details = card.querySelector('.details-section');
+                    if (details) details.classList.remove('show');
+                    card.classList.remove('active');
+                }
+            });
+
+            const noResults = document.getElementById('noResults');
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        // Variable global para el valor del filtro (fix: movida fuera de DOMContentLoaded para acceso en filterEntities)
+        let currentValue = 'todos'; // Inicial: Muestra todas las entidades
+
+        // Función para renderizar entidades dinámicamente
+        function renderEntities() {
+            const entitiesList = document.querySelector('.entities-list');
+            entitiesList.innerHTML = ''; // Limpiar lista existente
+
+            Object.keys(entitiesData).forEach(entityId => {
+                const data = entitiesData[entityId];
+                const entityCard = document.createElement('div');
+                entityCard.className = 'entity-card';
+                entityCard.onclick = (event) => showDetails(entityId, event);
+
+                let modifyButton = '';
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
+                    modifyButton = `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); modifyEntity('${data.id}')" style="margin-left: 10px;">
+                        <i class="bi bi-pencil"></i></button>`;
+                }
+
+                // Crear botones de acción visibles en el header para admin/programador
+                let actionButtons = '';
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
+                    actionButtons = `
+                        <div class="entity-header-actions">
+                            <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); modifyEntity('${data.id}')" title="Modificar">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEntity('${data.id}')" title="Eliminar">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                entityCard.innerHTML = `
+                    <div class="entity-header">
+                        <div class="entity-name">${data.name}</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="entity-state state-${(data.state || 'activa').toLowerCase()}">${data.state || 'activa'}</span>
+                            ${actionButtons}
+                        </div>
+                    </div>
+                    <div class="entity-summary">
+                        <div>ID: ${data.id}</div>
+                        <div>País: ${data.country || 'N/A'}</div>
+                        <div>Fecha de Registro: ${data.date}</div>
+                    </div>
+
+                    <!-- Detalles específicos para Entidad ${entityId} (ocultos por defecto) -->
+                    <div id="detailsSection${entityId}" class="details-section">
+                        <h5>Detalles de ${data.name}</h5>
+                        <div class="detail-row">
+                            <span class="detail-label">ID Entidad:</span>
+                            <span class="detail-value" id="detailId${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Nombre Comercial:</span>
+                            <span class="detail-value" id="detailCommercial${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Nombre Empresarial:</span>
+                            <span class="detail-value" id="detailEnterprise${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">País:</span>
+                            <span class="detail-value" id="detailCountry${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Dirección:</span>
+                            <span class="detail-value" id="detailAddress${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Información de Contacto:</span>
+                            <span class="detail-value" id="detailContact${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Estado:</span>
+                            <span class="detail-value" id="detailState${entityId}">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fecha de Registro:</span>
+                            <span class="detail-value" id="detailDate${entityId}">-</span>
+                        </div>
+                        <!-- Nueva fila para Encargado -->
+                        <div class="detail-row">
+                            <span class="detail-label">Encargado:</span>
+                            <span class="detail-value" id="detailEncargado${entityId}">-</span>
+                        </div>
+                        <!-- Nueva fila para Tipo de Grupo -->
+                        <div class="detail-row">
+                            <span class="detail-label">Tipo de Entidad:</span>
+                            <span class="detail-value" id="detailGroupType${entityId}">-</span>
+                        </div>
+
+                        <div class="compromisos-list">
+                            <h6>Compromisos Relacionados:</h6>
+                            <ul id="compromisosList${entityId}">
+                                <!-- Se poblará dinámicamente -->
+                            </ul>
+                        </div>
+
+                        <div class="entity-actions" id="entityActions${entityId}" style="display:none; margin-top: 10px;">
+                            <button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); modifyEntity(${data.id})">
+                                <i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteEntity(${data.id})">
+                                <i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+
+                entitiesList.appendChild(entityCard);
+            });
+        }
+
+        // Función para guardar filtros en localStorage
+        function saveFilters() {
+            const filters = {
+                searchTerm: document.getElementById('searchInput').value,
+                statusFilter: currentValue
+            };
+            localStorage.setItem('entidadesFilters', JSON.stringify(filters));
+        }
+
+        // Función para cargar filtros desde localStorage
+        function loadFilters() {
+            const savedFilters = localStorage.getItem('entidadesFilters');
+            if (savedFilters) {
+                const filters = JSON.parse(savedFilters);
+                document.getElementById('searchInput').value = filters.searchTerm || '';
+                currentValue = filters.statusFilter || 'todos';
+                // Actualizar UI del select
+                const selectSelected = document.getElementById('selectSelected');
+                if (selectSelected) {
+                    const statusText = currentValue === 'todos' ? 'Todos' :
+                        currentValue === 'activa' ? 'Activa' :
+                            currentValue === 'inactiva' ? 'Inactiva' : 'Todos';
+                    selectSelected.textContent = statusText;
+                    selectSelected.classList.add('selected');
+                }
+            }
+        }
+
+        // Event listeners para búsqueda y filtros
+        document.getElementById('searchInput').addEventListener('input', function () {
+            // Sanitize search input
+            this.value = sanitizeInput(this.value);
+            filterEntities();
+            saveFilters(); // Guardar filtros
+        });
+
+        // Inicializar filtros personalizados
+        document.addEventListener('DOMContentLoaded', function () {
+            // Cargar filtros guardados
+            loadFilters();
+
+            const selectSelected = document.getElementById('selectSelected');
+            const selectItems = document.getElementById('selectItems');
+            const customSelect = document.getElementById('customSelect');
+
+            // Mostrar/ocultar opciones al hacer clic
+            selectSelected.addEventListener('click', function () {
+                selectItems.classList.toggle('show');
+            });
+
+            // Seleccionar opción
+            selectItems.addEventListener('click', function (e) {
+                if (e.target && e.target.matches('div')) {
+                    const value = e.target.getAttribute('data-value');
+                    currentValue = value; // Actualizar variable global
+                    selectSelected.textContent = e.target.textContent.split(' ')[0]; // Remover icono si existe
+                    selectItems.classList.remove('show');
+                    filterEntities(); // Aplicar filtro
+                    saveFilters(); // Guardar filtros
+                }
+            });
+
+            // Cerrar al hacer clic fuera
+            document.addEventListener('click', function (e) {
+                if (!customSelect.contains(e.target)) {
+                    selectItems.classList.remove('show');
+                }
+            });
+
+            // Setup form validation for create entity
+            setupFormValidation('createEntityForm', {
+                entityName: { required: true, requiredMessage: 'El nombre de la entidad es obligatorio.' },
+                entityCountry: { required: true, requiredMessage: 'El país es obligatorio.' },
+                entityState: { required: true, requiredMessage: 'El estado es obligatorio.' }
+            });
+
+            // Setup form validation for modify entity
+            setupFormValidation('modifyEntityForm', {
+                modifyEntityName: { required: true, requiredMessage: 'El nombre de la entidad es obligatorio.' },
+                modifyEntityCountry: { required: true, requiredMessage: 'El país es obligatorio.' },
+                modifyEntityState: { required: true, requiredMessage: 'El estado es obligatorio.' }
+            });
+
+        });
+
+
+    </script>
+
+    <!-- ========================================
+         SCRIPTS - ORDEN CRÍTICO PARA ESTABILIDAD
+         ======================================== -->
+
+    <!-- 1. SDK Supabase v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 2. Configuración global -->
+    <script src="../js/config.js"></script>
+
+    <!-- 3. Configuración Supabase -->
+    <script src="../js/config-supabase.js"></script>
+
+    <!-- 4. Cliente Supabase -->
+    <script src="../js/supabaseClient.js"></script>
+
+    <!-- 5. Utilidades globales -->
+    <script src="../js/utils.js"></script>
+
+    <!-- 6. API Client centralizado -->
+    <script src="../js/api-client.js"></script>
+
+    <!-- 7. Auth Guard -->
+    <script src="../js/auth-guard.js"></script>
+
+    <!-- 8. Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 9. Protección de página y permisos -->
+    <script>
+        // Proteger página con auth-guard.js
+        window.protectPage(function () {
+            console.log('✅ Entidades: Usuario autenticado:', window.currentUser?.email);
+
+            // Mostrar/ocultar botón "Crear Entidad" según rol
+            const createEntityBtn = document.getElementById('createEntityBtn');
+            if (createEntityBtn && window.currentUser) {
+                const userRole = window.currentUser.role?.toLowerCase().trim();
+                // Roles que permiten crear entidades (variantes posibles)
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+
+                console.log('🔐 Verificando permisos para crear entidades:', {
+                    userRole: userRole,
+                    isAdmin: adminRoles.includes(userRole),
+                    adminRoles: adminRoles
+                });
+
+                if (adminRoles.includes(userRole)) {
+                    // Usuario es admin: mostrar botón
+                    createEntityBtn.style.display = 'block';
+                    console.log('✅ Botón "Crear Entidad" VISIBLE');
+                } else {
+                    // Usuario no es admin: ocultar botón
+                    createEntityBtn.style.display = 'none';
+                    console.log('🔒 Botón "Crear Entidad" OCULTO (permiso denegado)');
+                }
+            } else {
+                console.warn('⚠️ Botón o usuario no disponible');
+            }
+
+            // Cargar entidades desde API (ahora que API está disponible)
+            console.log('🔄 Iniciando carga de entidades...');
+            loadEntitiesFromAPI().then(() => {
+                console.log('✅ Entidades cargadas, renderizando...');
+                renderEntities();
+            }).catch(err => {
+                console.error('❌ Error al cargar entidades:', err);
+            });
+        });
+    </script>
+</body>
+
+</html>
