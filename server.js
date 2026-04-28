@@ -4304,7 +4304,7 @@ app.post('/api/financial-groups/save', async (req, res) => {
         console.log('Guardando grupo financiero:', { datasetId, groupId, name, userId });
         
         const { data, error } = await supabase
-            .from('financial_groups')
+            .from('financial_group_rows')
             .insert({
                 dataset_id: datasetId,
                 group_id: groupId,
@@ -4348,7 +4348,7 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
         const userId = req.headers['user-id'];
         
         const { data, error } = await supabase
-            .from('financial_groups')
+            .from('financial_group_rows')
             .select('*')
             .eq('dataset_id', datasetId)
             .eq('user_id', userId)
@@ -4376,10 +4376,200 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
     }
 });
 
+// Obtener el snapshot más reciente de grupos financieros y sus filas
+app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
+    const { datasetId } = req.params;
+    const userId = req.headers['user-id'];
+
+    if (!datasetId || !userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere datasetId y user-id en los headers'
+        });
+    }
+
+    try {
+        const { data: snapshot, error: snapshotError } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (snapshotError && snapshotError.code !== 'PGRST116') {
+            console.error('Error obteniendo snapshot de grupos financieros:', snapshotError);
+            return res.status(500).json({ success: false, error: snapshotError.message });
+        }
+
+        if (!snapshot) {
+            return res.json({ success: true, snapshot: null, rows: [] });
+        }
+
+        const { data: rows, error: rowsError } = await supabase
+            .from('financial_group_rows')
+            .select('*')
+            .eq('snapshot_id', snapshot.id)
+            .order('order_index', { ascending: true })
+            .order('created_at', { ascending: true });
+
+        if (rowsError) {
+            console.error('Error obteniendo filas del snapshot de grupos financieros:', rowsError);
+            return res.status(500).json({ success: false, error: rowsError.message });
+        }
+
+        res.json({
+            success: true,
+            snapshot,
+            rows: rows || []
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint de snapshot de grupos financieros:', error);
+        res.status(500).json({ success: false, error: 'Error obteniendo snapshot de grupos financieros' });
+    }
+});
+
+// Listar snapshots previos de grupos financieros
+app.get('/api/financial-groups-results/:datasetId/history', async (req, res) => {
+    const { datasetId } = req.params;
+    const userId = req.headers['user-id'];
+    const { limit = 5 } = req.query;
+
+    if (!datasetId || !userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere datasetId y user-id en los headers'
+        });
+    }
+
+    const parsedLimit = Math.max(1, Math.min(Number(limit) || 5, 50));
+
+    try {
+        const { data: snapshots, error } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
+            .order('generated_at', { ascending: false })
+            .limit(parsedLimit);
+
+        if (error) {
+            console.error('Error obteniendo historial de snapshots de grupos financieros:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+
+        res.json({ success: true, snapshots: snapshots || [] });
+
+    } catch (error) {
+        console.error('Error en endpoint de historial de snapshots:', error);
+        res.status(500).json({ success: false, error: 'Error obteniendo historial de snapshots' });
+    }
+});
+
 // Obtener assignments de un dataset
 app.get('/api/assignments/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        console.log('Loading assignments for dataset:', datasetId, 'user:', userId);
+        
+        const { data, error } = await supabase
+            .from('account_assignments')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
+            .order('position', { ascending: true });
+        
+        if (error) {
+            console.error('Error loading assignments:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+        
+        console.log('Assignments loaded:', data?.length || 0);
+        res.json({ success: true, assignments: data || [] });
+        
+    } catch (error) {
+        console.error('Error in assignments endpoint:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Obtener cuentas estáticas del catálogo
+app.get('/api/catalog-accounts', async (req, res) => {
+    try {
+        console.log('Loading catalog accounts...');
+        
+        const { data, error } = await supabase
+            .from('cuentas_contables')
+            .select('*')
+            .eq('is_active', true)
+            .order('level', { ascending: true })
+            .order('code', { ascending: true });
+        
+        if (error) {
+            console.error('Error loading catalog accounts:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+        
+        console.log('Catalog accounts loaded:', data?.length || 0);
+        res.json({ success: true, accounts: data || [] });
+        
+    } catch (error) {
+        console.error('Error in catalog accounts endpoint:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // API PARA CUENTAS CONTABLES
 // ============================================
+
+// Obtener cuenta por código
+app.get('/api/accounts/by-code/:code', async (req, res) => {
+    try {
+        const { code } = req.params;
+        const userId = req.headers['user-id'];
+        
+        if (!code || !userId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Se requiere code y user-id en los headers'
+            });
+        }
+        
+        console.log('Getting account by code:', code, 'user:', userId);
+        
+        const { data, error } = await supabase
+            .from('cuentas_contables')
+            .select('*')
+            .eq('code', code)
+            .eq('conjunto_id', userId) // O usar el dataset_id apropiado
+            .single();
+        
+        if (error) {
+            console.error('Error getting account by code:', error);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Cuenta no encontrada' 
+            });
+        }
+        
+        console.log('Account found:', data);
+        res.json({ 
+            success: true, 
+            account: data 
+        });
+        
+    } catch (error) {
+        console.error('Error en endpoint de cuenta por código:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo cuenta por código' 
+        });
+    }
+});
 
 // Guardar una cuenta contable
 app.post('/api/accounts/save', async (req, res) => {

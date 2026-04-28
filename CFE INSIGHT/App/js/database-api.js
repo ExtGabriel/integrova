@@ -388,6 +388,124 @@ async function saveAccountAdjustments(datasetId, adjustmentsMap) {
 }
 
 /**
+ * Obtiene los grupos financieros almacenados para un dataset
+ * @param {string} datasetId - ID del dataset
+ * @returns {Promise<Array>} Lista de grupos financieros
+ */
+async function getFinancialGroups(datasetId) {
+    const resolvedDatasetId = datasetId || currentDatasetId;
+
+    if (!resolvedDatasetId) {
+        console.warn('getFinancialGroups: datasetId requerido');
+        return [];
+    }
+
+    try {
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${resolvedDatasetId}`, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo grupos financieros');
+        }
+
+        console.log('Financial groups loaded:', result.groups.length);
+        return result.groups;
+
+    } catch (error) {
+        console.error('Error in getFinancialGroups:', error);
+        return [];
+    }
+}
+
+/**
+ * Obtiene el snapshot más reciente de resultados de grupos financieros
+ * @param {string} datasetId - ID del dataset
+ * @returns {Promise<{snapshot: object|null, rows: Array}>}
+ */
+async function getLatestFinancialGroupResults(datasetId) {
+    const resolvedDatasetId = datasetId || currentDatasetId;
+
+    if (!resolvedDatasetId) {
+        console.warn('getLatestFinancialGroupResults: datasetId requerido');
+        return { snapshot: null, rows: [] };
+    }
+
+    try {
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/latest`, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo snapshot de grupos financieros');
+        }
+
+        console.log('Latest financial group snapshot loaded:', {
+            snapshotId: result.snapshot?.id || null,
+            rows: result.rows?.length || 0
+        });
+
+        return {
+            snapshot: result.snapshot || null,
+            rows: Array.isArray(result.rows) ? result.rows : []
+        };
+
+    } catch (error) {
+        console.error('Error in getLatestFinancialGroupResults:', error);
+        return { snapshot: null, rows: [] };
+    }
+}
+
+/**
+ * Obtiene el historial de snapshots de grupos financieros
+ * @param {string} datasetId - ID del dataset
+ * @param {number} [limit=5] - Número máximo de snapshots a recuperar
+ * @returns {Promise<Array>} Lista de snapshots
+ */
+async function getFinancialGroupSnapshots(datasetId, limit = 5) {
+    const resolvedDatasetId = datasetId || currentDatasetId;
+
+    if (!resolvedDatasetId) {
+        console.warn('getFinancialGroupSnapshots: datasetId requerido');
+        return [];
+    }
+
+    const params = new URLSearchParams({ limit: String(limit) });
+
+    try {
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/history?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo historial de snapshots');
+        }
+
+        console.log('Financial group snapshots loaded:', result.snapshots.length);
+        return result.snapshots;
+
+    } catch (error) {
+        console.error('Error in getFinancialGroupSnapshots:', error);
+        return [];
+    }
+}
+
+/**
  * Guarda los resultados calculados de grupos financieros en la base de datos
  * @param {string} datasetId - ID del dataset
  * @param {Array} results - Resultados calculados de grupos financieros
@@ -1107,6 +1225,9 @@ window.saveAccountAdjustments = saveAccountAdjustments;
 window.saveFinancialGroupsResults = saveFinancialGroupsResults;
 window.saveLedgerIntegrityResults = saveLedgerIntegrityResults;
 window.saveAssignmentDual = saveAssignmentDual;
+window.getFinancialGroups = getFinancialGroups;
+window.getLatestFinancialGroupResults = getLatestFinancialGroupResults;
+window.getFinancialGroupSnapshots = getFinancialGroupSnapshots;
 window.loadAndSyncAssignments = loadAndSyncAssignments;
 window.checkDatabaseConnection = checkDatabaseConnection;
 window.syncAllDataToDatabase = syncAllDataToDatabase;
@@ -1138,9 +1259,13 @@ console.log('Funciones disponibles:', {
     getFinancialAdjustments: !!window.getFinancialAdjustments,
     saveAccountAdjustments: !!window.saveAccountAdjustments,
     saveFinancialGroupsResults: !!window.saveFinancialGroupsResults,
+    getFinancialGroups: !!window.getFinancialGroups,
+    getLatestFinancialGroupResults: !!window.getLatestFinancialGroupResults,
+    getFinancialGroupSnapshots: !!window.getFinancialGroupSnapshots,
     saveLedgerIntegrityResults: !!window.saveLedgerIntegrityResults,
     getExcelData: !!window.getExcelData,
     saveExcelData: !!window.saveExcelData,
-    saveStoredAssignment: !!window.saveStoredAssignment,
-    getStoredAssignments: !!window.getStoredAssignments
+    syncAllDataToDatabase: !!window.syncAllDataToDatabase,
+    loadAndSyncAssignments: !!window.loadAndSyncAssignments,
+    getFinancialGroupStructure: !!window.getFinancialGroupStructure
 });

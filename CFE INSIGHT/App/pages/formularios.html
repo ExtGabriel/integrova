@@ -3707,6 +3707,8 @@
         let cachedLedgerMeta = '';
         let cachedTrialBalanceAccounts = [];
         let cachedGruposFinancierosRows = [];
+        let cachedAssignments = [];
+        let cachedFinancialGroupStructure = null;
 
         function getLocalAdjustmentsMapSafe() {
             try {
@@ -4385,7 +4387,17 @@
             if (!cachedGruposFinancierosRows.length) return;
 
             const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+            if (!cachedFinancialGroupStructure && currentDatasetId) {
+                cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
+            }
+
+            if (!cachedAssignments.length && currentDatasetId) {
+                cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
+            }
+
             const rows = buildGruposFinancierosRows(
+                cachedFinancialGroupStructure,
+                cachedAssignments,
                 cachedLedgerMap,
                 cachedLedgerAvailable,
                 localAdjustmentsMap
@@ -4509,12 +4521,382 @@
             });
         }
 
+        async function loadAssignmentsForDataset(datasetId) {
+            const resolvedDatasetId = (datasetId || currentDatasetId || '').toString().trim();
+
+            if (!resolvedDatasetId) {
+                console.warn('loadAssignmentsForDataset: datasetId vacío');
+                return [];
+            }
+
+            try {
+                if (typeof window.loadAndSyncAssignments === 'function') {
+                    const assignments = await window.loadAndSyncAssignments(resolvedDatasetId);
+
+                    if (Array.isArray(assignments) && assignments.length > 0) {
+                        console.log('✅ Asignaciones cargadas desde la BD:', assignments.length);
+                        return assignments;
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cargando asignaciones desde BD:', error);
+            }
+
+            const fallback = getStoredAssignments(resolvedDatasetId) || [];
+            console.log('📁 Asignaciones usando fallback localStorage:', fallback.length);
+            return Array.isArray(fallback) ? fallback : [];
+        }
+
+        function normalizeAssignmentForCache(assignment, datasetId) {
+            if (!assignment) return null;
+            const resolvedDatasetId = (assignment.datasetId || datasetId || currentDatasetId || '').toString().trim();
+            const accountId = (assignment.accountId || assignment.accountKey || assignment.id || '').toString().trim();
+
+            return {
+                ...assignment,
+                datasetId: resolvedDatasetId,
+                accountId,
+                value: parseAccountValue(assignment.value),
+                prevValue: parseAccountValue(assignment.prevValue)
+            };
+        }
+
+        function syncAssignmentsCacheAndRebuild(assignmentsArray = [], datasetId = currentDatasetId) {
+            try {
+                const resolvedDatasetId = (datasetId || currentDatasetId || '').toString().trim();
+                if (!resolvedDatasetId) return;
+
+                const normalized = (assignmentsArray || [])
+                    .map(assignment => normalizeAssignmentForCache(assignment, resolvedDatasetId))
+                    .filter(Boolean);
+
+                cachedAssignments = normalized;
+
+                const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                const rows = buildGruposFinancierosRows(
+                    cachedFinancialGroupStructure,
+                    cachedAssignments,
+                    cachedLedgerMap,
+                    cachedLedgerAvailable,
+                    localAdjustmentsMap
+                );
+
+                cachedGruposFinancierosRows = rows;
+                renderGruposFinancieros(rows, cachedLedgerMeta);
+                refreshGroupPanelTotals(normalized);
+
+            } catch (error) {
+                console.warn('⚠️ Error refrescando grupos financieros tras actualizar asignaciones:', error);
+            }
+        }
+
+        function refreshGroupPanelTotals(assignments = cachedAssignments) {
+            try {
+                const panel = document.querySelector('.financial-groups-list');
+                if (!panel) return;
+
+                const normalizedAssignments = Array.isArray(assignments) ? assignments : [];
+
+                // Reiniciar valores de cuentas estáticas para evitar residuos
+                const staticAccounts = panel.querySelectorAll('.static-account');
+                staticAccounts.forEach(account => {
+                    account.dataset.accountValue = '0';
+                    account.dataset.accountPrevValue = '0';
+                    const prevSpan = account.querySelector('.static-account-value[data-year="previous"]');
+                    const currentSpan = account.querySelector('.static-account-value[data-year="current"]');
+                    if (prevSpan) prevSpan.textContent = formatCurrency(0);
+                    if (currentSpan) currentSpan.textContent = formatCurrency(0);
+                });
+
+                const totalsByStaticAccount = new Map();
+
+                normalizedAssignments.forEach(assignment => {
+                    const groupContentId = assignment?.groupContentId || '';
+                    if (!groupContentId) return;
+
+                    const currentValue = parseAccountValue(assignment.value);
+                    const previousValue = parseAccountValue(assignment.prevValue);
+                    const parentAccountId = assignment.parentAccountId || '';
+
+                    if (parentAccountId) {
+                        const key = `${groupContentId}::${parentAccountId}`;
+                        if (!totalsByStaticAccount.has(key)) {
+                            totalsByStaticAccount.set(key, { previous: 0, current: 0 });
+                        }
+                        const totals = totalsByStaticAccount.get(key);
+                        totals.previous += previousValue;
+                        totals.current += currentValue;
+                    }
+                });
+
+                totalsByStaticAccount.forEach((totals, key) => {
+                    const [groupContentId, parentAccountId] = key.split('::');
+                    const groupContent = document.getElementById(groupContentId);
+                    if (!groupContent) return;
+                    const staticAccount = groupContent.querySelector(`.static-account[data-account-id="${parentAccountId}"]`);
+                    if (!staticAccount) return;
+
+                    staticAccount.dataset.accountPrevValue = totals.previous;
+                    staticAccount.dataset.accountValue = totals.current;
+
+                    const prevSpan = staticAccount.querySelector('.static-account-value[data-year="previous"]');
+                    const currentSpan = staticAccount.querySelector('.static-account-value[data-year="current"]');
+                    if (prevSpan) prevSpan.textContent = formatCurrency(totals.previous);
+                    if (currentSpan) currentSpan.textContent = formatCurrency(totals.current);
+                });
+
+                const subGroupContents = panel.querySelectorAll('.sub-group-content');
+                subGroupContents.forEach(content => updateGroupCount(content));
+
+                const groupContents = panel.querySelectorAll('.group-item > .group-content');
+                groupContents.forEach(content => updateGroupCount(content));
+
+            } catch (error) {
+                console.warn('⚠️ Error actualizando totales en panel de grupos:', error);
+            }
+        }
+
+        function stripAccountPrefix(label) {
+            if (!label) return '';
+            return label.replace(/^\d+(?:\.\d+)*\s*/, '').trim();
+        }
+
+        async function loadFinancialGroupStructure(datasetId) {
+            const resolvedDatasetId = (datasetId || currentDatasetId || '').toString().trim();
+
+            if (!resolvedDatasetId) {
+                console.warn('loadFinancialGroupStructure: datasetId vacío, usando estructura DOM por defecto');
+                return buildFinancialGroupStructureFromDom();
+            }
+
+            try {
+                if (typeof window.getFinancialGroups === 'function') {
+                    const groups = await window.getFinancialGroups(resolvedDatasetId);
+                    if (Array.isArray(groups) && groups.length > 0) {
+                        console.log('✅ Estructura de grupos financieros cargada desde la base de datos:', groups.length);
+                        return buildFinancialGroupStructureFromDatabase(groups);
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cargando estructura de grupos financieros desde BD:', error);
+            }
+
+            console.log('📁 Estructura de grupos financieros usando fallback del DOM estático');
+            return buildFinancialGroupStructureFromDom();
+        }
+
+        function buildFinancialGroupStructureFromDatabase(records = []) {
+            if (!Array.isArray(records) || records.length === 0) {
+                return buildFinancialGroupStructureFromDom();
+            }
+
+            const nodes = new Map();
+            const rootOrder = [];
+
+            records.forEach((record, index) => {
+                const meta = record?.meta || {};
+                const rawId = meta.contentId || meta.groupContentId || record.group_id || record.id || `group-${index}`;
+                const nodeId = (rawId || '').toString().trim();
+                if (!nodeId) return;
+
+                const parentRaw = meta.parentContainerId || meta.parentId || meta.parentContentId || meta.parent || record.parent_label || '';
+                const parentId = parentRaw ? parentRaw.toString().trim() : '';
+
+                const accountId = (meta.accountId || meta.accountKey || meta.id || '').toString().trim();
+                const accountCode = (meta.accountCode || meta.code || '').toString().trim();
+                const order = Number.isFinite(meta.order) ? Number(meta.order) : (Number.isFinite(record.order_index) ? Number(record.order_index) : index);
+
+                const node = {
+                    id: nodeId,
+                    label: stripAccountPrefix(meta.label || record.name || nodeId),
+                    name: stripAccountPrefix(record.name || meta.name || nodeId),
+                    type: (meta.type || record.type || 'group').toString().toLowerCase(),
+                    parentId,
+                    parentContainerId: parentId,
+                    order,
+                    accountId: accountId || null,
+                    accountCode,
+                    staticValue: parseAccountValue(meta.value ?? record.value ?? meta.currentValue ?? 0),
+                    staticPrevValue: parseAccountValue(meta.prevValue ?? meta.previousValue ?? 0),
+                    meta
+                };
+
+                node.children = [];
+                nodes.set(nodeId, node);
+                if (!parentId) {
+                    rootOrder.push(nodeId);
+                }
+            });
+
+            nodes.forEach(node => {
+                if (node.parentId && nodes.has(node.parentId)) {
+                    const parent = nodes.get(node.parentId);
+                    if (!parent.children.includes(node.id)) {
+                        parent.children.push(node.id);
+                    }
+                } else if (node.parentId) {
+                    node.parentId = '';
+                    if (!rootOrder.includes(node.id)) {
+                        rootOrder.push(node.id);
+                    }
+                }
+            });
+
+            nodes.forEach(node => {
+                if (Array.isArray(node.children) && node.children.length > 1) {
+                    node.children.sort((a, b) => {
+                        const nodeA = nodes.get(a);
+                        const nodeB = nodes.get(b);
+                        return (nodeA?.order || 0) - (nodeB?.order || 0);
+                    });
+                }
+            });
+
+            const roots = rootOrder.filter((id, idx) => rootOrder.indexOf(id) === idx && nodes.has(id));
+            return { nodes, roots, source: 'database' };
+        }
+
+        function buildFinancialGroupStructureFromDom() {
+            const list = document.querySelector('.financial-groups-list');
+            if (!list) {
+                console.warn('buildFinancialGroupStructureFromDom: no se encontró .financial-groups-list');
+                return null;
+            }
+
+            const nodes = new Map();
+            const roots = [];
+            const rootSet = new Set();
+
+            const registerChild = (parentId, childId) => {
+                if (!parentId || !childId) return;
+                const parent = nodes.get(parentId);
+                if (!parent) return;
+                if (!Array.isArray(parent.children)) {
+                    parent.children = [];
+                }
+                if (!parent.children.includes(childId)) {
+                    parent.children.push(childId);
+                }
+            };
+
+            const processContainer = (containerElement, parentId) => {
+                if (!containerElement) return;
+                const children = Array.from(containerElement.children || []);
+                children.forEach((childElement, index) => {
+                    if (childElement.classList?.contains('sub-group-item')) {
+                        const header = childElement.querySelector('.sub-group-header .sub-group-name');
+                        const name = header ? header.textContent.trim() : `Subgrupo ${index + 1}`;
+                        const content = childElement.querySelector('.sub-group-content');
+                        const contentId = (content?.id || `${parentId}-sub-${index}`).toString().trim();
+
+                        const node = {
+                            id: contentId,
+                            label: stripAccountPrefix(name),
+                            name: stripAccountPrefix(name),
+                            type: 'subgroup',
+                            parentId,
+                            parentContainerId: parentId,
+                            order: index,
+                            accountId: null,
+                            accountCode: '',
+                            staticValue: 0,
+                            staticPrevValue: 0,
+                            meta: { domSource: true, groupName: name }
+                        };
+                        node.children = [];
+                        nodes.set(node.id, node);
+                        registerChild(parentId, node.id);
+                        processContainer(content, node.id);
+                    } else if (childElement.classList?.contains('account-item')) {
+                        const accountId = (childElement.dataset?.accountId || `${parentId}-account-${index}`).toString().trim();
+                        const accountName = (childElement.dataset?.accountName || childElement.textContent || accountId).toString().trim();
+                        const accountCode = (childElement.dataset?.accountCode || '').toString().trim();
+                        const staticValue = parseAccountValue(childElement.dataset?.accountValue || 0);
+                        const staticPrevValue = parseAccountValue(childElement.dataset?.accountPrevValue || 0);
+                        const nodeType = childElement.classList.contains('static-account') ? 'staticaccount' : 'account';
+
+                        const node = {
+                            id: accountId,
+                            label: stripAccountPrefix(accountName) || accountCode || accountId,
+                            name: stripAccountPrefix(accountName) || accountCode || accountId,
+                            type: nodeType,
+                            parentId,
+                            parentContainerId: parentId,
+                            order: index,
+                            accountId,
+                            accountCode,
+                            staticValue,
+                            staticPrevValue,
+                            meta: {
+                                domSource: true,
+                                accountName,
+                                accountCode,
+                                accountValue: staticValue,
+                                accountPrevValue: staticPrevValue
+                            }
+                        };
+                        node.children = [];
+                        nodes.set(node.id, node);
+                        registerChild(parentId, node.id);
+                    }
+                });
+            };
+
+            const groupItems = list.querySelectorAll('.group-item');
+            groupItems.forEach((groupItem, groupIndex) => {
+                const groupNameElement = groupItem.querySelector('.group-header .group-name');
+                const rawGroupName = groupNameElement ? groupNameElement.textContent.trim() : `Grupo ${groupIndex + 1}`;
+                const groupContent = groupItem.querySelector('.group-content');
+                const groupContentId = (groupContent?.id || `group-${groupIndex + 1}-content`).toString().trim();
+
+                const node = {
+                    id: groupContentId,
+                    label: stripAccountPrefix(rawGroupName),
+                    name: stripAccountPrefix(rawGroupName),
+                    type: 'group',
+                    parentId: '',
+                    parentContainerId: '',
+                    order: groupIndex,
+                    accountId: null,
+                    accountCode: '',
+                    staticValue: 0,
+                    staticPrevValue: 0,
+                    meta: { domSource: true, groupName: rawGroupName }
+                };
+                node.children = [];
+                nodes.set(node.id, node);
+
+                if (!rootSet.has(node.id)) {
+                    rootSet.add(node.id);
+                    roots.push(node.id);
+                }
+
+                processContainer(groupContent, node.id);
+            });
+
+            nodes.forEach(node => {
+                if (!Array.isArray(node.children)) {
+                    node.children = [];
+                } else {
+                    node.children.sort((a, b) => {
+                        const nodeA = nodes.get(a);
+                        const nodeB = nodes.get(b);
+                        return (nodeA?.order || 0) - (nodeB?.order || 0);
+                    });
+                }
+            });
+
+            return nodes.size ? { nodes, roots, source: 'dom' } : null;
+        }
+
         async function loadGruposFinancierosFromLatestExcel() {
             try {
                 initializeStaticAccounts();
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
+                cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
                 const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-                const rows = buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap);
+                const rows = buildGruposFinancierosRows(cachedFinancialGroupStructure, cachedAssignments, ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 cachedGruposFinancierosRows = rows;
                 renderGruposFinancieros(rows, meta);
                 
@@ -4529,217 +4911,242 @@
             }
         }
 
-        function buildGruposFinancierosRows(ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
-            const rows = [];
-            const groups = document.querySelectorAll('.financial-groups-list .group-item');
-            
-            // Load assignments from database first, then fallback to localStorage
-            let assignments = [];
-            try {
-                if (window.getAccountAssignments) {
-                    const dbAssignments = window.getAccountAssignments(currentDatasetId);
-                    if (dbAssignments && dbAssignments.length > 0) {
-                        assignments = dbAssignments;
-                        console.log('✅ Grupos Financieros: Usando', assignments.length, 'asignaciones desde base de datos');
-                    }
-                }
-            } catch (error) {
-                console.warn('⚠️ Error cargando asignaciones desde BD para Grupos Financieros:', error);
+        function buildGruposFinancierosRows(structure, assignments, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
+            const effectiveStructure = (structure && structure.nodes instanceof Map)
+                ? structure
+                : buildFinancialGroupStructureFromDom();
+
+            if (!effectiveStructure || !(effectiveStructure.nodes instanceof Map) || !effectiveStructure.nodes.size) {
+                console.warn('buildGruposFinancierosRows: estructura de grupos inválida');
+                return [];
             }
-            
-            // Fallback to localStorage if no database assignments
-            if (!assignments.length) {
-                assignments = getStoredAssignments(currentDatasetId) || [];
-                console.log('📁 Grupos Financieros: Usando', assignments.length, 'asignaciones desde localStorage');
-            }
-            
+
+            const adjustmentMap = localAdjustmentsMap instanceof Map
+                ? localAdjustmentsMap
+                : new Map(localAdjustmentsMap || []);
+
+            const assignmentsArray = Array.isArray(assignments) ? assignments : [];
             const assignmentsByGroup = new Map();
+            const assignmentsByParent = new Map();
+
+            assignmentsArray.forEach(assignment => {
+                const groupId = (assignment.groupContentId || '').toString().trim();
+                if (groupId) {
+                    if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
+                    assignmentsByGroup.get(groupId).push(assignment);
+                }
+
+                const parentId = (assignment.parentAccountId || '').toString().trim();
+                if (parentId) {
+                    if (!assignmentsByParent.has(parentId)) assignmentsByParent.set(parentId, []);
+                    assignmentsByParent.get(parentId).push(assignment);
+                }
+            });
+
+            assignmentsByGroup.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+            assignmentsByParent.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+
+            const rows = [];
             let rowCounter = 0;
             const nextRowId = () => `financial-row-${rowCounter++}`;
 
-            const stripAccountPrefix = (label) => {
-                if (!label) return '';
-                return label.replace(/^\d+(?:\.\d+)*\s*/, '').trim();
-            };
+            const normalizeNodeType = (type) => (type || '').toString().toLowerCase();
 
-            const hasRenderableChildren = (container) => {
-                if (!container) return false;
-                if (container.querySelector('.sub-group-item, .static-account')) return true;
-                const containerAssignments = assignmentsByGroup.get(container.id) || [];
-                return containerAssignments.length > 0;
-            };
-
-            assignments.forEach(assignment => {
-                const groupId = (assignment.groupContentId || '').toString().trim();
-                if (!groupId) return;
-                if (!assignmentsByGroup.has(groupId)) {
-                    assignmentsByGroup.set(groupId, []);
-                }
-                assignmentsByGroup.get(groupId).push(assignment);
-            });
-
-            const sumAssignments = (items) => {
-                return items.reduce((acc, item) => {
-                    const preliminary = parseAccountValue(item.value);
-                    const previous = parseAccountValue(item.prevValue);
-                    const localAdj = (() => {
-                        const codeKey = (item.code || '').toString().trim();
-                        if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
-
-                        const nameKey = (item.name || '').toString().trim();
-                        if (nameKey && localAdjustmentsMap.has(nameKey)) return localAdjustmentsMap.get(nameKey) || 0;
-
-                        return 0;
-                    })();
-
-                    const adjustments = (ledgerAvailable
-                        ? getLedgerValueForAccount(ledgerMap, item.code, item.name)
-                        : 0) + localAdj;
-                    acc.preliminary += preliminary;
-                    acc.adjustments += adjustments;
-                    acc.finalPrevious += previous;
-                    return acc;
-                }, { preliminary: 0, adjustments: 0, finalPrevious: 0 });
-            };
-
-            const buildAssignedRow = (assignment, level, parentId) => {
+            const summarizeAssignment = (assignment) => {
                 const preliminary = parseAccountValue(assignment.value);
-                const localAdj = (() => {
-                    const codeKey = (assignment.code || '').toString().trim();
-                    if (codeKey && localAdjustmentsMap.has(codeKey)) return localAdjustmentsMap.get(codeKey) || 0;
-
-                    const nameKey = (assignment.name || '').toString().trim();
-                    if (nameKey && localAdjustmentsMap.has(nameKey)) return localAdjustmentsMap.get(nameKey) || 0;
-
-                    return 0;
-                })();
-
-                const adjustments = (ledgerAvailable
-                    ? getLedgerValueForAccount(ledgerMap, assignment.code, assignment.name)
-                    : 0) + localAdj;
-                const finalCurrent = preliminary + adjustments;
                 const finalPrevious = parseAccountValue(assignment.prevValue);
-                const label = stripAccountPrefix(assignment.name || assignment.code || '');
+                const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
+                const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
+
+                let localAdj = 0;
+                if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
+                else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
+
+                const ledgerAdj = ledgerAvailable
+                    ? getLedgerValueForAccount(ledgerMap, codeKey, nameKey || assignment.name)
+                    : 0;
+
+                const adjustments = ledgerAdj + localAdj;
+                const finalCurrent = preliminary + adjustments;
+
                 return {
-                    accountName: label || assignment.name || assignment.code || 'Cuenta',
                     preliminary,
                     adjustments,
-                    finalCurrent,
                     finalPrevious,
-                    level,
-                    isParent: false,
+                    finalCurrent,
                     ledgerMissing: !ledgerAvailable && !Number.isFinite(adjustments),
-                    rowId: nextRowId(),
-                    parentId: parentId || ''
+                    accountId: assignment.accountId || assignment.accountKey || '',
+                    accountCode: codeKey,
+                    label: nameKey || assignment.name || assignment.accountName || codeKey || 'Cuenta',
+                    groupContentId: assignment.groupContentId || ''
                 };
             };
 
-            const collectAssignmentsForContainer = (container) => {
-                if (!container) return [];
-                const ids = [container.id].filter(Boolean);
-                container.querySelectorAll('.group-content, .sub-group-content').forEach(el => {
-                    if (el.id) ids.push(el.id);
-                });
-                const collected = [];
-                ids.forEach(id => {
-                    const bucket = assignmentsByGroup.get(id);
-                    if (bucket?.length) collected.push(...bucket);
-                });
-                return collected;
+            const createAssignmentRow = (assignment, level, parentRowId) => {
+                const summary = summarizeAssignment(assignment);
+                const row = {
+                    accountName: stripAccountPrefix(summary.label),
+                    accountId: summary.accountId,
+                    accountCode: summary.accountCode,
+                    preliminary: summary.preliminary,
+                    adjustments: summary.adjustments,
+                    finalCurrent: summary.finalCurrent,
+                    finalPrevious: summary.finalPrevious,
+                    level,
+                    isParent: false,
+                    ledgerMissing: summary.ledgerMissing,
+                    rowId: nextRowId(),
+                    parentId: parentRowId || '',
+                    hasChildren: false,
+                    groupContentId: summary.groupContentId,
+                    nodeType: 'assignment'
+                };
+
+                return {
+                    row,
+                    totals: {
+                        preliminary: summary.preliminary,
+                        adjustments: summary.adjustments,
+                        finalPrevious: summary.finalPrevious
+                    }
+                };
             };
 
-            const addRowsForContainer = (container, level, parentRowId) => {
-                if (!container) return;
+            const computeNodeBaseAmounts = (node) => {
+                const meta = node.meta || {};
+                const nodeType = normalizeNodeType(node.type);
+                const isLeafNode = nodeType === 'staticaccount' || nodeType === 'account';
+                const hasExplicitValue = meta.value != null || node.staticValue != null || meta.currentValue != null || meta.preliminary != null || meta.accountValue != null;
 
-                Array.from(container.children).forEach(child => {
-                    if (child.classList.contains('sub-group-item')) {
-                        const header = child.querySelector('.sub-group-header .sub-group-name');
-                        const name = header ? stripAccountPrefix(header.textContent.trim()) : 'Subgrupo';
-                        const content = child.querySelector('.sub-group-content');
-                        const totals = sumAssignments(collectAssignmentsForContainer(content));
-                        const finalCurrent = totals.preliminary + totals.adjustments;
-                        const rowId = nextRowId();
+                const basePreliminary = hasExplicitValue
+                    ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
+                    : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
 
-                        rows.push({
-                            accountName: name,
-                            preliminary: totals.preliminary,
-                            adjustments: totals.adjustments,
-                            finalCurrent,
-                            finalPrevious: totals.finalPrevious,
-                            level,
-                            isParent: true,
-                            ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
-                            rowId,
-                            parentId: parentRowId || '',
-                            hasChildren: hasRenderableChildren(content)
-                        });
+                const basePrev = hasExplicitValue
+                    ? parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0)
+                    : (isLeafNode ? parseAccountValue(node.staticPrevValue ?? 0) : 0);
 
-                        addRowsForContainer(content, level + 1, rowId);
-                        return;
-                    }
+                const codeKey = (meta.accountCode || meta.code || node.accountCode || '').toString().trim();
+                const nameKey = (meta.accountName || meta.name || node.name || node.label || '').toString().trim();
 
-                    if (child.classList.contains('account-item') && child.classList.contains('static-account')) {
-                        const accountName = stripAccountPrefix((child.dataset.accountName || '').toString().trim());
-                        const accountCode = (child.dataset.accountCode || '').toString().trim();
-                        const staticId = (child.dataset.accountId || '').toString().trim();
-                        const containerId = container.id || '';
-                        const parentAssignments = (assignmentsByGroup.get(containerId) || [])
-                            .filter(item => item.parentAccountId && item.parentAccountId === staticId);
-                        const totals = sumAssignments(parentAssignments);
-                        const finalCurrent = totals.preliminary + totals.adjustments;
-                        const label = accountName || stripAccountPrefix(accountCode);
-                        const rowId = nextRowId();
+                let adjustments = 0;
+                let ledgerMissing = false;
 
-                        rows.push({
-                            accountName: label || accountName || accountCode || 'Cuenta',
-                            preliminary: totals.preliminary,
-                            adjustments: totals.adjustments,
-                            finalCurrent,
-                            finalPrevious: totals.finalPrevious,
-                            level,
-                            isParent: parentAssignments.length > 0,
-                            ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
-                            rowId,
-                            parentId: parentRowId || '',
-                            hasChildren: parentAssignments.length > 0
-                        });
+                if (isLeafNode || hasExplicitValue) {
+                    let localAdj = 0;
+                    if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
+                    else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
 
-                        parentAssignments.forEach(assignment => {
-                            rows.push(buildAssignedRow(assignment, level + 1, rowId));
-                        });
-                    }
-                });
+                    const ledgerAdj = ledgerAvailable
+                        ? getLedgerValueForAccount(ledgerMap, codeKey, nameKey)
+                        : 0;
 
-                const directAssignments = (assignmentsByGroup.get(container.id) || [])
-                    .filter(item => !item.parentAccountId);
-                directAssignments.forEach(assignment => {
-                    rows.push(buildAssignedRow(assignment, level, parentRowId));
-                });
+                    adjustments = ledgerAdj + localAdj;
+                    ledgerMissing = !ledgerAvailable && !Number.isFinite(adjustments);
+                }
+
+                return {
+                    preliminary: basePreliminary,
+                    adjustments,
+                    finalPrevious: basePrev,
+                    ledgerMissing,
+                    hasContent: basePreliminary !== 0 || basePrev !== 0 || adjustments !== 0
+                };
             };
 
-            groups.forEach(group => {
-                const groupNameEl = group.querySelector('.group-header .group-name');
-                const groupName = groupNameEl ? stripAccountPrefix(groupNameEl.textContent.trim()) : 'Grupo';
-                const groupContent = group.querySelector('.group-content');
-                const totals = sumAssignments(collectAssignmentsForContainer(groupContent));
-                const finalCurrent = totals.preliminary + totals.adjustments;
+            const processNode = (nodeId, level, parentRowId) => {
+                const node = effectiveStructure.nodes.get(nodeId);
+                if (!node) {
+                    return {
+                        totals: { preliminary: 0, adjustments: 0, finalPrevious: 0 },
+                        rows: [],
+                        hasContent: false
+                    };
+                }
+
+                const nodeType = normalizeNodeType(node.type);
+                const base = computeNodeBaseAmounts(node);
+                let totals = {
+                    preliminary: base.preliminary,
+                    adjustments: base.adjustments,
+                    finalPrevious: base.finalPrevious
+                };
+
+                let hasContent = base.hasContent;
                 const rowId = nextRowId();
 
-                rows.push({
-                    accountName: groupName,
+                const childRows = [];
+                const childIds = Array.isArray(node.children) ? node.children : [];
+                childIds.forEach(childId => {
+                    const childResult = processNode(childId, level + 1, rowId);
+                    totals.preliminary += childResult.totals.preliminary;
+                    totals.adjustments += childResult.totals.adjustments;
+                    totals.finalPrevious += childResult.totals.finalPrevious;
+                    if (childResult.hasContent) hasContent = true;
+                    childResult.rows.forEach(row => {
+                        if (!row.parentId) row.parentId = rowId;
+                        childRows.push(row);
+                    });
+                });
+
+                const nodeAccountId = (node.accountId || node.meta?.accountId || node.meta?.accountKey || node.meta?.id || '').toString().trim();
+                const childAssignmentRows = [];
+                if (nodeAccountId && assignmentsByParent.has(nodeAccountId)) {
+                    assignmentsByParent.get(nodeAccountId).forEach(assignment => {
+                        const assignmentRow = createAssignmentRow(assignment, level + 1, rowId);
+                        totals.preliminary += assignmentRow.totals.preliminary;
+                        totals.adjustments += assignmentRow.totals.adjustments;
+                        totals.finalPrevious += assignmentRow.totals.finalPrevious;
+                        childAssignmentRows.push(assignmentRow.row);
+                        hasContent = true;
+                    });
+                }
+
+                const directAssignmentRows = [];
+                const directAssignments = assignmentsByGroup.get(node.id) || [];
+                directAssignments.forEach(assignment => {
+                    if (assignment.parentAccountId) return;
+                    const assignmentRow = createAssignmentRow(assignment, level, rowId);
+                    totals.preliminary += assignmentRow.totals.preliminary;
+                    totals.adjustments += assignmentRow.totals.adjustments;
+                    totals.finalPrevious += assignmentRow.totals.finalPrevious;
+                    directAssignmentRows.push(assignmentRow.row);
+                    hasContent = true;
+                });
+
+                const finalCurrent = totals.preliminary + totals.adjustments;
+                const hasChildren = childIds.length > 0 || childAssignmentRows.length > 0 || directAssignmentRows.length > 0;
+
+                const row = {
+                    accountName: node.label || node.name || 'Grupo',
+                    accountId: nodeAccountId || null,
+                    accountCode: node.accountCode || node.meta?.accountCode || node.meta?.code || '',
                     preliminary: totals.preliminary,
                     adjustments: totals.adjustments,
                     finalCurrent,
                     finalPrevious: totals.finalPrevious,
-                    level: 0,
-                    isParent: true,
-                    ledgerMissing: !ledgerAvailable && !Number.isFinite(totals.adjustments),
+                    level,
+                    isParent: hasChildren,
+                    ledgerMissing: base.ledgerMissing,
                     rowId,
-                    parentId: '',
-                    hasChildren: hasRenderableChildren(groupContent)
-                });
+                    parentId: parentRowId || '',
+                    hasChildren,
+                    groupContentId: nodeType === 'staticaccount'
+                        ? (node.parentContainerId || node.parentId || '')
+                        : node.id,
+                    nodeType: nodeType || 'group'
+                };
 
-                addRowsForContainer(groupContent, 1, rowId);
+                return {
+                    totals,
+                    rows: [row, ...childRows, ...childAssignmentRows, ...directAssignmentRows],
+                    hasContent: hasContent || hasChildren
+                };
+            };
+
+            (effectiveStructure.roots || []).forEach(rootId => {
+                const result = processNode(rootId, 0, '');
+                rows.push(...result.rows);
             });
 
             return rows;
@@ -13625,17 +14032,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función completa de reinicio cuando se sube nuevo archivo
         function resetAllDataOnNewFile() {
             console.log('🧹 REINICIANDO TODA LA APLICACIÓN - Nuevo archivo subido');
-            
+
             // 1. Reiniciar variables de estado de carga
             Object.keys(dataLoadState).forEach(key => {
                 dataLoadState[key] = false;
             });
             console.log('✅ Estados de carga reiniciados');
-            
+
             // 2. Limpiar currentDatasetId y variables relacionadas
             currentDatasetId = null;
             console.log('✅ currentDatasetId reiniciado');
-            
+
             // 3. Limpiar caché en memoria
             cachedUnassignedAccounts = [];
             cachedUnassignedDatasetId = null;
@@ -13643,14 +14050,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             cachedLedgerAvailable = false;
             cachedLedgerMeta = '';
             cachedAccounts = [];
-            cachedAssignments = new Map();
+            cachedAssignments = [];
             cachedGruposFinancierosRows = [];
             cachedTrialBalanceAccounts = [];
+        cachedFinancialGroupStructure = null;
             console.log('✅ Caché en memoria limpiada');
-            
+
             // 4. Limpiar localStorage de datos específicos del dataset
             try {
-                // Limpiar asignaciones guardadas (nuevos y legacy)
                 Object.keys(localStorage).forEach(key => {
                     if (
                         key.startsWith('assignments_') ||
@@ -13661,13 +14068,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                 });
 
-                // Limpiar claves específicas relacionadas con datasets y cachés
                 localStorage.removeItem('currentDatasetId');
                 localStorage.removeItem('lastDatasetId');
                 localStorage.removeItem('assignmentsLastDataset');
                 localStorage.removeItem('excel_data_current');
 
-                // Clave nueva que controla el último dataset por usuario
                 try {
                     const lastDatasetKey = getAssignmentsLastDatasetKey();
                     localStorage.removeItem(lastDatasetKey);
@@ -13679,13 +14084,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } catch (error) {
                 console.warn('⚠️ Error limpiando localStorage:', error);
             }
-            
+
             // 5. Reiniciar variables de estado de la UI
             selectedAccount = null;
-            
+
             // 6. Limpiar contenido visual de todas las secciones
             try {
-                // Limpiar tabla de historial
                 const historyBody = document.getElementById('datasetHistoryBody');
                 if (historyBody) {
                     historyBody.innerHTML = `
@@ -13697,8 +14101,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </tr>
                     `;
                 }
-                
-                // Limpiar lista de cuentas sin asignar
+
                 const unassignedContainer = document.querySelector('.unassigned-accounts-list');
                 if (unassignedContainer) {
                     unassignedContainer.innerHTML = `
@@ -13708,8 +14111,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </div>
                     `;
                 }
-                
-                // Limpiar tabla de integridad del libro mayor
+
                 const ledgerBody = document.getElementById('ledgerIntegrityTableBody');
                 if (ledgerBody) {
                     ledgerBody.innerHTML = `
@@ -13721,8 +14123,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </tr>
                     `;
                 }
-                
-                // Limpiar tabla de cuentas
+
                 const cuentasBody = document.getElementById('cuentasTableBody');
                 if (cuentasBody) {
                     cuentasBody.innerHTML = `
@@ -13734,8 +14135,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </tr>
                     `;
                 }
-                
-                // Limpiar tabla de grupos financieros
+
                 const gruposBody = document.getElementById('gruposFinancierosTableBody');
                 if (gruposBody) {
                     gruposBody.innerHTML = `
@@ -13747,19 +14147,39 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </tr>
                     `;
                 }
-                
-                // Limpiar grupos financieros visuales
+
                 const financialGroupsList = document.querySelector('.financial-groups-list');
                 if (financialGroupsList) {
+                    // Eliminar cuentas asignadas
                     const assignedAccounts = financialGroupsList.querySelectorAll('.assigned-account');
                     assignedAccounts.forEach(account => account.remove());
+                    
+                    // Resetear valores de cuentas estáticas
+                    const staticAccounts = financialGroupsList.querySelectorAll('.static-account');
+                    staticAccounts.forEach(account => {
+                        account.dataset.accountValue = '0';
+                        account.dataset.accountPrevValue = '0';
+                        const valueSpans = account.querySelectorAll('.static-account-value');
+                        valueSpans.forEach(span => {
+                            span.textContent = 'Q0.00';
+                        });
+                    });
+                    
+                    // Resetear valores de grupos y subgrupos
+                    const groupValues = financialGroupsList.querySelectorAll('.group-value, .sub-group-value');
+                    groupValues.forEach(valueSpan => {
+                        valueSpan.innerHTML = `
+                            <span class="group-value-item" data-year="previous">Q0.00</span>
+                            <span class="group-value-item" data-year="current">Q0.00</span>
+                        `;
+                    });
                 }
-                
+
                 console.log('✅ Contenido visual limpiado');
             } catch (error) {
                 console.warn('⚠️ Error limpiando contenido visual:', error);
             }
-            
+
             // 7. Reiniciar contadores
             try {
                 updateRemainingCount();
@@ -13770,10 +14190,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } catch (error) {
                 console.warn('⚠️ Error reiniciando contadores:', error);
             }
-            
+
             // 8. Forzar recarga de eventos y listeners si es necesario
             try {
-                // Limpiar selecciones activas
                 document.querySelectorAll('.account-item.selected').forEach(item => {
                     item.classList.remove('selected');
                 });
@@ -13781,7 +14200,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } catch (error) {
                 console.warn('⚠️ Error limpiando selecciones:', error);
             }
-            
+
             console.log('🎉 REINICIO COMPLETO FINALIZADO - Sistema listo para nuevo archivo');
         }
         
@@ -14209,6 +14628,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         currentDatasetId = nextId;
+        cachedAssignments = [];
+        cachedFinancialGroupStructure = null;
         try {
             localStorage.setItem(getAssignmentsLastDatasetKey(), nextId);
         } catch (error) {
@@ -14235,6 +14656,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Preparar datos para guardar
         const assignmentData = {
             accountKey,
+            accountId: accountData?.id || accountKey,
             id: accountData?.id || accountKey,
             code: accountData?.code || '',
             name: accountData?.name || '',
@@ -14251,6 +14673,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         assignments.push(assignmentData);
         saveStoredAssignments(assignments, datasetId);
+        syncAssignmentsCacheAndRebuild(assignments, datasetId);
 
         // 2. Guardar en base de datos (nuevo sistema) - SOLO para cuentas del Excel
         if (!isStaticAccount) {
@@ -14276,27 +14699,53 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             waitForSaveFunction().then(saveAccountAssignment => {
             console.log(' - saveAccountAssignment disponible:', !!saveAccountAssignment);
             
-            const assignmentData = {
-                accountId: accountData?.id || accountKey,
-                groupContentId: groupId,
-                parentAccountId: parentAccountId || null,
-                position: assignments.length - 1,
-                datasetId: datasetId,
-                meta: {
-                    accountKey,
-                    code: accountData?.code || '',
-                    name: accountData?.name || '',
-                    value: parseAccountValue(accountData?.value),
-                    prevValue: parseAccountValue(accountData?.prevValue)
+            // Función para obtener el UUID correcto desde cuentas_contables
+            const getAccountUuidFromCode = async (code) => {
+                try {
+                    const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/by-code/${code}`, {
+                        method: 'GET',
+                        headers: {
+                            'user-id': getCurrentUserId()
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success && result.account) {
+                        return result.account.id;
+                    }
+                    return null;
+                } catch (error) {
+                    console.warn('Error getting account UUID:', error);
+                    return null;
                 }
             };
             
-            console.log(' - assignmentData:', assignmentData);
+            // Obtener el accountId correcto (UUID desde cuentas_contables)
+            getAccountUuidFromCode(accountData?.code || accountKey).then(accountUuid => {
+                const assignmentData = {
+                    accountId: accountUuid || accountData?.code || accountKey,
+                    groupContentId: groupId,
+                    parentAccountId: parentAccountId || null,
+                    position: assignments.length - 1,
+                    datasetId: datasetId,
+                    meta: {
+                        accountKey,
+                        code: accountData?.code || '',
+                        name: accountData?.name || '',
+                        value: parseAccountValue(accountData?.value),
+                        prevValue: parseAccountValue(accountData?.prevValue)
+                    }
+                };
             
-            saveAccountAssignment(assignmentData).then(() => {
-                console.log(' ✅ Asignación guardada en base de datos');
+                console.log(' - assignmentData:', assignmentData);
+                
+                saveAccountAssignment(assignmentData).then(() => {
+                    console.log(' ✅ Asignación guardada en base de datos');
+                }).catch(error => {
+                    console.warn('❌ Database save failed, using localStorage only:', error);
+                });
             }).catch(error => {
-                console.warn('❌ Database save failed, using localStorage only:', error);
+                console.warn('❌ Error getting account UUID:', error);
             });
         }).catch(error => {
             console.warn('❌ No se pudo cargar saveAccountAssignment:', error);
@@ -14315,6 +14764,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const assignments = getStoredAssignments(datasetId)
             .filter(item => item.accountKey !== accountKey);
         saveStoredAssignments(assignments, datasetId);
+        syncAssignmentsCacheAndRebuild(assignments, datasetId);
 
         // 2. Eliminar de la base de datos (nuevo sistema)
         // Buscar la asignación en localStorage para obtener el ID de la base de datos
@@ -14337,6 +14787,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     async function restoreAssignedAccounts() {
         const datasetId = normalizeDatasetId(currentDatasetId);
         if (!datasetId) return;
+        
+        // Evitar restauración múltiple - limpiar primero
+        const existingAssignments = document.querySelectorAll('.assigned-account');
+        if (existingAssignments.length > 0) {
+            console.log('🔄 Ya existen asignaciones en la UI, limpiando antes de restaurar...');
+            existingAssignments.forEach(el => el.remove());
+        }
         
         let assignments = [];
         
@@ -14403,6 +14860,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         updateRemainingCount();
         refreshLedgerIntegrityIfVisible();
         syncUnassignedAccountsWithAssignments(assignments);
+        refreshGroupPanelTotals(assignments);
     }
 
     function syncUnassignedAccountsWithAssignments(assignments = null) {
@@ -15230,11 +15688,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return totals;
         }
 
-        const accounts = container.querySelectorAll('.assigned-account');
-        totals.count = accounts.length;
-        accounts.forEach(account => {
+        const assignedAccounts = Array.from(container.querySelectorAll('.assigned-account'));
+        const directAssigned = assignedAccounts.filter(account => {
+            const parentId = (account.dataset.parentAccountId || '').toString().trim();
+            return !parentId;
+        });
+
+        totals.count = assignedAccounts.length;
+
+        directAssigned.forEach(account => {
             totals.previous += parseAccountValue(account.dataset.accountPrevValue);
             totals.current += parseAccountValue(account.dataset.accountValue);
+        });
+
+        const staticAccounts = Array.from(container.querySelectorAll('.static-account'));
+        staticAccounts.forEach(staticAccount => {
+            totals.previous += parseAccountValue(staticAccount.dataset.accountPrevValue);
+            totals.current += parseAccountValue(staticAccount.dataset.accountValue);
         });
 
         return totals;
@@ -15271,6 +15741,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         if (currentSpan) {
             currentSpan.textContent = formatCurrency(currentTotal);
         }
+        
+        // Actualizar también el subgrupo si estamos dentro de uno
+        if (container) {
+            const subGroup = container.closest('.sub-group-item');
+            if (subGroup) {
+                const subGroupHeader = subGroup.querySelector('.sub-group-header');
+                const valueSpan = subGroupHeader?.querySelector('.sub-group-value');
+                if (valueSpan) {
+                    const totals = calculateGroupTotals(subGroup);
+                    renderGroupTotals(valueSpan, totals);
+                }
+            }
+        }
     }
 
     function renderGroupTotals(valueSpan, totals) {
@@ -15304,6 +15787,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (subGroupHeader) {
                 const valueSpan = subGroupHeader.querySelector('.sub-group-value');
                 const totals = calculateGroupTotals(subGroup);
+                console.log('🔢 updateGroupCount - Subgrupo', subGroupHeader.querySelector('.sub-group-name')?.textContent, totals);
                 renderGroupTotals(valueSpan, totals);
             }
         }
