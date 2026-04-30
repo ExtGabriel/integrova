@@ -281,7 +281,7 @@
                         </a>
                         <a href="#" class="menu-item" onclick="selectMenuItem(event, 'issues')">
                             <i class="bi bi-exclamation-triangle"></i>
-                            <span>Asuntos</span>
+                            <span>Pendientes</span>
                         </a>
                         <a href="#" class="menu-item" onclick="selectMenuItem(event, 'queries')">
                             <i class="bi bi-question-circle"></i>
@@ -1678,6 +1678,31 @@
     </div>
 
     <!-- Toggle Tema Oscuro/Claro -->
+            </div>
+
+            <!-- Content Section: Pendientes -->
+            <div id="issues-content" class="content-section" style="display: none;">
+                <div class="issues-wrapper">
+                    <div class="issues-header">
+                        <h2><i class="bi bi-exclamation-triangle"></i> Pendientes</h2>
+                        <div class="issues-stats">
+                            <span class="issues-count">0 pendientes</span>
+                        </div>
+                    </div>
+                    <div class="issues-filters">
+                        <button class="filter-btn active" data-filter="all">Todos</button>
+                        <button class="filter-btn" data-filter="pendiente">Pendientes</button>
+                        <button class="filter-btn" data-filter="error">Errores</button>
+                        <button class="filter-btn" data-filter="carta">Cartas</button>
+                    </div>
+                    <div class="issues-list" id="issuesList">
+                        <!-- Las observaciones aparecerán aquí -->
+                        <div class="no-issues" id="noIssues">
+                            <i class="bi bi-clipboard-check"></i>
+                            <p>No hay observaciones pendientes</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Content Section: Ajustes -->
@@ -3358,6 +3383,24 @@
             }
         }
 
+        function editObservation(observationId) {
+            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observation = observations.find(obs => obs.id === observationId);
+
+            if (!observation) {
+                showNotification('No se encontró la observación seleccionada', 'error');
+                return;
+            }
+
+            // Si la observación se marcó como resuelta previamente, la reabrimos para edición
+            if (observation.status === 'resuelto') {
+                observation.status = 'pendiente';
+                localStorage.setItem('cfe_observations', JSON.stringify(observations));
+            }
+
+            openObservationModal(observation.formId, observation);
+        }
+
         function refreshLedgerIntegrityIfVisible() {
             const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
             if (!ledgerIntegritySection) return;
@@ -3793,29 +3836,97 @@
         // Función para seleccionar un elemento del menú
         function selectMenuItem(event, section) {
             event.preventDefault();
-            
-            // Ocultar todas las secciones de contenido
-            const contentSections = document.querySelectorAll('.content-section');
-            contentSections.forEach(section => {
-                section.style.display = 'none';
-            });
-            
-            // Remover clase activa de todos los items del menú
+
+            const clickedItem = event.currentTarget || event.target.closest('.menu-item');
             const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // Mostrar la sección correspondiente
-            const targetSection = document.getElementById(section + '-content');
-            if (targetSection) {
-                targetSection.style.display = 'block';
-            }
-            
-            // Agregar clase activa al item seleccionado
-            const clickedItem = event.target.closest('.menu-item');
+            menuItems.forEach(item => item.classList.remove('active'));
             if (clickedItem) {
                 clickedItem.classList.add('active');
+            }
+
+            const contentSections = document.querySelectorAll('.content-section');
+            contentSections.forEach(sec => {
+                sec.style.display = 'none';
+            });
+
+            const documentsContent = document.getElementById('documents-content');
+            const dataContent = document.getElementById('data-content');
+            const adjustmentsContent = document.getElementById('adjustments-content');
+            const issuesContent = document.getElementById('issues-content');
+            const opcionesFormularios = document.getElementById('opcionesFormularios');
+            const menuBar = document.getElementById('menuBar');
+            const riskSection = document.getElementById('risk-section-integrated');
+
+            // Restablecer secciones auxiliares
+            if (opcionesFormularios && section !== 'documents' && section !== 'risk') {
+                opcionesFormularios.style.display = 'none';
+            }
+            if (riskSection) {
+                riskSection.style.display = 'none';
+            }
+
+            switch (section) {
+                case 'documents':
+                    if (documentsContent) {
+                        documentsContent.style.display = 'block';
+                    }
+                    if (opcionesFormularios) {
+                        opcionesFormularios.style.display = 'flex';
+                    }
+                    document.querySelectorAll('.categoria-section').forEach(sec => {
+                        sec.style.display = 'block';
+                    });
+                    if (menuBar) {
+                        menuBar.style.display = 'flex';
+                    }
+                    break;
+                case 'data':
+                    if (dataContent) {
+                        dataContent.style.display = 'block';
+                    }
+                    break;
+                case 'adjustments':
+                    if (adjustmentsContent) {
+                        adjustmentsContent.style.display = 'block';
+                    }
+                    break;
+                case 'risk':
+                    if (documentsContent) {
+                        documentsContent.style.display = 'block';
+                    }
+                    if (opcionesFormularios) {
+                        opcionesFormularios.style.display = 'flex';
+                    }
+                    document.querySelectorAll('.categoria-section').forEach(sec => {
+                        sec.style.display = 'none';
+                    });
+                    if (riskSection) {
+                        riskSection.style.display = 'block';
+                    } else if (typeof createIntegratedRiskSection === 'function') {
+                        createIntegratedRiskSection();
+                    }
+                    if (menuBar) {
+                        menuBar.style.display = 'flex';
+                    }
+                    break;
+                case 'issues':
+                    if (issuesContent) {
+                        issuesContent.style.display = 'block';
+                        updateIssuesSection();
+                    }
+                    if (menuBar) {
+                        menuBar.style.display = 'flex';
+                    }
+                    break;
+                default:
+                    const targetSection = document.getElementById(`${section}-content`);
+                    if (targetSection) {
+                        targetSection.style.display = 'block';
+                    }
+                    if (menuBar) {
+                        menuBar.style.display = 'flex';
+                    }
+                    break;
             }
         }
 
@@ -11258,7 +11369,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             </div>
 
                             <div class="formulario-section">
-                                <h3>Asuntos de compromisos anteriores</h3>
+                                <h3>Pendientes de compromisos anteriores</h3>
                                 
                                 <div class="pregunta-item">
                                     <div class="pregunta-contenido">
@@ -13068,9 +13179,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar observaciones
         function showObservations(event, formId) {
-            event.stopPropagation();
-            
-            // Crear modal de observaciones
+            if (event) {
+                event.stopPropagation();
+            }
+
+            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const existingObservation = observations.find(obs => obs.formId === formId && obs.status === 'pendiente');
+
+            openObservationModal(formId, existingObservation || null);
+        }
+
+        function openObservationModal(formId, observation) {
+            const existingModal = document.querySelector('.observations-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
             const modal = document.createElement('div');
             modal.className = 'observations-modal';
             modal.innerHTML = `
@@ -13186,10 +13310,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 </div>
                             </div>
                             <input type="hidden" id="classificationValue" value="">
+                            <input type="hidden" id="observationId" value="">
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-success" onclick="saveObservationClassification('${formId}')">
+                            <button class="btn btn-success btn-save-observation" onclick="saveObservationClassification('${formId}')">
                                 <i class="bi bi-save"></i> Guardar Observación
                             </button>
                             <button class="btn btn-secondary" onclick="closeObservationsModal()">
@@ -13199,14 +13324,41 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </div>
                 </div>
             `;
-            
-            // Agregar modal al body
+
             document.body.appendChild(modal);
-            
-            // Mostrar modal con animación
-            setTimeout(() => {
+
+            requestAnimationFrame(() => {
                 modal.classList.add('show');
-            }, 10);
+            });
+
+            const observationElement = document.getElementById('observationText');
+            const observationIdInput = document.getElementById('observationId');
+            const saveButton = modal.querySelector('.btn-save-observation');
+
+            if (observation && observationElement && observationIdInput) {
+                observationElement.innerHTML = observation.html || observation.text || '';
+                setClassificationSelection(observation.classification);
+                observationIdInput.value = observation.id;
+
+                if (saveButton) {
+                    saveButton.innerHTML = '<i class="bi bi-pencil-square"></i> Actualizar pendiente';
+                }
+            } else {
+                if (observationElement) {
+                    observationElement.innerHTML = '';
+                }
+                setClassificationSelection('');
+                if (observationIdInput) {
+                    observationIdInput.value = '';
+                }
+                if (saveButton) {
+                    saveButton.innerHTML = '<i class="bi bi-save"></i> Guardar Observación';
+                }
+            }
+
+            if (observationElement) {
+                observationElement.focus();
+            }
         }
 
         // Función para formatear texto
@@ -13664,6 +13816,51 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
+        const classificationLabels = {
+            'pendiente': '⏳ Pendiente',
+            'error': '❌ Error',
+            'carta': '📧 Carta',
+            'deficiencia': '⚠️ Deficiencia',
+            'revision': '🔍 Revisión',
+            'nota': '📝 Nota',
+            'consideracion': '💭 Consideración',
+            'consideracion-proximo-anio': '📅 Consideración para el próximo año',
+            'comentario-contacto': '💬 Comentario de contacto'
+        };
+
+        const classificationClassList = [
+            'classification-pendiente',
+            'classification-error',
+            'classification-carta',
+            'classification-deficiencia',
+            'classification-revision',
+            'classification-nota',
+            'classification-consideracion',
+            'classification-consideracion-proximo-anio',
+            'classification-comentario-contacto'
+        ];
+
+        function setClassificationSelection(value) {
+            const selectedText = document.getElementById('selectedClassification');
+            const hiddenInput = document.getElementById('classificationValue');
+            const toggle = document.querySelector('.dropdown-toggle');
+
+            if (!selectedText || !hiddenInput || !toggle) {
+                return;
+            }
+
+            toggle.classList.remove('selected', ...classificationClassList);
+
+            if (value && classificationLabels[value]) {
+                selectedText.textContent = classificationLabels[value];
+                hiddenInput.value = value;
+                toggle.classList.add('selected', `classification-${value}`);
+            } else {
+                selectedText.textContent = 'Seleccione una opción';
+                hiddenInput.value = '';
+            }
+        }
+
         // Función para toggle del dropdown de clasificación
         function toggleClassificationDropdown() {
             const dropdown = document.getElementById('classificationDropdown');
@@ -13682,36 +13879,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para seleccionar clasificación
         function selectClassification(value) {
-            const selectedText = document.getElementById('selectedClassification');
-            const hiddenInput = document.getElementById('classificationValue');
+            setClassificationSelection(value);
+
             const dropdown = document.getElementById('classificationDropdown');
             const arrow = document.querySelector('.dropdown-toggle .dropdown-arrow');
-            
-            // Actualizar texto e input oculto
-            const labels = {
-                'pendiente': '⏳ Pendiente',
-                'error': '❌ Error',
-                'carta': '📧 Carta',
-                'deficiencia': '⚠️ Deficiencia',
-                'revision': '🔍 Revisión',
-                'nota': '📝 Nota',
-                'consideracion': '💭 Consideración',
-                'consideracion-proximo-anio': '📅 Consideración para el próximo año',
-                'comentario-contacto': '💬 Comentario de contacto'
-            };
-            
-            selectedText.textContent = labels[value];
-            hiddenInput.value = value;
-            
-            // Cerrar dropdown
-            dropdown.style.display = 'none';
-            arrow.classList.remove('bi-chevron-up');
-            arrow.classList.add('bi-chevron-down');
-            
-            // Agregar estilo visual al botón
-            const toggle = document.querySelector('.dropdown-toggle');
-            toggle.classList.add('selected');
-            toggle.classList.add(`classification-${value}`);
+
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+
+            if (arrow) {
+                arrow.classList.remove('bi-chevron-up');
+                arrow.classList.add('bi-chevron-down');
+            }
         }
 
         // Cerrar dropdown al hacer clic fuera
@@ -13774,12 +13954,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
+        const FORM_NAME_MAP = {
+            'A100': 'A100 - Decisiones iniciales de compromiso',
+            'A200': 'A200 - Actividades preliminares del compromiso',
+            'A300': 'A300 - Estrategia general de auditoría',
+            'A400': 'A400 - Auditor de componente',
+            'A500': 'A500 - Materialidad',
+            'B100': 'B100 - Revisión analítica preliminar',
+            'B200': 'B200 - Comprensión de la entidad',
+            'B300': 'B300 - Diseño de controles',
+            'B335': 'B335 - Procedimientos de controles',
+            'B350': 'B350 - Evaluación de riesgos',
+            'B400': 'B400 - Evaluación de RIM',
+            'B450': 'B450 - Informe de riesgos',
+            'B500': 'B500 - Evaluación de riesgo',
+            'B510': 'B510 - Programa de auditoría del grupo',
+            'C100': 'C100 - Conclusiones y hallazgos',
+            'C165': 'C165 - Hallazgos adicionales',
+            'D100': 'D100 - Evaluación de incorrecciones',
+            'D200': 'D200 - Resumen de incorrecciones',
+            'D500': 'D500 - Comunicaciones con la gerencia',
+            'D600': 'D600 - Cierre de auditoría'
+        };
+
         // Función para guardar la clasificación de la observación
         function saveObservationClassification(formId) {
             const classificationValue = document.getElementById('classificationValue').value;
             const observationElement = document.getElementById('observationText');
-            const observationText = observationElement.innerText.trim();
-            const observationHtml = observationElement.innerHTML;
+            const observationIdInput = document.getElementById('observationId');
+            const observationText = observationElement ? observationElement.innerText.trim() : '';
+            const observationHtml = observationElement ? observationElement.innerHTML : '';
+            const observationId = observationIdInput ? observationIdInput.value : '';
             
             if (!classificationValue) {
                 showNotification('Por favor seleccione una clasificación', 'warning');
@@ -13791,24 +13996,290 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
             
-            // Guardar en localStorage (en producción iría a la base de datos)
-            const observationData = {
-                formId: formId,
-                text: observationText,
-                html: observationHtml,
-                classification: classificationValue,
-                timestamp: new Date().toISOString()
+            // Obtener información del usuario (en producción vendría de la sesión)
+            const currentUser = {
+                name: 'Mariangel Chitay Duarte', // o el usuario actual logueado
+                email: 'usuario@cfeinsight.com'
             };
             
-            let savedObservations = JSON.parse(localStorage.getItem('formObservations') || '{}');
-            savedObservations[formId] = observationData;
-            localStorage.setItem('formObservations', JSON.stringify(savedObservations));
+            let savedObservations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            let message = `Observación del formulario ${formId} guardada como: ${classificationValue}`;
+
+            if (observationId) {
+                const existingIndex = savedObservations.findIndex(obs => obs.id === observationId);
+                if (existingIndex !== -1) {
+                    savedObservations[existingIndex] = {
+                        ...savedObservations[existingIndex],
+                        text: observationText,
+                        html: observationHtml,
+                        classification: classificationValue,
+                        status: 'pendiente',
+                        user: currentUser.name,
+                        updatedAt: new Date().toISOString()
+                    };
+                    message = `Observación del formulario ${formId} actualizada`;
+                } else {
+                    // Si no se encontró el ID, tratamos como nueva observación
+                    savedObservations.push({
+                        id: Date.now().toString(),
+                        formId,
+                        text: observationText,
+                        html: observationHtml,
+                        classification: classificationValue,
+                        timestamp: new Date().toISOString(),
+                        user: currentUser.name,
+                        status: 'pendiente',
+                        section: formId
+                    });
+                }
+            } else {
+                // Crear objeto de observación completa
+                const observationData = {
+                    id: Date.now().toString(),
+                    formId: formId,
+                    text: observationText,
+                    html: observationHtml,
+                    classification: classificationValue,
+                    timestamp: new Date().toISOString(),
+                    user: currentUser.name,
+                    status: 'pendiente',
+                    section: formId // A100, A200, etc.
+                };
+
+                savedObservations.push(observationData);
+            }
+
+            localStorage.setItem('cfe_observations', JSON.stringify(savedObservations));
+
+            console.log('🔍 Observación guardada:', savedObservations);
+
+            // Actualizar indicador de pendiente en la banderita
+            updateObservationBadge(formId);
             
-            // Actualizar el icono de la bandera según la clasificación
-            updateObservationIcon(formId, classificationValue);
+            // Actualizar la sección de Pendientes
+            console.log('🔍 Llamando a updateIssuesSection...');
+            updateIssuesSection();
             
-            showNotification(`Observación del formulario ${formId} guardada como: ${classificationValue}`, 'success');
+            showNotification(message, 'success');
             closeObservationsModal();
+        }
+
+        // Función para actualizar el indicador (badge) en la banderita
+        function updateObservationBadge(formId, hasObservation) {
+            const observationBtn = document.querySelector(`.observations-btn[onclick*="${formId}"]`);
+            if (observationBtn) {
+                // Remover badge existente si lo hay
+                const existingBadge = observationBtn.querySelector('.observation-badge');
+                if (existingBadge) {
+                    existingBadge.remove();
+                }
+                
+                // Agregar nuevo badge si hay observación
+                let shouldShowBadge = !!hasObservation;
+
+                if (typeof hasObservation === 'undefined') {
+                    const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+                    shouldShowBadge = observations.some(obs => obs.formId === formId && obs.status === 'pendiente');
+                }
+
+                if (shouldShowBadge) {
+                    const badge = document.createElement('span');
+                    badge.className = 'observation-badge';
+                    badge.textContent = '1';
+                    observationBtn.appendChild(badge);
+                }
+            }
+        }
+
+        // Función para actualizar la sección de Pendientes
+        function updateIssuesSection() {
+            console.log('🔍 updateIssuesSection iniciado');
+            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            console.log('🔍 Observaciones en localStorage:', observations);
+            
+            const issuesList = document.getElementById('issuesList');
+            const issuesCount = document.querySelector('.issues-count');
+            
+            if (!issuesList || !issuesCount) {
+                console.error('❌ No se encontraron elementos DOM:', { issuesList, issuesCount });
+                return;
+            }
+            
+            // Buscar noIssues dentro de issuesList si no existe globalmente
+            let noIssues = document.getElementById('noIssues');
+            if (!noIssues) {
+                noIssues = issuesList.querySelector('.no-issues');
+            }
+            
+            console.log('🔍 Elementos DOM encontrados:', { issuesList, noIssues, issuesCount });
+            
+            // Filtrar solo observaciones pendientes (sin importar la clasificación)
+            const pendingObservations = observations.filter(obs => obs.status === 'pendiente');
+            console.log('🔍 Observaciones pendientes filtradas:', pendingObservations);
+            
+            // Actualizar contador
+            const pendingCount = pendingObservations.length;
+            issuesCount.textContent = pendingCount === 1 
+                ? '1 pendiente' 
+                : `${pendingCount} pendientes`;
+            console.log('🔍 Contador actualizado:', issuesCount.textContent);
+            
+            if (pendingObservations.length === 0) {
+                issuesList.innerHTML = '';
+                issuesList.appendChild(noIssues);
+                noIssues.style.display = 'block';
+                console.log('🔍 No hay pendientes, mostrando mensaje vacío');
+            } else {
+                noIssues.style.display = 'none';
+                issuesList.innerHTML = '';
+                console.log('🔍 Mostrando', pendingObservations.length, 'tarjetas');
+                
+                // Ordenar por fecha (más reciente primero)
+                pendingObservations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                pendingObservations.forEach(observation => {
+                    const issueCard = createIssueCard(observation);
+                    issuesList.appendChild(issueCard);
+                    console.log('🔍 Tarjeta agregada para observación:', observation.id);
+                });
+                console.log('🔍 updateIssuesSection completado');
+            }
+        }
+
+        // Función para crear la tarjeta de observación
+        function createIssueCard(observation) {
+            const card = document.createElement('div');
+            card.className = 'issue-card';
+
+            const date = new Date(observation.timestamp);
+            const formattedDate = date.toLocaleDateString('es-MX', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            const formattedTime = date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+            const classificationLabels = {
+                pendiente: 'Requerimiento de información',
+                error: 'Error detectado',
+                carta: 'Carta pendiente',
+                deficiencia: 'Deficiencia identificada',
+                revision: 'Revisión solicitada',
+                nota: 'Nota registrada',
+                consideracion: 'Consideración',
+                'consideracion-proximo-anio': 'Consideración próximo año',
+                'comentario-contacto': 'Comentario de contacto'
+            };
+
+            const formCode = observation.formId || observation.section;
+            const formTitle = formCode ? (FORM_NAME_MAP[formCode.toUpperCase()] || `${formCode} - ${classificationLabels[observation.classification] || 'Formulario'}`) : null;
+
+            const title = observation.title
+                || formTitle
+                || classificationLabels[observation.classification]
+                || 'Observación pendiente';
+            const spaceName = formTitle || formCode || 'Sin sección';
+            const initials = getInitials(observation.user);
+
+            card.innerHTML = `
+                <div class="issue-main">
+                    <div class="issue-column issue-column--meta">
+                        <span class="issue-state">Por hacer</span>
+                        <div class="issue-avatar">${initials}</div>
+                        <div class="issue-author">
+                            <span class="issue-author-name">${observation.user}</span>
+                            <span class="issue-author-date">${formattedDate}</span>
+                            <span class="issue-author-time">${formattedTime} hrs</span>
+                        </div>
+                    </div>
+                    <div class="issue-column issue-column--body">
+                        <div class="issue-title-row">
+                            <a href="#" class="issue-title" onclick="respondToObservation('${observation.id}')">${title}</a>
+                            <div class="issue-top-actions">
+                                <button class="issue-link" onclick="editObservation('${observation.id}')">✎ Editar</button>
+                                <button class="issue-link danger" onclick="deleteObservation('${observation.id}')">🗑 Eliminar</button>
+                            </div>
+                        </div>
+                        <div class="issue-space">Espacio: ${spaceName}</div>
+                        <p class="issue-text">${observation.text}</p>
+                        <div class="issue-bottom-actions">
+                            <button class="issue-action" onclick="respondToObservation('${observation.id}')">↩ Responder</button>
+                            <button class="issue-action" onclick="resolveObservation('${observation.id}')">✔ Resolver</button>
+                            <button class="issue-action danger" onclick="deleteObservation('${observation.id}')">✕ Eliminar</button>
+                        </div>
+                    </div>
+                    <div class="issue-column issue-column--status">
+                        <span class="issue-status-label">Pendiente</span>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function getInitials(name = '') {
+            return name
+                .split(' ')
+                .filter(Boolean)
+                .map(part => part[0]?.toUpperCase() || '')
+                .slice(0, 2)
+                .join('') || 'NA';
+        }
+
+        function respondToObservation(observationId) {
+            viewObservationDetail(observationId);
+            showNotification('Preparando respuesta a la observación...', 'info');
+        }
+
+        function deleteObservation(observationId) {
+            let observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observationIndex = observations.findIndex(obs => obs.id === observationId);
+
+            if (observationIndex === -1) {
+                showNotification('No se encontró la observación a eliminar', 'warning');
+                return;
+            }
+
+            const [removed] = observations.splice(observationIndex, 1);
+            localStorage.setItem('cfe_observations', JSON.stringify(observations));
+
+            if (removed?.formId) {
+                updateObservationBadge(removed.formId);
+            }
+
+            updateIssuesSection();
+            showNotification('Observación eliminada', 'success');
+        }
+
+        // Función para ver detalle de observación
+        function viewObservationDetail(observationId) {
+            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observation = observations.find(obs => obs.id === observationId);
+            
+            if (observation) {
+                showNotification(`Viendo detalle de observación en ${observation.section}`, 'info');
+                // Aquí podrías abrir un modal con más detalles
+            }
+        }
+
+        // Función para marcar como resuelta
+        function resolveObservation(observationId) {
+            let observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observationIndex = observations.findIndex(obs => obs.id === observationId);
+            
+            if (observationIndex !== -1) {
+                const formId = observations[observationIndex].formId;
+                observations[observationIndex].status = 'resuelto';
+                localStorage.setItem('cfe_observations', JSON.stringify(observations));
+                
+                // Actualizar badge del formulario (recalculando pendientes restantes)
+                updateObservationBadge(formId);
+                
+                // Actualizar sección de pendientes
+                updateIssuesSection();
+                
+                showNotification('Observación marcada como resuelta', 'success');
+            }
         }
 
         // Función para actualizar el icono de observación según la clasificación
@@ -14082,147 +14553,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Funciones para la barra de menú
-        function selectMenuItem(event, itemName) {
-            event.preventDefault();
-            
-            // Remover clase active de todos los items
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => item.classList.remove('active'));
-            
-            // Agregar clase active al item seleccionado
-            event.currentTarget.classList.add('active');
-            
-            // Ocultar todas las secciones de contenido
-            const documentsContent = document.getElementById('documents-content');
-            const dataContent = document.getElementById('data-content');
-            const adjustmentsContent = document.getElementById('adjustments-content');
-
-            documentsContent.style.display = 'none';
-            dataContent.style.display = 'none';
-            if (adjustmentsContent) {
-                adjustmentsContent.style.display = 'none';
-            }
-            
-            // Mostrar la sección correspondiente
-            switch(itemName) {
-                case 'documents':
-                    documentsContent.style.display = 'block';
-                    
-                    // Mostrar opciones de formularios si están ocultas
-                    const opcionesFormulariosDocs = document.getElementById('opcionesFormularios');
-                    if (opcionesFormulariosDocs) {
-                        opcionesFormulariosDocs.style.display = 'flex';
-                    }
-                    
-                    // Mostrar la barra de menú si está oculta
-                    const menuBarDocs = document.getElementById('menuBar');
-                    if (menuBarDocs) {
-                        menuBarDocs.style.display = 'flex';
-                    }
-                    
-                    // Restaurar todas las categorías de formularios
-                    document.querySelectorAll('.categoria-section').forEach(section => {
-                        section.style.display = 'block';
-                    });
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionDocs = document.getElementById('risk-section-integrated');
-                    if (riskSectionDocs) {
-                        riskSectionDocs.style.display = 'none';
-                    }
-                    
-                    console.log('Mostrando Documentos...');
-                    break;
-                case 'data':
-                    dataContent.style.display = 'block';
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionData = document.getElementById('risk-section-integrated');
-                    if (riskSectionData) {
-                        riskSectionData.style.display = 'none';
-                    }
-                    
-                    console.log('Mostrando Datos...');
-                    break;
-                case 'adjustments':
-                    if (adjustmentsContent) {
-                        adjustmentsContent.style.display = 'block';
-                    }
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionAdj = document.getElementById('risk-section-integrated');
-                    if (riskSectionAdj) {
-                        riskSectionAdj.style.display = 'none';
-                    }
-                    
-                    console.log('Mostrando Ajustes...');
-                    break;
-                case 'risk':
-                    // Asegurar que la sección principal esté visible
-                    documentsContent.style.display = 'block';
-                    
-                    // Mostrar opciones de formularios si están ocultas
-                    const opcionesFormularios = document.getElementById('opcionesFormularios');
-                    if (opcionesFormularios) {
-                        opcionesFormularios.style.display = 'flex';
-                    }
-                    
-                    // Mostrar la barra de menú si está oculta
-                    const menuBar = document.getElementById('menuBar');
-                    if (menuBar) {
-                        menuBar.style.display = 'flex';
-                    }
-                    
-                    // Ocultar todas las categorías y mostrar solo la sección de riesgos
-                    document.querySelectorAll('.categoria-section').forEach(section => {
-                        section.style.display = 'none';
-                    });
-                    
-                    // Crear y mostrar la sección de riesgos directamente en el contenido
-                    const riskSection = document.getElementById('risk-section-integrated');
-                    if (!riskSection) {
-                        createIntegratedRiskSection();
-                    } else {
-                        riskSection.style.display = 'block';
-                    }
-                    
-                    console.log('Navegando a Riesgos y controles...');
-                    break;
-                case 'issues':
-                    documentsContent.style.display = 'block';
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionIssues = document.getElementById('risk-section-integrated');
-                    if (riskSectionIssues) {
-                        riskSectionIssues.style.display = 'none';
-                    }
-                    
-                    console.log('Navegando a Asuntos...');
-                    break;
-                case 'queries':
-                    documentsContent.style.display = 'block';
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionQueries = document.getElementById('risk-section-integrated');
-                    if (riskSectionQueries) {
-                        riskSectionQueries.style.display = 'none';
-                    }
-                    
-                    console.log('Navegando a Consultas...');
-                    break;
-                case 'analytics':
-                    documentsContent.style.display = 'block';
-                    
-                    // Ocultar la sección de riesgos si está visible
-                    const riskSectionAnalytics = document.getElementById('risk-section-integrated');
-                    if (riskSectionAnalytics) {
-                        riskSectionAnalytics.style.display = 'none';
-                    }
-                    
-                    console.log('Navegando a Centro de análisis...');
-                    break;
-            }
-        }
         
         function addNewItem() {
             console.log('Agregar nuevo item...');
@@ -24097,6 +24427,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 closeUploadExcelModal();
             }
         });
+
+        // Inicializar observaciones existentes al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeObservations();
+        });
+
+        function initializeObservations() {
+            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            
+            // Actualizar badges para formularios con observaciones
+            observations.forEach(observation => {
+                if (observation.status === 'pendiente') {
+                    updateObservationBadge(observation.formId, true);
+                }
+            });
+            
+            // Actualizar sección de pendientes si está visible
+            updateIssuesSection();
+        }
     </script>
 
 </body>
