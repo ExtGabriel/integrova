@@ -1,22 +1,11 @@
-const { createClient } = require('@supabase/supabase-js');
 const multer = require('multer');
 const xlsx = require('xlsx');
 
-// Configuración de Supabase
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ Faltan variables de entorno de Supabase');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-// Configuración de multer para memoria
+// Configuración de multer para memoria (archivos en memoria, no disco)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-export default async function handler(req, res) {
+async function handler(req, res) {
     // Configurar CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -97,3 +86,11 @@ export default async function handler(req, res) {
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 }
+
+module.exports = handler;
+
+module.exports.config = {
+    api: {
+        bodyParser: false,
+    },
+};
