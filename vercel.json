@@ -5,18 +5,26 @@
         {
             "src": "CFE INSIGHT/App/**",
             "use": "@vercel/static"
+        },
+        {
+            "src": "api/**/*.js",
+            "use": "@vercel/node"
         }
     ],
     "routes": [
         {
-            "src": "/(.*)",
+            "src": "/api/(.*)",
+            "dest": "/api/$1"
+        },
+        {
+            "src": "/(?!api)(.*)",
             "dest": "/CFE INSIGHT/App/$1"
         },
         {
             "handle": "filesystem"
         },
         {
-            "src": "/(.*)",
+            "src": "/(?!api)(.*)",
             "dest": "/CFE INSIGHT/App/index.html"
         }
     ],
