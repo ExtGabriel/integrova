@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace de Consulta</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1e3a8a;
+            --color-primary-light: #3b82f6;
+            --color-dark: #0f172a;
+            --color-muted: #64748b;
+            --color-border: rgba(15, 23, 42, 0.09);
+            --color-surface: #ffffff;
+            --color-background: #f5f7fb;
+            --color-warning-bg: #fff7dc;
+            --color-warning-border: #facc15;
+            --color-success: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+            background: var(--color-background);
+            color: var(--color-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            background: #1e3a8a;
+            color: #ffffff;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand span:first-child {
+            font-size: 0.75rem;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .brand span:last-child {
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .top-bar nav {
+            display: flex;
+            gap: 18px;
+            flex: 1;
+        }
+
+        .top-bar nav a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding-bottom: 6px;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .top-bar nav a.active,
+        .top-bar nav a:hover {
+            color: #ffffff;
+            border-color: rgba(148, 197, 255, 0.9);
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-left: auto;
+        }
+
+        .top-actions button {
+            background: #42A5F5;
+            color: #ffffff;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .top-actions button:hover {
+            background: #64B5F6;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 6px 0 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            letter-spacing: 0.18em;
+            color: var(--color-muted);
+            text-transform: uppercase;
+        }
+
+        .sidebar-header button {
+            background: transparent;
+            border: none;
+            color: var(--color-primary);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .queries-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .queries-empty {
+            font-size: 0.9rem;
+            color: var(--color-muted);
+            line-height: 1.4;
+        }
+
+        .query-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: rgba(59, 130, 246, 0.08);
+            color: var(--color-primary);
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .query-item:hover {
+            background: rgba(59, 130, 246, 0.15);
+            transform: translateX(2px);
+        }
+
+        .query-item.active {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: #ffffff;
+            box-shadow: 0 14px 28px rgba(30, 58, 138, 0.18);
+        }
+
+        .query-item__info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .query-item__title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .query-item__meta {
+            font-size: 0.75rem;
+            color: rgba(59, 130, 246, 0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 4px;
+        }
+
+        .query-item i {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 32px 42px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .breadcrumbs {
+            font-size: 0.85rem;
+            color: var(--color-muted);
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .workspace-title {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .workspace-title h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #7c6a00;
+            background: #fef08a;
+            border-radius: 999px;
+            padding: 6px 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .workspace-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .workspace-actions button {
+            border: none;
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .workspace-actions .primary {
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: #ffffff;
+            box-shadow: 0 16px 32px rgba(25, 118, 210, 0.28);
+        }
+
+        .workspace-actions .secondary {
+            background: rgba(148, 163, 184, 0.16);
+            color: var(--color-dark);
+        }
+
+        .workspace-actions button:hover {
+            transform: translateY(-2px);
+        }
+
+        .card {
+            background: var(--color-surface);
+            border-radius: 18px;
+            border: 1px solid var(--color-border);
+            padding: 24px;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .question-sets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .question-set-item {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .question-set-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+        }
+
+        .question-set-item.active {
+            border-color: #42a5f5;
+            box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);
+        }
+
+        .question-set-item__info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .question-set-item__title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-dark);
+        }
+
+        .question-set-item__type {
+            font-size: 0.8rem;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .question-set-item__actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .question-set-item__actions button {
+            background: transparent;
+            border: none;
+            color: var(--color-muted);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-set-item__actions button:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: #42a5f5;
+        }
+
+        .question-set-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .question-set-card__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .question-set-card__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .question-set-card__type {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(15, 23, 42, 0.55);
+        }
+
+        .question-set-card__title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .question-set-card__header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .question-set-card__header-actions button {
+            background: rgba(148, 163, 184, 0.12);
+            color: rgba(15, 23, 42, 0.7);
+            border: none;
+            border-radius: 10px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-set-card__header-actions button:hover {
+            background: rgba(66, 165, 245, 0.12);
+            color: #42a5f5;
+        }
+
+        .question-set-card__field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .question-set-card__label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(15, 23, 42, 0.65);
+        }
+
+        .question-set-card__input {
+            border-radius: 12px;
+            border: 1px dashed rgba(148, 163, 184, 0.6);
+            background: rgba(248, 250, 252, 0.95);
+            padding: 12px 14px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            color: var(--color-text);
+        }
+
+        .question-set-card__input:focus {
+            border-style: solid;
+            border-color: rgba(66, 165, 245, 0.65);
+            outline: none;
+        }
+
+        .file-upload-card {
+            border-radius: 14px;
+            border: 1.5px dashed rgba(148, 163, 184, 0.55);
+            background: rgba(248, 250, 252, 0.75);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: rgba(71, 85, 105, 0.9);
+        }
+
+        .file-upload-card__hint {
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        .file-upload-card__actions {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .file-upload-card__actions a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .file-upload-card__actions a:hover {
+            text-decoration: underline;
+        }
+
+        .file-upload-card__destination {
+            font-size: 0.85rem;
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: transparent;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.02);
+        }
+
+        .question-set-inline__input {
+            flex: 1;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            color: var(--color-text);
+            background: transparent;
+        }
+
+        .question-set-inline__input:focus {
+            border-color: rgba(66, 165, 245, 0.65);
+            outline: none;
+        }
+
+        .question-set-inline__label {
+            font-weight: 600;
+            color: rgba(15, 23, 42, 0.55);
+            min-width: 100px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .question-set-inline__actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .question-set-inline__button {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(15, 23, 42, 0.55);
+            cursor: pointer;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .question-set-inline__button:hover {
+            color: #2563eb;
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .question-set-inline__button--danger {
+            color: rgba(239, 68, 68, 0.75);
+        }
+
+        .question-set-inline__button--danger:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .question-type-dropdown {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 220px;
+            z-index: 20;
+        }
+
+        .question-type-dropdown button {
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--color-dark);
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-type-dropdown button:hover {
+            background: rgba(59, 130, 246, 0.12);
+            color: #1e3a8a;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .instructions-card {
+            border: 1px solid var(--color-warning-border);
+            background: var(--color-warning-bg);
+        }
+
+        .instructions-card textarea {
+            width: 100%;
+            min-height: 120px;
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            padding: 18px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.7);
+            resize: vertical;
+        }
+
+        .instructions-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .instructions-actions button {
+            border: none;
+            cursor: pointer;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-weight: 600;
+        }
+
+        .instructions-actions .save {
+            background: linear-gradient(135deg, #14b8a6 0%, #10b981 100%);
+            color: white;
+        }
+
+        .instructions-actions .reset {
+            background: transparent;
+            color: var(--color-muted);
+        }
+
+        .last-saved-hint {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--color-muted);
+        }
+
+        .question-card {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .question-card .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .question-card label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-muted);
+            letter-spacing: 0.03em;
+        }
+
+        .question-card input,
+        .question-card textarea {
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            padding: 14px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .question-card textarea {
+            min-height: 160px;
+            resize: vertical;
+        }
+
+        .question-empty-state {
+            border: 2px dashed rgba(148, 163, 184, 0.5);
+            border-radius: 16px;
+            padding: 36px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--color-muted);
+            background: rgba(226, 232, 240, 0.25);
+        }
+
+        .question-empty-state i {
+            font-size: 2rem;
+            color: rgba(59, 130, 246, 0.6);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .section-title button {
+            border: none;
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
+        }
+
+        .requirements-grid {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px;
+        }
+
+        .requirement-card {
+            background: var(--color-surface);
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .requirement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .requirement-title {
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .status-chip {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-weight: 600;
+            background: rgba(250, 204, 21, 0.24);
+            color: #b45309;
+        }
+
+        .status-completed {
+            background: rgba(34, 197, 94, 0.18);
+            color: #15803d;
+        }
+
+        .requirement-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.82rem;
+            color: var(--color-muted);
+        }
+
+        .requirement-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .requirement-actions button {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .mark-complete {
+            background: rgba(22, 163, 74, 0.18);
+            color: var(--color-success);
+        }
+
+        .delete-requirement {
+            background: rgba(248, 113, 113, 0.16);
+            color: #dc2626;
+        }
+
+        .empty-state {
+            border: 1px dashed rgba(15, 23, 42, 0.12);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            color: var(--color-muted);
+            background: rgba(240, 249, 255, 0.4);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            color: rgba(59, 130, 246, 0.55);
+            margin-bottom: 12px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--color-surface);
+            border-radius: 18px;
+            width: min(520px, 100%);
+            padding: 28px;
+            box-shadow: 0 32px 56px rgba(15, 23, 42, 0.28);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--color-dark);
+        }
+
+        .modal input,
+        .modal textarea,
+        .modal select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(248, 250, 255, 0.8);
+        }
+
+        .modal textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-actions button {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-actions .primary {
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: white;
+        }
+
+        .modal-actions .secondary {
+            background: transparent;
+            color: var(--color-muted);
+        }
+
+        footer {
+            padding: 16px 32px;
+            font-size: 0.8rem;
+            color: rgba(15, 23, 42, 0.45);
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .workspace {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+            }
+
+            .queries-list {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 14px;
+            }
+
+            .query-item {
+                min-width: 220px;
+            }
+
+            .main-content {
+                padding: 24px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 18px;
+            }
+
+            .top-bar nav {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .workspace-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .workspace-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .workspace-actions button {
+                width: 100%;
+            }
+
+            .modal {
+                padding: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="top-bar">
+        <div class="top-actions">
+            <button id="btnVolverConsultas" onclick="window.location.href='consultas.html'"><i class="bi bi-arrow-left-circle"></i> Volver</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span>Conjuntos de preguntas</span>
+                <button id="btnAgregarConjunto" title="Nuevo conjunto"><i class="bi bi-plus-circle"></i></button>
+            </div>
+            <div class="queries-list" id="queriesList">
+                <!-- Los conjuntos de preguntas aparecerán aquí -->
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="breadcrumbs" id="breadcrumbs">Consultas / Workspace</div>
+
+            <section class="card instructions-card">
+                <div class="card-header">
+                    <h2><i class="bi bi-journal-text"></i> Instrucciones</h2>
+                </div>
+                <textarea id="instructionsInput" placeholder="Escribe instrucciones para ayudar a los contactos asignados"></textarea>
+                <div class="last-saved-hint" id="lastSavedLabel">Sin guardar</div>
+            </section>
+
+            <div class="question-type-dropdown hidden" id="questionTypeDropdown">
+                <button type="button" data-type="archivo">Carga de archivo</button>
+                <button type="button" data-type="lista">Lista de selección</button>
+                <button type="button" data-type="lista-multiple">Lista de selección múltiple</button>
+                <button type="button" data-type="texto">Texto</button>
+                <button type="button" data-type="fecha">Fecha</button>
+                <button type="button" data-type="firma">Firma electrónica simple</button>
+            </div>
+
+            <section class="question-sets-list" id="questionSetsList">
+                <!-- Los conjuntos de preguntas creados aparecerán aquí -->
+            </section>
+
+            <div class="question-empty-state" id="questionEmptyState">
+                <i class="bi bi-journal-plus"></i>
+                <p>Crea un conjunto de preguntas con el botón “+” o selecciona uno existente para comenzar a organizar tus requerimientos.</p>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="requirementModal">
+        <div class="modal">
+            <h3><i class="bi bi-plus-circle"></i> Crear requerimiento</h3>
+            <form id="requirementForm">
+                <div>
+                    <label for="reqTitulo">Título</label>
+                    <input type="text" id="reqTitulo" placeholder="Ej: Estados de cuenta bancarios" required>
+                </div>
+                <div>
+                    <label for="reqDescripcion">Descripción</label>
+                    <textarea id="reqDescripcion" placeholder="Describe qué información se requiere"></textarea>
+                </div>
+                <div>
+                    <label for="reqResponsable">Responsable</label>
+                    <input type="text" id="reqResponsable" placeholder="Nombre del responsable">
+                </div>
+                <div>
+                    <label for="reqFecha">Fecha límite</label>
+                    <input type="date" id="reqFecha">
+                </div>
+                <div>
+                    <label for="reqPrioridad">Prioridad</label>
+                    <select id="reqPrioridad">
+                        <option value="media">Media</option>
+                        <option value="alta">Alta</option>
+                        <option value="baja">Baja</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary" id="btnCancelarModal">Cancelar</button>
+                    <button type="submit" class="primary">Crear requerimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        Workspace de consultas · CFE Insight · Prototipo interactivo
+    </footer>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const consultaNumero = params.get('numero') || 'Consulta sin código';
+        const consultaNombre = params.get('nombre') || 'Consulta en blanco';
+        const consultaTipo = params.get('tipo') || '';
+        const consultaDescripcion = params.get('descripcion') || '';
+        const consultaObjetivos = params.get('objetivos') || '';
+
+        const storageKey = `consulta_workspace_${consultaNumero}`;
+
+        const QUESTION_TYPE_LABELS = {
+            archivo: 'Carga de archivo',
+            lista: 'Lista de selección',
+            'lista-multiple': 'Lista de selección múltiple',
+            texto: 'Texto',
+            fecha: 'Fecha',
+            firma: 'Firma electrónica simple'
+        };
+
+        const elements = {
+            breadcrumbs: document.getElementById('breadcrumbs'),
+            queriesList: document.getElementById('queriesList'),
+            instructionsInput: document.getElementById('instructionsInput'),
+            lastSavedLabel: document.getElementById('lastSavedLabel'),
+            questionEmptyState: document.getElementById('questionEmptyState'),
+            questionTypeDropdown: document.getElementById('questionTypeDropdown'),
+            questionSetsList: document.getElementById('questionSetsList'),
+            btnAgregarConjunto: document.getElementById('btnAgregarConjunto'),
+            requirementsGrid: document.getElementById('requirementsGrid'),
+            requirementsEmpty: document.getElementById('requirementsEmpty'),
+            requirementModal: document.getElementById('requirementModal'),
+            requirementForm: document.getElementById('requirementForm'),
+            btnCancelarModal: document.getElementById('btnCancelarModal')
+        };
+
+        let currentDropdownAnchor = null;
+
+        const state = {
+            instructions: '',
+            requirements: [],
+            questionSets: [],
+            activeQuestionSetId: null,
+            lastSaved: null
+        };
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state.instructions = parsed.instructions || '';
+                    state.requirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
+                    state.questionSets = Array.isArray(parsed.questionSets)
+                        ? parsed.questionSets.map(set => ({
+                            id: set.id,
+                            title: set.title || 'Sin nombre',
+                            type: set.type || null,
+                            questionTitle: set.questionTitle || '',
+                            destination: set.destination || ''
+                        }))
+                        : [];
+                    state.activeQuestionSetId = parsed.activeQuestionSetId || null;
+                    state.lastSaved = parsed.lastSaved || null;
+                } else {
+                    state.instructions = consultaDescripcion || consultaObjetivos || '';
+                    state.requirements = [];
+                    state.questionSets = [];
+                    state.activeQuestionSetId = null;
+                    state.lastSaved = null;
+                }
+            } catch (err) {
+                console.warn('No se pudo cargar el estado del workspace:', err);
+            }
+
+            if (state.questionSets.length && !state.questionSets.some(set => set.id === state.activeQuestionSetId)) {
+                state.activeQuestionSetId = state.questionSets[0].id;
+            }
+        }
+
+        function saveState(updateTimestamp = true) {
+            if (updateTimestamp) {
+                state.lastSaved = new Date().toISOString();
+            }
+
+            const payload = {
+                instructions: state.instructions,
+                requirements: state.requirements,
+                questionSets: state.questionSets,
+                activeQuestionSetId: state.activeQuestionSetId,
+                lastSaved: state.lastSaved
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(payload));
+            updateLastSaved();
+        }
+
+        function updateLastSaved() {
+            if (!elements.lastSavedLabel) return;
+
+            if (!state.lastSaved) {
+                elements.lastSavedLabel.textContent = 'Sin guardar';
+                return;
+            }
+            const fecha = new Date(state.lastSaved);
+            elements.lastSavedLabel.textContent = `Guardado ${fecha.toLocaleString()}`;
+        }
+
+        function createQuestionSet(title = 'Nuevo conjunto') {
+            const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `qs-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+            return {
+                id,
+                title,
+                type: null,
+                questionTitle: '',
+                destination: ''
+            };
+        }
+
+        function setActiveQuestionSet(id) {
+            state.activeQuestionSetId = id;
+            renderSidebar();
+            renderQuestionSetsList();
+            saveState(false);
+        }
+
+        function updateQuestionEmptyState() {
+            if (!elements.questionEmptyState) return;
+            if (state.questionSets.length) {
+                elements.questionEmptyState.classList.add('hidden');
+            } else {
+                elements.questionEmptyState.classList.remove('hidden');
+            }
+        }
+
+        function renderQuestionSetCard(item, set, typeLabel) {
+            // If no type selected, show minimal input only
+            if (!set.type) {
+                item.innerHTML = `
+                    <input type="text" id="question-title-${set.id}" class="question-set-inline__input" value="${set.title || ''}" data-id="${set.id}" data-field="title" placeholder="Escribe el nombre del conjunto">
+                    <button type="button" title="Seleccionar tipo" data-action="save" data-id="${set.id}" class="question-set-inline__button">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}" class="question-set-inline__button question-set-inline__button--danger">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                `;
+                return;
+            }
+
+            // Full card when type is selected
+            const questionTitle = set.questionTitle || 'Nueva pregunta de consulta';
+            const destination = set.destination || '';
+
+            const header = `
+                <div class="question-set-card__header">
+                    <div class="question-set-card__meta">
+                        ${typeLabel ? `<div class="question-set-card__type">${typeLabel}</div>` : ''}
+                        <div class="question-set-card__title">${set.title || 'Sin nombre'}</div>
+                    </div>
+                    <div class="question-set-card__header-actions">
+                        <button type="button" title="Editar" data-action="edit" data-id="${set.id}">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                        <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
+                </div>`;
+
+            const summaryField = `
+                <div class="question-set-card__field">
+                    <label class="question-set-card__label" for="question-title-${set.id}">Especificar resumen</label>
+                    <input type="text" id="question-title-${set.id}" class="question-set-card__input" value="${questionTitle}" data-id="${set.id}" data-field="questionTitle" placeholder="Escribe el resumen de la consulta">
+                </div>`;
+
+            let typeSpecificField = '';
+            if (set.type === 'archivo') {
+                typeSpecificField = `
+                    <div class="question-set-card__field">
+                        <label class="question-set-card__label">Carga de archivo</label>
+                        <div class="file-upload-card" data-id="${set.id}">
+                            <div class="file-upload-card__hint">Arrastrar y colocar aquí, o hacer clic para explorar</div>
+                            <div class="file-upload-card__actions">
+                                <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
+                                <a href="#" data-action="copy-cloud">Copiar de Cloud</a>
+                            </div>
+                            ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${destination}</strong></div>` : ''}
+                        </div>
+                    </div>`;
+            } else {
+                typeSpecificField = `
+                    <div class="question-set-card__field">
+                        <div class="file-upload-card__hint" style="text-align:left;padding:0;color:rgba(71,85,105,0.75);">
+                            ${typeLabel ? `${typeLabel}:` : 'Detalle:'} ${questionTitle}
+                        </div>
+                    </div>`;
+            }
+
+            item.innerHTML = `
+                <div class="question-set-card">
+                    ${header}
+                    ${summaryField}
+                    ${typeSpecificField}
+                </div>
+            `;
+        }
+
+        function closeQuestionTypeDropdown() {
+            if (!elements.questionTypeDropdown) return;
+            elements.questionTypeDropdown.classList.add('hidden');
+            elements.questionTypeDropdown.style.display = '';
+            elements.questionTypeDropdown.style.visibility = '';
+            elements.questionTypeDropdown.style.top = '';
+            elements.questionTypeDropdown.style.left = '';
+            currentDropdownAnchor = null;
+        }
+
+        function openQuestionTypeDropdown(anchor) {
+            if (!elements.questionTypeDropdown || !anchor) return;
+
+            elements.questionTypeDropdown.classList.remove('hidden');
+            elements.questionTypeDropdown.style.display = 'flex';
+            elements.questionTypeDropdown.style.visibility = 'hidden';
+
+            requestAnimationFrame(() => {
+                const dropdownRect = elements.questionTypeDropdown.getBoundingClientRect();
+                const anchorRect = anchor.getBoundingClientRect();
+
+                // Position dropdown to the right of the button
+                let left = anchorRect.right + 8 - dropdownRect.width;
+                left = Math.max(16, Math.min(left, window.innerWidth - dropdownRect.width - 16));
+
+                // Center dropdown vertically relative to button
+                let top = anchorRect.top + (anchorRect.height / 2) - (dropdownRect.height / 2);
+                if (top + dropdownRect.height > window.innerHeight - 16) {
+                    top = window.innerHeight - dropdownRect.height - 16;
+                }
+                if (top < 16) {
+                    top = 16;
+                }
+
+                elements.questionTypeDropdown.style.left = `${left}px`;
+                elements.questionTypeDropdown.style.top = `${top}px`;
+                elements.questionTypeDropdown.style.visibility = 'visible';
+                currentDropdownAnchor = anchor;
+            });
+        }
+
+        function renderSidebar() {
+            if (!elements.queriesList) return;
+
+            elements.queriesList.innerHTML = '';
+
+            if (!state.questionSets.length) {
+                return;
+            }
+
+            state.questionSets.forEach((set) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'query-item';
+                if (set.id === state.activeQuestionSetId) {
+                    item.classList.add('active');
+                }
+                item.dataset.id = set.id;
+                const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
+                item.innerHTML = `
+                    <div class="query-item__info">
+                        <span class="query-item__title">${set.title || 'Sin nombre'}</span>
+                        ${typeLabel ? `<span class="query-item__meta">${typeLabel}</span>` : ''}
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                `;
+                elements.queriesList.appendChild(item);
+            });
+        }
+
+        function attachCardListeners(item, set) {
+            // Handle save button for minimal cards
+            const saveButton = item.querySelector('button[data-action="save"]');
+            if (saveButton) {
+                saveButton.addEventListener('click', (event) => {
+                    const id = event.target.dataset.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    const title = currentSet.title?.trim();
+                    if (!title) {
+                        alert('Por favor ingresa un nombre para el conjunto');
+                        return;
+                    }
+
+                    // Open dropdown next to save button
+                    requestAnimationFrame(() => {
+                        const button = item.querySelector('button[data-action="save"]');
+                        if (button) {
+                            openQuestionTypeDropdown(button);
+                        }
+                    });
+                });
+
+                // Add hover effect handled via CSS
+            }
+
+            // Handle edit button for full cards
+            const editButton = item.querySelector('button[data-action="edit"]');
+            if (editButton) {
+                editButton.addEventListener('click', (event) => {
+                    const id = event.target.dataset.id;
+                    setActiveQuestionSet(id);
+                    requestAnimationFrame(() => {
+                        const button = item.querySelector('button[data-action="edit"]');
+                        if (button) {
+                            openQuestionTypeDropdown(button);
+                        }
+                    });
+                });
+            }
+
+            // Handle delete button
+            const deleteButton = item.querySelector('button[data-action="delete"]');
+            if (deleteButton) {
+                deleteButton.addEventListener('click', (event) => {
+                    const id = event.target.dataset.id;
+                    const confirmed = confirm('¿Eliminar este conjunto de preguntas?');
+                    if (!confirmed) return;
+
+                    const index = state.questionSets.findIndex(set => set.id === id);
+                    if (index !== -1) {
+                        state.questionSets.splice(index, 1);
+                        
+                        if (state.activeQuestionSetId === id) {
+                            state.activeQuestionSetId = state.questionSets.length ? state.questionSets[0].id : null;
+                        }
+
+                        renderSidebar();
+                        renderQuestionSetsList();
+                        closeQuestionTypeDropdown();
+                        saveState();
+                    }
+                });
+
+                // Hover effect handled via CSS
+            }
+
+            // Handle input fields
+            const input = item.querySelector('input.question-set-inline__input');
+            if (input) {
+                input.addEventListener('input', (event) => {
+                    const field = event.target.dataset.field;
+                    const id = event.target.dataset.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    currentSet[field] = event.target.value;
+
+                    // Update sidebar for minimal cards
+                    if (field === 'title' && !currentSet.type) {
+                        renderSidebar();
+                    }
+                    // Update questionTitle for full cards
+                    else if (field === 'questionTitle') {
+                        const currentTypeLabel = currentSet.type ? (QUESTION_TYPE_LABELS[currentSet.type] || currentSet.type) : '';
+                        currentSet.title = event.target.value || 'Sin nombre';
+                        renderSidebar();
+                        const titleNode = item.querySelector('.question-set-card__title');
+                        if (titleNode) {
+                            titleNode.textContent = currentSet.title;
+                        }
+                        const hint = item.querySelector('.file-upload-card__hint');
+                        if (hint && currentSet.type !== 'archivo') {
+                            hint.textContent = `${currentTypeLabel ? `${currentTypeLabel}:` : 'Detalle:'} ${currentSet.questionTitle}`;
+                        }
+                    }
+                    saveState();
+                });
+            }
+
+            // Handle destination link
+            const destinationLink = item.querySelector('a[data-action="select-destination"]');
+            if (destinationLink) {
+                destinationLink.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const id = event.target.dataset.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    const destination = prompt('Selecciona o escribe el destino: ', currentSet.destination || '');
+                    if (destination === null) return;
+                    currentSet.destination = destination.trim();
+
+                    saveState();
+                    renderSidebar();
+                    renderQuestionSetsList();
+                });
+            }
+        }
+
+        function renderQuestionSetsList() {
+            if (!elements.questionSetsList) return;
+
+            elements.questionSetsList.innerHTML = '';
+            updateQuestionEmptyState();
+
+            if (!state.questionSets.length) {
+                return;
+            }
+
+            state.questionSets.forEach((set) => {
+                const item = document.createElement('div');
+                item.className = 'question-set-item';
+
+                const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
+
+                renderQuestionSetCard(item, set, typeLabel);
+                attachCardListeners(item, set);
+
+                elements.questionSetsList.appendChild(item);
+            });
+        }
+
+        function renderRequirements() {
+            if (elements.requirementsGrid) {
+                elements.requirementsGrid.innerHTML = '';
+            }
+            if (!state.requirements.length) {
+                if (elements.requirementsEmpty) {
+                    elements.requirementsEmpty.style.display = 'block';
+                }
+                return;
+            }
+
+            if (elements.requirementsEmpty) {
+                elements.requirementsEmpty.style.display = 'none';
+            }
+
+            if (elements.requirementsGrid) {
+                state.requirements.forEach((req, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'requirement-card';
+                    card.innerHTML = `
+                        <div class="requirement-header">
+                            <div>
+                                <div class="requirement-title">${req.titulo}</div>
+                                <div class="requirement-meta">
+                                    ${req.responsable ? `<span><i class="bi bi-person"></i> ${req.responsable}</span>` : ''}
+                                    ${req.fecha ? `<span><i class="bi bi-calendar"></i> Fecha límite: ${req.fecha}</span>` : ''}
+                                    <span><i class="bi bi-flag"></i> Prioridad: ${req.prioridad}</span>
+                                </div>
+                            </div>
+                            <span class="status-chip ${req.completado ? 'status-completed' : ''}">
+                                ${req.completado ? 'Completado' : 'Pendiente'}
+                            </span>
+                        </div>
+                        ${req.descripcion ? `<p>${req.descripcion}</p>` : ''}
+                        <div class="requirement-actions">
+                            <button class="mark-complete" data-action="toggle" data-index="${index}">
+                                ${req.completado ? 'Reabrir' : 'Marcar como completado'}
+                            </button>
+                            <button class="delete-requirement" data-action="delete" data-index="${index}">Eliminar</button>
+                        </div>
+                    `;
+                    elements.requirementsGrid.appendChild(card);
+                });
+            }
+        }
+
+        function openModal() {
+            if (elements.requirementModal) {
+                elements.requirementModal.style.display = 'flex';
+            }
+        }
+
+        function closeModal() {
+            if (elements.requirementModal) {
+                elements.requirementModal.style.display = 'none';
+            }
+            if (elements.requirementForm) {
+                elements.requirementForm.reset();
+            }
+        }
+
+        function handleRequirementFormSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(elements.requirementForm);
+            const requirement = {
+                titulo: formData.get('reqTitulo') || document.getElementById('reqTitulo').value.trim(),
+                descripcion: document.getElementById('reqDescripcion').value.trim(),
+                responsable: document.getElementById('reqResponsable').value.trim(),
+                fecha: document.getElementById('reqFecha').value,
+                prioridad: document.getElementById('reqPrioridad').value,
+                completado: false,
+                creado: new Date().toISOString()
+            };
+
+            if (!requirement.titulo) {
+                alert('El título es obligatorio para crear un requerimiento.');
+                return;
+            }
+
+            state.requirements.push(requirement);
+            saveState();
+            renderRequirements();
+            closeModal();
+        }
+
+        function handleRequirementsActions(event) {
+            const action = event.target.dataset.action;
+            if (!action) return;
+            const index = Number(event.target.dataset.index);
+            if (Number.isNaN(index)) return;
+
+            if (action === 'toggle') {
+                state.requirements[index].completado = !state.requirements[index].completado;
+            }
+
+            if (action === 'delete') {
+                const confirmed = confirm('¿Eliminar este requerimiento?');
+                if (!confirmed) return;
+                state.requirements.splice(index, 1);
+            }
+
+            saveState();
+            renderRequirements();
+        }
+
+        function initInstructions() {
+            if (elements.instructionsInput) {
+                elements.instructionsInput.value = state.instructions || '';
+            }
+            updateLastSaved();
+        }
+
+        function setupEventListeners() {
+            // Debug: Verificar que el botón existe
+            console.log('=== SETUP EVENT LISTENERS ===');
+            console.log('Botón volver encontrado:', document.getElementById('btnVolverConsultas'));
+            
+            // Solo agregar event listeners si los elementos existen
+            if (elements.btnAgregarConjunto) {
+                elements.btnAgregarConjunto.addEventListener('click', () => {
+                    closeQuestionTypeDropdown();
+
+                    const nuevo = createQuestionSet('Nuevo conjunto');
+                    state.questionSets.push(nuevo);
+                    state.activeQuestionSetId = nuevo.id;
+
+                    renderSidebar();
+                    renderQuestionSetsList();
+                    saveState();
+
+                    // Focus on the name input field
+                    requestAnimationFrame(() => {
+                        const input = elements.questionSetsList?.querySelector(`input.question-set-card__input[data-id="${nuevo.id}"]`);
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    });
+                });
+            }
+
+            if (elements.queriesList) {
+                elements.queriesList.addEventListener('click', (event) => {
+                    const button = event.target.closest('button.query-item');
+                    if (!button) return;
+                    const id = button.dataset.id;
+                    if (id) {
+                        closeQuestionTypeDropdown();
+                        setActiveQuestionSet(id);
+                        saveState();
+                    }
+                });
+            }
+
+            
+            if (elements.questionTypeDropdown) {
+                elements.questionTypeDropdown.addEventListener('click', (event) => {
+                    const option = event.target.closest('button[data-type]');
+                    if (!option) return;
+
+                    const activeSet = state.questionSets.find(set => set.id === state.activeQuestionSetId);
+                    if (!activeSet) return;
+
+                    activeSet.type = option.dataset.type;
+                    if (!activeSet.questionTitle) {
+                        activeSet.questionTitle = 'Nueva pregunta de consulta';
+                    }
+                    renderSidebar();
+                    renderQuestionSetsList();
+                    saveState();
+                    closeQuestionTypeDropdown();
+                });
+            }
+
+            document.addEventListener('click', (event) => {
+                const isDropdown = elements.questionTypeDropdown && elements.questionTypeDropdown.contains(event.target);
+                const isAnchor = currentDropdownAnchor && currentDropdownAnchor.contains(event.target);
+                if (!isDropdown && !isAnchor) {
+                    closeQuestionTypeDropdown();
+                }
+            });
+
+            if (elements.btnCancelarModal) {
+                elements.btnCancelarModal.addEventListener('click', closeModal);
+            }
+            if (elements.requirementForm) {
+                elements.requirementForm.addEventListener('submit', handleRequirementFormSubmit);
+            }
+            if (elements.requirementsGrid) {
+                elements.requirementsGrid.addEventListener('click', handleRequirementsActions);
+            }
+
+            if (elements.instructionsInput) {
+                elements.instructionsInput.addEventListener('input', (event) => {
+                    state.instructions = event.target.value;
+                    saveState();
+                });
+            }
+
+            if (elements.requirementModal) {
+                elements.requirementModal.addEventListener('click', (event) => {
+                    if (event.target === elements.requirementModal) {
+                        closeModal();
+                    }
+                });
+            }
+
+            const volverBtn = document.getElementById('btnVolverConsultas');
+            if (!volverBtn) {
+                console.error('ERROR: No se encontró el botón btnVolverConsultas');
+            }
+        }
+
+        function initWorkspace() {
+            console.log('=== INIT WORKSPACE ===');
+            console.log('breadcrumbs element:', elements.breadcrumbs);
+            console.log('consultaNombre:', consultaNombre);
+
+            if (elements.breadcrumbs) {
+                elements.breadcrumbs.textContent = `Consultas / ${consultaNombre}`;
+            } else {
+                console.error('ERROR: No se encontró el elemento breadcrumbs');
+            }
+
+            renderSidebar();
+            renderQuestionSetsList();
+        }
+
+        function init() {
+            loadState();
+            initWorkspace();
+            renderRequirements();
+            initInstructions();
+            setupEventListeners();
+        }
+
+        init();
+    </script>
+</body>
+</html>

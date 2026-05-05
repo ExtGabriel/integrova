@@ -165,6 +165,100 @@
             line-height: 1.3;
         }
         
+        .consulta-blank-card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(30, 58, 138, 0.12);
+            border: 1px solid rgba(30, 58, 138, 0.08);
+            max-width: 520px;
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .consulta-blank-hero {
+            background: linear-gradient(165deg, #f1f6ff 0%, #dbe7ff 60%, #c2d9ff 100%);
+            padding: 28px 32px;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+        
+        .consulta-blank-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+        
+        .consulta-blank-icon {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(30, 58, 138, 0.18);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e3a8a;
+            font-size: 42px;
+            align-self: center;
+            box-shadow: inset 0 6px 18px rgba(30, 58, 138, 0.18);
+        }
+        
+        .consulta-blank-form {
+            padding: 28px 32px 32px;
+            background: #ffffff;
+        }
+        
+        .consulta-blank-form .form-control {
+            border-radius: 10px;
+            border-color: rgba(30, 58, 138, 0.15);
+            background: rgba(248, 250, 255, 0.7);
+        }
+        
+        .consulta-blank-form .form-control:focus {
+            border-color: #5374ff;
+            box-shadow: 0 0 0 3px rgba(83, 116, 255, 0.2);
+        }
+        
+        .consulta-blank-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .consulta-blank-actions .btn-primary {
+            background: linear-gradient(135deg, #1976D2 0%, #42A5F5 100%);
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(25, 118, 210, 0.25);
+        }
+        
+        .consulta-blank-actions .btn-primary:disabled {
+            opacity: 0.6;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        .consulta-blank-actions .btn-secondary {
+            background: transparent;
+            color: #64748b;
+            padding-inline: 0;
+            font-weight: 600;
+            box-shadow: none;
+        }
+        
+        .consulta-blank-actions .btn-secondary:hover {
+            background: transparent;
+            color: #0f172a;
+        }
+        
+        .consulta-blank-required {
+            color: #ef4444;
+            font-size: 0.85rem;
+            margin-left: 4px;
+        }
         
         .modal-nueva-consulta {
             display: none;
@@ -316,401 +410,27 @@
         </div>
         
         <div class="consultas-grid">
-            <!-- Propiedad, planta y equipo -->
-            <div class="consulta-card" onclick="openConsultaForm('1.101QT', 'Propiedad, planta y equipo', 'propiedad-planta-equipo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-building"></i>
+            <div class="consulta-blank-card">
+                <div class="consulta-blank-hero">
+                    <span class="consulta-blank-title">Consulta en blanco</span>
+                    <div class="consulta-blank-icon">
+                        <i class="bi bi-check-lg"></i>
                     </div>
-                    <h3 class="consulta-title">Propiedad, planta y equipo</h3>
                 </div>
-            </div>
-            
-            <!-- Intangibles y fondo de comercio -->
-            <div class="consulta-card" onclick="openConsultaForm('10.101QT', 'Intangibles y fondo de comercio', 'intangibles-fondo-comercio')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-lightbulb"></i>
+                <form id="inlineNuevaConsultaForm" class="consulta-blank-form">
+                    <div class="form-group">
+                        <label class="form-label" for="inlineConsultaNumero">Número</label>
+                        <input type="text" id="inlineConsultaNumero" class="form-control" placeholder="Ej: 100.101QT" required>
                     </div>
-                    <h3 class="consulta-title">Intangibles y fondo de comercio</h3>
-                </div>
-            </div>
-            
-            <!-- Inventarios -->
-            <div class="consulta-card" onclick="openConsultaForm('110.101QT', 'Inventarios', 'inventarios')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-box-seam"></i>
+                    <div class="form-group">
+                        <label class="form-label" for="inlineConsultaNombre">Nombre <span class="consulta-blank-required">*</span></label>
+                        <input type="text" id="inlineConsultaNombre" class="form-control" placeholder="Ej: Consulta personalizada" required>
                     </div>
-                    <h3 class="consulta-title">Inventarios</h3>
-                </div>
-            </div>
-            
-            <!-- Inversiones -->
-            <div class="consulta-card" onclick="openConsultaForm('120.101QT', 'Inversiones', 'inversiones')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-graph-up-arrow"></i>
+                    <div class="consulta-blank-actions">
+                        <button type="submit" class="btn btn-primary">Crear consulta</button>
+                        <button type="button" class="btn btn-secondary" id="inlineConsultaCancel">Cancelar</button>
                     </div>
-                    <h3 class="consulta-title">Inversiones</h3>
-                </div>
-            </div>
-            
-            <!-- Cuentas por cobrar, comerciales y otras -->
-            <div class="consulta-card" onclick="openConsultaForm('130.101QT', 'Cuentas por cobrar, comerciales y otras', 'cuentas-por-cobrar')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-cash-stack"></i>
-                    </div>
-                    <h3 class="consulta-title">Cuentas por cobrar, comerciales y otras</h3>
-                </div>
-            </div>
-            
-            <!-- Pagos anticipados -->
-            <div class="consulta-card" onclick="openConsultaForm('135.101QT', 'Pagos anticipados', 'pagos-anticipados')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-calendar-check"></i>
-                    </div>
-                    <h3 class="consulta-title">Pagos anticipados</h3>
-                </div>
-            </div>
-            
-            <!-- Efectivo y equivalentes -->
-            <div class="consulta-card" onclick="openConsultaForm('140.101QT', 'Efectivo y equivalentes de efectivo', 'efectivo-equivalentes')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-cash"></i>
-                    </div>
-                    <h3 class="consulta-title">Efectivo y equivalentes de efectivo</h3>
-                </div>
-            </div>
-            
-            <!-- Ingresos -->
-            <div class="consulta-card" onclick="openConsultaForm('1500.101QT', 'Ingresos', 'ingresos')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-graph-up"></i>
-                    </div>
-                    <h3 class="consulta-title">Ingresos</h3>
-                </div>
-            </div>
-            
-            <!-- Costo de ventas -->
-            <div class="consulta-card" onclick="openConsultaForm('1600.101QT', 'Costo de ventas', 'costo-ventas')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-cart"></i>
-                    </div>
-                    <h3 class="consulta-title">Costo de ventas</h3>
-                </div>
-            </div>
-            
-            <!-- Nómina y otros gastos -->
-            <div class="consulta-card" onclick="openConsultaForm('1600.105QT', 'Nómina y otros gastos', 'nomina-otros-gastos')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-people"></i>
-                    </div>
-                    <h3 class="consulta-title">Nómina y otros gastos</h3>
-                </div>
-            </div>
-            
-            <!-- Otros ingresos -->
-            <div class="consulta-card" onclick="openConsultaForm('1700.101QT', 'Otros ingresos', 'otros-ingresos')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-plus-circle"></i>
-                    </div>
-                    <h3 class="consulta-title">Otros ingresos</h3>
-                </div>
-            </div>
-            
-            <!-- Otros gastos -->
-            <div class="consulta-card" onclick="openConsultaForm('1800.101QT', 'Otros gastos', 'otros-gastos')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-receipt"></i>
-                    </div>
-                    <h3 class="consulta-title">Otros gastos</h3>
-                </div>
-            </div>
-            
-            <!-- Inversiones a largo plazo -->
-            <div class="consulta-card" onclick="openConsultaForm('20.101QT', 'Inversiones a largo plazo', 'inversiones-largo-plazo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </div>
-                    <h3 class="consulta-title">Inversiones a largo plazo</h3>
-                </div>
-            </div>
-            
-            <!-- Capital (Corporativo) -->
-            <div class="consulta-card" onclick="openConsultaForm('200.101QT', 'Capital (Corporativo)', 'capital-corporativo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-bank"></i>
-                    </div>
-                    <h3 class="consulta-title">Capital (Corporativo)</h3>
-                </div>
-            </div>
-            
-            <!-- Deuda a largo plazo -->
-            <div class="consulta-card" onclick="openConsultaForm('300.101QT', 'Deuda a largo plazo', 'deuda-largo-plazo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-file-text"></i>
-                    </div>
-                    <h3 class="consulta-title">Deuda a largo plazo</h3>
-                </div>
-            </div>
-            
-            <!-- Impuestos sobre la renta -->
-            <div class="consulta-card" onclick="openConsultaForm('325.101QT', 'Impuestos sobre la renta', 'impuestos-renta')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-calculator"></i>
-                    </div>
-                    <h3 class="consulta-title">Impuestos sobre la renta</h3>
-                </div>
-            </div>
-            
-            <!-- Préstamos y anticipos por pagar -->
-            <div class="consulta-card" onclick="openConsultaForm('330.101QT', 'Préstamos y anticipos por pagar', 'prestamos-anticipos-pagar')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-cash-stack"></i>
-                    </div>
-                    <h3 class="consulta-title">Préstamos y anticipos por pagar</h3>
-                </div>
-            </div>
-            
-            <!-- Subsidios del gobierno -->
-            <div class="consulta-card" onclick="openConsultaForm('335.101QT', 'Subsidios del gobierno', 'subsidios-gobierno')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <h3 class="consulta-title">Subsidios del gobierno</h3>
-                </div>
-            </div>
-            
-            <!-- Arrendamientos para arrendatarios -->
-            <div class="consulta-card" onclick="openConsultaForm('340.101QT', 'Arrendamientos para arrendatarios', 'arrendamientos-arrendatarios')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-house"></i>
-                    </div>
-                    <h3 class="consulta-title">Arrendamientos para arrendatarios</h3>
-                </div>
-            </div>
-            
-            <!-- Préstamos y anticipos por cobrar -->
-            <div class="consulta-card" onclick="openConsultaForm('35.101QT', 'Préstamos y anticipos por cobrar', 'prestamos-anticipos-cobrar')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-cash-coin"></i>
-                    </div>
-                    <h3 class="consulta-title">Préstamos y anticipos por cobrar</h3>
-                </div>
-            </div>
-            
-            <!-- Activos agrícolas -->
-            <div class="consulta-card" onclick="openConsultaForm('40.101QT', 'Activos agrícolas', 'activos-agricolas')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-tree"></i>
-                    </div>
-                    <h3 class="consulta-title">Activos agrícolas</h3>
-                </div>
-            </div>
-            
-            <!-- Propiedad para inversión -->
-            <div class="consulta-card" onclick="openConsultaForm('5.101QT', 'Propiedad para inversión', 'propiedad-inversion')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-house-gear"></i>
-                    </div>
-                    <h3 class="consulta-title">Propiedad para inversión</h3>
-                </div>
-            </div>
-            
-            <!-- Documentos por pagar y deuda bancaria -->
-            <div class="consulta-card" onclick="openConsultaForm('400.101QT', 'Documentos por pagar y deuda bancaria', 'documentos-pagar-deuda-bancaria')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </div>
-                    <h3 class="consulta-title">Documentos por pagar y deuda bancaria</h3>
-                </div>
-            </div>
-            
-            <!-- Cuentas por pagar y pasivos devengados -->
-            <div class="consulta-card" onclick="openConsultaForm('425.101QT', 'Cuentas por pagar y pasivos devengados', 'cuentas-pagar-pasivos-devengados')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-clipboard-check"></i>
-                    </div>
-                    <h3 class="consulta-title">Cuentas por pagar y pasivos devengados</h3>
-                </div>
-            </div>
-            
-            <!-- Endeudamiento bancario -->
-            <div class="consulta-card" onclick="openConsultaForm('430.101QT', 'Endeudamiento bancario', 'endeudamiento-bancario')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-bank2"></i>
-                    </div>
-                    <h3 class="consulta-title">Endeudamiento bancario</h3>
-                </div>
-            </div>
-            
-            <!-- Solicitud - Carta de compromiso -->
-            <div class="consulta-card" onclick="openConsultaForm('A200QT', 'Solicitud - Carta de compromiso', 'carta-compromiso')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-envelope-check"></i>
-                    </div>
-                    <h3 class="consulta-title">Solicitud - Carta de compromiso</h3>
-                </div>
-            </div>
-            
-            <!-- Otras consultas existentes -->
-            <div class="consulta-card" onclick="openConsultaForm('B100QT', 'Conocimiento del negocio y del sector', 'conocimiento-negocio')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <h3 class="consulta-title">Conocimiento del negocio y del sector</h3>
-                </div>
-            </div>
-            
-            <div class="consulta-card" onclick="openConsultaForm('B200QT', 'Comprensión de la entidad y su entorno', 'comprension-entidad')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-globe"></i>
-                    </div>
-                    <h3 class="consulta-title">Comprensión de la entidad y su entorno</h3>
-                </div>
-            </div>
-            
-            <div class="consulta-card" onclick="openConsultaForm('B300QT', 'Evaluación del riesgo de incorrección material', 'evaluacion-riesgo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-shield-exclamation"></i>
-                    </div>
-                    <h3 class="consulta-title">Evaluación del riesgo de incorrección material</h3>
-                </div>
-            </div>
-            
-            <div class="consulta-card" onclick="openConsultaForm('B400QT', 'Respuesta al riesgo de auditoría', 'respuesta-riesgo')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-lightbulb"></i>
-                    </div>
-                    <h3 class="consulta-title">Respuesta al riesgo de auditoría</h3>
-                </div>
-            </div>
-            
-            <!-- Solicitud – Carta al contador predecesor -->
-            <div class="consulta-card" onclick="openConsultaForm('A210QT', 'Solicitud – Carta al contador predecesor', 'carta-contador-predecesor')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-envelope-arrow-up"></i>
-                    </div>
-                    <h3 class="consulta-title">Solicitud – Carta al contador predecesor</h3>
-                </div>
-            </div>
-            
-            <!-- Independencia de la firma del experto contratado -->
-            <div class="consulta-card" onclick="openConsultaForm('A325QT', 'Independencia de la firma del experto contratado', 'independencia-firma-experto')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <h3 class="consulta-title">Independencia de la firma del experto contratado</h3>
-                </div>
-            </div>
-            
-            <!-- Carta de planificación de auditoría -->
-            <div class="consulta-card" onclick="openConsultaForm('A340QT', 'Carta de planificación de auditoría', 'carta-planificacion-auditoria')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-clipboard-check"></i>
-                    </div>
-                    <h3 class="consulta-title">Carta de planificación de auditoría</h3>
-                </div>
-            </div>
-            
-            <!-- Solicitud de información general del cliente -->
-            <div class="consulta-card" onclick="openConsultaForm('A345QT', 'Solicitud de información general del cliente', 'informacion-general-cliente')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </div>
-                    <h3 class="consulta-title">Solicitud de información general del cliente</h3>
-                </div>
-            </div>
-            
-            <!-- Descripción general de la entidad -->
-            <div class="consulta-card" onclick="openConsultaForm('B200QT', 'Descripción general de la entidad', 'descripcion-general-entidad')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <h3 class="consulta-title">Descripción general de la entidad</h3>
-                </div>
-            </div>
-            
-            <!-- Comprensión de los componentes del sistema de control interno -->
-            <div class="consulta-card" onclick="openConsultaForm('B300QT', 'Comprensión de los componentes del sistema de control interno', 'componentes-control-interno')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-gear"></i>
-                    </div>
-                    <h3 class="consulta-title">Comprensión de los componentes del sistema de control interno</h3>
-                </div>
-            </div>
-            
-            <!-- Propiedad, planta y equipo -->
-            <div class="consulta-card" onclick="openConsultaForm('C105QT', 'Propiedad, planta y equipo', 'propiedad-planta-equipo-detalles')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-hammer"></i>
-                    </div>
-                    <h3 class="consulta-title">Propiedad, planta y equipo</h3>
-                </div>
-            </div>
-            
-            <!-- Consultas para los entregables del cliente -->
-            <div class="consulta-card" onclick="openConsultaForm('D500QT', 'Consultas para los entregables del cliente', 'entregables-cliente')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-box-seam"></i>
-                    </div>
-                    <h3 class="consulta-title">Consultas para los entregables del cliente</h3>
-                </div>
-            </div>
-            
-            <!-- Solicitud – Carta de representación de la Administración -->
-            <div class="consulta-card" onclick="openConsultaForm('D540QT', 'Solicitud – Carta de representación de la Administración', 'carta-representacion-administracion')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </div>
-                    <h3 class="consulta-title">Solicitud – Carta de representación de la Administración</h3>
-                </div>
-            </div>
-            
-            <!-- Solicitud de registros y documentos – Archivo permanente -->
-            <div class="consulta-card" onclick="openConsultaForm('D630QT', 'Solicitud de registros y documentos – Archivo permanente', 'registros-documentos-permanentes')">
-                <div class="consulta-header">
-                    <div class="consulta-icon">
-                        <i class="bi bi-folder-fill"></i>
-                    </div>
-                    <h3 class="consulta-title">Solicitud de registros y documentos – Archivo permanente</h3>
-                </div>
+                </form>
             </div>
         </div>
     </div>
@@ -1461,6 +1181,28 @@ Por favor, desarrolle:
             console.log(`Seleccionando consulta: ${codigo} - ${titulo}`);
         }
         
+        function notifyConsultaCreada(codigo, titulo, extraData = {}) {
+            console.log('Consulta creada:', {
+                codigo,
+                titulo,
+                ...extraData
+            });
+
+            alert(`Consulta "${codigo} - ${titulo}" creada exitosamente.`);
+        }
+
+        function openConsultaWorkspace(numero, nombre, extraData = {}) {
+            const workspaceUrl = new URL('consultas_workspace.html', window.location.href);
+            workspaceUrl.searchParams.set('numero', numero);
+            workspaceUrl.searchParams.set('nombre', nombre);
+
+            if (extraData.tipo) workspaceUrl.searchParams.set('tipo', extraData.tipo);
+            if (extraData.descripcion) workspaceUrl.searchParams.set('descripcion', extraData.descripcion);
+            if (extraData.objetivos) workspaceUrl.searchParams.set('objetivos', extraData.objetivos);
+
+            window.location.href = workspaceUrl.toString();
+        }
+
         // Manejo del formulario de consulta específica
         document.getElementById('consultaForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -1481,7 +1223,8 @@ Por favor, desarrolle:
         });
         
         // Manejo del formulario de nueva consulta
-        document.getElementById('nuevaConsultaForm').addEventListener('submit', function(e) {
+        const nuevaConsultaForm = document.getElementById('nuevaConsultaForm');
+        nuevaConsultaForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
             const codigo = document.getElementById('consultaCodigo').value;
@@ -1491,17 +1234,46 @@ Por favor, desarrolle:
             const objetivos = document.getElementById('consultaObjetivos').value;
             
             // Aquí puedes implementar la lógica para guardar la nueva consulta
-            console.log('Nueva consulta:', {
-                codigo,
-                titulo,
-                tipo,
-                descripcion,
-                objetivos
-            });
-            
-            alert(`Consulta "${codigo} - ${titulo}" creada exitosamente.`);
             closeNuevaConsultaModal();
+            openConsultaWorkspace(codigo, titulo, { tipo, descripcion, objetivos });
         });
+        
+        const inlineNuevaConsultaForm = document.getElementById('inlineNuevaConsultaForm');
+        if (inlineNuevaConsultaForm) {
+            const inlineNumero = document.getElementById('inlineConsultaNumero');
+            const inlineNombre = document.getElementById('inlineConsultaNombre');
+            const inlineSubmit = inlineNuevaConsultaForm.querySelector('button[type="submit"]');
+            const inlineCancel = document.getElementById('inlineConsultaCancel');
+
+            const toggleInlineSubmit = () => {
+                const canSubmit = inlineNumero.value.trim() && inlineNombre.value.trim();
+                inlineSubmit.disabled = !canSubmit;
+            };
+
+            toggleInlineSubmit();
+
+            inlineNumero.addEventListener('input', toggleInlineSubmit);
+            inlineNombre.addEventListener('input', toggleInlineSubmit);
+
+            inlineNuevaConsultaForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const numero = inlineNumero.value.trim();
+                const nombre = inlineNombre.value.trim();
+
+                if (!numero || !nombre) {
+                    toggleInlineSubmit();
+                    return;
+                }
+
+                openConsultaWorkspace(numero, nombre);
+            });
+
+            inlineCancel.addEventListener('click', function() {
+                inlineNuevaConsultaForm.reset();
+                toggleInlineSubmit();
+            });
+        }
         
         // Cerrar modales al hacer clic fuera
         document.getElementById('modalConsultaForm').addEventListener('click', function(e) {
