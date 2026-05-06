@@ -313,6 +313,27 @@
             align-items: center;
             justify-content: space-between;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            scroll-margin-top: 96px;
+        }
+
+        .question-set-item--upload {
+            background: transparent;
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-margin-top: 96px;
+        }
+
+        .question-set-item--active {
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15), 0 0 0 2px rgba(59, 130, 246, 0.35);
+        }
+
+        .question-set-item--upload.question-set-item--active > .question-set-card {
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+            border-color: rgba(59, 130, 246, 0.45);
         }
 
         .question-set-item:hover {
@@ -371,6 +392,66 @@
             gap: 16px;
         }
 
+        .question-set-item:not(.question-set-item--upload) .question-set-card + .question-set-card {
+            margin-top: 14px;
+        }
+
+        .question-set-item--upload {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            cursor: default;
+        }
+
+        .question-set-card--base,
+        .question-set-card--summary,
+        .question-set-card--upload {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .question-set-card--summary {
+            border-style: dashed;
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(248, 250, 252, 0.6);
+        }
+
+        .question-set-card--summary .question-set-card__label {
+            font-size: 0.85rem;
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-card--upload {
+            border-style: dashed;
+            border-width: 1.5px;
+            background: rgba(248, 250, 252, 0.92);
+            box-shadow: none;
+        }
+
+        .question-set-card--upload .question-set-card__label {
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-card--upload .file-upload-card {
+            border-color: rgba(148, 163, 184, 0.4);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .question-set-card--upload .file-upload-card__hint {
+            text-align: center;
+        }
+
         .question-set-card__header {
             display: flex;
             align-items: flex-start;
@@ -395,6 +476,22 @@
             font-size: 1.05rem;
             font-weight: 600;
             color: var(--color-text);
+        }
+
+        .question-set-card__title-input {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-dark);
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .question-set-card__title-input::placeholder {
+            color: rgba(15, 23, 42, 0.4);
         }
 
         .question-set-card__header-actions {
@@ -450,6 +547,20 @@
             outline: none;
         }
 
+        .question-set-card__input--title {
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            background: #ffffff;
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-dark);
+        }
+
+        .question-set-card__textarea {
+            min-height: 110px;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
         .file-upload-card {
             border-radius: 14px;
             border: 1.5px dashed rgba(148, 163, 184, 0.55);
@@ -461,15 +572,136 @@
             color: rgba(71, 85, 105, 0.9);
         }
 
+        .file-upload-card--dragover {
+            border-color: rgba(59, 130, 246, 0.75);
+            background: rgba(191, 219, 254, 0.35);
+        }
+
+        .file-upload-card__input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
         .file-upload-card__hint {
             font-size: 0.95rem;
+            line-height: 1.4;
+            color: rgba(15, 23, 42, 0.6);
             text-align: center;
+            padding: 25px 16px;
+            border-radius: 12px;
+            border: 1.5px dashed rgba(148, 163, 184, 0.55);
+            background: rgba(248, 250, 252, 0.85);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-card__hint:hover {
+            border-color: rgba(59, 130, 246, 0.55);
+            color: rgba(37, 99, 235, 0.9);
+        }
+
+        .file-upload-card__preview {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .file-upload-card__file {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: rgba(15, 23, 42, 0.8);
+        }
+
+        .file-upload-card__file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-width: calc(100% - 32px);
+        }
+
+        .file-upload-card__file-name {
+            flex: 1;
+            margin-right: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-upload-card__file-size {
+            font-size: 0.8rem;
+            color: rgba(71, 85, 105, 0.7);
+        }
+
+        .file-upload-card__file-remove {
+            border: none;
+            background: transparent;
+            color: rgba(148, 163, 184, 0.9);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .file-upload-card__file-remove:hover {
+            color: rgba(239, 68, 68, 0.95);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .file-upload-card__file-remove i {
+            pointer-events: none;
+        }
+
+        .file-upload-card__clear {
+            color: rgba(59, 130, 246, 0.95);
+            display: none;
+        }
+
+        .file-upload-card__clear:hover {
+            color: rgba(37, 99, 235, 1);
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-track {
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 3px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 3px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.6);
         }
 
         .file-upload-card__actions {
             display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
+            justify-content: center;
+            gap: 18px;
+            font-size: 0.9rem;
         }
 
         .file-upload-card__actions a {
@@ -996,7 +1228,6 @@
                     <h2><i class="bi bi-journal-text"></i> Instrucciones</h2>
                 </div>
                 <textarea id="instructionsInput" placeholder="Escribe instrucciones para ayudar a los contactos asignados"></textarea>
-                <div class="last-saved-hint" id="lastSavedLabel">Sin guardar</div>
             </section>
 
             <div class="question-type-dropdown hidden" id="questionTypeDropdown">
@@ -1056,7 +1287,7 @@
     </div>
 
     <footer>
-        Workspace de consultas · CFE Insight · Prototipo interactivo
+        © 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.
     </footer>
 
     <script>
@@ -1104,6 +1335,34 @@
             lastSaved: null
         };
 
+        const runtimeUploads = new Map();
+
+        function escapeHtml(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
+            const replacements = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            };
+            return value.replace(/[&<>"']/g, (char) => replacements[char] || char);
+        }
+
+        function formatFileSize(size) {
+            const numericSize = typeof size === 'number' ? size : parseFloat(size);
+            if (!Number.isFinite(numericSize) || numericSize <= 0) {
+                return '';
+            }
+            const sizeKb = numericSize / 1024;
+            if (sizeKb >= 1024) {
+                return `${(sizeKb / 1024).toFixed(1)} MB`;
+            }
+            return `${Math.max(1, Math.round(sizeKb))} KB`;
+        }
+
         function loadState() {
             try {
                 const saved = localStorage.getItem(storageKey);
@@ -1117,7 +1376,10 @@
                             title: set.title || 'Sin nombre',
                             type: set.type || null,
                             questionTitle: set.questionTitle || '',
-                            destination: set.destination || ''
+                            questionDetails: set.questionDetails || '',
+                            destination: set.destination || '',
+                            uploadedFiles: Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [],
+                            createdFromSidebar: typeof set.createdFromSidebar === 'boolean' ? set.createdFromSidebar : true
                         }))
                         : [];
                     state.activeQuestionSetId = parsed.activeQuestionSetId || null;
@@ -1176,7 +1438,10 @@
                 title,
                 type: null,
                 questionTitle: '',
-                destination: ''
+                questionDetails: '',
+                destination: '',
+                uploadedFiles: [],
+                createdFromSidebar: true
             };
         }
 
@@ -1184,6 +1449,17 @@
             state.activeQuestionSetId = id;
             renderSidebar();
             renderQuestionSetsList();
+
+            requestAnimationFrame(() => {
+                const selectorId = (typeof CSS !== 'undefined' && typeof CSS.escape === 'function')
+                    ? CSS.escape(id)
+                    : String(id).replace(/"/g, '\\"');
+                const card = elements.questionSetsList?.querySelector(`[data-question-set-id="${selectorId}"]`);
+                if (card && typeof card.scrollIntoView === 'function') {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+
             saveState(false);
         }
 
@@ -1212,61 +1488,131 @@
             }
 
             // Full card when type is selected
-            const questionTitle = set.questionTitle || 'Nueva pregunta de consulta';
+            const displayTitle = set.title || 'Sin nombre';
+            const questionTitleValue = set.questionTitle || '';
+            const questionDetailsValue = set.questionDetails || '';
             const destination = set.destination || '';
+            const uploadedFiles = Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [];
 
-            const header = `
-                <div class="question-set-card__header">
-                    <div class="question-set-card__meta">
-                        ${typeLabel ? `<div class="question-set-card__type">${typeLabel}</div>` : ''}
-                        <div class="question-set-card__title">${set.title || 'Sin nombre'}</div>
-                    </div>
-                    <div class="question-set-card__header-actions">
-                        <button type="button" title="Editar" data-action="edit" data-id="${set.id}">
-                            <i class="bi bi-plus"></i>
+            const safeDisplayTitle = escapeHtml(displayTitle);
+            const safeQuestionTitleValue = escapeHtml(questionTitleValue);
+            const questionTitleDisplay = questionTitleValue || 'Nueva pregunta de consulta';
+            const safeQuestionTitleDisplay = escapeHtml(questionTitleDisplay);
+            const safeQuestionDetailsValue = escapeHtml(questionDetailsValue);
+            const safeDestination = escapeHtml(destination);
+            const filesPreviewHtml = uploadedFiles.length
+                ? uploadedFiles.map(file => {
+                    const nameValue = typeof file?.name === 'string' ? file.name : 'Archivo';
+                    const safeName = escapeHtml(nameValue);
+                    const formattedSize = formatFileSize(file.size);
+                    const encodedName = encodeURIComponent(nameValue);
+                    return `<div class="file-upload-card__file" data-file="${encodedName}">
+                        <div class="file-upload-card__file-info">
+                            <span class="file-upload-card__file-name">${safeName}</span>
+                            ${formattedSize ? `<span class="file-upload-card__file-size">${formattedSize}</span>` : ''}
+                        </div>
+                        <button type="button" class="file-upload-card__file-remove" data-action="remove-file" data-file="${encodedName}" title="Eliminar archivo">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>
                         </button>
-                        <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}">
-                            <i class="bi bi-trash3"></i>
-                        </button>
-                    </div>
-                </div>`;
+                    </div>`;
+                }).join('')
+                : '';
 
-            const summaryField = `
-                <div class="question-set-card__field">
-                    <label class="question-set-card__label" for="question-title-${set.id}">Especificar resumen</label>
-                    <input type="text" id="question-title-${set.id}" class="question-set-card__input" value="${questionTitle}" data-id="${set.id}" data-field="questionTitle" placeholder="Escribe el resumen de la consulta">
-                </div>`;
+            let header = '';
+            if (set.createdFromSidebar) {
+                header = `
+                    <div class="question-set-card question-set-card--base">
+                        <div class="question-set-card__header">
+                            <div class="question-set-card__meta">
+                                <input type="text" id="info-general-${set.id}" class="question-set-card__title-input" value="${safeDisplayTitle}" data-id="${set.id}" data-field="title" placeholder="Información general">
+                            </div>
+                            <div class="question-set-card__header-actions">
+                                <button type="button" title="Editar" data-action="edit" data-id="${set.id}">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            let summaryField = '';
+            if (set.type === 'archivo') {
+                summaryField = `
+                    <div class="question-set-card__field">
+                        <input type="text" id="question-title-${set.id}" class="question-set-card__input question-set-card__input--title" value="${safeQuestionTitleValue}" data-id="${set.id}" data-field="questionTitle" placeholder="Nueva pregunta de consulta">
+                    </div>
+                    <div class="question-set-card__field">
+                        <textarea id="question-details-${set.id}" class="question-set-card__input question-set-card__textarea" data-id="${set.id}" data-field="questionDetails" placeholder="Describe qué información se debe entregar">${safeQuestionDetailsValue}</textarea>
+                    </div>`;
+            } else {
+                summaryField = `
+                    <div class="question-set-card__field">
+                        <input type="text" id="question-title-${set.id}" class="question-set-card__input" value="${safeQuestionTitleValue}" data-id="${set.id}" data-field="questionTitle" placeholder="Escribe el resumen de la consulta">
+                    </div>`;
+            }
 
             let typeSpecificField = '';
             if (set.type === 'archivo') {
                 typeSpecificField = `
-                    <div class="question-set-card__field">
-                        <label class="question-set-card__label">Carga de archivo</label>
-                        <div class="file-upload-card" data-id="${set.id}">
-                            <div class="file-upload-card__hint">Arrastrar y colocar aquí, o hacer clic para explorar</div>
-                            <div class="file-upload-card__actions">
-                                <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
-                                <a href="#" data-action="copy-cloud">Copiar de Cloud</a>
+                    <div class="question-set-card question-set-card--upload">
+                        <div class="question-set-card__field" style="gap:12px;">
+                            <label class="question-set-card__label">Carga de archivo</label>
+                            <div class="file-upload-card" data-id="${set.id}">
+                                <input type="file" id="file-input-${set.id}" class="file-upload-card__input" data-id="${set.id}" data-action="file-input" multiple accept="*/*">
+                                <div class="file-upload-card__hint" data-action="trigger-upload">Arrastrar y colocar aquí, o hacer clic para explorar</div>
+                                <div class="file-upload-card__preview" data-role="file-preview">${filesPreviewHtml}</div>
+                                <div class="file-upload-card__actions">
+                                    <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
+                                    <a href="#" data-id="${set.id}" data-action="clear-files" class="file-upload-card__clear" style="display:${uploadedFiles.length ? 'inline-flex' : 'none'};">Limpiar archivos</a>
+                                </div>
+                                ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${safeDestination}</strong></div>` : ''}
                             </div>
-                            ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${destination}</strong></div>` : ''}
                         </div>
                     </div>`;
             } else {
                 typeSpecificField = `
                     <div class="question-set-card__field">
                         <div class="file-upload-card__hint" style="text-align:left;padding:0;color:rgba(71,85,105,0.75);">
-                            ${typeLabel ? `${typeLabel}:` : 'Detalle:'} ${questionTitle}
+                            ${typeLabel ? `${typeLabel}:` : 'Detalle:'} ${safeQuestionTitleDisplay}
                         </div>
                     </div>`;
             }
 
-            item.innerHTML = `
-                <div class="question-set-card">
+            if (set.type === 'archivo') {
+                item.innerHTML = `
                     ${header}
-                    ${summaryField}
-                    ${typeSpecificField}
-                </div>
-            `;
+                    <div class="question-set-card question-set-card--combined">
+                        ${summaryField}
+                        <div class="question-set-card__field" style="gap:12px;">
+                            <label class="question-set-card__label">Carga de archivo</label>
+                            <div class="file-upload-card" data-id="${set.id}">
+                                <input type="file" id="file-input-${set.id}" class="file-upload-card__input" data-id="${set.id}" data-action="file-input" multiple accept="*/*">
+                                <div class="file-upload-card__hint" data-action="trigger-upload">Arrastrar y colocar aquí, o hacer clic para explorar</div>
+                                <div class="file-upload-card__preview" data-role="file-preview">${filesPreviewHtml}</div>
+                                <div class="file-upload-card__actions">
+                                    <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
+                                    <a href="#" data-id="${set.id}" data-action="clear-files" class="file-upload-card__clear" style="display:${uploadedFiles.length ? 'inline-flex' : 'none'};">Limpiar archivos</a>
+                                </div>
+                                ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${safeDestination}</strong></div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                item.classList.add('question-set-item--upload');
+                item.classList.remove('question-set-item');
+            } else {
+                item.innerHTML = `
+                    <div class="question-set-card">
+                        ${header}
+                        ${summaryField}
+                        ${typeSpecificField}
+                    </div>
+                `;
+                item.classList.remove('question-set-item--upload');
+            }
         }
 
         function closeQuestionTypeDropdown() {
@@ -1328,10 +1674,12 @@
                 }
                 item.dataset.id = set.id;
                 const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
+                const safeTitle = escapeHtml(set.title || 'Sin nombre');
+                const safeTypeLabel = escapeHtml(typeLabel || '');
                 item.innerHTML = `
                     <div class="query-item__info">
-                        <span class="query-item__title">${set.title || 'Sin nombre'}</span>
-                        ${typeLabel ? `<span class="query-item__meta">${typeLabel}</span>` : ''}
+                        <span class="query-item__title">${safeTitle}</span>
+                        ${safeTypeLabel ? `<span class="query-item__meta">${safeTypeLabel}</span>` : ''}
                     </div>
                     <i class="bi bi-chevron-right"></i>
                 `;
@@ -1344,7 +1692,8 @@
             const saveButton = item.querySelector('button[data-action="save"]');
             if (saveButton) {
                 saveButton.addEventListener('click', (event) => {
-                    const id = event.target.dataset.id;
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
                     const currentSet = state.questionSets.find(s => s.id === id);
                     if (!currentSet) return;
 
@@ -1356,7 +1705,6 @@
 
                     // Open dropdown next to save button
                     requestAnimationFrame(() => {
-                        const button = item.querySelector('button[data-action="save"]');
                         if (button) {
                             openQuestionTypeDropdown(button);
                         }
@@ -1370,10 +1718,10 @@
             const editButton = item.querySelector('button[data-action="edit"]');
             if (editButton) {
                 editButton.addEventListener('click', (event) => {
-                    const id = event.target.dataset.id;
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
                     setActiveQuestionSet(id);
                     requestAnimationFrame(() => {
-                        const button = item.querySelector('button[data-action="edit"]');
                         if (button) {
                             openQuestionTypeDropdown(button);
                         }
@@ -1385,14 +1733,16 @@
             const deleteButton = item.querySelector('button[data-action="delete"]');
             if (deleteButton) {
                 deleteButton.addEventListener('click', (event) => {
-                    const id = event.target.dataset.id;
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
                     const confirmed = confirm('¿Eliminar este conjunto de preguntas?');
                     if (!confirmed) return;
 
                     const index = state.questionSets.findIndex(set => set.id === id);
                     if (index !== -1) {
                         state.questionSets.splice(index, 1);
-                        
+                        runtimeUploads.delete(id);
+
                         if (state.activeQuestionSetId === id) {
                             state.activeQuestionSetId = state.questionSets.length ? state.questionSets[0].id : null;
                         }
@@ -1407,10 +1757,10 @@
                 // Hover effect handled via CSS
             }
 
-            // Handle input fields
-            const input = item.querySelector('input.question-set-inline__input');
-            if (input) {
-                input.addEventListener('input', (event) => {
+            // Handle input field for minimal cards (without type yet)
+            const inlineInput = item.querySelector('input.question-set-inline__input');
+            if (inlineInput) {
+                inlineInput.addEventListener('input', (event) => {
                     const field = event.target.dataset.field;
                     const id = event.target.dataset.id;
                     const currentSet = state.questionSets.find(s => s.id === id);
@@ -1418,26 +1768,274 @@
 
                     currentSet[field] = event.target.value;
 
-                    // Update sidebar for minimal cards
-                    if (field === 'title' && !currentSet.type) {
+                    if (field === 'title') {
                         renderSidebar();
-                    }
-                    // Update questionTitle for full cards
-                    else if (field === 'questionTitle') {
-                        const currentTypeLabel = currentSet.type ? (QUESTION_TYPE_LABELS[currentSet.type] || currentSet.type) : '';
-                        currentSet.title = event.target.value || 'Sin nombre';
-                        renderSidebar();
-                        const titleNode = item.querySelector('.question-set-card__title');
-                        if (titleNode) {
-                            titleNode.textContent = currentSet.title;
-                        }
-                        const hint = item.querySelector('.file-upload-card__hint');
-                        if (hint && currentSet.type !== 'archivo') {
-                            hint.textContent = `${currentTypeLabel ? `${currentTypeLabel}:` : 'Detalle:'} ${currentSet.questionTitle}`;
-                        }
                     }
                     saveState();
                 });
+            }
+
+            // Handle inputs and textareas for full cards
+            const cardFields = item.querySelectorAll('.question-set-card__input[data-field], .question-set-card__textarea[data-field]');
+            if (cardFields.length) {
+                cardFields.forEach((fieldEl) => {
+                    const eventName = fieldEl.tagName === 'SELECT' ? 'change' : 'input';
+                    fieldEl.addEventListener(eventName, (event) => {
+                        const field = event.target.dataset.field;
+                        const id = event.target.dataset.id;
+                        if (!field || !id) return;
+
+                        const currentSet = state.questionSets.find(s => s.id === id);
+                        if (!currentSet) return;
+
+                        currentSet[field] = event.target.value;
+
+                        if (field === 'title') {
+                            renderSidebar();
+                            // Wait for DOM to update, then restore input value
+                            requestAnimationFrame(() => {
+                                const titleNode = item.querySelector('.question-set-card__title-input');
+                                if (titleNode) {
+                                    titleNode.value = currentSet.title || '';
+                                }
+                            });
+                        }
+
+                        if (field === 'questionTitle') {
+                            const newQuestionTitle = event.target.value || '';
+
+                            if ((currentSet.type && currentSet.type !== 'archivo') || !currentSet.createdFromSidebar) {
+                                currentSet.title = newQuestionTitle || 'Sin nombre';
+                                renderSidebar();
+                                const titleNode = item.querySelector('.question-set-card__title');
+                                if (titleNode) {
+                                    titleNode.textContent = currentSet.title;
+                                }
+                            }
+
+                            const hint = item.querySelector('.file-upload-card__hint');
+                            if (hint) {
+                                const currentTypeLabel = currentSet.type ? (QUESTION_TYPE_LABELS[currentSet.type] || currentSet.type) : '';
+                                const displayTitle = newQuestionTitle || 'Detalle de consulta';
+                                hint.textContent = `${currentTypeLabel ? `${currentTypeLabel}:` : 'Detalle:'} ${displayTitle}`;
+                            }
+                        }
+
+                        saveState();
+                    });
+                });
+            }
+
+            // Handle file upload interactions
+            const fileCard = item.querySelector('.file-upload-card');
+            if (fileCard) {
+                const fileInput = fileCard.querySelector('input[type="file"][data-action="file-input"]');
+                const hint = fileCard.querySelector('[data-action="trigger-upload"]');
+                const preview = fileCard.querySelector('[data-role="file-preview"]');
+                const clearLink = fileCard.querySelector('a[data-action="clear-files"]');
+
+                const renderPreview = (entries) => {
+                    if (!preview || !clearLink) return;
+                    const descriptors = Array.from(entries || []).map((entry) => {
+                        if (!entry) return null;
+                        const name = typeof entry.name === 'string' ? entry.name : 'Archivo';
+                        const size = typeof entry.size === 'number' ? entry.size : parseFloat(entry.size) || 0;
+                        return {
+                            name,
+                            size: Number.isFinite(size) ? size : 0
+                        };
+                    }).filter(Boolean);
+
+                    if (!descriptors.length) {
+                        preview.innerHTML = '';
+                        preview.style.display = 'none';
+                        clearLink.style.display = 'none';
+                        return;
+                    }
+
+                    preview.innerHTML = descriptors.map((file) => {
+                        const displaySize = formatFileSize(file.size);
+                        const encodedName = encodeURIComponent(file.name);
+                        return `<div class="file-upload-card__file" data-file="${encodedName}">
+                            <div class="file-upload-card__file-info">
+                                <span class="file-upload-card__file-name">${escapeHtml(file.name)}</span>
+                                ${displaySize ? `<span class="file-upload-card__file-size">${displaySize}</span>` : ''}
+                            </div>
+                            <button type="button" class="file-upload-card__file-remove" data-action="remove-file" data-file="${encodedName}" title="Eliminar archivo">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                        </div>`;
+                    }).join('');
+                    preview.style.display = 'flex';
+                    clearLink.style.display = 'inline-flex';
+                };
+
+                const persistFiles = (filesArray) => {
+                    if (!set) return;
+                    
+                    // Get existing files
+                    const existingFiles = runtimeUploads.get(set.id) || [];
+                    const existingDescriptors = set.uploadedFiles || [];
+                    
+                    // Combine new files with existing ones (avoid duplicates by name)
+                    const newFiles = Array.from(filesArray || []);
+                    const combinedFiles = [...existingFiles];
+                    const combinedDescriptors = [...existingDescriptors];
+                    
+                    newFiles.forEach((newFile) => {
+                        // Check if file with same name already exists
+                        const existingIndex = combinedFiles.findIndex(f => f.name === newFile.name);
+                        if (existingIndex === -1) {
+                            combinedFiles.push(newFile);
+                            combinedDescriptors.push({
+                                name: newFile.name,
+                                size: newFile.size,
+                                type: newFile.type
+                            });
+                        }
+                    });
+
+                    if (combinedFiles.length) {
+                        runtimeUploads.set(set.id, combinedFiles);
+                        set.uploadedFiles = combinedDescriptors;
+                    } else {
+                        runtimeUploads.delete(set.id);
+                        set.uploadedFiles = [];
+                    }
+
+                    renderPreview(combinedDescriptors);
+                    saveState();
+                };
+
+                const handleFilesSelected = (fileList) => {
+                    if (!fileInput) return;
+                    const filesArray = Array.from(fileList || []);
+
+                    // Get existing files and combine with new ones
+                    const existingFiles = runtimeUploads.get(set.id) || [];
+                    const combinedFiles = [...existingFiles];
+                    
+                    filesArray.forEach((newFile) => {
+                        const existingIndex = combinedFiles.findIndex(f => f.name === newFile.name);
+                        if (existingIndex === -1) {
+                            combinedFiles.push(newFile);
+                        }
+                    });
+
+                    // Update input with all files
+                    if (combinedFiles.length && window.DataTransfer && typeof DataTransfer === 'function') {
+                        try {
+                            const dataTransfer = new DataTransfer();
+                            combinedFiles.forEach((file) => dataTransfer.items.add(file));
+                            fileInput.files = dataTransfer.files;
+                        } catch (err) {
+                            console.warn('No se pudo sincronizar el input de archivos:', err);
+                        }
+                    }
+
+                    if (!combinedFiles.length) {
+                        fileInput.value = '';
+                    }
+
+                    persistFiles(combinedFiles);
+                };
+
+                if (fileInput) {
+                    fileInput.addEventListener('change', (event) => {
+                        handleFilesSelected(event.target.files);
+                    });
+                }
+
+                if (hint) {
+                    hint.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (fileInput) {
+                            fileInput.click();
+                        }
+                    });
+
+                    hint.addEventListener('dragover', (event) => {
+                        event.preventDefault();
+                        fileCard.classList.add('file-upload-card--dragover');
+                    });
+
+                    hint.addEventListener('dragleave', () => {
+                        fileCard.classList.remove('file-upload-card--dragover');
+                    });
+
+                    hint.addEventListener('drop', (event) => {
+                        event.preventDefault();
+                        fileCard.classList.remove('file-upload-card--dragover');
+                        const files = event.dataTransfer?.files;
+                        if (files) {
+                            handleFilesSelected(files);
+                        }
+                    });
+                }
+
+                if (clearLink) {
+                    clearLink.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (fileInput) {
+                            handleFilesSelected([]);
+                        }
+                    });
+                }
+
+                if (preview) {
+                    preview.addEventListener('click', (event) => {
+                        const removeButton = event.target.closest('button[data-action="remove-file"]');
+                        if (!removeButton) return;
+                        event.preventDefault();
+
+                        const encodedName = removeButton.dataset.file;
+                        if (!encodedName) return;
+
+                        const fileName = decodeURIComponent(encodedName);
+
+                        const existingFiles = runtimeUploads.get(set.id) || [];
+                        const filteredFiles = existingFiles.filter(file => file.name !== fileName);
+                        const filteredDescriptors = (set.uploadedFiles || []).filter(file => file.name !== fileName);
+
+                        if (filteredFiles.length) {
+                            runtimeUploads.set(set.id, filteredFiles);
+                        } else {
+                            runtimeUploads.delete(set.id);
+                        }
+                        set.uploadedFiles = filteredDescriptors;
+
+                        if (fileInput && window.DataTransfer && typeof DataTransfer === 'function') {
+                            try {
+                                const dataTransfer = new DataTransfer();
+                                filteredFiles.forEach((file) => dataTransfer.items.add(file));
+                                fileInput.files = dataTransfer.files;
+                            } catch (err) {
+                                console.warn('No se pudo sincronizar el input de archivos al eliminar uno:', err);
+                            }
+                        } else if (fileInput && !filteredFiles.length) {
+                            fileInput.value = '';
+                        }
+
+                        renderPreview(filteredDescriptors);
+                        saveState();
+                    });
+                }
+
+                const existingRuntimeFiles = runtimeUploads.get(set.id);
+                if (existingRuntimeFiles && existingRuntimeFiles.length) {
+                    if (fileInput && window.DataTransfer && typeof DataTransfer === 'function') {
+                        try {
+                            const dataTransfer = new DataTransfer();
+                            existingRuntimeFiles.forEach((file) => dataTransfer.items.add(file));
+                            fileInput.files = dataTransfer.files;
+                        } catch (err) {
+                            console.warn('No se pudo restaurar el input de archivos:', err);
+                        }
+                    }
+                    renderPreview(existingRuntimeFiles);
+                } else if (Array.isArray(set.uploadedFiles) && set.uploadedFiles.length) {
+                    renderPreview(set.uploadedFiles);
+                }
             }
 
             // Handle destination link
@@ -1473,11 +2071,18 @@
             state.questionSets.forEach((set) => {
                 const item = document.createElement('div');
                 item.className = 'question-set-item';
+                item.dataset.questionSetId = set.id;
 
                 const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
 
                 renderQuestionSetCard(item, set, typeLabel);
                 attachCardListeners(item, set);
+
+                if (set.id === state.activeQuestionSetId) {
+                    item.classList.add('question-set-item--active');
+                } else {
+                    item.classList.remove('question-set-item--active');
+                }
 
                 elements.questionSetsList.appendChild(item);
             });
@@ -1602,7 +2207,8 @@
             
             // Solo agregar event listeners si los elementos existen
             if (elements.btnAgregarConjunto) {
-                elements.btnAgregarConjunto.addEventListener('click', () => {
+                elements.btnAgregarConjunto.addEventListener('click', (event) => {
+                    const button = event.currentTarget || event.target;
                     closeQuestionTypeDropdown();
 
                     const nuevo = createQuestionSet('Nuevo conjunto');
@@ -1613,12 +2219,17 @@
                     renderQuestionSetsList();
                     saveState();
 
-                    // Focus on the name input field
                     requestAnimationFrame(() => {
-                        const input = elements.questionSetsList?.querySelector(`input.question-set-card__input[data-id="${nuevo.id}"]`);
+                        const input = elements.questionSetsList?.querySelector(`input[data-id="${nuevo.id}"]`);
                         if (input) {
                             input.focus();
                             input.select();
+                        }
+                        const trigger = elements.questionSetsList?.querySelector(`button[data-action="save"][data-id="${nuevo.id}"]`);
+                        if (trigger) {
+                            openQuestionTypeDropdown(trigger);
+                        } else if (button) {
+                            openQuestionTypeDropdown(button);
                         }
                     });
                 });
@@ -1643,13 +2254,28 @@
                     const option = event.target.closest('button[data-type]');
                     if (!option) return;
 
+                    const selectedType = option.dataset.type;
+                    
+                    // Check if we're clicking from the main + button or from an existing question set
                     const activeSet = state.questionSets.find(set => set.id === state.activeQuestionSetId);
-                    if (!activeSet) return;
-
-                    activeSet.type = option.dataset.type;
-                    if (!activeSet.questionTitle) {
-                        activeSet.questionTitle = 'Nueva pregunta de consulta';
+                    
+                    if (activeSet && !activeSet.type) {
+                        // Update existing question set that hasn't been typed yet
+                        activeSet.type = selectedType;
+                        if (!activeSet.questionTitle) {
+                            activeSet.questionTitle = 'Nueva pregunta de consulta';
+                        }
+                    } else {
+                        // Create new question set from card-level + button
+                        const nuevo = createQuestionSet('Nuevo conjunto');
+                        nuevo.createdFromSidebar = false;
+                        nuevo.type = selectedType;
+                        nuevo.questionTitle = 'Nueva pregunta de consulta';
+                        nuevo.title = nuevo.questionTitle;
+                        state.questionSets.push(nuevo);
+                        state.activeQuestionSetId = nuevo.id;
                     }
+                    
                     renderSidebar();
                     renderQuestionSetsList();
                     saveState();
