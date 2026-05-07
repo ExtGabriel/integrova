@@ -1342,6 +1342,12 @@
                 console.error('❌ [Commitments.delete] Excepción:', err.message);
                 return { success: true, data: null };
             }
+        },
+
+        // Mantener compatibilidad con el patrón anterior
+        async getAll() {
+            const result = await this.list();
+            return { success: !result.error, data: result.data };
         }
     };
 

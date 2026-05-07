@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Integrova - Formulario</title>
-    <link rel="icon" href="../assets/logoinsightdorado.png" type="image/x-icon">
+    <link rel="icon" href="../assets/LOGO INTEGROVA.png?v=2" type="image/x-icon">
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
@@ -53,11 +53,154 @@
             margin: 0 !important;
         }
 
+        
         /* Fix for upload buttons - prevent text duplication */
         .file-actions .btn {
             display: flex !important;
             align-items: center !important;
             gap: 8px !important;
+        }
+
+        /* Estilos para la sección de Consultas */
+        .queries-wrapper {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .queries-filters {
+            display: flex;
+            gap: 6px;
+            padding: 16px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .queries-table-header {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 1fr 1.2fr 0.8fr;
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .query-col-title {
+            padding-left: 4px;
+        }
+
+        .query-col-estado,
+        .query-col-progreso,
+        .query-col-citas,
+        .query-col-contactos {
+            text-align: center;
+        }
+
+        .queries-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .no-queries {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .no-queries i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+            opacity: 0.4;
+        }
+
+        .query-item {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr 1fr 1.2fr 0.8fr;
+            padding: 14px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .query-item:hover {
+            background-color: #f8fafc;
+            transform: translateX(2px);
+        }
+
+        .query-item:last-child {
+            border-bottom: none;
+        }
+
+        .query-title {
+            font-weight: 500;
+            color: #1e293b;
+            font-size: 0.9rem;
+            padding-left: 4px;
+            line-height: 1.5;
+        }
+
+        .query-status {
+            text-align: center;
+        }
+
+        .query-status-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #dbeafe;
+            color: #1e40af;
+            white-space: nowrap;
+        }
+
+        .status-abierto .query-status-badge {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-cerrado .query-status-badge {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-reabierto .query-status-badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .query-progreso {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .query-citas {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .query-citas.urgente {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .query-contactos {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -286,10 +429,6 @@
                         <a href="#" class="menu-item" onclick="selectMenuItem(event, 'queries')">
                             <i class="bi bi-question-circle"></i>
                             <span>Consultas</span>
-                        </a>
-                        <a href="#" class="menu-item" onclick="selectMenuItem(event, 'analytics')">
-                            <i class="bi bi-graph-up"></i>
-                            <span>Centro de análisis</span>
                         </a>
                     </nav>
                 </div>
@@ -1700,6 +1839,26 @@
                         <div class="no-issues" id="noIssues">
                             <i class="bi bi-clipboard-check"></i>
                             <p>No hay observaciones pendientes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Section: Consultas -->
+            <div id="queries-content" class="content-section" style="display: none;">
+                <div class="queries-wrapper">
+                                        <div class="queries-table-header">
+                        <span class="query-col-title">Documento de consulta</span>
+                        <span class="query-col-estado">Estado</span>
+                        <span class="query-col-progreso">Progreso</span>
+                        <span class="query-col-citas">Fecha de vencimiento</span>
+                        <span class="query-col-contactos">Contactos</span>
+                    </div>
+                    <div class="queries-list" id="queriesList">
+                        <!-- Las consultas aparecerán aquí -->
+                        <div class="no-queries" id="noQueries">
+                            <i class="bi bi-chat-dots"></i>
+                            <p>No hay consultas registradas</p>
                         </div>
                     </div>
                 </div>
@@ -3384,7 +3543,7 @@
         }
 
         function editObservation(observationId) {
-            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observations = loadStoredObservations();
             const observation = observations.find(obs => obs.id === observationId);
 
             if (!observation) {
@@ -3395,7 +3554,7 @@
             // Si la observación se marcó como resuelta previamente, la reabrimos para edición
             if (observation.status === 'resuelto') {
                 observation.status = 'pendiente';
-                localStorage.setItem('cfe_observations', JSON.stringify(observations));
+                saveStoredObservations(observations);
             }
 
             openObservationModal(observation.formId, observation);
@@ -13183,7 +13342,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 event.stopPropagation();
             }
 
-            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observations = loadStoredObservations();
             const existingObservation = observations.find(obs => obs.formId === formId && obs.status === 'pendiente');
 
             openObservationModal(formId, existingObservation || null);
@@ -13978,6 +14137,88 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         };
 
         // Función para guardar la clasificación de la observación
+        const OBSERVATIONS_STORAGE_KEY_BASE = 'cfe_observations';
+
+        function getCurrentObservationStorageKey() {
+            try {
+                const userId = getCurrentUserId();
+                console.log('🔍 userId extraído con getCurrentUserId():', userId);
+                if (userId) {
+                    const key = `${OBSERVATIONS_STORAGE_KEY_BASE}_${userId}`;
+                    console.log('🔍 Storage key con userId:', key);
+                    return key;
+                }
+            } catch (err) {
+                console.warn('No se pudo obtener el usuario actual para observaciones:', err);
+            }
+            console.log('🔍 Usando storage key base:', OBSERVATIONS_STORAGE_KEY_BASE);
+            return OBSERVATIONS_STORAGE_KEY_BASE;
+        }
+
+        function loadStoredObservations() {
+            try {
+                if (typeof localStorage === 'undefined') {
+                    return [];
+                }
+
+                const storageKey = getCurrentObservationStorageKey();
+                console.log('🔍 Storage key para observaciones:', storageKey);
+                const raw = localStorage.getItem(storageKey);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    console.log('🔍 Raw observaciones parseadas:', parsed);
+                    return Array.isArray(parsed) ? parsed : [];
+                }
+
+                // Migración desde almacenamiento legacy
+                const legacyRaw = localStorage.getItem(OBSERVATIONS_STORAGE_KEY_BASE);
+                if (!legacyRaw) {
+                    return [];
+                }
+
+                const userId = getCurrentUserId();
+                console.log('🔍 userId para migración:', userId);
+                const legacyParsed = JSON.parse(legacyRaw);
+                const migrated = Array.isArray(legacyParsed)
+                    ? legacyParsed
+                        .filter(item => {
+                            // Si no hay userId, solo traer items sin createdBy (legacy)
+                            if (!userId) return !item.createdBy;
+                            // Si hay userId, solo traer items del mismo usuario o sin createdBy
+                            return !item.createdBy || item.createdBy === userId;
+                        })
+                        .map(item => ({
+                            ...item,
+                            createdBy: item.createdBy || userId || 'legacy'
+                        }))
+                    : [];
+
+                localStorage.setItem(storageKey, JSON.stringify(migrated));
+
+                // Si no hay otros usuarios, limpiar clave legacy
+                if (!legacyParsed.some(item => item.createdBy && item.createdBy !== userId)) {
+                    localStorage.removeItem(OBSERVATIONS_STORAGE_KEY_BASE);
+                }
+
+                return migrated;
+            } catch (error) {
+                console.warn('No se pudieron cargar las observaciones guardadas:', error);
+                return [];
+            }
+        }
+
+        function saveStoredObservations(observations) {
+            try {
+                if (typeof localStorage === 'undefined') {
+                    return;
+                }
+                const storageKey = getCurrentObservationStorageKey();
+                localStorage.setItem(storageKey, JSON.stringify(observations));
+            } catch (error) {
+                console.warn('No se pudieron guardar las observaciones:', error);
+            }
+        }
+
         function saveObservationClassification(formId) {
             const classificationValue = document.getElementById('classificationValue').value;
             const observationElement = document.getElementById('observationText');
@@ -13985,24 +14226,33 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const observationText = observationElement ? observationElement.innerText.trim() : '';
             const observationHtml = observationElement ? observationElement.innerHTML : '';
             const observationId = observationIdInput ? observationIdInput.value : '';
-            
+
             if (!classificationValue) {
                 showNotification('Por favor seleccione una clasificación', 'warning');
                 return;
             }
-            
+
             if (!observationText) {
-                showNotification('Por favor ingrese una observación', 'warning');
+                showNotification('Por favor ingrese el detalle de la observación', 'warning');
                 return;
             }
-            
-            // Obtener información del usuario (en producción vendría de la sesión)
+
+            const userProfileFromGetter = (typeof window.getUserUI === 'function') ? window.getUserUI() : null;
+            const currentUserProfile = window.currentUser || userProfileFromGetter || null;
+
+            const currentUserId = currentUserProfile && currentUserProfile.id ? currentUserProfile.id : null;
+            const currentUserName = currentUserProfile
+                ? (currentUserProfile.full_name || currentUserProfile.name || currentUserProfile.email)
+                : null;
+            const currentUserEmail = currentUserProfile && currentUserProfile.email ? currentUserProfile.email : 'usuario@cfeinsight.com';
+
             const currentUser = {
-                name: 'Mariangel Chitay Duarte', // o el usuario actual logueado
-                email: 'usuario@cfeinsight.com'
+                id: currentUserId,
+                name: currentUserName || 'Usuario',
+                email: currentUserEmail
             };
-            
-            let savedObservations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+
+            let savedObservations = loadStoredObservations();
             let message = `Observación del formulario ${formId} guardada como: ${classificationValue}`;
 
             if (observationId) {
@@ -14014,12 +14264,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         html: observationHtml,
                         classification: classificationValue,
                         status: 'pendiente',
+                        createdBy: currentUser.id,
                         user: currentUser.name,
                         updatedAt: new Date().toISOString()
                     };
                     message = `Observación del formulario ${formId} actualizada`;
                 } else {
-                    // Si no se encontró el ID, tratamos como nueva observación
                     savedObservations.push({
                         id: Date.now().toString(),
                         formId,
@@ -14029,37 +14279,35 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         timestamp: new Date().toISOString(),
                         user: currentUser.name,
                         status: 'pendiente',
+                        createdBy: currentUser.id,
                         section: formId
                     });
                 }
             } else {
-                // Crear objeto de observación completa
                 const observationData = {
                     id: Date.now().toString(),
-                    formId: formId,
+                    formId,
                     text: observationText,
                     html: observationHtml,
                     classification: classificationValue,
                     timestamp: new Date().toISOString(),
                     user: currentUser.name,
+                    createdBy: currentUser.id,
                     status: 'pendiente',
-                    section: formId // A100, A200, etc.
+                    section: formId
                 };
 
                 savedObservations.push(observationData);
             }
 
-            localStorage.setItem('cfe_observations', JSON.stringify(savedObservations));
+            saveStoredObservations(savedObservations);
 
             console.log('🔍 Observación guardada:', savedObservations);
 
-            // Actualizar indicador de pendiente en la banderita
             updateObservationBadge(formId);
-            
-            // Actualizar la sección de Pendientes
             console.log('🔍 Llamando a updateIssuesSection...');
             updateIssuesSection();
-            
+
             showNotification(message, 'success');
             closeObservationsModal();
         }
@@ -14078,8 +14326,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 let shouldShowBadge = !!hasObservation;
 
                 if (typeof hasObservation === 'undefined') {
-                    const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
-                    shouldShowBadge = observations.some(obs => obs.formId === formId && obs.status === 'pendiente');
+                    const observations = loadStoredObservations();
+                    const currentUserId = getCurrentUserId();
+                    shouldShowBadge = observations.some(obs => {
+                        if (obs.formId !== formId || obs.status !== 'pendiente') {
+                            return false;
+                        }
+                        // Si no hay usuario autenticado, mostrar todas las pendientes
+                        if (!currentUserId) {
+                            return true;
+                        }
+                        // Solo mostrar si createdBy coincide con el usuario actual
+                        return obs.createdBy === currentUserId;
+                    });
                 }
 
                 if (shouldShowBadge) {
@@ -14094,7 +14353,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para actualizar la sección de Pendientes
         function updateIssuesSection() {
             console.log('🔍 updateIssuesSection iniciado');
-            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            console.log('🔍 Usuario actual (getCurrentUserId):', getCurrentUserId());
+            const observations = loadStoredObservations();
             console.log('🔍 Observaciones en localStorage:', observations);
             
             const issuesList = document.getElementById('issuesList');
@@ -14113,8 +14373,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             console.log('🔍 Elementos DOM encontrados:', { issuesList, noIssues, issuesCount });
             
-            // Filtrar solo observaciones pendientes (sin importar la clasificación)
-            const pendingObservations = observations.filter(obs => obs.status === 'pendiente');
+            // Filtrar solo observaciones pendientes del usuario actual
+            const currentUserId = getCurrentUserId();
+            console.log('🔍 currentUserId:', currentUserId);
+            const pendingObservations = observations.filter(obs => {
+                if (obs.status !== 'pendiente') {
+                    return false;
+                }
+                // Si no hay usuario autenticado, mostrar todas las pendientes
+                if (!currentUserId) {
+                    return true;
+                }
+                // Solo mostrar si createdBy coincide con el usuario actual
+                const matches = obs.createdBy === currentUserId;
+                console.log('🔍 obs.createdBy:', obs.createdBy, 'matches:', matches, 'obs:', obs);
+                return matches;
+            });
             console.log('🔍 Observaciones pendientes filtradas:', pendingObservations);
             
             // Actualizar contador
@@ -14232,7 +14506,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function deleteObservation(observationId) {
-            let observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            let observations = loadStoredObservations();
             const observationIndex = observations.findIndex(obs => obs.id === observationId);
 
             if (observationIndex === -1) {
@@ -14241,7 +14515,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
 
             const [removed] = observations.splice(observationIndex, 1);
-            localStorage.setItem('cfe_observations', JSON.stringify(observations));
+            saveStoredObservations(observations);
 
             if (removed?.formId) {
                 updateObservationBadge(removed.formId);
@@ -14253,7 +14527,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para ver detalle de observación
         function viewObservationDetail(observationId) {
-            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            const observations = loadStoredObservations();
             const observation = observations.find(obs => obs.id === observationId);
             
             if (observation) {
@@ -14264,13 +14538,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para marcar como resuelta
         function resolveObservation(observationId) {
-            let observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
+            let observations = loadStoredObservations();
             const observationIndex = observations.findIndex(obs => obs.id === observationId);
             
             if (observationIndex !== -1) {
                 const formId = observations[observationIndex].formId;
                 observations[observationIndex].status = 'resuelto';
-                localStorage.setItem('cfe_observations', JSON.stringify(observations));
+                saveStoredObservations(observations);
                 
                 // Actualizar badge del formulario (recalculando pendientes restantes)
                 updateObservationBadge(formId);
@@ -21933,10 +22207,30 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Gestión de riesgos: almacenamiento y renderizado
-        const RISK_STORAGE_KEY = 'formularios_risks_v1';
+        const RISK_STORAGE_KEY_BASE = 'formularios_risks_v1';
         let riskItems = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
+        function getCurrentRiskStorageKey() {
+            try {
+                const userId = window.currentUser?.id;
+                if (userId) {
+                    return `${RISK_STORAGE_KEY_BASE}_${userId}`;
+                }
+            } catch (err) {
+                console.warn('No se pudo obtener el usuario actual para riesgos:', err);
+            }
+            return RISK_STORAGE_KEY_BASE;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                    await window.currentUserReady;
+                }
+            } catch (err) {
+                console.warn('No se pudo esperar a currentUserReady para riesgos:', err);
+            }
+
             riskItems = loadStoredRisks();
             renderRiskLists();
         });
@@ -21946,12 +22240,33 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (typeof localStorage === 'undefined') {
                     return [];
                 }
-                const raw = localStorage.getItem(RISK_STORAGE_KEY);
-                if (!raw) {
+                const storageKey = getCurrentRiskStorageKey();
+                const raw = localStorage.getItem(storageKey);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                }
+
+                // Migración desde almacenamiento legacy sin separación por usuario
+                const legacyRaw = localStorage.getItem(RISK_STORAGE_KEY_BASE);
+                if (!legacyRaw) {
                     return [];
                 }
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
+
+                const userId = window.currentUser?.id || null;
+                const legacyParsed = JSON.parse(legacyRaw);
+                const migrated = Array.isArray(legacyParsed)
+                    ? legacyParsed
+                        .filter(item => !item.createdBy || !userId || item.createdBy === userId)
+                        .map(item => ({
+                            ...item,
+                            createdBy: item.createdBy || userId || 'legacy'
+                        }))
+                    : [];
+
+                localStorage.setItem(storageKey, JSON.stringify(migrated));
+                localStorage.removeItem(RISK_STORAGE_KEY_BASE);
+                return migrated;
             } catch (error) {
                 console.warn('No se pudieron cargar los riesgos guardados:', error);
                 return [];
@@ -21963,7 +22278,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (typeof localStorage === 'undefined') {
                     return;
                 }
-                localStorage.setItem(RISK_STORAGE_KEY, JSON.stringify(riskItems));
+                const storageKey = getCurrentRiskStorageKey();
+                localStorage.setItem(storageKey, JSON.stringify(riskItems));
             } catch (error) {
                 console.warn('No se pudieron guardar los riesgos:', error);
             }
@@ -21981,6 +22297,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const financialCount = document.getElementById('risk-financial-count');
             const assertionCount = document.getElementById('risk-assertion-count');
 
+            // Mostrar todos los riesgos sin filtrar por usuario
             const financialRisks = riskItems.filter(risk => risk.level === 'estado-financiero');
             const assertionRisks = riskItems.filter(risk => risk.level === 'afirmacion');
 
@@ -22128,6 +22445,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const referenceComment = referenceCommentInput?.value.trim() || '';
             const conclusionComment = conclusionCommentInput?.value.trim() || '';
 
+            const createdBy = window.currentUser?.id || null;
+
             return {
                 id: `risk-${Date.now()}`,
                 title,
@@ -22149,12 +22468,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 controls,
                 referenceComment,
                 conclusionComment,
+                createdBy,
                 createdAt: new Date().toISOString()
             };
         }
 
         function addRiskToState(risk) {
-            riskItems.push(risk);
+            const currentUserId = window.currentUser?.id || null;
+            const riskWithOwner = {
+                ...risk,
+                createdBy: risk.createdBy || currentUserId
+            };
+            riskItems.push(riskWithOwner);
             saveStoredRisks();
             renderRiskLists();
         }
@@ -24428,24 +24753,195 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         });
 
-        // Inicializar observaciones existentes al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeObservations();
-        });
+        async function initializeObservations() {
+            try {
+                if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                    await window.currentUserReady;
+                }
+            } catch (err) {
+                console.warn('No se pudo esperar a currentUserReady para observaciones:', err);
+            }
 
-        function initializeObservations() {
-            const observations = JSON.parse(localStorage.getItem('cfe_observations') || '[]');
-            
+            const observations = loadStoredObservations();
+
             // Actualizar badges para formularios con observaciones
             observations.forEach(observation => {
                 if (observation.status === 'pendiente') {
                     updateObservationBadge(observation.formId, true);
                 }
             });
-            
-            // Actualizar sección de pendientes si está visible
+
             updateIssuesSection();
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeObservations();
+        });
+
+        // Función para actualizar la sección de Consultas
+        function updateQueriesSection() {
+            console.log('🔍 updateQueriesSection iniciado');
+            const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
+            const queriesList = document.getElementById('queriesList');
+            const noQueries = document.getElementById('noQueries');
+            
+            console.log('🔍 Elementos DOM encontrados:', { queriesList, noQueries });
+            
+            if (!queriesList || !noQueries) {
+                console.log('🔍 Elementos de consultas no encontrados, saliendo...');
+                return;
+            }
+            
+            // Filtrar consultas según el filtro activo
+            const activeFilter = document.querySelector('.queries-filters .filter-btn.active');
+            const filterValue = activeFilter ? activeFilter.dataset.filter : 'all';
+            
+            let filteredQueries = queries;
+            if (filterValue !== 'all') {
+                filteredQueries = queries.filter(query => query.status === filterValue);
+            }
+            
+            console.log('🔍 Consultas filtradas:', filteredQueries);
+            
+            if (filteredQueries.length === 0) {
+                queriesList.innerHTML = '';
+                queriesList.appendChild(noQueries);
+                noQueries.style.display = 'block';
+                console.log('🔍 No hay consultas, mostrando mensaje vacío');
+            } else {
+                noQueries.style.display = 'none';
+                queriesList.innerHTML = '';
+                
+                filteredQueries.forEach(query => {
+                    // Contar espacios de carga de archivos para esta consulta
+                    const uploadSpaces = countUploadSpaces(query);
+                    const queryWithProgress = {
+                        ...query,
+                        progress: uploadSpaces.toString()
+                    };
+                    const queryElement = createQueryElement(queryWithProgress);
+                    queriesList.appendChild(queryElement);
+                });
+                console.log('🔍 Se mostraron', filteredQueries.length, 'consultas');
+            }
+        }
+
+        // Función para contar espacios de carga de archivos de una consulta
+        function countUploadSpaces(query) {
+            try {
+                // Extraer el número de consulta del título (formato: "numero - titulo")
+                const queryNumber = query.title.split(' - ')[0];
+                if (!queryNumber) return 0;
+                
+                // Obtener el workspace de la consulta
+                const storageKey = `consulta_workspace_${queryNumber}`;
+                const workspaceData = localStorage.getItem(storageKey);
+                
+                if (!workspaceData) return 0;
+                
+                const workspace = JSON.parse(workspaceData);
+                if (!workspace.questionSets || !Array.isArray(workspace.questionSets)) return 0;
+                
+                // Contar solo los questionSets de tipo "archivo"
+                const uploadCount = workspace.questionSets.filter(set => set.type === 'archivo').length;
+                console.log(`🔍 Consulta ${queryNumber}: ${uploadCount} espacios de carga`);
+                return uploadCount;
+            } catch (err) {
+                console.warn('Error al contar espacios de carga:', err);
+                return 0;
+            }
+        }
+
+        // Función para crear un elemento de consulta
+        function createQueryElement(query) {
+            const queryDiv = document.createElement('div');
+            queryDiv.className = `query-item status-${query.status}`;
+            queryDiv.style.cursor = 'pointer';
+            
+            const statusText = query.status.charAt(0).toUpperCase() + query.status.slice(1);
+            
+            // Formatear fecha
+            const queryDate = new Date(query.date);
+            const formattedDate = queryDate.toLocaleDateString('es-ES', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            queryDiv.innerHTML = `
+                <div class="query-title">${query.title}</div>
+                <div class="query-status">
+                    <span class="query-status-badge">${statusText}</span>
+                </div>
+                <div class="query-progreso">${query.progress}</div>
+                <div class="query-citas ${query.urgent ? 'urgente' : ''}">${formattedDate}</div>
+                <div class="query-contactos">${query.contacts}</div>
+            `;
+            
+            // Agregar evento click para redirigir al workspace
+            queryDiv.addEventListener('click', function() {
+                // Extraer el número de consulta del título
+                const queryNumber = query.title.split(' - ')[0];
+                const queryTitle = query.title.split(' - ')[1] || 'Consulta';
+                
+                // Construir URL del workspace
+                const workspaceUrl = `consultas_workspace.html?numero=${encodeURIComponent(queryNumber)}&nombre=${encodeURIComponent(queryTitle)}`;
+                
+                // Abrir el workspace en una nueva pestaña
+                window.open(workspaceUrl, '_blank');
+            });
+            
+            return queryDiv;
+        }
+
+        // Función para agregar filtros de consultas
+        function setupQueriesFilters() {
+            const filterButtons = document.querySelectorAll('.queries-filters .filter-btn');
+            
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remover clase active de todos los botones
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    // Agregar clase active al botón clickeado
+                    this.classList.add('active');
+                    
+                    // Actualizar la sección de consultas
+                    updateQueriesSection();
+                });
+            });
+        }
+
+        // Función para agregar una nueva consulta
+        function addQuery(queryData) {
+            const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
+            const newQuery = {
+                id: Date.now().toString(),
+                ...queryData,
+                createdAt: new Date().toISOString()
+            };
+            
+            queries.push(newQuery);
+            localStorage.setItem('cfe_queries', JSON.stringify(queries));
+            
+            updateQueriesSection();
+            showNotification('Consulta agregada correctamente', 'success');
+        }
+
+        // Inicializar la sección de consultas cuando se carga la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Limpiar datos de ejemplo si existen
+            const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
+            const filteredQueries = queries.filter(query => 
+                query.title !== 'Requerimiento de auditoría Rooskal 2024'
+            );
+            
+            if (filteredQueries.length !== queries.length) {
+                localStorage.setItem('cfe_queries', JSON.stringify(filteredQueries));
+            }
+            
+            // Actualizar la sección de consultas
+            updateQueriesSection();
+        });
     </script>
 
 </body>

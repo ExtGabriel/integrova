@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workspace de Consulta</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <link rel="icon" href="../assets/LOGO INTEGROVA.png?v=2" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1245,7 +1245,7 @@
 
             <div class="question-empty-state" id="questionEmptyState">
                 <i class="bi bi-journal-plus"></i>
-                <p>Crea un conjunto de preguntas con el botón “+” o selecciona uno existente para comenzar a organizar tus requerimientos.</p>
+                <p>Crea un conjunto de preguntas con el botón "+".</p>
             </div>
         </main>
     </div>
@@ -1363,10 +1363,13 @@
             return `${Math.max(1, Math.round(sizeKb))} KB`;
         }
 
-        function loadState() {
+        function loadState(forceClean = false) {
             try {
+                // Verificar si es una consulta nueva (parámetro URL)
+                const isNewQuery = params.get('new') === 'true';
+                
                 const saved = localStorage.getItem(storageKey);
-                if (saved) {
+                if (saved && !forceClean && !isNewQuery) {
                     const parsed = JSON.parse(saved);
                     state.instructions = parsed.instructions || '';
                     state.requirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
@@ -1385,14 +1388,26 @@
                     state.activeQuestionSetId = parsed.activeQuestionSetId || null;
                     state.lastSaved = parsed.lastSaved || null;
                 } else {
+                    // Iniciar completamente limpio para nuevas consultas
                     state.instructions = consultaDescripcion || consultaObjetivos || '';
                     state.requirements = [];
                     state.questionSets = [];
                     state.activeQuestionSetId = null;
                     state.lastSaved = null;
+                    
+                    // Limpiar el localStorage para esta consulta si es nueva
+                    if (isNewQuery || forceClean) {
+                        localStorage.removeItem(storageKey);
+                    }
                 }
             } catch (err) {
                 console.warn('No se pudo cargar el estado del workspace:', err);
+                // En caso de error, iniciar limpio
+                state.instructions = consultaDescripcion || consultaObjetivos || '';
+                state.requirements = [];
+                state.questionSets = [];
+                state.activeQuestionSetId = null;
+                state.lastSaved = null;
             }
 
             if (state.questionSets.length && !state.questionSets.some(set => set.id === state.activeQuestionSetId)) {
