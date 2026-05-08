@@ -84,33 +84,12 @@
         }
         
         .consultas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 60vh;
             margin-bottom: 40px;
             padding: 20px 0;
-        }
-        
-        .consulta-card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border: 2px solid transparent;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-        
-        .consulta-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            border-color: #E3F2FD;
         }
         
         .consulta-header {
@@ -466,57 +445,7 @@
         </div>
     </div>
     
-    <!-- Modal Nueva Consulta (personalizada) -->
-    <div id="modalNuevaConsulta" class="modal-nueva-consulta">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Crear Nueva Consulta</h2>
-                <button class="close-btn" onclick="closeNuevaConsultaModal()">
-                    <i class="bi bi-x"></i>
-                </button>
-            </div>
-            
-            <form id="nuevaConsultaForm">
-                <div class="form-group">
-                    <label class="form-label" for="consultaCodigo">Código de Consulta</label>
-                    <input type="text" id="consultaCodigo" class="form-control" placeholder="Ej: B700QT" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="consultaTitulo">Título de la Consulta</label>
-                    <input type="text" id="consultaTitulo" class="form-control" placeholder="Ej: Evaluación de procedimientos sustantivos" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="consultaTipo">Tipo de Consulta</label>
-                    <select id="consultaTipo" class="form-control" required>
-                        <option value="">Seleccionar tipo...</option>
-                        <option value="planificacion">Planificación</option>
-                        <option value="evaluacion-riesgos">Evaluación de Riesgos</option>
-                        <option value="respuesta-riesgo">Respuesta al Riesgo</option>
-                        <option value="planes-auditoria">Planes y Procedimientos</option>
-                        <option value="documentos-cierre">Documentos de Cierre</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="consultaDescripcion">Descripción</label>
-                    <textarea id="consultaDescripcion" class="form-control form-textarea" placeholder="Describe detalladamente el propósito y alcance de esta consulta..." required></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="consultaObjetivos">Objetivos</label>
-                    <textarea id="consultaObjetivos" class="form-control form-textarea" placeholder="Lista los objetivos específicos de esta consulta..."></textarea>
-                </div>
-                
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeNuevaConsultaModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear Consulta</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
+        
     <script>
         // Contenido específico para cada consulta
         const consultasContent = {
@@ -1170,8 +1099,14 @@ Por favor, desarrolle:
         }
         
         function closeNuevaConsultaModal() {
-            document.getElementById('modalNuevaConsulta').style.display = 'none';
-            document.getElementById('nuevaConsultaForm').reset();
+            const modal = document.getElementById('modalNuevaConsulta');
+            const form = document.getElementById('nuevaConsultaForm');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            if (form) {
+                form.reset();
+            }
         }
         
         function selectConsulta(codigo, titulo) {
@@ -1220,39 +1155,74 @@ Por favor, desarrolle:
             closeConsultaFormModal();
         });
         
+        
         // Manejo del formulario de nueva consulta
         const nuevaConsultaForm = document.getElementById('nuevaConsultaForm');
-        nuevaConsultaForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const codigo = document.getElementById('consultaCodigo').value;
-            const titulo = document.getElementById('consultaTitulo').value;
-            const tipo = document.getElementById('consultaTipo').value;
-            const descripcion = document.getElementById('consultaDescripcion').value;
-            const objetivos = document.getElementById('consultaObjetivos').value;
-            
-            // Guardar la consulta en localStorage para que aparezca en formularios.html
-            const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
-            const newQuery = {
-                id: Date.now().toString(),
-                title: `${codigo} - ${titulo}`,
-                status: 'abierto',
-                progress: '0/57',
-                date: new Date().toISOString().split('T')[0],
-                urgent: false,
-                contacts: '1',
-                tipo: tipo,
-                descripcion: descripcion,
-                objetivos: objetivos
-            };
-            
-            queries.push(newQuery);
-            localStorage.setItem('cfe_queries', JSON.stringify(queries));
-            
-            closeNuevaConsultaModal();
-            openConsultaWorkspace(codigo, titulo, { tipo, descripcion, objetivos });
-        });
+        if (nuevaConsultaForm) {
+            nuevaConsultaForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const codigo = document.getElementById('consultaCodigo').value;
+                const titulo = document.getElementById('consultaTitulo').value;
+                
+                // Guardar la consulta en Supabase
+                guardarConsultaEnSupabase({
+                    numero: codigo,
+                    nombre: titulo
+                }, {
+                    onSuccess: () => closeNuevaConsultaModal()
+                });
+            });
+        }
+
+        // Función para guardar consulta en Supabase
+        async function guardarConsultaEnSupabase(datos, options = {}) {
+            const {
+                showAlert = true,
+                silent = false,
+                onSuccess
+            } = options;
+
+            try {
+                const response = await fetch('/api/guardar-consulta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (showAlert) {
+                        alert(`Consulta "${datos.numero} - ${datos.nombre}" creada exitosamente.`);
+                    }
+
+                    if (typeof onSuccess === 'function') {
+                        onSuccess(result);
+                    }
+
+                    cargarConsultasDesdeSupabase();
+                } else {
+                    const message = result.error || 'Error al crear la consulta';
+                    if (showAlert && !silent) {
+                        alert('Error al crear la consulta: ' + message);
+                    }
+                    throw new Error(message);
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('Error guardando consulta:', error);
+                if (!silent && showAlert) {
+                    alert('Error al crear la consulta');
+                }
+                throw error;
+            }
+        }
         
+                
         const inlineNuevaConsultaForm = document.getElementById('inlineNuevaConsultaForm');
         if (inlineNuevaConsultaForm) {
             const inlineNumero = document.getElementById('inlineConsultaNumero');
@@ -1270,7 +1240,7 @@ Por favor, desarrolle:
             inlineNumero.addEventListener('input', toggleInlineSubmit);
             inlineNombre.addEventListener('input', toggleInlineSubmit);
 
-            inlineNuevaConsultaForm.addEventListener('submit', function(e) {
+            inlineNuevaConsultaForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
 
                 const numero = inlineNumero.value.trim();
@@ -1281,25 +1251,36 @@ Por favor, desarrolle:
                     return;
                 }
 
-                // Guardar la consulta en localStorage para que aparezca en formularios.html
-                const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
-                const newQuery = {
-                    id: Date.now().toString(),
-                    title: `${numero} - ${nombre}`,
-                    status: 'abierto',
-                    progress: '0/57',
-                    date: new Date().toISOString().split('T')[0],
-                    urgent: false,
-                    contacts: '1',
-                    tipo: 'general',
-                    descripcion: '',
-                    objetivos: ''
-                };
-                
-                queries.push(newQuery);
-                localStorage.setItem('cfe_queries', JSON.stringify(queries));
+                // Guardar la consulta en Supabase
+                inlineSubmit.disabled = true;
+                const previousText = inlineSubmit.textContent;
+                inlineSubmit.textContent = 'Creando...';
 
-                openConsultaWorkspace(numero, nombre);
+                try {
+                    await guardarConsultaEnSupabase({
+                        numero: numero,
+                        nombre: nombre,
+                        tipo: 'general',
+                        descripcion: '',
+                        objetivos: ''
+                    }, {
+                        showAlert: false,
+                        onSuccess: (result) => {
+                            console.log('Consulta creada en Supabase:', result?.consulta || result);
+                            inlineNuevaConsultaForm.reset();
+                            toggleInlineSubmit();
+                            openConsultaWorkspace(numero, nombre, {
+                                tipo: 'general'
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error creando consulta en blanco:', error);
+                    alert('No se pudo crear la consulta. Verifica los datos e inténtalo nuevamente.');
+                } finally {
+                    inlineSubmit.disabled = false;
+                    inlineSubmit.textContent = previousText;
+                }
             });
 
             inlineCancel.addEventListener('click', function() {
@@ -1309,17 +1290,23 @@ Por favor, desarrolle:
         }
         
         // Cerrar modales al hacer clic fuera
-        document.getElementById('modalConsultaForm').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeConsultaFormModal();
-            }
-        });
-        
-        document.getElementById('modalNuevaConsulta').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeNuevaConsultaModal();
-            }
-        });
+        const modalConsultaForm = document.getElementById('modalConsultaForm');
+        if (modalConsultaForm) {
+            modalConsultaForm.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeConsultaFormModal();
+                }
+            });
+        }
+
+        const modalNuevaConsulta = document.getElementById('modalNuevaConsulta');
+        if (modalNuevaConsulta) {
+            modalNuevaConsulta.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeNuevaConsultaModal();
+                }
+            });
+        }
     </script>
 </body>
 </html>

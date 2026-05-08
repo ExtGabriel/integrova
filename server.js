@@ -200,6 +200,11 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// ============================================
+// CONFIGURACIÓN DE CORREO ELECTRÓNICO (DESACTIVADA)
+// ============================================
+// Nota: El envío de correos está desactivado. Las notificaciones se manejan internamente.
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -4016,6 +4021,150 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
 });
 
 // ============================================
+// ENDPOINTS PARA OBSERVACIONES (PENDIENTES)
+// ============================================
+
+// Guardar observación
+app.post('/api/observations', async (req, res) => {
+    try {
+        const { 
+            formId, 
+            classification, 
+            description, 
+            status = 'pendiente',
+            userId,
+            userEmail 
+        } = req.body;
+        
+        if (!formId || !classification || !description || !userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('observaciones')
+            .insert({
+                form_id: formId,
+                classification: classification,
+                description: description,
+                status: status,
+                user_id: userId,
+                user_email: userEmail,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observation: data 
+        });
+
+    } catch (error) {
+        console.error('Error guardando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando observación' 
+        });
+    }
+});
+
+// Obtener observaciones de un usuario
+app.get('/api/observations/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const { data, error } = await supabase
+            .from('observaciones')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observations: data || [] 
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo observaciones:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo observaciones' 
+        });
+    }
+});
+
+// Actualizar estado de observación
+app.put('/api/observations/:observationId', async (req, res) => {
+    try {
+        const { observationId } = req.params;
+        const { status } = req.body;
+        
+        if (!status) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'El estado es requerido' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('observaciones')
+            .update({ 
+                status: status,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', observationId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observation: data 
+        });
+
+    } catch (error) {
+        console.error('Error actualizando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error actualizando observación' 
+        });
+    }
+});
+
+// Eliminar observación
+app.delete('/api/observations/:observationId', async (req, res) => {
+    try {
+        const { observationId } = req.params;
+        
+        const { error } = await supabase
+            .from('observaciones')
+            .delete()
+            .eq('id', observationId);
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true 
+        });
+
+    } catch (error) {
+        console.error('Error eliminando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error eliminando observación' 
+        });
+    }
+});
+
+// ============================================
 // ENDPOINTS PARA LEDGER INTEGRITY
 // ============================================
 
@@ -4790,6 +4939,708 @@ app.post('/api/fix-cuentas-contables', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: error.message 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA CREAR TABLA DE CONSULTAS
+// ============================================
+app.post('/api/crear-tabla-consultas', async (req, res) => {
+    try {
+        const results = [];
+        
+        // Crear tabla consultas
+        try {
+            const { error } = await supabase.rpc('create_table_consultas');
+            if (error) {
+                // Si la función no existe, crear la tabla manualmente
+                const { error: tableError } = await supabase
+                    .from('consultas')
+                    .select('id')
+                    .limit(1);
+                
+                if (tableError && tableError.code === 'PGRST116') {
+                    // La tabla no existe, necesitamos crearla manualmente en SQL
+                    results.push({
+                        statement: 'CREATE TABLE consultas',
+                        error: 'Tabla necesita ser creada manualmente en Supabase Dashboard. Por favor, crea la tabla con la siguiente estructura:',
+                        sql: `
+CREATE TABLE public.consultas (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    numero VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    objetivos TEXT,
+    tipo VARCHAR(100),
+    fecha_vencimiento DATE,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    fecha_envio TIMESTAMP WITH TIME ZONE,
+    estado VARCHAR(50) DEFAULT 'borrador',
+    instrucciones TEXT,
+    mensaje_correo TEXT,
+    asignar_todos BOOLEAN DEFAULT false,
+    usuario_asignado VARCHAR(255),
+    question_sets JSONB DEFAULT '[]',
+    archivos_adjuntos JSONB DEFAULT '[]',
+    metadata JSONB DEFAULT '{}',
+    creada_por VARCHAR(100),
+    activa BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                        `
+                    });
+                } else {
+                    results.push({
+                        statement: 'CREATE TABLE consultas',
+                        success: true,
+                        message: 'Tabla consultas ya existe'
+                    });
+                }
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE consultas',
+                    success: true
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE consultas',
+                error: err.message
+            });
+        }
+
+        // Crear tabla consulta_envios
+        try {
+            const { error } = await supabase
+                .from('consulta_envios')
+                .select('id')
+                .limit(1);
+            
+            if (error && error.code === 'PGRST116') {
+                results.push({
+                    statement: 'CREATE TABLE consulta_envios',
+                    error: 'Tabla necesita ser creada manualmente en Supabase Dashboard',
+                    sql: `
+CREATE TABLE public.consulta_envios (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    consulta_id UUID REFERENCES public.consultas(id) ON DELETE CASCADE,
+    consulta_numero VARCHAR(50) NOT NULL,
+    consulta_nombre VARCHAR(255) NOT NULL,
+    fecha_vencimiento DATE,
+    mensaje TEXT NOT NULL,
+    destinatarios JSONB NOT NULL,
+    resultados_envio JSONB NOT NULL,
+    fecha_envio TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    exitos INTEGER DEFAULT 0,
+    fallidos INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                    `
+                });
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE consulta_envios',
+                    success: true,
+                    message: 'Tabla consulta_envios ya existe'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE consulta_envios',
+                error: err.message
+            });
+        }
+
+        // Crear tabla contacts
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .select('id')
+                .limit(1);
+            
+            if (error && error.code === 'PGRST116') {
+                results.push({
+                    statement: 'CREATE TABLE contacts',
+                    error: 'Tabla necesita ser creada manualmente en Supabase Dashboard',
+                    sql: `
+CREATE TABLE public.contacts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(50),
+    company VARCHAR(255),
+    role VARCHAR(100),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                    `
+                });
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE contacts',
+                    success: true,
+                    message: 'Tabla contacts ya existe'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE contacts',
+                error: err.message
+            });
+        }
+
+        // Intentar insertar contactos de ejemplo si la tabla existe
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .upsert([
+                    { name: 'S&D Inversiones', email: 'contacto@sdinversiones.com', company: 'S&D Inversiones', role: 'Empresa' },
+                    { name: 'Administración', email: 'admin@cfeinsight.com', company: 'CFE INSIGHT', role: 'Administrador' }
+                ]);
+            
+            if (!error) {
+                results.push({
+                    statement: 'INSERT contacts examples',
+                    success: true,
+                    message: 'Contactos de ejemplo insertados'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'INSERT contacts examples',
+                error: err.message
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Verificación de tablas completada',
+            results: results,
+            instructions: 'Si alguna tabla muestra error, por favor créala manualmente en Supabase Dashboard usando el SQL proporcionado'
+        });
+        
+    } catch (error) {
+        console.error('Error verificando tablas de consultas:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA OBTENER CONSULTAS
+// ============================================
+app.get('/api/consultas', async (req, res) => {
+    try {
+        const { data: consultas, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .eq('activa', true)
+            .order('fecha_creacion', { ascending: false });
+
+        if (error) {
+            console.error('Error obteniendo consultas:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener las consultas'
+            });
+        }
+
+        res.json({
+            success: true,
+            consultas: consultas || []
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/consultas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor'
+        });
+    }
+});
+
+
+// ============================================
+// FUNCIÓN PARA CALCULAR PROGRESO DE CONSULTA
+// ============================================
+function calcularProgreso(consulta) {
+    let progreso = 0;
+    let totalItems = 0;
+    
+    // Revisar si tiene instrucciones (20%)
+    totalItems++;
+    if (consulta.instrucciones && consulta.instrucciones.trim()) {
+        progreso++;
+    }
+    
+    // Revisar si tiene conjuntos de preguntas (40%)
+    totalItems++;
+    if (Array.isArray(consulta.question_sets) && consulta.question_sets.length > 0) {
+        progreso++;
+    }
+    
+    // Revisar si tiene archivos (20%)
+    totalItems++;
+    if (consulta.archivos_count > 0) {
+        progreso++;
+    }
+    
+    // Revisar si está enviada (20%)
+    totalItems++;
+    if (consulta.estado === 'enviada' || consulta.estado === 'completada') {
+        progreso++;
+    }
+    
+    // Calcular porcentaje
+    const porcentaje = totalItems > 0 ? Math.round((progreso / totalItems) * 100) : 0;
+    
+    return {
+        porcentaje: porcentaje,
+        estado: porcentaje === 100 ? 'completado' : porcentaje >= 50 ? 'en_progreso' : 'incompleto'
+    };
+}
+
+// ============================================
+// ENDPOINT PARA OBTENER HISTORIAL DE CONSULTAS
+// ============================================
+app.get('/api/historial-consultas', async (req, res) => {
+    try {
+        // Obtener todas las consultas ordenadas por fecha de creación
+        const { data: consultas, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error obteniendo historial de consultas:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener el historial: ' + error.message
+            });
+        }
+
+        // Formatear datos para el historial con los campos específicos
+        const historial = consultas.map(consulta => ({
+            documento_consulta: consulta.nombre, // Solo el nombre de la consulta
+            estado: consulta.estado || 'borrador', // Estado
+            progreso: calcularProgreso(consulta), // Progreso calculado
+            fecha_vencimiento: consulta.fecha_vencimiento, // Fecha de vencimiento
+            contactos: consulta.usuario_asignado || 'Sin asignar', // Contactos
+            id: consulta.id,
+            numero: consulta.numero,
+            nombre: consulta.nombre
+        }));
+
+        res.json({
+            success: true,
+            historial: historial,
+            total: historial.length
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/historial-consultas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al obtener historial'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA OBTENER UNA CONSULTA ESPECÍFICA
+// ============================================
+app.get('/api/consultas/:numero', async (req, res) => {
+    try {
+        const { numero } = req.params;
+
+        if (!numero) {
+            return res.status(400).json({
+                success: false,
+                error: 'El número de consulta es requerido'
+            });
+        }
+
+        // Obtener consulta específica
+        const { data: consulta, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .eq('numero', numero)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Consulta no encontrada'
+                });
+            }
+            console.error('Error obteniendo consulta:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener la consulta: ' + error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            consulta: consulta
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/consultas/:numero:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al obtener la consulta'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA GUARDAR CONSULTA
+// ============================================
+app.post('/api/guardar-consulta', async (req, res) => {
+    try {
+        const {
+            numero,
+            nombre,
+            fechaVencimiento,
+            instrucciones,
+            mensaje,
+            asignarTodos,
+            usuario,
+            questionSets
+        } = req.body;
+
+        // Validar datos requeridos
+        if (!numero || !nombre) {
+            return res.status(400).json({
+                success: false,
+                error: 'El número y nombre de la consulta son requeridos'
+            });
+        }
+
+        const normalizedQuestionSets = Array.isArray(questionSets) ? questionSets : [];
+        const archivosCount = normalizedQuestionSets.reduce((total, set) => {
+            if (!set || !Array.isArray(set.uploadedFiles)) return total;
+            return total + set.uploadedFiles.length;
+        }, 0);
+
+        // Primero verificar si la consulta ya existe
+        const { data: existingConsulta, error: checkError } = await supabase
+            .from('consultas')
+            .select('id, estado')
+            .eq('numero', numero)
+            .single();
+
+        let consulta, error;
+
+        if (checkError && checkError.code === 'PGRST116') {
+            // No existe, crear nueva
+            const result = await supabase
+                .from('consultas')
+                .insert({
+                    numero: numero,
+                    nombre: nombre,
+                    fecha_vencimiento: fechaVencimiento || null,
+                    instrucciones: instrucciones || null,
+                    mensaje_correo: mensaje || null,
+                    asignar_todos: asignarTodos || false,
+                    usuario_asignado: usuario || null,
+                    question_sets: normalizedQuestionSets,
+                    archivos_count: archivosCount,
+                    estado: 'borrador',
+                    updated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+            
+            consulta = result.data;
+            error = result.error;
+        } else if (checkError) {
+            // Error al verificar
+            error = checkError;
+        } else {
+            // Ya existe, actualizar
+            const result = await supabase
+                .from('consultas')
+                .update({
+                    nombre: nombre,
+                    fecha_vencimiento: fechaVencimiento || null,
+                    instrucciones: instrucciones || null,
+                    mensaje_correo: mensaje || null,
+                    asignar_todos: asignarTodos || false,
+                    usuario_asignado: usuario || null,
+                    question_sets: normalizedQuestionSets,
+                    archivos_count: archivosCount,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('numero', numero)
+                .select()
+                .single();
+            
+            consulta = result.data;
+            error = result.error;
+        }
+
+        if (error) {
+            console.error('Error guardando consulta:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al guardar la consulta: ' + error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Consulta guardada exitosamente',
+            consulta: consulta
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/guardar-consulta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al guardar la consulta'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA ENVIAR CONSULTA POR CORREO
+// ============================================
+app.post('/api/enviar-consulta', async (req, res) => {
+    try {
+        const {
+            consultaNumero,
+            consultaNombre,
+            fechaVencimiento,
+            asignarTodos,
+            usuario,
+            mensaje,
+            instrucciones,
+            questionSets,
+            timestamp
+        } = req.body;
+
+        // Validar datos requeridos
+        if (!consultaNumero || !consultaNombre || !fechaVencimiento || !mensaje) {
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos para enviar la consulta'
+            });
+        }
+
+        // Determinar destinatarios
+        let destinatarios = [];
+        
+        if (asignarTodos) {
+            // Obtener todos los contactos de la base de datos
+            const { data: contacts, error } = await supabase
+                .from('contacts')
+                .select('email, name')
+                .eq('active', true);
+                
+            if (error) {
+                console.error('Error obteniendo contactos:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Error al obtener los contactos'
+                });
+            }
+            
+            destinatarios = contacts.map(contact => ({
+                email: contact.email,
+                name: contact.name || 'Contacto'
+            }));
+        } else if (usuario) {
+            // Validar formato de email del usuario
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(usuario)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'El formato del correo electrónico no es válido'
+                });
+            }
+            
+            destinatarios = [{
+                email: usuario,
+                name: usuario.split('@')[0]
+            }];
+        }
+
+        if (destinatarios.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No se encontraron destinatarios válidos'
+            });
+        }
+
+        // Preparar contenido del correo
+        const asunto = `Consulta: ${consultaNombre} - ${consultaNumero}`;
+        
+        // Construir HTML del correo
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: #1e3a8a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h1 style="margin: 0; font-size: 24px;">CFE INSIGHT</h1>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Sistema de Auditoría</p>
+                </div>
+                
+                <div style="background: #f5f7fb; padding: 30px; border: 1px solid #e1e5e9; border-radius: 0 0 8px 8px;">
+                    <h2 style="color: #1e3a8a; margin-top: 0;">Nueva Consulta Asignada</h2>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 6px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>Código de consulta:</strong> ${consultaNumero}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Nombre:</strong> ${consultaNombre}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Fecha de vencimiento:</strong> ${new Date(fechaVencimiento).toLocaleDateString('es-MX')}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Fecha de envío:</strong> ${new Date(timestamp).toLocaleDateString('es-MX')}</p>
+                    </div>
+                    
+                    ${instrucciones ? `
+                    <div style="background: #fff7dc; padding: 15px; border-left: 4px solid #facc15; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #7c6a00;">Instrucciones:</h3>
+                        <p style="margin: 10px 0; white-space: pre-wrap;">${instrucciones}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #1e3a8a;">Mensaje:</h3>
+                        <div style="background: white; padding: 20px; border-radius: 6px; white-space: pre-wrap;">
+                            ${mensaje}
+                        </div>
+                    </div>
+                    
+                    ${questionSets && questionSets.length > 0 ? `
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #1e3a8a;">Conjuntos de preguntas:</h3>
+                        ${questionSets.map((set, index) => `
+                            <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #42a5f5;">
+                                <h4 style="margin-top: 0; color: #1976d2;">${set.title || 'Sin nombre'}</h4>
+                                ${set.questionTitle ? `<p style="margin: 5px 0;"><strong>Pregunta:</strong> ${set.questionTitle}</p>` : ''}
+                                ${set.questionDetails ? `<p style="margin: 5px 0; white-space: pre-wrap;">${set.questionDetails}</p>` : ''}
+                                ${set.uploadedFiles && set.uploadedFiles.length > 0 ? `
+                                    <p style="margin: 10px 0 0 0;"><strong>Archivos adjuntos:</strong></p>
+                                    <ul style="margin: 5px 0; padding-left: 20px;">
+                                        ${set.uploadedFiles.map(file => `<li>${file.name || 'Archivo'}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <p style="color: #64748b; font-size: 14px;">
+                            Este es un mensaje automático del sistema CFE INSIGHT.<br>
+                            Por favor, responda a esta consulta antes de la fecha de vencimiento.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Generar notificaciones del sistema (sin envío de correo real)
+        const enviosPromises = destinatarios.map(async (destinatario) => {
+            try {
+                // Simular envío de notificación
+                console.log(`📧 Notificación generada para ${destinatario.email}`);
+                console.log(`📋 Asunto: ${asunto}`);
+                console.log(`📄 Contenido: Resumen de consulta asignada`);
+                
+                // Generar ID de notificación simulada
+                const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                return {
+                    success: true,
+                    email: destinatario.email,
+                    notificationId: notificationId,
+                    type: 'system_notification',
+                    message: 'Notificación del sistema generada exitosamente'
+                };
+            } catch (error) {
+                console.error(`❌ Error generando notificación para ${destinatario.email}:`, error);
+                return {
+                    success: false,
+                    email: destinatario.email,
+                    error: error.message
+                };
+            }
+        });
+
+        // Esperar a que todos los correos se envíen
+        const resultados = await Promise.all(enviosPromises);
+        
+        // Verificar si todos los envíos fueron exitosos
+        const exitosos = resultados.filter(r => r.success);
+        const fallidos = resultados.filter(r => !r.success);
+
+        if (fallidos.length > 0) {
+            console.warn(`⚠️ ${fallidos.length} correos fallaron de ${destinatarios.length} totales`);
+        }
+
+        // Actualizar el estado de la consulta a 'enviada'
+        try {
+            const { error: updateError } = await supabase
+                .from('consultas')
+                .update({
+                    estado: 'enviada',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('numero', consultaNumero);
+                
+            if (updateError) {
+                console.error('Error actualizando estado de consulta:', updateError);
+            } else {
+                console.log('✅ Estado de consulta actualizado a "enviada"');
+            }
+        } catch (error) {
+            console.error('Error actualizando estado:', error);
+        }
+
+        // Guardar registro del envío en la base de datos
+        try {
+            const { error: dbError } = await supabase
+                .from('consulta_envios')
+                .insert({
+                    consulta_numero: consultaNumero,
+                    consulta_nombre: consultaNombre,
+                    fecha_vencimiento: fechaVencimiento,
+                    mensaje: mensaje,
+                    destinatarios: destinatarios,
+                    resultados_envio: resultados,
+                    fecha_envio: new Date().toISOString(),
+                    exitosos: exitosos.length,
+                    fallidos: fallidos.length
+                });
+                
+            if (dbError) {
+                console.error('Error guardando registro de envío:', dbError);
+            }
+        } catch (error) {
+            console.error('Error en base de datos:', error);
+        }
+
+        res.json({
+            success: true,
+            message: `Notificaciones del sistema generadas para ${exitosos.length} destinatarios${fallidos.length > 0 ? ` (${fallidos.length} fallidos)` : ''}`,
+            resultados: {
+                total: destinatarios.length,
+                exitosos: exitosos.length,
+                fallidos: fallidos.length,
+                tipo: 'notificaciones_sistema'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/enviar-consulta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al enviar la consulta'
         });
     }
 });

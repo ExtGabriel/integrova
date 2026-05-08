@@ -212,6 +212,38 @@
             opacity: 0.8;
         }
 
+        .query-item__actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-item__delete {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .query-item__delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: scale(1.1);
+        }
+
+        .query-item.active .query-item__delete {
+            color: #ffffff;
+        }
+
+        .query-item.active .query-item__delete:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         .main-content {
             flex: 1;
             padding: 32px 42px;
@@ -1200,12 +1232,124 @@
                 padding: 22px;
             }
         }
+
+        /* Estilos para el modal de Abrir Consulta */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-content h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.3rem;
+            color: var(--color-dark);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        .link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #1976d2;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-actions .primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .modal-actions .secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <header class="top-bar">
         <div class="top-actions">
             <button id="btnVolverConsultas" onclick="window.location.href='consultas.html'"><i class="bi bi-arrow-left-circle"></i> Volver</button>
+            <button id="btnEnviarConsulta" class="primary"><i class="bi bi-send"></i> Enviar Consulta</button>
         </div>
     </header>
 
@@ -1223,6 +1367,7 @@
         <main class="main-content">
             <div class="breadcrumbs" id="breadcrumbs">Consultas / Workspace</div>
 
+            
             <section class="card instructions-card">
                 <div class="card-header">
                     <h2><i class="bi bi-journal-text"></i> Instrucciones</h2>
@@ -1232,11 +1377,6 @@
 
             <div class="question-type-dropdown hidden" id="questionTypeDropdown">
                 <button type="button" data-type="archivo">Carga de archivo</button>
-                <button type="button" data-type="lista">Lista de selección</button>
-                <button type="button" data-type="lista-multiple">Lista de selección múltiple</button>
-                <button type="button" data-type="texto">Texto</button>
-                <button type="button" data-type="fecha">Fecha</button>
-                <button type="button" data-type="firma">Firma electrónica simple</button>
             </div>
 
             <section class="question-sets-list" id="questionSetsList">
@@ -1363,13 +1503,78 @@
             return `${Math.max(1, Math.round(sizeKb))} KB`;
         }
 
-        function loadState(forceClean = false) {
+        async function loadState(forceClean = false) {
+            console.log('🔄 loadState iniciado...');
             try {
                 // Verificar si es una consulta nueva (parámetro URL)
                 const isNewQuery = params.get('new') === 'true';
+                console.log('📝 ¿Es consulta nueva?', isNewQuery);
+                console.log('🔢 Número de consulta:', consultaNumero);
                 
+                // Siempre intentar cargar desde Supabase si tenemos número de consulta válido
+                // La lógica de "consulta nueva" solo aplica si no hay datos guardados
+                if (consultaNumero && consultaNumero !== 'Consulta sin código') {
+                    console.log('✅ Condiciones cumplidas para cargar desde Supabase');
+                    try {
+                        console.log('🔄 Cargando datos desde Supabase...');
+                        const response = await fetch(`/api/consultas/${consultaNumero}`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.consulta) {
+                                console.log('✅ Datos cargados desde Supabase:', data.consulta);
+                                
+                                // Cargar datos desde Supabase
+                                state.instructions = data.consulta.instrucciones || '';
+                                state.requirements = [];
+                                state.questionSets = Array.isArray(data.consulta.question_sets) 
+                                    ? data.consulta.question_sets.map(set => ({
+                                        id: set.id,
+                                        title: set.title || 'Sin nombre',
+                                        type: set.type || null,
+                                        questionTitle: set.questionTitle || '',
+                                        questionDetails: set.questionDetails || '',
+                                        destination: set.destination || '',
+                                        uploadedFiles: Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [],
+                                        createdFromSidebar: typeof set.createdFromSidebar === 'boolean' ? set.createdFromSidebar : true
+                                    }))
+                                    : [];
+                                state.activeQuestionSetId = state.questionSets.length > 0 ? state.questionSets[0].id : null;
+                                state.lastSaved = data.consulta.updated_at || null;
+                                
+                                // También guardar en localStorage como backup
+                                const payload = {
+                                    instructions: state.instructions,
+                                    requirements: state.requirements,
+                                    questionSets: state.questionSets,
+                                    activeQuestionSetId: state.activeQuestionSetId,
+                                    lastSaved: state.lastSaved
+                                };
+                                localStorage.setItem(storageKey, JSON.stringify(payload));
+                                
+                                console.log(' Estado cargado exitosamente desde Supabase');
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(' Error cargando desde Supabase, usando localStorage:', error);
+                    }
+                } else {
+                    console.log(' No se cumple condición para cargar desde Supabase');
+                    console.log(' Detalles:', {
+                        consultaNumero,
+                        consultaNumeroValido: consultaNumero !== 'Consulta sin código',
+                        isNewQuery,
+                        forceClean,
+                        shouldLoadFromSupabase
+                    });
+                }
+                
+                // Fallback a localStorage o estado limpio
+                console.log(' Intentando cargar desde localStorage...');
                 const saved = localStorage.getItem(storageKey);
-                if (saved && !forceClean && !isNewQuery) {
+                console.log(' Datos en localStorage:', saved ? 'Existen' : 'No existen');
+                if (saved && !forceClean) {
                     const parsed = JSON.parse(saved);
                     state.instructions = parsed.instructions || '';
                     state.requirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
@@ -1415,11 +1620,12 @@
             }
         }
 
-        function saveState(updateTimestamp = true) {
+        async function saveState(updateTimestamp = true) {
             if (updateTimestamp) {
                 state.lastSaved = new Date().toISOString();
             }
 
+            // Guardar en localStorage como backup
             const payload = {
                 instructions: state.instructions,
                 requirements: state.requirements,
@@ -1427,8 +1633,36 @@
                 activeQuestionSetId: state.activeQuestionSetId,
                 lastSaved: state.lastSaved
             };
-
             localStorage.setItem(storageKey, JSON.stringify(payload));
+
+            // También guardar en Supabase si tenemos número de consulta válido
+            if (consultaNumero && consultaNumero !== 'Consulta sin código') {
+                try {
+                    console.log('🔄 Guardando en Supabase...', { 
+                        numero: consultaNumero, 
+                        nombre: consultaNombre,
+                        instruccionesLength: state.instructions?.length || 0,
+                        questionSetsCount: state.questionSets?.length || 0
+                    });
+                    
+                    await guardarConsultaEnSupabase({
+                        numero: consultaNumero,
+                        nombre: consultaNombre,
+                        instrucciones: state.instructions,
+                        questionSets: state.questionSets
+                    }, {
+                        showAlert: false,
+                        silent: true
+                    });
+                    console.log('✅ Cambios guardados en Supabase');
+                } catch (error) {
+                    console.warn('⚠️ No se pudo guardar en Supabase:', error);
+                    // No mostrar error al usuario, solo guardar en localStorage
+                }
+            } else {
+                console.log('⚠️ No se guarda en Supabase: consultaNumero no válido', consultaNumero);
+            }
+
             updateLastSaved();
         }
 
@@ -1441,6 +1675,27 @@
             }
             const fecha = new Date(state.lastSaved);
             elements.lastSavedLabel.textContent = `Guardado ${fecha.toLocaleString()}`;
+        }
+
+        function deleteQuestionSet(setId) {
+            if (!setId) return;
+            
+            if (confirm('¿Estás seguro de que quieres eliminar esta sección? Esta acción no se puede deshacer.')) {
+                // Eliminar el conjunto del estado
+                state.questionSets = state.questionSets.filter(set => set.id !== setId);
+                
+                // Si el conjunto eliminado era el activo, seleccionar otro
+                if (state.activeQuestionSetId === setId) {
+                    state.activeQuestionSetId = state.questionSets.length > 0 ? state.questionSets[0].id : null;
+                }
+                
+                // Guardar el estado y actualizar la UI
+                saveState();
+                renderSidebar();
+                renderQuestionSetsList();
+                
+                console.log('✅ Sección eliminada:', setId);
+            }
         }
 
         function createQuestionSet(title = 'Nuevo conjunto') {
@@ -1696,9 +1951,24 @@
                         <span class="query-item__title">${safeTitle}</span>
                         ${safeTypeLabel ? `<span class="query-item__meta">${safeTypeLabel}</span>` : ''}
                     </div>
-                    <i class="bi bi-chevron-right"></i>
+                    <div class="query-item__actions">
+                        <button type="button" class="query-item__delete" data-id="${set.id}" title="Eliminar sección">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
                 `;
                 elements.queriesList.appendChild(item);
+                
+                // Agregar event listener para el botón de eliminar
+                const deleteButton = item.querySelector('.query-item__delete');
+                if (deleteButton) {
+                    deleteButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const setId = deleteButton.dataset.id;
+                        deleteQuestionSet(setId);
+                    });
+                }
             });
         }
 
@@ -2352,15 +2622,369 @@
             renderQuestionSetsList();
         }
 
-        function init() {
-            loadState();
+        function guardarConsulta(datos) {
+            return fetch('/api/guardar-consulta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('✅ Consulta guardada en la base de datos:', data.consulta);
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Error al guardar consulta');
+                }
+            })
+            .catch(error => {
+                console.error('Error guardando consulta:', error);
+                throw error;
+            });
+        }
+
+        // Función para guardar consulta en Supabase (versión simplificada para workspace)
+        async function guardarConsultaEnSupabase(datos, options = {}) {
+            const {
+                showAlert = false,
+                silent = false
+            } = options;
+
+            try {
+                console.log('📤 Enviando a Supabase:', datos);
+                
+                const response = await fetch('/api/guardar-consulta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                const result = await response.json();
+                console.log('📥 Respuesta de Supabase:', result);
+
+                if (result.success) {
+                    if (showAlert && !silent) {
+                        console.log('✅ Cambios guardados en Supabase');
+                    }
+                    return result;
+                } else {
+                    console.error('❌ Error en respuesta:', result);
+                    throw new Error(result.error || 'Error al guardar en Supabase');
+                }
+            } catch (error) {
+                console.error('❌ Error guardando en Supabase:', error);
+                if (!silent) {
+                    console.error('Error guardando en Supabase:', error);
+                }
+                throw error;
+            }
+        }
+
+        function enviarConsulta(datos) {
+            // Mostrar indicador de carga
+            const btnAceptar = document.getElementById('btnAceptarConsulta');
+            const textoOriginal = btnAceptar.textContent;
+            btnAceptar.textContent = 'Enviando...';
+            btnAceptar.disabled = true;
+            
+            // Preparar datos para enviar al servidor
+            const payload = {
+                consultaNumero: datos.consultaNumero,
+                consultaNombre: datos.consultaNombre,
+                fechaVencimiento: datos.fechaVencimiento,
+                asignarTodos: datos.asignarTodos,
+                usuario: datos.usuario,
+                mensaje: datos.mensaje,
+                instrucciones: state.instructions,
+                questionSets: state.questionSets,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Enviar al servidor
+            fetch('/api/enviar-consulta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar notificación de éxito
+                    mostrarNotificacion('Consulta enviada exitosamente', 'success');
+                    
+                    // Limpiar formulario
+                    document.getElementById('fechaVencimiento').value = '';
+                    document.getElementById('asignarTodos').checked = false;
+                    document.getElementById('buscarUsuario').value = '';
+                    document.getElementById('cuerpoCorreo').value = '';
+                    
+                    // Guardar estado de envío
+                    const envioKey = `consulta_enviada_${consultaNumero}`;
+                    localStorage.setItem(envioKey, JSON.stringify({
+                        enviada: true,
+                        fechaEnvio: new Date().toISOString(),
+                        datos: payload
+                    }));
+                    
+                    // Opcional: Redirigir a consultas después de un tiempo
+                    setTimeout(() => {
+                        window.location.href = 'consultas.html';
+                    }, 2000);
+                    
+                } else {
+                    throw new Error(data.message || 'Error al enviar consulta');
+                }
+            })
+            .catch(error => {
+                console.error('Error al enviar consulta:', error);
+                mostrarNotificacion('Error al enviar la consulta: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Restaurar botón
+                btnAceptar.textContent = textoOriginal;
+                btnAceptar.disabled = false;
+            });
+        }
+        
+        function mostrarNotificacion(mensaje, tipo = 'info') {
+            // Crear elemento de notificación
+            const notificacion = document.createElement('div');
+            notificacion.className = `notificacion notificacion-${tipo}`;
+            notificacion.textContent = mensaje;
+            
+            // Estilos para la notificación
+            notificacion.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            
+            // Color según tipo
+            switch(tipo) {
+                case 'success':
+                    notificacion.style.background = '#16a34a';
+                    break;
+                case 'error':
+                    notificacion.style.background = '#dc2626';
+                    break;
+                default:
+                    notificacion.style.background = '#1976d2';
+            }
+            
+            // Agregar al DOM
+            document.body.appendChild(notificacion);
+            
+            // Animar entrada
+            setTimeout(() => {
+                notificacion.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                notificacion.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notificacion.parentNode) {
+                        notificacion.parentNode.removeChild(notificacion);
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        // Hacer la función accesible globalmente
+        window.limpiarLocalStorageConsultas = function() {
+            // Limpiar todos los datos de consultas de localStorage
+            const keysToRemove = [];
+            
+            // Encontrar todas las claves relacionadas con consultas
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.startsWith('consulta_') || 
+                    key.startsWith('consulta_enviada_') ||
+                    key.includes('questionSets') ||
+                    key.includes('instructions')
+                )) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Eliminar todas las claves encontradas
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('✅ Eliminado:', key);
+            });
+            
+            console.log(`🧹 Se eliminaron ${keysToRemove.length} claves de localStorage`);
+            
+            // Mostrar notificación si la función mostrarNotificación existe
+            if (typeof mostrarNotificacion === 'function') {
+                mostrarNotificacion('Datos locales de consultas eliminados', 'success');
+            } else {
+                alert('Datos locales de consultas eliminados: ' + keysToRemove.length + ' claves');
+            }
+            
+            return keysToRemove.length;
+        };
+
+        async function init() {
+            console.log('🚀 Iniciando workspace...');
+            console.log('📋 Parámetros URL:', {
+                numero: consultaNumero,
+                nombre: consultaNombre,
+                new: params.get('new')
+            });
+            
+            try {
+                await loadState();
+                console.log('✅ loadState completado');
+            } catch (error) {
+                console.error('❌ Error en loadState:', error);
+            }
+            
             initWorkspace();
             renderRequirements();
             initInstructions();
             setupEventListeners();
+            
+            // Configurar event listeners del modal
+            const btnEnviar = document.getElementById('btnEnviarConsulta');
+            const btnCancelar = document.getElementById('btnCancelarConsulta');
+            const btnAceptar = document.getElementById('btnAceptarConsulta');
+            const modal = document.getElementById('abrirConsultaModal');
+
+            if (btnEnviar) {
+                btnEnviar.addEventListener('click', function() {
+                    modal.classList.add('active');
+                });
+            }
+
+            if (btnCancelar) {
+                btnCancelar.addEventListener('click', function() {
+                    modal.classList.remove('active');
+                });
+            }
+
+            if (btnAceptar) {
+                btnAceptar.addEventListener('click', function() {
+                    // Recolectar datos del formulario
+                    const fechaVencimiento = document.getElementById('fechaVencimiento').value;
+                    const asignarTodos = document.getElementById('asignarTodos').checked;
+                    const buscarUsuario = document.getElementById('buscarUsuario').value;
+                    const cuerpoCorreo = document.getElementById('cuerpoCorreo').value;
+                    
+                    // Validar campos obligatorios
+                    if (!fechaVencimiento) {
+                        alert('Por favor selecciona una fecha de vencimiento');
+                        return;
+                    }
+                    
+                    if (!cuerpoCorreo.trim()) {
+                        alert('Por favor escribe el cuerpo del correo electrónico');
+                        return;
+                    }
+                    
+                    if (!asignarTodos && !buscarUsuario.trim()) {
+                        alert('Por favor asigna a todos los contactos o especifica un usuario');
+                        return;
+                    }
+                    
+                    // Primero guardar la consulta en la base de datos
+                    guardarConsulta({
+                        numero: consultaNumero,
+                        nombre: consultaNombre,
+                        descripcion: consultaDescripcion,
+                        objetivos: consultaObjetivos,
+                        tipo: consultaTipo,
+                        fechaVencimiento: fechaVencimiento,
+                        instrucciones: state.instructions,
+                        mensaje: cuerpoCorreo,
+                        asignarTodos: asignarTodos,
+                        usuario: buscarUsuario,
+                        questionSets: state.questionSets,
+                        metadata: {
+                            creada_por: 'usuario_actual',
+                            timestamp: new Date().toISOString()
+                        }
+                    }).then(response => {
+                        if (response.success) {
+                            // Si se guardó correctamente, enviar el correo
+                            enviarConsulta({
+                                fechaVencimiento: fechaVencimiento,
+                                asignarTodos: asignarTodos,
+                                usuario: buscarUsuario,
+                                mensaje: cuerpoCorreo,
+                                consultaNumero: consultaNumero,
+                                consultaNombre: consultaNombre
+                            });
+                        } else {
+                            throw new Error(response.error || 'Error al guardar la consulta');
+                        }
+                    }).catch(error => {
+                        console.error('Error en el proceso:', error);
+                        mostrarNotificacion('Error: ' + error.message, 'error');
+                    });
+                    
+                    modal.classList.remove('active');
+                });
+            }
+
+            // Cerrar modal al hacer clic fuera del contenido
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            }
         }
 
-        init();
+        // Esperar a que el DOM esté completamente cargado
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
+<div id="abrirConsultaModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Abrir consulta</h2>
+            <div class="form-group">
+                <label for="fechaVencimiento">Fecha de vencimiento de la consulta</label>
+                <input type="date" id="fechaVencimiento" placeholder="Seleccionar fecha">
+            </div>
+            <div class="form-group">
+                <label>Personas asignadas</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="asignarTodos">
+                    <label for="asignarTodos">Enviar a todos los contactos</label>
+                </div>
+                <input type="text" id="buscarUsuario" placeholder="Buscar usuario">
+                <a href="#" class="link">Crear nuevo contacto</a>
+            </div>
+            <div class="form-group">
+                <label for="cuerpoCorreo">Cuerpo de correo electrónico</label>
+                <textarea id="cuerpoCorreo"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="primary" id="btnAceptarConsulta">Aceptar</button>
+                <button class="secondary" id="btnCancelarConsulta">Cancelar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

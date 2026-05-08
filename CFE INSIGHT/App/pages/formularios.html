@@ -14150,59 +14150,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             } catch (err) {
                 console.warn('No se pudo obtener el usuario actual para observaciones:', err);
+                return OBSERVATIONS_STORAGE_KEY_BASE;
             }
-            console.log('🔍 Usando storage key base:', OBSERVATIONS_STORAGE_KEY_BASE);
-            return OBSERVATIONS_STORAGE_KEY_BASE;
         }
 
-        function loadStoredObservations() {
+        async function loadStoredObservations() {
             try {
-                if (typeof localStorage === 'undefined') {
-                    return [];
-                }
-
-                const storageKey = getCurrentObservationStorageKey();
-                console.log('🔍 Storage key para observaciones:', storageKey);
-                const raw = localStorage.getItem(storageKey);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    console.log('🔍 Raw observaciones parseadas:', parsed);
-                    return Array.isArray(parsed) ? parsed : [];
-                }
-
-                // Migración desde almacenamiento legacy
-                const legacyRaw = localStorage.getItem(OBSERVATIONS_STORAGE_KEY_BASE);
-                if (!legacyRaw) {
-                    return [];
-                }
-
                 const userId = getCurrentUserId();
-                console.log('🔍 userId para migración:', userId);
-                const legacyParsed = JSON.parse(legacyRaw);
-                const migrated = Array.isArray(legacyParsed)
-                    ? legacyParsed
-                        .filter(item => {
-                            // Si no hay userId, solo traer items sin createdBy (legacy)
-                            if (!userId) return !item.createdBy;
-                            // Si hay userId, solo traer items del mismo usuario o sin createdBy
-                            return !item.createdBy || item.createdBy === userId;
-                        })
-                        .map(item => ({
-                            ...item,
-                            createdBy: item.createdBy || userId || 'legacy'
-                        }))
-                    : [];
-
-                localStorage.setItem(storageKey, JSON.stringify(migrated));
-
-                // Si no hay otros usuarios, limpiar clave legacy
-                if (!legacyParsed.some(item => item.createdBy && item.createdBy !== userId)) {
-                    localStorage.removeItem(OBSERVATIONS_STORAGE_KEY_BASE);
+                console.log('🔍 Cargando observaciones desde BD para userId:', userId);
+                
+                if (!userId) {
+                    console.warn('🔍 No hay userId, retornando array vacío');
+                    return [];
                 }
 
-                return migrated;
+                const response = await fetch(`/api/observations/${userId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('🔍 Observaciones cargadas desde BD:', data.observations);
+                    // Convertir formato de BD al formato esperado por el frontend
+                    return data.observations.map(obs => ({
+                        id: obs.id,
+                        formId: obs.form_id,
+                        classification: obs.classification,
+                        description: obs.description,
+                        status: obs.status,
+                        createdBy: obs.user_id,
+                        createdAt: obs.created_at,
+                        updatedAt: obs.updated_at
+                    }));
+                } else {
+                    console.error('🔍 Error cargando observaciones:', data.error);
+                    return [];
+                }
             } catch (error) {
-                console.warn('No se pudieron cargar las observaciones guardadas:', error);
+                console.error('🔍 Error en loadStoredObservations:', error);
                 return [];
             }
         }
@@ -14219,7 +14202,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
-        function saveObservationClassification(formId) {
+        async function saveObservationClassification(formId) {
             const classificationValue = document.getElementById('classificationValue').value;
             const observationElement = document.getElementById('observationText');
             const observationIdInput = document.getElementById('observationId');
@@ -14246,70 +14229,68 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 : null;
             const currentUserEmail = currentUserProfile && currentUserProfile.email ? currentUserProfile.email : 'usuario@cfeinsight.com';
 
-            const currentUser = {
-                id: currentUserId,
-                name: currentUserName || 'Usuario',
-                email: currentUserEmail
-            };
-
-            let savedObservations = loadStoredObservations();
-            let message = `Observación del formulario ${formId} guardada como: ${classificationValue}`;
-
-            if (observationId) {
-                const existingIndex = savedObservations.findIndex(obs => obs.id === observationId);
-                if (existingIndex !== -1) {
-                    savedObservations[existingIndex] = {
-                        ...savedObservations[existingIndex],
-                        text: observationText,
-                        html: observationHtml,
-                        classification: classificationValue,
-                        status: 'pendiente',
-                        createdBy: currentUser.id,
-                        user: currentUser.name,
-                        updatedAt: new Date().toISOString()
-                    };
-                    message = `Observación del formulario ${formId} actualizada`;
-                } else {
-                    savedObservations.push({
-                        id: Date.now().toString(),
-                        formId,
-                        text: observationText,
-                        html: observationHtml,
-                        classification: classificationValue,
-                        timestamp: new Date().toISOString(),
-                        user: currentUser.name,
-                        status: 'pendiente',
-                        createdBy: currentUser.id,
-                        section: formId
-                    });
-                }
-            } else {
-                const observationData = {
-                    id: Date.now().toString(),
-                    formId,
-                    text: observationText,
-                    html: observationHtml,
-                    classification: classificationValue,
-                    timestamp: new Date().toISOString(),
-                    user: currentUser.name,
-                    createdBy: currentUser.id,
-                    status: 'pendiente',
-                    section: formId
-                };
-
-                savedObservations.push(observationData);
+            if (!currentUserId) {
+                showNotification('Debe estar autenticado para guardar observaciones', 'warning');
+                return;
             }
 
-            saveStoredObservations(savedObservations);
+            try {
+                let message = `Observación del formulario ${formId} guardada como: ${classificationValue}`;
+                
+                if (observationId) {
+                    // Actualizar observación existente
+                    const response = await fetch(`/api/observations/${observationId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            status: 'pendiente'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        message = `Observación del formulario ${formId} actualizada`;
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } else {
+                    // Crear nueva observación
+                    const response = await fetch('/api/observations', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            formId: formId,
+                            classification: classificationValue,
+                            description: observationText,
+                            status: 'pendiente',
+                            userId: currentUserId,
+                            userEmail: currentUserEmail
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (!data.success) {
+                        throw new Error(data.error);
+                    }
+                }
 
-            console.log('🔍 Observación guardada:', savedObservations);
+                console.log('🔍 Observación guardada en BD');
 
-            updateObservationBadge(formId);
-            console.log('🔍 Llamando a updateIssuesSection...');
-            updateIssuesSection();
+                updateObservationBadge(formId);
+                console.log('🔍 Llamando a updateIssuesSection...');
+                await updateIssuesSection();
 
-            showNotification(message, 'success');
-            closeObservationsModal();
+                showNotification(message, 'success');
+                closeObservationsModal();
+                
+            } catch (error) {
+                console.error('🔍 Error guardando observación:', error);
+                showNotification('Error al guardar la observación', 'error');
+            }
         }
 
         // Función para actualizar el indicador (badge) en la banderita
@@ -14351,11 +14332,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para actualizar la sección de Pendientes
-        function updateIssuesSection() {
+        async function updateIssuesSection() {
             console.log('🔍 updateIssuesSection iniciado');
             console.log('🔍 Usuario actual (getCurrentUserId):', getCurrentUserId());
-            const observations = loadStoredObservations();
-            console.log('🔍 Observaciones en localStorage:', observations);
+            const observations = await loadStoredObservations();
+            console.log('🔍 Observaciones cargadas desde BD:', observations);
             
             const issuesList = document.getElementById('issuesList');
             const issuesCount = document.querySelector('.issues-count');
@@ -14505,24 +14486,34 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             showNotification('Preparando respuesta a la observación...', 'info');
         }
 
-        function deleteObservation(observationId) {
-            let observations = loadStoredObservations();
-            const observationIndex = observations.findIndex(obs => obs.id === observationId);
+        async function deleteObservation(observationId) {
+            try {
+                if (!confirm('¿Está seguro de que desea eliminar esta observación?')) {
+                    return;
+                }
 
-            if (observationIndex === -1) {
-                showNotification('No se encontró la observación a eliminar', 'warning');
-                return;
+                const response = await fetch(`/api/observations/${observationId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Actualizar badge del formulario relacionado
+                    const observations = await loadStoredObservations();
+                    const observation = observations.find(obs => obs.id === observationId);
+                    if (observation && observation.formId) {
+                        updateObservationBadge(observation.formId);
+                    }
+
+                    await updateIssuesSection();
+                    showNotification('Observación eliminada', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('🔍 Error eliminando observación:', error);
+                showNotification('Error al eliminar la observación', 'error');
             }
-
-            const [removed] = observations.splice(observationIndex, 1);
-            saveStoredObservations(observations);
-
-            if (removed?.formId) {
-                updateObservationBadge(removed.formId);
-            }
-
-            updateIssuesSection();
-            showNotification('Observación eliminada', 'success');
         }
 
         // Función para ver detalle de observación
@@ -14537,22 +14528,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para marcar como resuelta
-        function resolveObservation(observationId) {
-            let observations = loadStoredObservations();
-            const observationIndex = observations.findIndex(obs => obs.id === observationId);
-            
-            if (observationIndex !== -1) {
-                const formId = observations[observationIndex].formId;
-                observations[observationIndex].status = 'resuelto';
-                saveStoredObservations(observations);
+        async function resolveObservation(observationId) {
+            try {
+                const response = await fetch(`/api/observations/${observationId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'resuelto'
+                    })
+                });
                 
-                // Actualizar badge del formulario (recalculando pendientes restantes)
-                updateObservationBadge(formId);
-                
-                // Actualizar sección de pendientes
-                updateIssuesSection();
-                
-                showNotification('Observación marcada como resuelta', 'success');
+                const data = await response.json();
+                if (data.success) {
+                    // Actualizar badge del formulario
+                    const observations = await loadStoredObservations();
+                    const observation = observations.find(obs => obs.id === observationId);
+                    if (observation && observation.formId) {
+                        updateObservationBadge(observation.formId);
+                    }
+                    
+                    // Actualizar sección de pendientes
+                    await updateIssuesSection();
+                    
+                    showNotification('Observación marcada como resuelta', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('🔍 Error marcando observación como resuelta:', error);
+                showNotification('Error al marcar la observación como resuelta', 'error');
             }
         }
 
@@ -24771,17 +24777,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             });
 
-            updateIssuesSection();
+            await updateIssuesSection();
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initializeObservations();
         });
 
         // Función para actualizar la sección de Consultas
-        function updateQueriesSection() {
+        async function updateQueriesSection() {
             console.log('🔍 updateQueriesSection iniciado');
-            const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
+            
+            // Cargar consultas desde Supabase en lugar de localStorage
+            let queries = [];
+            try {
+                const response = await fetch('/api/historial-consultas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Convertir datos del historial al formato esperado
+                    queries = data.historial.map(consulta => ({
+                        id: consulta.id,
+                        number: consulta.numero,
+                        title: consulta.documento_consulta,
+                        status: consulta.estado,
+                        dueDate: consulta.fecha_vencimiento,
+                        contacts: consulta.contactos,
+                        progress: consulta.progreso.porcentaje
+                    }));
+                    console.log('✅ Consultas cargadas desde Supabase:', queries);
+                } else {
+                    console.error('❌ Error cargando consultas:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ Error en la llamada a la API:', error);
+                // Fallback a localStorage si hay error
+                queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
+            }
+            
             const queriesList = document.getElementById('queriesList');
             const noQueries = document.getElementById('noQueries');
             
@@ -24860,13 +24893,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             const statusText = query.status.charAt(0).toUpperCase() + query.status.slice(1);
             
-            // Formatear fecha
-            const queryDate = new Date(query.date);
-            const formattedDate = queryDate.toLocaleDateString('es-ES', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
-            });
+            // Formatear fecha de vencimiento
+            let formattedDate = 'Sin fecha';
+            if (query.dueDate) {
+                const queryDate = new Date(query.dueDate);
+                formattedDate = queryDate.toLocaleDateString('es-ES', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+            }
             
             queryDiv.innerHTML = `
                 <div class="query-title">${query.title}</div>
@@ -24880,15 +24916,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Agregar evento click para redirigir al workspace
             queryDiv.addEventListener('click', function() {
-                // Extraer el número de consulta del título
-                const queryNumber = query.title.split(' - ')[0];
-                const queryTitle = query.title.split(' - ')[1] || 'Consulta';
+                // Usar los datos de la API (number y title)
+                const queryNumber = query.number;
+                const queryTitle = query.title;
                 
                 // Construir URL del workspace
                 const workspaceUrl = `consultas_workspace.html?numero=${encodeURIComponent(queryNumber)}&nombre=${encodeURIComponent(queryTitle)}`;
                 
-                // Abrir el workspace en una nueva pestaña
-                window.open(workspaceUrl, '_blank');
+                console.log('🔗 Abriendo workspace:', workspaceUrl);
+                
+                // Abrir el workspace en la misma pestaña
+                window.location.href = workspaceUrl;
             });
             
             return queryDiv;
