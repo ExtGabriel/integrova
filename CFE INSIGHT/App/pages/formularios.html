@@ -5801,7 +5801,7 @@
             }
 
             // Asegurar que el menú se muestre correctamente
-            items.style.display = 'block';
+            items.style.removeProperty('display');
             items.classList.add('show');
             items.style.overflowY = 'auto';
             items.style.maxHeight = '250px';
@@ -5848,8 +5848,8 @@
             const padreItems = document.getElementById('entidadPadreItems');
             const padreArrow = document.querySelector('#entidadPadreSelect .custom-arrow');
             if (padreItems) {
-                padreItems.style.display = 'none';
                 padreItems.classList.remove('show');
+                padreItems.style.removeProperty('display');
             }
             if (padreArrow) padreArrow.classList.remove('rotate');
             
@@ -5857,22 +5857,10 @@
             const hijoItems = document.getElementById('entidadHijoItems');
             const hijoArrow = document.querySelector('#entidadHijoSelect .custom-arrow');
             if (hijoItems) {
-                hijoItems.style.display = 'none';
                 hijoItems.classList.remove('show');
+                hijoItems.style.removeProperty('display');
             }
             if (hijoArrow) hijoArrow.classList.remove('rotate');
-            
-            // Forzar cierre con múltiples métodos
-            setTimeout(() => {
-                if (padreItems) {
-                    padreItems.style.display = 'none';
-                    padreItems.classList.remove('show');
-                }
-                if (hijoItems) {
-                    hijoItems.style.display = 'none';
-                    hijoItems.classList.remove('show');
-                }
-            }, 10);
         }
         function reassignClickEvents(type) {
             const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
@@ -5944,10 +5932,10 @@
             
             console.log('Options rendered successfully');
             
-            // Asegurar que el menú sea visible y clickeable
-            items.style.display = 'block';
-            items.style.pointerEvents = 'auto';
-            console.log('Made items visible and clickable');
+            items.classList.remove('show');
+            items.style.pointerEvents = '';
+            items.style.removeProperty('display');
+            console.log('Reset dropdown visibility state');
         }
 
         // Función actualizada para cargar entidades con menús personalizados
@@ -17347,7 +17335,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const formData = new FormData();
                 selectedFiles.forEach((file) => formData.append('files', file));
 
-                const response = await fetch('/api/excel/upload', {
+                const response = await fetch(`${API_BASE_URL}/api/excel/upload`, {
                     method: 'POST',
                     body: formData,
                     headers: {
