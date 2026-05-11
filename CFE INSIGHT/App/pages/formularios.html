@@ -3499,8 +3499,39 @@
             balanceModal.style.display = 'none';
             columnModal.style.display = 'flex';
             
-            // Cargar datos del Excel para el mapeo
+            // Cargar datos desde la base de datos (ahora el upload ya guardó)
             await loadExcelDataForMapping();
+        }
+        
+        async function loadExcelDataFromUpload() {
+            try {
+                // Usar datos del upload reciente
+                const uploadedFiles = window.uploadedExcelData || [];
+                
+                if (uploadedFiles.length === 0) {
+                    console.error('No hay datos de Excel subidos');
+                    return;
+                }
+                
+                const firstFile = uploadedFiles[0];
+                const sheetData = firstFile.data;
+                
+                if (!sheetData || sheetData.length === 0) {
+                    console.error('La hoja de Excel está vacía');
+                    return;
+                }
+                
+                console.log('Cargando datos del upload:', firstFile);
+                
+                // Actualizar las opciones de los selectores de mapeo
+                updateMappingSelectors(sheetData);
+                
+                // Actualizar la vista previa de datos
+                updateDataPreview(sheetData);
+                
+            } catch (error) {
+                console.error('Error cargando datos para mapeo:', error);
+            }
         }
         
         async function loadExcelDataForMapping() {
@@ -17350,16 +17381,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     throw new Error(msg);
                 }
 
-                const results = payload.results || [];
-                const okCount = results.filter(r => r && r.success).length;
-                const fail = results.filter(r => r && !r.success);
-
-                if (fail.length) {
-                    const details = fail.map(f => `${f.filename}: ${f.error || 'Error'}`).join('\n');
-                    alert(`Subidos: ${okCount}/${results.length}\n\nFallos:\n${details}`);
-                } else {
+                const files = payload.files || [];
+                
+                if (files.length > 0) {
+                    console.log('Archivos guardados en BD:', files);
                     // Mostrar modal de selección de balance inmediatamente
                     showBalanceSelectionModal();
+                } else {
+                    alert('No se procesaron archivos correctamente');
                 }
 
                 clearFiles();

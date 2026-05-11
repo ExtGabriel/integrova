@@ -3363,12 +3363,25 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
 app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
     try {
         const files = req.files || [];
+        const userId = req.user?.id || req.headers['user-id'];
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
         }
 
         const processedFiles = [];
+
+        // Desactivar datasets anteriores del usuario
+        if (userId) {
+            const { error: deactivateError } = await supabase
+                .from('conjuntos_datos')
+                .update({ is_active: false })
+                .eq('user_id', userId);
+
+            if (deactivateError) {
+                console.error('Error desactivando datasets anteriores:', deactivateError);
+            }
+        }
 
         for (const file of files) {
             if (!file.mimetype.includes('spreadsheet') && !file.originalname.endsWith('.xlsx') && !file.originalname.endsWith('.xls')) {
@@ -3383,24 +3396,64 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                     return res.status(400).json({ success: false, error: 'El archivo Excel no contiene hojas' });
                 }
 
-                // Procesar la primera hoja
-                const firstSheet = workbook.Sheets[sheetNames[0]];
-                const jsonData = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
-                
-                if (jsonData.length === 0) {
-                    return res.status(400).json({ success: false, error: 'La hoja está vacía' });
+                // Procesar todas las hojas
+                const sheetsData = [];
+                let totalRows = 0;
+
+                for (const sheetName of sheetNames) {
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    if (jsonData.length > 0) {
+                        const columns = jsonData[0] || [];
+                        const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
+                        
+                        sheetsData.push({
+                            sheetName: sheetName,
+                            columns: columns,
+                            data: dataRows,
+                            rows: dataRows.length,
+                            columnsCount: columns.length
+                        });
+                        
+                        totalRows += dataRows.length;
+                    }
                 }
 
-                // Extraer columnas de la primera fila
-                const columns = jsonData[0] || [];
-                const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
-                
+                // Guardar directamente en la base de datos
+                const { data: dataset, error: datasetError } = await supabase
+                    .from('conjuntos_datos')
+                    .insert([{
+                        nombre: file.originalname,
+                        tipo: 'balance_comprobacion',
+                        fecha_importacion: new Date().toISOString(),
+                        total_debitos: 0, // Se calculará después del mapeo
+                        total_creditos: 0, // Se calculará después del mapeo
+                        estado: 'subido',
+                        user_id: userId,
+                        importado_por: userId,
+                        is_active: true,
+                        data: {
+                            sheets: sheetsData,
+                            totalSheets: sheetsData.length,
+                            totalRows: totalRows,
+                            filename: file.originalname
+                        }
+                    }])
+                    .select()
+                    .single();
+
+                if (datasetError) {
+                    console.error('Error guardando dataset:', datasetError);
+                    return res.status(500).json({ success: false, error: 'Error guardando en base de datos' });
+                }
+
                 processedFiles.push({
                     filename: file.originalname,
-                    sheetName: sheetNames[0],
-                    columns: columns,
-                    data: dataRows,
-                    totalRows: dataRows.length
+                    datasetId: dataset.id,
+                    sheets: sheetsData,
+                    totalSheets: sheetsData.length,
+                    totalRows: totalRows
                 });
 
             } catch (error) {
@@ -3411,7 +3464,7 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
         res.json({ 
             success: true, 
-            message: 'Archivos procesados correctamente',
+            message: 'Archivos procesados y guardados correctamente',
             files: processedFiles
         });
 
