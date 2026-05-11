@@ -234,6 +234,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
 app.use(express.static(path.join(__dirname, 'CFE INSIGHT/App'))); // Servir archivos estáticos
 
