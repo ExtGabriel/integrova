@@ -5920,16 +5920,35 @@
 
         // Función para restaurar opciones originales
         function restoreOriginalOptions(type) {
+            console.log(`restoreOriginalOptions called with type: ${type}`);
+            
             const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            console.log(`Found items element:`, items);
+            
+            if (!items) {
+                console.error(`Element not found: entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+                return;
+            }
+            
             const originalOptions = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+            console.log(`Original options for ${type}:`, originalOptions);
+
+            if (!originalOptions || originalOptions.length === 0) {
+                console.error(`No original options found for type: ${type}`);
+                items.innerHTML = '<div style="padding: 12px; color: #999;">No hay opciones disponibles</div>';
+                return;
+            }
 
             items.innerHTML = originalOptions.map(option =>
                 `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${option.text.replace(/'/g, "\\'")}')">${option.text}</div>`
             ).join('');
             
+            console.log('Options rendered successfully');
+            
             // Asegurar que el menú sea visible y clickeable
             items.style.display = 'block';
             items.style.pointerEvents = 'auto';
+            console.log('Made items visible and clickable');
         }
 
         // Función actualizada para cargar entidades con menús personalizados
