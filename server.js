@@ -224,13 +224,15 @@ const corsOptions = {
             ...additionalFrontendOrigins  // Frontend en Vercel o dominios personalizados
         ];
 
-        const isVercelPreview = typeof origin === 'string' && origin.endsWith('.vercel.app');
+        const vercelPreviewRegex = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+        const isVercelPreview = typeof origin === 'string' && vercelPreviewRegex.test(origin);
 
         // Permitir requests sin origin (por ejemplo, Postman, cURL, apps móviles)
         if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
             callback(null, true);
         } else {
             console.warn(`❌ CORS rechazado para origin: ${origin}`);
+            console.warn('   ↳ Orígenes permitidos:', allowedOrigins);
             callback(new Error('CORS no permitido'));
         }
     },
