@@ -3474,8 +3474,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // URL base para llamadas a la API (servidor en puerto 3001)
-        const API_BASE_URL = 'http://localhost:3001';
+        // URL base para llamadas a la API (usa env/ventana y fallback a relativo)
+        const API_BASE_URL = (window.API_BASE_URL)
+            || (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL))
+            || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
+            || '';
         
         // Funciones para los modales de balance y mapeo de columnas
         function showBalanceSelectionModal() {
@@ -24275,8 +24278,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function showColumnMappingInterface() {
             // Ocultar interfaces existentes si las hay
             const existingInterfaces = document.querySelectorAll('.column-mapping-interface, .trial-balance-interface, .classification-interface');
-            existingInterfaces.forEach(interface => {
-                interface.style.display = 'none';
+            existingInterfaces.forEach(uiSection => {
+                uiSection.style.display = 'none';
             });
             
             // Crear o mostrar la interfaz de mapeo de columnas
@@ -24299,10 +24302,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para crear la interfaz de mapeo de columnas
         function createColumnMappingInterface() {
-            const interface = document.createElement('div');
-            interface.id = 'columnMappingInterface';
-            interface.className = 'column-mapping-interface';
-            interface.innerHTML = `
+            const interfaceElement = document.createElement('div');
+            interfaceElement.id = 'columnMappingInterface';
+            interfaceElement.className = 'column-mapping-interface';
+            interfaceElement.innerHTML = `
                 <div class="interface-header">
                     <h3><i class="fas fa-columns"></i> Mapeo de Columnas</h3>
                     <p>Selecciona qué columna de tu archivo Excel corresponde a cada campo requerido:</p>
@@ -24382,7 +24385,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 </div>
             `;
             
-            return interface;
+            return interfaceElement;
         }
 
         // Función para procesar el mapeo
@@ -24420,9 +24423,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cancelar el mapeo
         function cancelMapping() {
-            const interface = document.getElementById('columnMappingInterface');
-            if (interface) {
-                interface.style.display = 'none';
+            const interfaceElement = document.getElementById('columnMappingInterface');
+            if (interfaceElement) {
+                interfaceElement.style.display = 'none';
             }
             showNotification('Mapeo cancelado', 'info');
         }
@@ -24431,8 +24434,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function navigateToAssignAccounts() {
             // Ocultar todas las interfaces actuales
             const allInterfaces = document.querySelectorAll('.column-mapping-interface, .trial-balance-interface, .classification-interface, .upload-section');
-            allInterfaces.forEach(interface => {
-                interface.style.display = 'none';
+            allInterfaces.forEach(uiSection => {
+                uiSection.style.display = 'none';
             });
             
             // Buscar o crear la interfaz de Asignación de Cuentas
@@ -24461,10 +24464,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para crear la interfaz de Asignación de Cuentas
         function createAssignAccountsInterface() {
-            const interface = document.createElement('div');
-            interface.id = 'assignAccountsInterface';
-            interface.className = 'assign-accounts-container';
-            interface.innerHTML = `
+            const interfaceElement = document.createElement('div');
+            interfaceElement.id = 'assignAccountsInterface';
+            interfaceElement.className = 'assign-accounts-container';
+            interfaceElement.innerHTML = `
                 <div class="unassigned-accounts-panel">
                     <div class="panel-header">
                         <div class="left-header">
@@ -24639,7 +24642,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 </div>
             `;
             
-            return interface;
+            return interfaceElement;
         }
 
         // Función para actualizar el título de la página
