@@ -209,6 +209,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configuración de CORS: permitir frontend (Vercel) y desarrollo local
+const additionalFrontendOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
@@ -216,11 +221,13 @@ const corsOptions = {
             'http://localhost:3001',      // Servidor local (mismo puerto)
             'http://localhost:5000',      // Desarrollo local alternativo
             'http://localhost:8080',      // Desarrollo local alternativo
-            process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
-        ].filter(Boolean); // Remover valores undefined/null
+            ...additionalFrontendOrigins  // Frontend en Vercel o dominios personalizados
+        ];
+
+        const isVercelPreview = typeof origin === 'string' && origin.endsWith('.vercel.app');
 
         // Permitir requests sin origin (por ejemplo, Postman, cURL, apps móviles)
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
             callback(null, true);
         } else {
             console.warn(`❌ CORS rechazado para origin: ${origin}`);
