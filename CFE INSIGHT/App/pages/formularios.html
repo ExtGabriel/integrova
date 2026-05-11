@@ -3476,9 +3476,8 @@
     <script>
         // URL base para llamadas a la API (usa env/ventana y fallback a relativo)
         const API_BASE_URL = (window.API_BASE_URL)
-            || (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL))
             || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
-            || '';
+            || (window.location && window.location.origin ? window.location.origin : '');
         
         // Funciones para los modales de balance y mapeo de columnas
         function showBalanceSelectionModal() {
