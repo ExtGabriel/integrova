@@ -3518,8 +3518,61 @@
             balanceModal.style.display = 'none';
             columnModal.style.display = 'flex';
             
-            // Cargar datos desde la base de datos (ahora el upload ya guardó)
-            await loadExcelDataForMapping();
+            // Cargar datos desde variables temporales
+            await loadExcelDataFromTemp();
+        }
+        
+        async function loadExcelDataFromTemp() {
+            try {
+                console.log('🔍 Iniciando carga de datos temporales...');
+                console.log('🔍 tempExcelData:', tempExcelData);
+                
+                // Usar datos temporales del upload
+                if (!tempExcelData || tempExcelData.length === 0) {
+                    console.error('❌ No hay datos temporales de Excel disponibles');
+                    return;
+                }
+                
+                const firstFile = tempExcelData[0];
+                console.log('🔍 Primer archivo:', firstFile);
+                
+                if (!firstFile || !firstFile.sheets || firstFile.sheets.length === 0) {
+                    console.error('❌ No hay hojas en el archivo temporal');
+                    return;
+                }
+                
+                const firstSheet = firstFile.sheets[0];
+                console.log('🔍 Primera hoja:', firstSheet);
+                
+                const sheetData = firstSheet.data;
+                const sheetColumns = firstSheet.columns;
+                
+                if (!sheetData || sheetData.length === 0) {
+                    console.error('❌ La hoja de Excel está vacía');
+                    return;
+                }
+                
+                console.log('✅ Datos cargados exitosamente:', {
+                    filename: firstFile.filename,
+                    sheetName: firstSheet.sheetName,
+                    columns: sheetColumns,
+                    dataRows: sheetData.length,
+                    sampleData: sheetData.slice(0, 2)
+                });
+                
+                // Actualizar las opciones de los selectores de mapeo
+                console.log('🔄 Actualizando selectores de mapeo...');
+                updateMappingSelectors(sheetData, sheetColumns);
+                
+                // Actualizar la vista previa de datos
+                console.log('🔄 Actualizando vista previa de datos...');
+                updateDataPreview(sheetData, sheetColumns);
+                
+                console.log('✅ Proceso de carga temporal completado');
+                
+            } catch (error) {
+                console.error('❌ Error cargando datos temporales para mapeo:', error);
+            }
         }
         
         async function loadExcelDataFromUpload() {
