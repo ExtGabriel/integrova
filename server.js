@@ -3735,12 +3735,32 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
                 return;
             }
             
-            // Crear objeto cuenta
+            // Crear objeto cuenta - Aplicar lógica de Caseware: convertir negativos a positivos
+            const currentYearNum = parseFloat(currentYearValue) || 0;
+            const previousYearNum = parseFloat(previousYearValue) || 0;
+            
+            // Logging para mostrar conversiones de negativos a positivos
+            const currentYearConverted = Math.abs(currentYearNum);
+            const previousYearConverted = Math.abs(previousYearNum);
+            
+            if (currentYearNum < 0 || previousYearNum < 0) {
+                console.log(`🔄 Conversión Caseware - Cuenta: ${accountNumber}`);
+                if (currentYearNum < 0) {
+                    console.log(`   Current Year: ${currentYearNum} → ${currentYearConverted}`);
+                }
+                if (previousYearNum < 0) {
+                    console.log(`   Previous Year: ${previousYearNum} → ${previousYearConverted}`);
+                }
+            }
+            
             const account = {
                 number: accountNumber.toString().trim(),
                 name: accountName.toString().trim(),
-                currentYear: parseFloat(currentYearValue) || 0,
-                previousYear: parseFloat(previousYearValue) || 0
+                currentYear: currentYearConverted, // Valor absoluto
+                previousYear: previousYearConverted, // Valor absoluto
+                // Guardar valores originales para referencia
+                currentYearOriginal: currentYearNum,
+                previousYearOriginal: previousYearNum
             };
             
             // Asignar valores según el tipo de débito/crédito
