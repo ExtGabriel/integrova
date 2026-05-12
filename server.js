@@ -2156,6 +2156,92 @@ app.get('/api/excel/latest', async (req, res) => {
     }
 });
 
+// Endpoint para guardar datos procesados temporalmente
+app.post('/api/excel/save-temp-data', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { files, mappings } = req.body;
+        
+        console.log('💾 Save temp data request - User ID:', userId);
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No hay archivos para guardar' });
+        }
+
+        // Desactivar datasets anteriores del usuario
+        const { error: deactivateError } = await supabase
+            .from('conjuntos_datos')
+            .update({ is_active: false })
+            .eq('user_id', userId);
+
+        if (deactivateError) {
+            console.error('Error desactivando datasets anteriores:', deactivateError);
+        }
+
+        const processedFiles = [];
+
+        for (const file of files) {
+            try {
+                console.log('💾 Guardando archivo:', file.filename);
+                
+                // Guardar directamente en la base de datos
+                const { data: dataset, error: datasetError } = await supabase
+                    .from('conjuntos_datos')
+                    .insert([{
+                        nombre: file.filename,
+                        tipo: 'balance_comprobacion',
+                        fecha_importacion: new Date().toISOString(),
+                        total_debitos: 0, // Se calculará después del mapeo
+                        total_creditos: 0, // Se calculará después del mapeo
+                        estado: 'subido',
+                        user_id: userId,
+                        archivo_original: file.filename,
+                        is_active: true,
+                        data: {
+                            sheets: file.sheets,
+                            totalSheets: file.totalSheets,
+                            totalRows: file.totalRows,
+                            filename: file.filename
+                        }
+                    }])
+                    .select()
+                    .single();
+
+                if (datasetError) {
+                    console.error('Error guardando dataset:', datasetError);
+                    return res.status(500).json({ success: false, error: 'Error guardando en base de datos' });
+                }
+
+                processedFiles.push({
+                    filename: file.filename,
+                    datasetId: dataset.id,
+                    sheets: file.sheets,
+                    totalSheets: file.totalSheets,
+                    totalRows: file.totalRows
+                });
+
+            } catch (error) {
+                console.error(`Error guardando archivo ${file.filename}:`, error);
+                return res.status(500).json({ success: false, error: `Error guardando archivo ${file.filename}` });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Datos guardados correctamente',
+            files: processedFiles
+        });
+
+    } catch (error) {
+        console.error('Error guardando datos temporales:', error);
+        res.status(500).json({ success: false, error: 'Error guardando datos' });
+    }
+});
+
 // Endpoint para procesar el mapeo de columnas y guardar cuentas
 app.post('/api/excel/process-mapping', async (req, res) => {
     try {
@@ -3356,6 +3442,110 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
             success: false, 
             error: error.message || 'Error eliminando dataset' 
         });
+    }
+});
+
+// Endpoint para procesar archivos Excel temporalmente (sin guardar en BD)
+app.post('/api/excel/process-temp', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId);
+        
+        if (files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No se subieron archivos' });
+        }
+        
+        if (!userId) {
+            console.error('❌ Process - No user ID provided in headers');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado. Se requiere user-id en los headers.' });
+        }
+
+        // Validar tamaño máximo de archivos (10MB por archivo)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        for (const file of files) {
+            if (file.size > MAX_FILE_SIZE) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: `El archivo ${file.originalname} excede el tamaño máximo de 10MB` 
+                });
+            }
+        }
+
+        // Validar número máximo de filas (50,000 filas por archivo)
+        const MAX_ROWS = 50000;
+        const processedFiles = [];
+
+        for (const file of files) {
+            try {
+                console.log('📄 Procesando archivo temporal:', file.originalname, 'Tamaño:', file.size);
+                
+                if (!file.buffer) {
+                    throw new Error('No se pudo leer el contenido del archivo');
+                }
+
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const sheetNames = workbook.SheetNames;
+                
+                if (sheetNames.length === 0) {
+                    return res.status(400).json({ success: false, error: 'El archivo Excel no contiene hojas' });
+                }
+
+                // Procesar todas las hojas
+                const sheetsData = [];
+                let totalRows = 0;
+
+                for (const sheetName of sheetNames) {
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    if (jsonData.length > 0) {
+                        const columns = jsonData[0] || [];
+                        const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
+                        
+                        // Validar límite de filas
+                        if (dataRows.length > MAX_ROWS) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                error: `La hoja "${sheetName}" tiene ${dataRows.length} filas. El máximo permitido es ${MAX_ROWS}` 
+                            });
+                        }
+                        
+                        sheetsData.push({
+                            sheetName: sheetName,
+                            columns: columns,
+                            data: dataRows,
+                            rows: dataRows.length,
+                            columnsCount: columns.length
+                        });
+                        
+                        totalRows += dataRows.length;
+                    }
+                }
+
+                processedFiles.push({
+                    filename: file.originalname,
+                    sheets: sheetsData,
+                    totalSheets: sheetsData.length,
+                    totalRows: totalRows
+                });
+
+            } catch (error) {
+                console.error(`Error procesando archivo ${file.originalname}:`, error);
+                return res.status(500).json({ success: false, error: `Error procesando archivo ${file.originalname}` });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Archivos procesados temporalmente',
+            files: processedFiles
+        });
+
+    } catch (error) {
+        console.error('Error en procesamiento temporal:', error);
+        res.status(500).json({ success: false, error: 'Error procesando archivos temporalmente' });
     }
 });
 

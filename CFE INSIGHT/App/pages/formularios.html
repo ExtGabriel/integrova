@@ -3479,6 +3479,25 @@
             || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
             || (window.location && window.location.origin ? window.location.origin : '');
         
+        // Variable para almacenar datos temporales del Excel
+        let tempExcelData = null;
+        
+        // Tiempo límite para datos temporales (30 minutos)
+        let tempDataTimestamp = null;
+        const TEMP_DATA_TIMEOUT = 30 * 60 * 1000; // 30 minutos en milisegundos
+        
+        // Función para limpiar datos temporales expirados
+        function cleanupExpiredTempData() {
+            if (tempDataTimestamp && Date.now() - tempDataTimestamp > TEMP_DATA_TIMEOUT) {
+                tempExcelData = null;
+                tempDataTimestamp = null;
+                console.log('🗑️ Datos temporales expirados y eliminados');
+            }
+        }
+        
+        // Verificar cada 5 minutos si hay datos expirados
+        setInterval(cleanupExpiredTempData, 5 * 60 * 1000);
+        
         // Funciones para los modales de balance y mapeo de columnas
         function showBalanceSelectionModal() {
             const modal = document.getElementById('balanceSelectionModal');
@@ -3896,158 +3915,119 @@
             const modal = document.getElementById('columnMappingModal');
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
+            
+            // Limpiar datos temporales al cancelar
+            tempExcelData = null;
+            tempDataTimestamp = null;
+            console.log('🗑️ Datos temporales eliminados al cancelar');
         }
 
         async function processColumnMapping(event) {
-            // Obtener el tipo de balance seleccionado
-            const balanceType = document.querySelector('input[name="balanceType"]:checked')?.value;
+            event.preventDefault();
             
-            // Obtener los mapeos de columnas
-            const mappings = {
-                accountNumber: document.getElementById('accountNumberMapping').value,
-                accountName: document.getElementById('accountNameMapping').value,
-                currentYear: document.getElementById('currentYearMapping').value,
-                currentYearDebitCredit: document.getElementById('currentYearDebitCredit').value,
-                previousYear: document.getElementById('previousYearMapping').value,
-                previousYearDebitCredit: document.getElementById('previousYearDebitCredit').value,
-                balanceType: balanceType
-            };
-
-            // Validar campos requeridos
-            if (!mappings.accountNumber || !mappings.accountName) {
-                alert('Por favor, selecciona las columnas para Número de cuenta y Nombre de cuenta (marcados con *)');
-                return;
-            }
-
             try {
+                console.log('🔄 Iniciando proceso de mapeo de columnas...');
+                
+                if (!tempExcelData || tempExcelData.length === 0) {
+                    throw new Error('No hay datos temporales para guardar');
+                }
+                
+                // Obtener valores de los selectores
+                const mappingData = {
+                    accountNumber: document.getElementById('accountNumberMapping').value,
+                    accountName: document.getElementById('accountNameMapping').value,
+                    currentYear: document.getElementById('currentYearMapping').value,
+                    previousYear: document.getElementById('previousYearMapping').value,
+                    debitColumn: document.getElementById('debitColumnMapping').value,
+                    creditColumn: document.getElementById('creditColumnMapping').value
+                };
+                
+                console.log('📊 Mapping data:', mappingData);
+                
+                // Validar que los campos obligatorios estén seleccionados
+                if (!mappingData.accountNumber || !mappingData.accountName || 
+                    !mappingData.currentYear || !mappingData.previousYear) {
+                    throw new Error('Por favor selecciona todos los campos obligatorios');
+                }
+                
                 // Mostrar indicador de carga
                 const saveBtn = event.target;
                 const originalText = saveBtn.innerHTML;
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
-
-                // Obtener el ID del último archivo Excel procesado del usuario
-                let fileId = null;
-                try {
-                    const latestResponse = await fetch(`${API_BASE_URL}/api/excel/latest`, {
-                        headers: {
-                            'user-id': getCurrentUserId()
-                        }
-                    });
-                    const latestResult = await latestResponse.json();
-                    if (latestResponse.ok && latestResult.success && latestResult.data) {
-                        // Usar el ID del archivo
-                        fileId = latestResult.data.id;
-                    }
-                } catch (error) {
-                    console.warn('No se pudo obtener el ID del archivo:', error);
-                }
-
-                // Preparar datos para enviar al servidor (estructura correcta)
-                // Intentar obtener el usuario de múltiples formas
-                let sessionUser = null;
                 
-                // 1. Usar getUserUI() de auth-guard (preferido)
-                if (typeof window.getUserUI === 'function') {
-                    sessionUser = window.getUserUI();
-                    console.log('👤 Usuario desde getUserUI():', sessionUser);
-                }
-                
-                // 2. Fallback a getCurrentSession() local
-                if (!sessionUser && typeof getCurrentSession === 'function') {
-                    sessionUser = getCurrentSession();
-                    console.log('👤 Usuario desde getCurrentSession():', sessionUser);
-                }
-                
-                // 3. Fallback a window.currentUser
-                if (!sessionUser && window.currentUser) {
-                    sessionUser = window.currentUser;
-                    console.log('👤 Usuario desde window.currentUser:', sessionUser);
-                }
-                
-                // 4. Fallback directo a sessionStorage
-                if (!sessionUser) {
-                    try {
-                        const sessionData = sessionStorage.getItem('userUI');
-                        if (sessionData) {
-                            sessionUser = JSON.parse(sessionData);
-                            console.log('👤 Usuario desde sessionStorage directo:', sessionUser);
-                        }
-                    } catch (e) {
-                        console.warn('Error leyendo sessionStorage:', e);
-                    }
-                }
-                
-                console.log('👤 Usuario final detectado para upload:', sessionUser);
-                const payload = {
-                    mappingData: mappings,
-                    fileId: fileId,
-                    uploadedBy: sessionUser ? {
-                        id: sessionUser.id || sessionUser.user_id || sessionUser.uid || null,
-                        name: sessionUser.name || sessionUser.fullName || sessionUser.nombre || sessionUser.email || null,
-                        email: sessionUser.email || null
-                    } : null
-                };
-
-                // Enviar datos al servidor para procesamiento
-                const response = await fetch(`${API_BASE_URL}/api/excel/process-mapping`, {
+                // Primero guardar los datos temporales en la base de datos
+                console.log('💾 Guardando datos temporales en la base de datos...');
+                const saveResponse = await fetch(`${API_BASE_URL}/api/excel/save-temp-data`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'user-id': getCurrentUserId()
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        files: tempExcelData,
+                        mappings: mappingData
+                    })
                 });
-
-                const result = await response.json();
-
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || 'Error procesando el mapeo de columnas');
+                
+                const saveResult = await saveResponse.json();
+                
+                if (!saveResponse.ok || !saveResult.success) {
+                    throw new Error(saveResult.error || 'Error guardando datos en la base de datos');
                 }
-
+                
+                console.log('✅ Datos guardados en la base de datos');
+                
+                // Obtener el ID del dataset guardado
+                const savedFiles = saveResult.files || [];
+                if (savedFiles.length === 0) {
+                    throw new Error('No se guardaron los archivos correctamente');
+                }
+                
+                const datasetId = savedFiles[0].datasetId;
+                console.log('🆔 Dataset ID:', datasetId);
+                
+                // Ahora procesar el mapeo
+                const mappingResponse = await fetch(`${API_BASE_URL}/api/excel/process-mapping`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': getCurrentUserId()
+                    },
+                    body: JSON.stringify({
+                        mappingData: mappingData,
+                        fileId: datasetId
+                    })
+                });
+                
+                const mappingResult = await mappingResponse.json();
+                
+                if (!mappingResponse.ok || !mappingResult.success) {
+                    throw new Error(mappingResult.error || 'Error procesando el mapeo');
+                }
+                
+                console.log('✅ Mapeo procesado exitosamente');
+                
+                // Limpiar datos temporales
+                tempExcelData = null;
+                tempDataTimestamp = null;
+                
                 // Cerrar modal
                 closeColumnMappingModal();
-
+                
                 // Mostrar mensaje de éxito
                 alert('✅ Proceso completado:\n• Datos completos del Excel guardados en "conjuntos_datos"\n• Cuentas extraídas guardadas en "cuentas_contables"');
-
-                // REINICIAR COMPLETAMENTE la aplicación (se subió nuevo archivo)
-                resetAllDataOnNewFile();
-                // Cargar el historial actualizado
-                loadDatasetHistory();
-
-                let newDatasetId = result?.datasetId || result?.dataset_id || result?.data?.dataset_id || result?.data?.id;
-                if (!newDatasetId) {
-                    try {
-                        const historyResponse = await fetch(`${API_BASE_URL}/api/excel/datasets`, {
-                            headers: {
-                                'user-id': getCurrentUserId()
-                            }
-                        });
-                        const historyResult = await historyResponse.json();
-                        newDatasetId = historyResult?.data?.[0]?.id;
-                    } catch (error) {
-                        console.warn('⚠️ No se pudo obtener el nuevo dataset:', error);
-                    }
-                }
-
-                const normalizedNewDatasetId = normalizeDatasetId(newDatasetId);
-                const normalizedCurrent = normalizeDatasetId(currentDatasetId);
-                if (normalizedNewDatasetId && normalizedNewDatasetId !== normalizedCurrent) {
-                    handleDatasetChange(normalizedCurrent, normalizedNewDatasetId, { forceReset: true });
-                }
-
-                // Cerrar modal y volver a la vista principal
-                closeColumnMappingModal();
-
+                
             } catch (error) {
                 console.error('Error procesando mapeo:', error);
-                alert('Error al procesar los datos: ' + error.message);
+                alert('❌ Error: ' + error.message);
             } finally {
                 // Restaurar botón
                 const saveBtn = event.target;
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = originalText;
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = saveBtn.innerHTML.includes('Guardando') ? 'Guardar datos' : saveBtn.innerHTML;
+                }
             }
         }
 
@@ -17401,7 +17381,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/excel/upload`, {
+                const response = await fetch(`${API_BASE_URL}/api/excel/process-temp`, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -17412,14 +17392,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const payload = await response.json().catch(() => null);
 
                 if (!response.ok || !payload || payload.success === false) {
-                    const msg = payload?.error || `Error subiendo archivos (HTTP ${response.status})`;
+                    const msg = payload?.error || `Error procesando archivos (HTTP ${response.status})`;
                     throw new Error(msg);
                 }
 
                 const files = payload.files || [];
                 
                 if (files.length > 0) {
-                    console.log('Archivos guardados en BD:', files);
+                    console.log('Archivos procesados temporalmente:', files);
+                    // Guardar datos temporales para usarlos después
+                    tempExcelData = files;
+                    tempDataTimestamp = Date.now(); // Marcar tiempo de creación
                     // Mostrar modal de selección de balance inmediatamente
                     showBalanceSelectionModal();
                 } else {
