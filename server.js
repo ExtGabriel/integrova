@@ -3438,7 +3438,7 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                         total_creditos: 0, // Se calculará después del mapeo
                         estado: 'subido',
                         user_id: userId,
-                        importado_por: userId,
+                        archivo_original: file.originalname,
                         is_active: true,
                         data: {
                             sheets: sheetsData,
