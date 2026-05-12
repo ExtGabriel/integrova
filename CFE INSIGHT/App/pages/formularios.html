@@ -3558,17 +3558,21 @@
                 // Obtener la primera hoja
                 const firstSheet = excelData.sheets_data[0];
                 const sheetData = firstSheet.data;
+                const sheetColumns = firstSheet.columns; // Encabezados reales del Excel
                 
                 if (!sheetData || sheetData.length === 0) {
                     console.error('La hoja de Excel está vacía');
                     return;
                 }
                 
+                console.log('🔍 Encabezados del Excel:', sheetColumns);
+                console.log('🔍 Datos del Excel:', sheetData.slice(0, 3));
+                
                 // Actualizar las opciones de los selectores de mapeo
-                updateMappingSelectors(sheetData);
+                updateMappingSelectors(sheetData, sheetColumns);
                 
                 // Actualizar la vista previa de datos
-                updateDataPreview(sheetData);
+                updateDataPreview(sheetData, sheetColumns);
                 
             } catch (error) {
                 console.error('Error cargando datos para mapeo:', error);
@@ -3731,9 +3735,18 @@
             return { headers, headerRowIndex };
         }
 
-        function updateMappingSelectors(sheetData) {
-            const { headers, headerRowIndex } = detectSheetHeaders(sheetData);
-            console.log('Usando encabezados de la fila', headerRowIndex, ':', headers);
+        function updateMappingSelectors(sheetData, sheetColumns = null) {
+            // Usar los encabezados reales del Excel si están disponibles, si no detectarlos
+            let headers = sheetColumns;
+            let headerRowIndex = 0;
+            
+            if (!headers || headers.length === 0) {
+                const detected = detectSheetHeaders(sheetData);
+                headers = detected.headers;
+                headerRowIndex = detected.headerRowIndex;
+            }
+            
+            console.log('🔍 Usando encabezados para selectores:', headers);
             
             // Actualizar solo los selectores de mapeo de columnas (excluyendo los de débito/crédito)
             const columnSelectors = [
@@ -3809,13 +3822,24 @@
             // No se actualizan con las columnas del Excel
         }
         
-        function updateDataPreview(sheetData) {
+        function updateDataPreview(sheetData, sheetColumns = null) {
             // Encontrar la tabla de vista previa
             const previewTable = document.querySelector('.sample-table tbody');
             const previewHeader = document.querySelector('.sample-table thead');
             if (!previewTable || !previewHeader) return;
             
-            const { headers, headerRowIndex } = detectSheetHeaders(sheetData);
+            // Usar los encabezados reales del Excel si están disponibles, si no detectarlos
+            let headers = sheetColumns;
+            let headerRowIndex = 0;
+            
+            if (!headers || headers.length === 0) {
+                const detected = detectSheetHeaders(sheetData);
+                headers = detected.headers;
+                headerRowIndex = detected.headerRowIndex;
+            }
+            
+            console.log('🔍 Usando encabezados para vista previa:', headers);
+            
             // Actualizar encabezados con los datos reales del Excel
             const headerRow = previewHeader.querySelector('tr');
             if (headerRow && headers.length > 0) {
