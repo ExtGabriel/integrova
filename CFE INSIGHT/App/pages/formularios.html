@@ -3861,8 +3861,10 @@
             // Limpiar vista previa existente
             previewTable.innerHTML = '';
             
-            // Mostrar primeras 5 filas de datos (excluyendo encabezados)
-            const dataStartIndex = headerRowIndex + 1;
+            // Mostrar primeras 5 filas de datos
+            // Si usamos encabezados reales del Excel, empezamos desde la primera fila
+            // Si detectamos encabezados, saltamos la fila de encabezados
+            const dataStartIndex = sheetColumns ? 0 : headerRowIndex + 1;
             const dataRows = sheetData.slice(dataStartIndex, dataStartIndex + 5);
             
             if (dataRows.length === 0) {
