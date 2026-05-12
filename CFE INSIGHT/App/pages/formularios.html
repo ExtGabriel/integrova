@@ -3769,7 +3769,8 @@
                     const date = excelSerialToDate(value);
                     return date.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
                 }
-                return value.toString();
+                // Aplicar lógica de Caseware: mostrar números como valores absolutos
+                return Math.abs(value).toString();
             }
 
             const trimmed = value.toString().trim();
@@ -16815,12 +16816,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
         
         // Función para formatear moneda
-        function formatCurrency(value) {
+        function formatCurrency(value, useAbsoluteValue = false) {
             if (value == null || value === '' || isNaN(value)) return 'Q0.00';
-            const numValue = parseFloat(value);
+            let numValue = parseFloat(value);
             if (isNaN(numValue)) return 'Q0.00';
+            
+            // Aplicar lógica de Caseware: convertir a valor absoluto si se solicita
+            if (useAbsoluteValue) {
+                numValue = Math.abs(numValue);
+            }
+            
             const formattedValue = numValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             return `Q${formattedValue}`;
+        }
+        
+        // Función específica para asignación de cuentas (siempre aplica Caseware)
+        function formatCurrencyCaseware(value) {
+            return formatCurrency(value, true);
         }
 
         function formatDateTime(value) {
