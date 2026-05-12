@@ -3365,8 +3365,15 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
         const files = req.files || [];
         const userId = req.user?.id || req.headers['user-id'];
         
+        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId);
+        
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
+        }
+        
+        if (!userId) {
+            console.error('❌ Upload - No user ID provided in headers');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado. Se requiere user-id en los headers.' });
         }
 
         const processedFiles = [];
@@ -3470,7 +3477,16 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
     } catch (error) {
         console.error('Error en /api/excel/upload:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+        console.error('Stack trace:', error.stack);
+        console.error('Headers recibidos:', req.headers);
+        console.error('Files recibidos:', req.files?.length || 0);
+        console.error('User ID:', req.user?.id || req.headers['user-id']);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 

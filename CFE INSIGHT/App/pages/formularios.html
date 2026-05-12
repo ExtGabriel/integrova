@@ -17366,11 +17366,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const formData = new FormData();
                 selectedFiles.forEach((file) => formData.append('files', file));
 
+                const userId = getCurrentUserId();
+                console.log('🔍 Upload - User ID obtenido:', userId);
+                
+                if (!userId) {
+                    console.error('❌ Upload - No hay user ID, el usuario no está autenticado');
+                    alert('Error: No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.');
+                    return;
+                }
+
                 const response = await fetch(`${API_BASE_URL}/api/excel/upload`, {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': userId
                     }
                 });
 
