@@ -13,6 +13,7 @@ if (missingEnvVars.length > 0) {
 }
 
 console.log('✅ Variables de entorno cargadas correctamente');
+console.log('🔗 Supabase URL:', process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada');
 
 // ============================================
 // UTILIDADES DE VALIDACIÓN Y NORMALIZACIÓN
@@ -343,6 +344,47 @@ function processPDFFile(buffer, filename) {
 function processImageFile(buffer, filename) {
     return `[Archivo de imagen: ${filename}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB. Para análisis de imágenes, usar GPT-4 Vision en futuras versiones]`;
 }
+
+// Supabase Connection Test Endpoint
+app.get('/api/test-supabase', async (req, res) => {
+    try {
+        // Test basic connection
+        const { data, error } = await supabase
+            .from('users')
+            .select('count')
+            .limit(1);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Error conectando a Supabase',
+                details: error.message,
+                config: {
+                    url: process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada',
+                    hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+                    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            message: '✅ Conexión a Supabase exitosa',
+            timestamp: new Date().toISOString(),
+            config: {
+                url: process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada',
+                hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+                hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+            }
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            error: 'Error en el servidor',
+            details: err.message
+        });
+    }
+});
 
 // User Management API Endpoints
 
