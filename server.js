@@ -3715,9 +3715,25 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         
         console.log('🗂️ Mapeo de columnas:', mapping);
         
-        // Extraer cuentas (ignorando la primera fila que son encabezados)
+        // Determinar si la primera fila es encabezado o datos reales
+        const toCleanString = (value) => {
+            if (value === null || value === undefined) return '';
+            return value.toString().trim();
+        };
+
+        const firstRow = sheetData[0] || [];
+        const firstAccountCell = toCleanString(firstRow[mapping.accountNumber]);
+        const firstNameCell = toCleanString(firstRow[mapping.accountName]);
+
+        const accountCellHasLetters = /[a-zA-Z]/.test(firstAccountCell);
+        const nameCellLooksHeader = /^(numero|número|cuenta|descripcion|descripción|nombre)/i.test(firstNameCell);
+        const accountCellMissing = firstAccountCell === '';
+
+        const shouldSkipFirstRow = accountCellMissing || accountCellHasLetters || nameCellLooksHeader;
+
+        // Extraer cuentas (solo omitir la primera fila cuando realmente es encabezado)
         const accounts = [];
-        const dataRows = sheetData.slice(1); // Ignorar encabezados
+        const dataRows = shouldSkipFirstRow ? sheetData.slice(1) : sheetData;
         
         dataRows.forEach((row, index) => {
             // Validar que la fila tenga datos suficientes

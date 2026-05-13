@@ -1828,13 +1828,7 @@
                             <span class="issues-count">0 pendientes</span>
                         </div>
                     </div>
-                    <div class="issues-filters">
-                        <button class="filter-btn active" data-filter="all">Todos</button>
-                        <button class="filter-btn" data-filter="pendiente">Pendientes</button>
-                        <button class="filter-btn" data-filter="error">Errores</button>
-                        <button class="filter-btn" data-filter="carta">Cartas</button>
-                    </div>
-                    <div class="issues-list" id="issuesList">
+                                        <div class="issues-list" id="issuesList">
                         <!-- Las observaciones aparecerán aquí -->
                         <div class="no-issues" id="noIssues">
                             <i class="bi bi-clipboard-check"></i>
@@ -1941,9 +1935,8 @@
                                         </div>
                                     </div>
                                     <div class="right-header">
-                                        <button class="btn btn-outline-secondary">Seleccionar todo</button>
-                                        <button class="btn btn-outline-danger">Borrar cuentas seleccionadas</button>
-                                    </div>
+                                        <button class="btn btn-outline-secondary" id="selectAllAccountsBtn">Seleccionar todo</button>
+                                                                            </div>
                                 </div>
                                 <div class="search-bar-container">
                                     <i class="bi bi-search"></i>
@@ -2273,7 +2266,7 @@
                                     <div class="group-item">
                                         <div class="group-header" onclick="toggleGroup('group3')">
                                             <i class="bi bi-chevron-right dropdown-arrow" id="group3-arrow"></i>
-                                            <span class="group-name">3 Pasivos no corrientes</span>
+                                            <span class="group-name">3 Patrimonio y fondos de accionistas</span>
                                             <span class="group-value">0,00</span>
                                         </div>
                                         <div class="group-content" id="group3-content" style="display: none;">
@@ -2358,7 +2351,7 @@
                                     <div class="group-item">
                                         <div class="group-header" onclick="toggleGroup('group4')">
                                             <i class="bi bi-chevron-right dropdown-arrow" id="group4-arrow"></i>
-                                            <span class="group-name">4 Pasivos corrientes</span>
+                                            <span class="group-name">4 Pasivos no corrientes</span>
                                             <span class="group-value">0,00</span>
                                         </div>
                                         <div class="group-content" id="group4-content" style="display: none;">
@@ -3084,6 +3077,20 @@
                         </p>
 
                         <div class="card" style="padding: 16px;">
+                            <!-- Buscador de cuentas -->
+                            <div style="margin-bottom: 20px;">
+                                <div style="position: relative; max-width: 400px;">
+                                    <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                                    <input type="text" 
+                                           id="ledgerIntegritySearch" 
+                                           placeholder="Buscar cuenta por nombre o número..." 
+                                           style="padding: 8px 12px 8px 40px; border: 1px solid #dee2e6; border-radius: 6px; width: 100%;"
+                                           oninput="searchLedgerAccount(this.value)">
+                                </div>
+                                <div id="searchResultInfo" style="margin-top: 8px; color: #6c757d; font-size: 0.9rem; display: none;">
+                                    <span id="searchResultText"></span>
+                                </div>
+                            </div>
                             <div style="overflow: auto;">
                                 <table class="table" style="width: 100%; border-collapse: collapse; min-width: 1200px;">
                                     <thead>
@@ -3118,12 +3125,7 @@
                         
                         <div class="card" style="padding: 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <input type="text" placeholder="Buscar cuentas..." style="padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; width: 250px;">
-                                    <button class="btn btn-outline-secondary" style="padding: 8px 16px;">
-                                        <i class="bi bi-funnel"></i> Filtrar
-                                    </button>
-                                </div>
+                                <input type="text" id="cuentasSearchInput" placeholder="Buscar cuentas..." style="padding: 8px 12px; border: 1px solid #dee2e6; border-radius: 6px; width: 250px;" oninput="searchCuentasTable()">
                             </div>
 
                             <div style="overflow: auto;">
@@ -3153,10 +3155,7 @@
                             </div>
 
                             <!-- Paginación -->
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 0;">
-                                <div style="color: #6c757d; font-size: 0.9rem;">
-                                    Mostrando 1-10 de 45 cuentas
-                                </div>
+                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 16px; padding: 12px 0;">
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <button class="btn btn-outline-secondary btn-sm" style="padding: 4px 8px;" disabled>
                                         <i class="bi bi-chevron-left"></i>
@@ -3234,57 +3233,6 @@
                                     </button>
                                 </div>
                             </div>
-                            <button class="btn btn-secondary">
-                                <i class="bi bi-file-earmark-text"></i>
-                                Importar desde documentos
-                            </button>
-                        </div>
-
-                        <!-- Importar desde Compromiso Existente -->
-                        <div class="import-section">
-                            <h3>IMPORTAR DESDE UN COMPROMISO EXISTENTE</h3>
-                            <div class="import-options">
-                                <button class="btn btn-outline">
-                                    <i class="bi bi-folder"></i>
-                                    Importar desde documentos de trabajo
-                                </button>
-                                <button class="btn btn-outline">
-                                    <i class="bi bi-cloud"></i>
-                                    Importar desde Caseware Cloud Engagement
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Importar desde Conector de Datos -->
-                        <div class="connector-section">
-                            <h3>IMPORTAR DESDE EL CONECTOR DE DATOS</h3>
-                            <div class="search-bar">
-                                <input type="text" placeholder="Buscar conectores...">
-                                <i class="bi bi-search"></i>
-                            </div>
-                            <div class="connectors-list">
-                                <div class="connector-item">
-                                    <div class="connector-info">
-                                        <h4>Xero</h4>
-                                        <p>Conecta con tu cuenta de Xero</p>
-                                    </div>
-                                    <button class="btn btn-primary" onclick="window.open('https://login.xero.com/', '_blank')">Conectar</button>
-                                </div>
-                                <div class="connector-item">
-                                    <div class="connector-info">
-                                        <h4>QuickBooks en línea</h4>
-                                        <p>Conecta con QuickBooks Online</p>
-                                    </div>
-                                    <button class="btn btn-primary" onclick="window.open('https://accounts.intuit.com/app/login?app_group=QBO&asset_id=Intuit%20acct_2009&redirect_url=https://qbo.intuit.com/qbo29%2Flogin%3Fredirect%3Dhttps%253A%252F%252Fqbo.intuit.com%252F', '_blank')">Conectar</button>
-                                </div>
-                                <div class="connector-item">
-                                    <div class="connector-info">
-                                        <h4>FreshBooks</h4>
-                                        <p>Conecta con FreshBooks</p>
-                                    </div>
-                                    <button class="btn btn-primary" onclick="window.open('https://auth.freshbooks.com/service/auth/integrations/sign_in?client_id=d43235a7d757a50d4c8ef36656ddb006bf26ea66919431a996a987afbb5e8dbb', '_blank')">Conectar</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -3293,6 +3241,21 @@
                         <div class="panel-header">
                             <div class="left-header">
                                 <h3><i class="fas fa-folder-tree"></i> Grupos Financieros</h3>
+                            </div>
+                        </div>
+                        
+                        <!-- Buscador de grupos financieros -->
+                        <div style="margin-top: 30px; margin-bottom: 20px; padding: 0 16px;">
+                            <div style="position: relative; max-width: 400px;">
+                                <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                                <input type="text" 
+                                       id="gruposFinancierosSearch" 
+                                       placeholder="Buscar grupo financiero por nombre..." 
+                                       style="padding: 8px 12px 8px 40px; border: 1px solid #dee2e6; border-radius: 6px; width: 100%;"
+                                       oninput="searchGrupoFinanciero(this.value)">
+                            </div>
+                            <div id="gruposSearchResultInfo" style="margin-top: 8px; color: #6c757d; font-size: 0.9rem; display: none;">
+                                <span id="gruposSearchResultText"></span>
                             </div>
                         </div>
                         
@@ -4651,6 +4614,162 @@
                     }
                 });
             });
+        }
+
+        // Variables globales para almacenar los datos de integridad
+        let ledgerIntegrityData = [];
+        let originalLedgerHTML = '';
+
+        // Función para buscar cuentas en integridad del libro mayor
+        function searchLedgerAccount(searchTerm) {
+            const tbody = document.getElementById('ledgerIntegrityTableBody');
+            const searchResultInfo = document.getElementById('searchResultInfo');
+            const searchResultText = document.getElementById('searchResultText');
+            
+            if (!tbody || !searchTerm || searchTerm.trim() === '') {
+                // Restaurar vista original si no hay búsqueda
+                if (originalLedgerHTML) {
+                    tbody.innerHTML = originalLedgerHTML;
+                    searchResultInfo.style.display = 'none';
+                    initializeLedgerIntegrityToggles();
+                }
+                return;
+            }
+
+            // Guardar HTML original la primera vez
+            if (!originalLedgerHTML && tbody.innerHTML) {
+                originalLedgerHTML = tbody.innerHTML;
+            }
+
+            // Filtrar cuentas que coincidan con la búsqueda
+            const searchTermLower = searchTerm.toLowerCase().trim();
+            const allRows = tbody.querySelectorAll('tr.ledger-row');
+            let foundCount = 0;
+            let firstFoundRow = null;
+
+            allRows.forEach(row => {
+                const accountName = row.querySelector('td:first-child')?.textContent.toLowerCase() || '';
+                const accountNumber = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                
+                const matchesSearch = accountName.includes(searchTermLower) || 
+                                   accountNumber.includes(searchTermLower);
+                
+                if (matchesSearch) {
+                    row.style.display = '';
+                    row.style.backgroundColor = '#e6f3ff'; // Resaltar resultado en celeste pastel
+                    foundCount++;
+                    if (!firstFoundRow) {
+                        firstFoundRow = row;
+                    }
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Mostrar información de resultados
+            searchResultInfo.style.display = 'block';
+            if (foundCount > 0) {
+                searchResultText.textContent = `Se encontraron ${foundCount} cuenta(s) que coinciden con "${searchTerm}"`;
+                searchResultText.style.color = '#28a745';
+                
+                // Hacer scroll al primer resultado
+                if (firstFoundRow) {
+                    setTimeout(() => {
+                        firstFoundRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+            } else {
+                searchResultText.textContent = `No se encontraron cuentas que coincidan con "${searchTerm}"`;
+                searchResultText.style.color = '#dc3545';
+            }
+        }
+
+        // Función para limpiar la búsqueda
+        function clearLedgerSearch() {
+            const searchInput = document.getElementById('ledgerIntegritySearch');
+            const searchResultInfo = document.getElementById('searchResultInfo');
+            const tbody = document.getElementById('ledgerIntegrityTableBody');
+            
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            if (searchResultInfo) {
+                searchResultInfo.style.display = 'none';
+            }
+            
+            // Restaurar vista original
+            if (originalLedgerHTML && tbody) {
+                tbody.innerHTML = originalLedgerHTML;
+                initializeLedgerIntegrityToggles();
+            }
+        }
+
+        // Variables para la búsqueda de grupos financieros
+        let originalGruposHTML = '';
+
+        // Función para buscar grupos financieros
+        function searchGrupoFinanciero(searchTerm) {
+            const tbody = document.getElementById('gruposFinancierosTableBody');
+            const searchResultInfo = document.getElementById('gruposSearchResultInfo');
+            const searchResultText = document.getElementById('gruposSearchResultText');
+            
+            if (!tbody) return;
+            
+            // Guardar HTML original la primera vez
+            if (!originalGruposHTML) {
+                originalGruposHTML = tbody.innerHTML;
+            }
+            
+            if (!searchTerm.trim()) {
+                // Restaurar vista original si la búsqueda está vacía
+                tbody.innerHTML = originalGruposHTML;
+                searchResultInfo.style.display = 'none';
+                return;
+            }
+            
+            const searchTermLower = searchTerm.toLowerCase();
+            const allRows = tbody.querySelectorAll('tr');
+            let foundCount = 0;
+            let firstFoundRow = null;
+            
+            // Restaurar HTML original para trabajar con todos los datos
+            tbody.innerHTML = originalGruposHTML;
+            const refreshedRows = tbody.querySelectorAll('tr');
+            
+            refreshedRows.forEach(row => {
+                const groupName = row.querySelector('td:first-child')?.textContent.toLowerCase() || '';
+                
+                const matchesSearch = groupName.includes(searchTermLower);
+                
+                if (matchesSearch) {
+                    row.style.display = '';
+                    row.style.backgroundColor = '#e6f3ff'; // Resaltar resultado en celeste pastel
+                    foundCount++;
+                    if (!firstFoundRow) {
+                        firstFoundRow = row;
+                    }
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Mostrar información de resultados
+            searchResultInfo.style.display = 'block';
+            if (foundCount > 0) {
+                searchResultText.textContent = `Se encontraron ${foundCount} grupo(s) financiero(s) que coinciden con "${searchTerm}"`;
+                searchResultText.style.color = '#28a745';
+                
+                // Scroll al primer resultado encontrado
+                setTimeout(() => {
+                    if (firstFoundRow) {
+                        firstFoundRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            } else {
+                searchResultText.textContent = `No se encontraron grupos financieros que coincidan con "${searchTerm}"`;
+                searchResultText.style.color = '#dc3545';
+            }
         }
 
         async function getLedgerDataFromLatestExcel() {
@@ -15416,6 +15535,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Abrir automáticamente todos los grupos y subgrupos para facilitar la asignación
         openAllGroupsForAssignment();
+        
+        // Agregar event listener al botón "Seleccionar todo"
+        const selectAllBtn = document.getElementById('selectAllAccountsBtn');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', selectAllAccounts);
+        }
 
         restoreAssignedAccounts();
     }
@@ -15827,6 +15952,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
     // Sistema de asignación por clic
     let selectedAccount = null;
+    let selectedAccounts = []; // Para selección múltiple
     
     function initializeClickAssignment() {
         console.log('🚀 Inicializando sistema de asignación por clic...');
@@ -15840,10 +15966,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Remover selección anterior
+                // Remover selección anterior y limpiar selección múltiple
                 document.querySelectorAll('.unassigned-accounts-list .account-item').forEach(item => {
                     item.classList.remove('selected');
                 });
+                selectedAccounts = []; // Limpiar selección múltiple
                 
                 // Seleccionar esta cuenta
                 this.classList.add('selected');
@@ -15908,19 +16035,38 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Si no hay cuenta seleccionada, mostrar mensaje
-                if (!selectedAccount) {
-                    showNotification('Por favor, selecciona primero una cuenta del lado izquierdo', 'warning');
-                    return;
-                }
-                
                 // No hacer clic si ya se hizo clic en una cuenta asignada
                 if (e.target.closest('.assigned-account') || e.target.classList.contains('btn-remove')) {
                     return;
                 }
                 
-                console.log('🎯 Asignando cuenta seleccionada al grupo:', this);
-                assignAccountToGroup(selectedAccount, this);
+                // Verificar si hay cuentas seleccionadas (individual o múltiple)
+                if (!selectedAccount && selectedAccounts.length === 0) {
+                    showNotification('Por favor, selecciona primero una cuenta del lado izquierdo', 'warning');
+                    return;
+                }
+                
+                console.log('🎯 Asignando cuentas seleccionadas al grupo:', this);
+                
+                // Si hay selección múltiple, asignar todas las cuentas
+                if (selectedAccounts.length > 0) {
+                    let assignedCount = 0;
+                    selectedAccounts.forEach(accountData => {
+                        assignAccountToGroup(accountData, this);
+                        assignedCount++;
+                    });
+                    
+                    // Limpiar selección múltiple después de asignar
+                    selectedAccounts = [];
+                    document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
+                    showNotification(`${assignedCount} cuentas asignadas al grupo`, 'success');
+                } else {
+                    // Asignación individual (comportamiento original)
+                    assignAccountToGroup(selectedAccount, this);
+                }
             });
         });
         
@@ -15935,14 +16081,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Si no hay cuenta seleccionada del Excel, mostrar mensaje
-                if (!selectedAccount) {
-                    console.log('⚠️ No hay cuenta seleccionada del Excel');
+                // Verificar si hay cuentas seleccionadas (individual o múltiple)
+                if (!selectedAccount && selectedAccounts.length === 0) {
+                    console.log('⚠️ No hay cuentas seleccionadas del Excel');
                     showNotification('Por favor, selecciona primero una cuenta del lado izquierdo (Excel)', 'warning');
                     return;
                 }
-                
-                console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
                 
                 // Obtener el grupo contenedor de esta cuenta estática
                 const groupContent = this.closest('.group-content') || this.closest('.sub-group-content');
@@ -15951,10 +16095,28 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
                 
-                console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', selectedAccount.code, '→', this);
-                
-                // Agregar debajo de la cuenta estática (sin reemplazarla)
-                appendExcelAccountToStaticAccount(selectedAccount, this, groupContent);
+                // Si hay selección múltiple, asignar todas las cuentas
+                if (selectedAccounts.length > 0) {
+                    let assignedCount = 0;
+                    selectedAccounts.forEach(accountData => {
+                        console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', accountData.code, '→', this);
+                        appendExcelAccountToStaticAccount(accountData, this, groupContent);
+                        assignedCount++;
+                    });
+                    
+                    // Limpiar selección múltiple después de asignar
+                    selectedAccounts = [];
+                    document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    
+                    showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta estática`, 'success');
+                } else {
+                    // Asignación individual (comportamiento original)
+                    console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
+                    console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', selectedAccount.code, '→', this);
+                    appendExcelAccountToStaticAccount(selectedAccount, this, groupContent);
+                }
             });
         });
         
@@ -16324,8 +16486,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (excelAccount.element && excelAccount.element.parentNode) {
                 excelAccount.element.remove();
                 console.log('✅ Cuenta original del Excel removida exitosamente');
+                
+                // Actualizar contador DESPUÉS de remover la cuenta del DOM
+                updateRemainingCount();
             } else {
                 console.warn('⚠️ La cuenta original ya no existe en el DOM');
+                // Actualizar contador de todas formas
+                updateRemainingCount();
             }
         }, 100);
 
@@ -16335,9 +16502,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             item.classList.remove('selected');
         });
 
-        // Actualizar contadores
+        // Actualizar contador del grupo (inmediato)
         updateGroupCount(groupContent);
-        updateRemainingCount();
         refreshLedgerIntegrityIfVisible();
 
         // Mostrar notificación
@@ -16400,43 +16566,53 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         showNotification(`Cuenta ${accountData.code} - ${accountData.name} removida del grupo`, 'info');
     }
     
-    function addAccountBackToUnassigned(accountData) {
-        console.log('🔄 Agregando cuenta de vuelta a no asignados:', accountData.code);
+    // Función para seleccionar todas las cuentas no asignadas
+    function selectAllAccounts() {
+        console.log('🎯 Seleccionando todas las cuentas...');
         
-        const unassignedContainer = document.getElementById('unassignedAccountsList');
-        if (!unassignedContainer) {
-            console.error('❌ No se encontró el contenedor de cuentas no asignadas');
+        // Obtener todas las cuentas no asignadas visibles
+        const unassignedAccounts = document.querySelectorAll('.unassigned-accounts-list .account-item');
+        
+        if (unassignedAccounts.length === 0) {
+            showNotification('No hay cuentas disponibles para seleccionar', 'warning');
             return;
         }
         
-        // Crear nuevo elemento para la cuenta devuelta
-        const accountElement = document.createElement('div');
-        accountElement.className = 'account-item';
-        accountElement.dataset.accountId = accountData.id;
-        accountElement.dataset.accountCode = accountData.code;
-        accountElement.dataset.accountName = accountData.name;
-        accountElement.dataset.accountValue = accountData.value;
+        // Limpiar selecciones anteriores
+        document.querySelectorAll('.unassigned-accounts-list .account-item').forEach(item => {
+            item.classList.remove('selected');
+        });
         
-        const value = parseFloat(accountData.value) || 0;
-        const formattedValue = formatCurrency(Math.abs(value));
+        // Seleccionar todas las cuentas
+        let selectedCount = 0;
+        unassignedAccounts.forEach(accountElement => {
+            accountElement.classList.add('selected');
+            selectedCount++;
+        });
         
-        accountElement.innerHTML = `
-            <span class="account-name">${accountData.code} ${accountData.name}</span>
-            <span class="account-value">${formattedValue}</span>
-        `;
+        // Crear una selección múltiple
+        selectedAccounts = [];
+        unassignedAccounts.forEach(accountElement => {
+            selectedAccounts.push({
+                element: accountElement,
+                id: accountElement.dataset.accountId,
+                code: accountElement.dataset.accountCode,
+                name: accountElement.querySelector('.account-name')?.textContent || '',
+                value: parseAccountValue(accountElement.dataset.accountValue),
+                prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
+                datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
+            });
+        });
         
-        // Agregar al inicio de la lista
-        unassignedContainer.insertBefore(accountElement, unassignedContainer.firstChild);
+        // Mostrar notificación
+        showNotification(`${selectedCount} cuentas seleccionadas. Ahora haz clic en un grupo del lado derecho para asignarlas.`, 'info');
         
-        // Actualizar contador
-        updateRemainingCount();
-        
-        console.log('✅ Cuenta agregada de vuelta a la lista de no asignados');
+        console.log(`✅ ${selectedCount} cuentas seleccionadas para asignación múltiple`);
     }
-    
+
     function assignAccountToGroup(accountData, groupContent) {
-        console.log('🎯 Asignando cuenta al grupo:', accountData.code, '→', groupContent.id);
-        
+        console.log(' Asignando cuenta al grupo:', accountData.code, '→', groupContent.id);
+
         // Si el grupo está vacío, remover el empty state
         const emptyState = groupContent.querySelector('.empty-state');
         if (emptyState) {
@@ -16459,6 +16635,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         setTimeout(() => {
             accountData.element.remove();
             console.log('🗑️ Cuenta original removida');
+            
+            // Actualizar contador DESPUÉS de remover la cuenta del DOM
+            updateRemainingCount();
         }, 100);
         
         // Limpiar selección
@@ -16467,9 +16646,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             item.classList.remove('selected');
         });
         
-        // Actualizar contadores
+        // Actualizar contador del grupo (inmediato)
         updateGroupCount(groupContent);
-        updateRemainingCount();
         
         // Mostrar notificación
         showNotification(`Cuenta ${accountData.code} - ${accountData.name} asignada correctamente`, 'success');
@@ -17174,68 +17352,212 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (!searchInput || !container) return;
             
             const searchTerm = searchInput.value.toLowerCase().trim();
-            const allGroups = container.querySelectorAll('.group-item');
-            const allAccounts = container.querySelectorAll('.account-item');
             
             if (searchTerm === '') {
                 // Mostrar todo si no hay término de búsqueda
-                allGroups.forEach(group => group.style.display = 'block');
-                allAccounts.forEach(account => account.style.display = 'flex');
+                if (type === 'unassigned') {
+                    // Para cuentas no asignadas
+                    const allAccounts = container.querySelectorAll('.account-item');
+                    allAccounts.forEach(account => account.style.display = 'flex');
+                } else {
+                    // Para grupos financieros
+                    const allGroups = container.querySelectorAll('.group-item');
+                    const allAccounts = container.querySelectorAll('.account-item');
+                    allGroups.forEach(group => group.style.display = 'block');
+                    allAccounts.forEach(account => account.style.display = 'flex');
+                }
                 return;
             }
             
-            // Buscar en grupos principales
-            allGroups.forEach(group => {
-                const groupName = group.querySelector('.group-name');
-                if (groupName) {
-                    const groupText = groupName.textContent.toLowerCase();
-                    if (groupText.includes(searchTerm)) {
-                        group.style.display = 'block';
-                        // Expandir el grupo si coincide
-                        const groupId = group.querySelector('.group-header').getAttribute('onclick').match(/toggleGroup\('(.+?)'\)/)[1];
-                        const content = document.getElementById(groupId + '-content');
-                        const arrow = document.getElementById(groupId + '-arrow');
-                        if (content && arrow) {
-                            content.style.display = 'block';
-                            arrow.classList.add('expanded');
-                            arrow.classList.remove('bi-chevron-right');
-                            arrow.classList.add('bi-chevron-down');
-                        }
-                    } else {
-                        group.style.display = 'none';
-                    }
-                }
-            });
-            
-            // Buscar en cuentas individuales
-            allAccounts.forEach(account => {
-                const accountName = account.querySelector('.account-name');
-                if (accountName) {
-                    const accountText = accountName.textContent.toLowerCase();
-                    if (accountText.includes(searchTerm)) {
+            if (type === 'unassigned') {
+                // Buscar en cuentas no asignadas (lado izquierdo)
+                const allAccounts = container.querySelectorAll('.account-item');
+                let visibleCount = 0;
+                
+                allAccounts.forEach(account => {
+                    // Obtener código y nombre de la cuenta
+                    const accountCode = account.dataset.accountCode || '';
+                    const accountName = account.querySelector('.account-name')?.textContent || '';
+                    const accountNumber = account.querySelector('.account-number')?.textContent || '';
+                    
+                    // Buscar en código, nombre o número
+                    const searchText = `${accountCode} ${accountName} ${accountNumber}`.toLowerCase();
+                    
+                    if (searchText.includes(searchTerm)) {
                         account.style.display = 'flex';
-                        // Asegurar que el grupo padre esté visible y expandido
-                        let parentGroup = account.closest('.group-content');
-                        if (parentGroup) {
-                            const parentGroupItem = parentGroup.closest('.group-item');
-                            if (parentGroupItem) {
-                                parentGroupItem.style.display = 'block';
-                                const groupId = parentGroupItem.querySelector('.group-header').getAttribute('onclick').match(/toggleGroup\('(.+?)'\)/)[1];
-                                const content = document.getElementById(groupId + '-content');
-                                const arrow = document.getElementById(groupId + '-arrow');
-                                if (content && arrow) {
-                                    content.style.display = 'block';
-                                    arrow.classList.add('expanded');
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
-                                }
-                            }
-                        }
+                        visibleCount++;
                     } else {
                         account.style.display = 'none';
                     }
+                });
+                
+                // Mostrar mensaje si no hay resultados
+                let noResultsMsg = container.querySelector('.no-results-message');
+                if (visibleCount === 0) {
+                    if (!noResultsMsg) {
+                        noResultsMsg = document.createElement('div');
+                        noResultsMsg.className = 'no-results-message';
+                        noResultsMsg.style.cssText = `
+                            padding: 20px;
+                            text-align: center;
+                            color: #6c757d;
+                            font-style: italic;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            background: #f8f9fa;
+                            border-radius: 6px;
+                            margin: 10px 0;
+                        `;
+                        noResultsMsg.innerHTML = `<i class="bi bi-search" style="margin-right: 8px;"></i> No se encontraron cuentas que coincidan con "${searchInput.value}"`;
+                        container.appendChild(noResultsMsg);
+                    }
+                } else if (noResultsMsg) {
+                    noResultsMsg.remove();
+                }
+                
+            } else {
+                // Buscar en grupos financieros (lado derecho)
+                const allGroups = container.querySelectorAll('.group-item');
+                const allAccounts = container.querySelectorAll('.account-item');
+                
+                // Buscar en grupos principales
+                allGroups.forEach(group => {
+                    const groupName = group.querySelector('.group-name');
+                    if (groupName) {
+                        const groupText = groupName.textContent.toLowerCase();
+                        if (groupText.includes(searchTerm)) {
+                            group.style.display = 'block';
+                            // Expandir el grupo si coincide
+                            const header = group.querySelector('.group-header');
+                            if (header && header.getAttribute('onclick')) {
+                                const match = header.getAttribute('onclick').match(/toggleGroup\('(.+?)'\)/);
+                                if (match) {
+                                    const groupId = match[1];
+                                    const content = document.getElementById(groupId + '-content');
+                                    const arrow = document.getElementById(groupId + '-arrow');
+                                    if (content && arrow) {
+                                        content.style.display = 'block';
+                                        arrow.classList.add('expanded');
+                                        arrow.classList.remove('bi-chevron-right');
+                                        arrow.classList.add('bi-chevron-down');
+                                    }
+                                }
+                            }
+                        } else {
+                            group.style.display = 'none';
+                        }
+                    }
+                });
+                
+                // Buscar en cuentas individuales
+                allAccounts.forEach(account => {
+                    const accountName = account.querySelector('.account-name');
+                    const accountCode = account.dataset.accountCode || '';
+                    const accountNumber = account.querySelector('.account-number')?.textContent || '';
+                    
+                    if (accountName) {
+                        const accountText = `${accountName.textContent} ${accountCode} ${accountNumber}`.toLowerCase();
+                        if (accountText.includes(searchTerm)) {
+                            account.style.display = 'flex';
+                            // Asegurar que el grupo padre esté visible y expandido
+                            let parentGroup = account.closest('.group-content');
+                            if (parentGroup) {
+                                const parentGroupItem = parentGroup.closest('.group-item');
+                                if (parentGroupItem) {
+                                    parentGroupItem.style.display = 'block';
+                                    const header = parentGroupItem.querySelector('.group-header');
+                                    if (header && header.getAttribute('onclick')) {
+                                        const match = header.getAttribute('onclick').match(/toggleGroup\('(.+?)'\)/);
+                                        if (match) {
+                                            const groupId = match[1];
+                                            const content = document.getElementById(groupId + '-content');
+                                            const arrow = document.getElementById(groupId + '-arrow');
+                                            if (content && arrow) {
+                                                content.style.display = 'block';
+                                                arrow.classList.add('expanded');
+                                                arrow.classList.remove('bi-chevron-right');
+                                                arrow.classList.add('bi-chevron-down');
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            account.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Función para buscar en la tabla de cuentas
+        function searchCuentasTable() {
+            const searchInput = document.getElementById('cuentasSearchInput');
+            const tbody = document.getElementById('cuentasTableBody');
+            
+            if (!searchInput || !tbody) return;
+            
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const rows = tbody.querySelectorAll('tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                // Skip loading message row
+                if (row.querySelector('td[colspan]')) {
+                    row.style.display = 'none';
+                    return;
+                }
+                
+                // Get text from relevant columns (account number and account name)
+                const accountNumberCell = row.cells[0]; // Número de cuenta
+                const accountNameCell = row.cells[1];    // Nombre de la cuenta
+                
+                let searchText = '';
+                
+                if (accountNumberCell) {
+                    searchText += accountNumberCell.textContent.trim() + ' ';
+                }
+                
+                if (accountNameCell) {
+                    searchText += accountNameCell.textContent.trim() + ' ';
+                }
+                
+                // Also search in other columns for more comprehensive search
+                for (let i = 2; i < row.cells.length - 1; i++) { // Exclude last column (Acciones)
+                    searchText += row.cells[i].textContent.trim() + ' ';
+                }
+                
+                searchText = searchText.toLowerCase();
+                
+                if (searchTerm === '' || searchText.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
                 }
             });
+            
+            // Show/hide no results message
+            let noResultsRow = tbody.querySelector('.no-results-row');
+            
+            if (visibleCount === 0 && searchTerm !== '') {
+                if (!noResultsRow) {
+                    noResultsRow = document.createElement('tr');
+                    noResultsRow.className = 'no-results-row';
+                    noResultsRow.innerHTML = `
+                        <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d; background-color: #f8f9fa;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="bi bi-search" style="font-size: 1.2rem;"></i>
+                                <span>No se encontraron cuentas que coincidan con "${searchInput.value}"</span>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(noResultsRow);
+                }
+            } else if (noResultsRow) {
+                noResultsRow.remove();
+            }
         }
         
         // Actualizar sidebar items para que sean funcionales
