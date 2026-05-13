@@ -3079,13 +3079,23 @@
                         <div class="card" style="padding: 16px;">
                             <!-- Buscador de cuentas -->
                             <div style="margin-bottom: 20px;">
-                                <div style="position: relative; max-width: 400px;">
-                                    <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
-                                    <input type="text" 
-                                           id="ledgerIntegritySearch" 
-                                           placeholder="Buscar cuenta por nombre o número..." 
-                                           style="padding: 8px 12px 8px 40px; border: 1px solid #dee2e6; border-radius: 6px; width: 100%;"
-                                           oninput="searchLedgerAccount(this.value)">
+                                <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: space-between;">
+                                    <div style="position: relative; max-width: 420px; flex: 1 1 420px;">
+                                        <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                                        <input type="text" 
+                                               id="ledgerIntegritySearch" 
+                                               placeholder="Buscar cuenta por nombre o número..." 
+                                               style="padding: 8px 12px 8px 40px; border: 1px solid #dee2e6; border-radius: 6px; width: 100%;"
+                                               oninput="searchLedgerAccount(this.value)">
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm" 
+                                            id="expandAllLedgerBtn"
+                                            onclick="expandAllLedgerRows()"
+                                            title="Expandir todos los subgrupos"
+                                            style="margin-left: auto; white-space: nowrap;">
+                                        <i class="bi bi-arrows-expand"></i>
+                                        <span>Expandir todo</span>
+                                    </button>
                                 </div>
                                 <div id="searchResultInfo" style="margin-top: 8px; color: #6c757d; font-size: 0.9rem; display: none;">
                                     <span id="searchResultText"></span>
@@ -4320,6 +4330,19 @@
             }, 0);
         }
 
+        // Función para determinar si una cuenta es de Estado de Resultados según CaseWare
+        function isIncomeStatementAccount(accountName) {
+            if (!accountName) return false;
+            const name = accountName.toLowerCase();
+            // Palabras clave que indican Estado de Resultados
+            const incomeStatementKeywords = [
+                'ingresos', 'gastos', 'venta', 'costo', 'ingreso', 'gasto',
+                '6.100', '6.500', '7.', '9.', // Números de grupos de Estado de Resultados
+                'nomina', 'servicios', 'operativo'
+            ];
+            return incomeStatementKeywords.some(keyword => name.includes(keyword));
+        }
+
         function buildLedgerRow({
             accountName,
             accountNumber,
@@ -4335,7 +4358,22 @@
             hasChildren
         }) {
             const ledgerValue = Number.isFinite(ledger) ? ledger : 0;
-            const calculated = previous + ledgerValue;
+            
+            // Aplicar lógica de CaseWare para cálculo de saldo
+            const isIncomeStatement = isIncomeStatementAccount(accountName);
+            let calculated;
+            
+            if (isIncomeStatement) {
+                // Para Estado de Resultados: calculated = ledger (sin previous)
+                calculated = ledgerValue;
+            } else if (isSummary && accountName === 'SALDO NETO') {
+                // Para SALDO NETO: no calcular si faltan datos del libro mayor
+                calculated = ledgerMissing ? 0 : previous + ledgerValue;
+            } else {
+                // Para Balance General: calculated = previous + ledger
+                calculated = previous + ledgerValue;
+            }
+            
             const difference = calculated - current;
             const hasError = Number.isFinite(difference) ? Math.abs(difference) > 0.01 : false;
             return {
@@ -4485,7 +4523,7 @@
                 addRowsForContainer(groupContent, 1, rowId);
             });
 
-            if (rows.length) {
+            if (rows.length && ledgerAvailable) {
                 rows.unshift(buildLedgerRow({
                     accountName: 'SALDO NETO',
                     accountNumber: '',
@@ -4614,6 +4652,81 @@
                     }
                 });
             });
+        }
+
+        // Función para expandir todos los subgrupos en integridad del libro mayor
+        function expandAllLedgerRows() {
+            const tbody = document.getElementById('ledgerIntegrityTableBody');
+            if (!tbody) return;
+
+            const toggleButtons = tbody.querySelectorAll('.ledger-toggle');
+            const expandAllBtn = document.getElementById('expandAllLedgerBtn');
+            const isCurrentlyExpanded = expandAllBtn && expandAllBtn.dataset.expanded === 'true';
+
+            // Función auxiliar para obtener hijos
+            const getChildren = (rowId) => Array.from(tbody.querySelectorAll(`tr[data-parent-id="${rowId}"]`));
+            const getDescendants = (rowId) => {
+                const rows = getChildren(rowId);
+                return rows.flatMap(row => [row, ...getDescendants(row.dataset.rowId)]);
+            };
+
+            if (isCurrentlyExpanded) {
+                // Contraer todo
+                toggleButtons.forEach(button => {
+                    const rowId = button.dataset.rowId;
+                    const icon = button.querySelector('i');
+                    const descendants = getDescendants(rowId);
+                    
+                    // Actualizar icono
+                    if (icon) {
+                        icon.classList.remove('bi-chevron-down');
+                        icon.classList.add('bi-chevron-right');
+                    }
+                    
+                    // Ocultar descendientes
+                    descendants.forEach(row => {
+                        row.style.display = 'none';
+                    });
+                    
+                    // Marcar como contraído
+                    button.dataset.collapsed = 'true';
+                });
+
+                // Actualizar botón
+                if (expandAllBtn) {
+                    expandAllBtn.dataset.expanded = 'false';
+                    expandAllBtn.innerHTML = '<i class="bi bi-arrows-expand"></i><span>Expandir todo</span>';
+                    expandAllBtn.title = 'Expandir todos los subgrupos';
+                }
+            } else {
+                // Expandir todo
+                toggleButtons.forEach(button => {
+                    const rowId = button.dataset.rowId;
+                    const icon = button.querySelector('i');
+                    const descendants = getDescendants(rowId);
+                    
+                    // Actualizar icono
+                    if (icon) {
+                        icon.classList.remove('bi-chevron-right');
+                        icon.classList.add('bi-chevron-down');
+                    }
+                    
+                    // Mostrar descendientes
+                    descendants.forEach(row => {
+                        row.style.display = '';
+                    });
+                    
+                    // Marcar como expandido
+                    button.dataset.collapsed = 'false';
+                });
+
+                // Actualizar botón
+                if (expandAllBtn) {
+                    expandAllBtn.dataset.expanded = 'true';
+                    expandAllBtn.innerHTML = '<i class="bi bi-arrows-collapse"></i><span>Contraer todo</span>';
+                    expandAllBtn.title = 'Contraer todos los subgrupos';
+                }
+            }
         }
 
         // Variables globales para almacenar los datos de integridad
