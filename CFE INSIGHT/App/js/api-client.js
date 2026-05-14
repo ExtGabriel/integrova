@@ -1674,15 +1674,18 @@
                 }
 
                 // Crear usuario en Auth
+                const metadata = {
+                    full_name: userData.name,
+                    role: normalizedRole,
+                    ...(userData.team ? { team: userData.team } : {})
+                };
+
                 const { data: authData, error: authError } = await client.auth.signUp({
                     email: userData.email,
                     password: userData.password,
                     options: {
                         emailRedirectTo: window.location.origin,
-                        data: {
-                            full_name: userData.name,
-                            role: normalizedRole
-                        }
+                        data: metadata
                     }
                 });
 
@@ -1692,14 +1695,28 @@
                 }
 
                 // Insertar/actualizar en tabla users
+                const existingRawMeta = authData.user?.raw_user_meta_data;
+                const existingUserMeta = authData.user?.user_metadata;
+
+                const compositeMetadata = {
+                    ...(existingRawMeta && typeof existingRawMeta === 'object' ? existingRawMeta : {}),
+                    ...metadata
+                };
+
+                const compositeUserMeta = {
+                    ...(existingUserMeta && typeof existingUserMeta === 'object' ? existingUserMeta : {}),
+                    ...metadata
+                };
+
                 const userRecord = {
                     id: authData.user.id,
                     email: userData.email,
                     full_name: userData.name,
                     role: normalizedRole,
-                    team: userData.team || null,
                     is_active: true,
-                    username: userData.email.split('@')[0]
+                    username: userData.email.split('@')[0],
+                    raw_user_meta_data: compositeMetadata,
+                    user_metadata: compositeUserMeta
                 };
 
                 const { data: dbData, error: dbError } = await client

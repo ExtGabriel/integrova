@@ -318,7 +318,14 @@
                         email: u.email || 'No disponible',
                         phone: u.phone || 'No disponible',
                         role: u.role || 'Sin rol',
-                        team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : (u.group || 'Sin grupo'),
+                        team: (() => {
+                            if (u.team) return u.team;
+                            const groupsArray = Array.isArray(u.groups) ? u.groups : [];
+                            if (groupsArray.length) return groupsArray[0];
+                            if (u.group) return u.group;
+                            const metaTeam = u.raw_user_meta_data?.team || u.user_metadata?.team;
+                            return metaTeam || 'Sin grupo';
+                        })(),
                         active: u.is_active === true,  // ← Más seguro: solo true si es explícitamente true
                         password: '••••••••',
                         created_at: u.created_at || null
