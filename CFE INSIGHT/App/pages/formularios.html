@@ -3225,7 +3225,6 @@
                             <div class="drag-drop-area" id="dragDropArea">
                                 <i class="bi bi-cloud-upload"></i>
                                 <p>Arrastra y suelta archivos aquí</p>
-                                <p class="file-types">Formatos aceptados: Excel (.xlsx, .xls), Word (.docx, .doc), PDF (.pdf), Imágenes (.jpg, .png, .gif), Carpetas comprimidas (.zip, .rar)</p>
                                 <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">Seleccionar archivos</button>
                                 <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.docx,.doc,.pdf,.jpg,.jpeg,.png,.gif,.zip,.rar" style="display: none;" onchange="handleFileSelect(event)">
                             </div>
@@ -4308,10 +4307,70 @@
             return bestMatch;
         }
 
+        function getAccountNumberPrefix(accountNumber) {
+            const normalized = (accountNumber || '').toString().trim();
+            return normalized ? normalized.charAt(0) : '';
+        }
+
+        // Función para determinar si una cuenta es de Estado de Resultados según CaseWare
+        function isIncomeStatementAccount(accountName, accountNumber = '') {
+            const prefix = getAccountNumberPrefix(accountNumber);
+            if (['6', '7', '9'].includes(prefix)) return true;
+            if (['1', '2', '3', '4', '5'].includes(prefix)) return false;
+
+            if (!accountName) return false;
+            const name = accountName.toLowerCase();
+            const incomeStatementKeywords = [
+                'ingresos', 'gastos', 'venta', 'costo', 'ingreso', 'gasto',
+                'resultado', 'renta', 'operativo'
+            ];
+            return incomeStatementKeywords.some(keyword => name.includes(keyword));
+        }
+
+        function getAccountSignMultiplier(accountName, accountNumber = '') {
+            const name = (accountName || '').toLowerCase();
+            if (name.includes('activo') || name.includes('gasto')) return 1;
+            if (name.includes('pasivo') || name.includes('patrimonio') || name.includes('ingreso')) return -1;
+
+            const prefix = getAccountNumberPrefix(accountNumber);
+            if (['1', '5'].includes(prefix)) return 1;
+            if (['2', '3', '4', '6', '7', '9'].includes(prefix)) return -1;
+            return null;
+        }
+
+        function normalizeAccountBalance(value, accountName, accountNumber = '') {
+            if (!Number.isFinite(value)) return 0;
+            const multiplier = getAccountSignMultiplier(accountName, accountNumber);
+            if (multiplier == null) return value;
+            return Math.abs(value) * multiplier;
+        }
+
+        function getNormalizedAccountBalances({ accountName, accountNumber, previous, current }) {
+            const isIncomeStatement = isIncomeStatementAccount(accountName, accountNumber);
+            const normalizedCurrent = normalizeAccountBalance(current, accountName, accountNumber);
+            const normalizedPrevious = isIncomeStatement
+                ? 0
+                : normalizeAccountBalance(previous, accountName, accountNumber);
+            return {
+                previous: normalizedPrevious,
+                current: normalizedCurrent
+            };
+        }
+
         function sumAssignedTotals(accounts) {
             return accounts.reduce((acc, account) => {
-                acc.previous += parseAccountValue(account.dataset.accountPrevValue);
-                acc.current += parseAccountValue(account.dataset.accountValue);
+                const accountName = (account.dataset.accountName || '').toString().trim();
+                const accountNumber = (account.dataset.accountCode || '').toString().trim();
+                const previousRaw = parseAccountValue(account.dataset.accountPrevValue);
+                const currentRaw = parseAccountValue(account.dataset.accountValue);
+                const { previous, current } = getNormalizedAccountBalances({
+                    accountName,
+                    accountNumber,
+                    previous: previousRaw,
+                    current: currentRaw
+                });
+                acc.previous += previous;
+                acc.current += current;
                 return acc;
             }, { previous: 0, current: 0 });
         }
@@ -4330,19 +4389,6 @@
             }, 0);
         }
 
-        // Función para determinar si una cuenta es de Estado de Resultados según CaseWare
-        function isIncomeStatementAccount(accountName) {
-            if (!accountName) return false;
-            const name = accountName.toLowerCase();
-            // Palabras clave que indican Estado de Resultados
-            const incomeStatementKeywords = [
-                'ingresos', 'gastos', 'venta', 'costo', 'ingreso', 'gasto',
-                '6.100', '6.500', '7.', '9.', // Números de grupos de Estado de Resultados
-                'nomina', 'servicios', 'operativo'
-            ];
-            return incomeStatementKeywords.some(keyword => name.includes(keyword));
-        }
-
         function buildLedgerRow({
             accountName,
             accountNumber,
@@ -4359,21 +4405,8 @@
         }) {
             const ledgerValue = Number.isFinite(ledger) ? ledger : 0;
             
-            // Aplicar lógica de CaseWare para cálculo de saldo
-            const isIncomeStatement = isIncomeStatementAccount(accountName);
-            let calculated;
-            
-            if (isIncomeStatement) {
-                // Para Estado de Resultados: calculated = ledger (sin previous)
-                calculated = ledgerValue;
-            } else if (isSummary && accountName === 'SALDO NETO') {
-                // Para SALDO NETO: no calcular si faltan datos del libro mayor
-                calculated = ledgerMissing ? 0 : previous + ledgerValue;
-            } else {
-                // Para Balance General: calculated = previous + ledger
-                calculated = previous + ledgerValue;
-            }
-            
+            // Lógica CaseWare: comparar dos fotografías (saldo anterior vs saldo actual)
+            const calculated = previous;
             const difference = calculated - current;
             const hasError = Number.isFinite(difference) ? Math.abs(difference) > 0.01 : false;
             return {
@@ -4436,8 +4469,14 @@
                     if (child.classList.contains('account-item') && child.classList.contains('static-account')) {
                         const accountCode = (child.dataset.accountCode || '').toString().trim();
                         const accountName = (child.dataset.accountName || '').toString().trim();
-                        const previous = parseAccountValue(child.dataset.accountPrevValue);
-                        const current = parseAccountValue(child.dataset.accountValue);
+                        const previousRaw = parseAccountValue(child.dataset.accountPrevValue);
+                        const currentRaw = parseAccountValue(child.dataset.accountValue);
+                        const { previous, current } = getNormalizedAccountBalances({
+                            accountName,
+                            accountNumber: accountCode,
+                            previous: previousRaw,
+                            current: currentRaw
+                        });
                         const staticAccountId = child.dataset.accountId || '';
                         const scope = child.closest('.group-content, .sub-group-content');
                         const assignedAccounts = scope
@@ -4465,8 +4504,14 @@
                         assignedAccounts.forEach(account => {
                             const assignedCode = (account.dataset.accountCode || '').toString().trim();
                             const assignedName = (account.dataset.accountName || '').toString().trim();
-                            const assignedPrev = parseAccountValue(account.dataset.accountPrevValue);
-                            const assignedCurr = parseAccountValue(account.dataset.accountValue);
+                            const assignedPrevRaw = parseAccountValue(account.dataset.accountPrevValue);
+                            const assignedCurrRaw = parseAccountValue(account.dataset.accountValue);
+                            const { previous: assignedPrev, current: assignedCurr } = getNormalizedAccountBalances({
+                                accountName: assignedName,
+                                accountNumber: assignedCode,
+                                previous: assignedPrevRaw,
+                                current: assignedCurrRaw
+                            });
                             const assignedLedger = ledgerAvailable
                                 ? sumLedgerTotals([account], ledgerMap)
                                 : 0;
@@ -4523,7 +4568,7 @@
                 addRowsForContainer(groupContent, 1, rowId);
             });
 
-            if (rows.length && ledgerAvailable) {
+            if (rows.length) {
                 rows.unshift(buildLedgerRow({
                     accountName: 'SALDO NETO',
                     accountNumber: '',
@@ -15696,7 +15741,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return Number.isFinite(numeric) ? numeric : 0;
         }
 
-        const cleaned = rawValue.replace(/[Q\s]/g, '');
+        const trimmed = rawValue.trim();
+        const hasParens = trimmed.startsWith('(') && trimmed.endsWith(')');
+        const cleaned = trimmed.replace(/[Q\s()]/g, '');
         const hasComma = cleaned.includes(',');
         const hasDot = cleaned.includes('.');
 
@@ -15704,22 +15751,26 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
                 const normalized = cleaned.replace(/\./g, '').replace(',', '.');
                 const parsed = parseFloat(normalized);
-                return Number.isFinite(parsed) ? parsed : 0;
+                if (!Number.isFinite(parsed)) return 0;
+                return hasParens ? -Math.abs(parsed) : parsed;
             }
 
             const normalized = cleaned.replace(/,/g, '');
             const parsed = parseFloat(normalized);
-            return Number.isFinite(parsed) ? parsed : 0;
+            if (!Number.isFinite(parsed)) return 0;
+            return hasParens ? -Math.abs(parsed) : parsed;
         }
 
         if (hasComma) {
             const normalized = cleaned.replace(',', '.');
             const parsed = parseFloat(normalized);
-            return Number.isFinite(parsed) ? parsed : 0;
+            if (!Number.isFinite(parsed)) return 0;
+            return hasParens ? -Math.abs(parsed) : parsed;
         }
 
         const parsed = parseFloat(cleaned);
-        return Number.isFinite(parsed) ? parsed : 0;
+        if (!Number.isFinite(parsed)) return 0;
+        return hasParens ? -Math.abs(parsed) : parsed;
     }
         
     const ASSIGNMENTS_STORAGE_PREFIX = 'assigned_accounts_v1';
