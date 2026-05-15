@@ -1366,6 +1366,15 @@
                     if (response.ok) {
                         const result = await response.json();
                         console.log(`✅ Backend /api/users: ${result.data.length} usuarios`);
+                        
+                        // Limpiar caché local para asegurar datos frescos
+                        try {
+                            sessionStorage.removeItem('usersCache');
+                            console.log('🗑️ usersCache limpiada después de obtener datos frescos');
+                        } catch (e) {
+                            console.warn('⚠️ No se pudo limpiar usersCache:', e.message);
+                        }
+                        
                         return { success: true, data: result.data };
                     } else {
                         console.log('⚠️ Backend /api/users falló, usando fallback a Supabase');
@@ -2017,12 +2026,13 @@
                 window.currentUser = profile;
                 console.log(`✅ Users.getCurrent: Usuario cargado - ${profile.name} (${profile.role})`);
 
-                // PASO 4.5: Invalidar caché de sessionStorage para forzar actualización
+                // PASO 4.5: Invalidar TODAS las cachés para forzar actualización
                 try {
                     sessionStorage.removeItem('userUI');
-                    console.log('🗑️ Caché de userUI eliminada para forzar actualización');
+                    sessionStorage.removeItem('usersCache');
+                    console.log('🗑️ Caché de userUI y usersCache eliminadas para forzar actualización');
                 } catch (e) {
-                    console.warn('⚠️ No se pudo eliminar caché de userUI:', e.message);
+                    console.warn('⚠️ No se pudo eliminar caché:', e.message);
                 }
 
                 return { success: true, data: profile };

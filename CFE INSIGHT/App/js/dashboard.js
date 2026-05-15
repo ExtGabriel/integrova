@@ -5,7 +5,7 @@
 // Navigation function for dashboard buttons
 function navigateTo(page) {
     console.log('🔍 Navegando a:', page);
-    const restrictedForAuditor = ['Usuarios', 'Grupos'];
+    const restrictedForAuditor = ['Usuarios', 'Grupos', 'Entidades'];
 
     // Bloquear navegación a opciones restringidas para rol auditor
     if (window.currentUser?.role === 'auditor' && restrictedForAuditor.includes(page)) {
@@ -1611,7 +1611,10 @@ function applyDashboardRoleVisibility() {
 
     const selectorsToHide = [
         'a.action-btn[href="usuarios.html"]',
-        'a.action-btn[href="grupos.html"]'
+        'a.action-btn[href="grupos.html"]',
+        'a.action-btn[href="entidades.html"]',
+        'button.action-btn[onclick*="Entidades"]',
+        '#iaChatBtn'
     ];
 
     // Ocultar botones para roles que no deben verlos

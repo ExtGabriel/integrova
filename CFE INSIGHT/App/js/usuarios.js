@@ -271,6 +271,9 @@
             showLoading(true);
             console.log('📥 Cargando usuarios...');
 
+            // Limpiar caché local para forzar datos frescos
+            allUsers = [];
+            
             // Obtener usuarios según permisos
             const result = await API.Users.getAccessibleUsers();
 
@@ -296,21 +299,29 @@
                 return;
             }
 
-            // Normalizar datos
-            console.log('🔍 Debug normalización:', {
+            // Normalizar datos con logging detallado
+            console.log('🔍 Debug normalización - DATOS CRUDOS DESDE API:', {
                 usuariosRecibidos: result.data?.length || 0,
                 usuariosCrudos: result.data?.map(u => ({
                     id: u.id,
                     email: u.email,
-                    role: (u.role || '').trim().toLowerCase(),
+                    role: u.role, // SIN normalizar para ver valor exacto
+                    role_normalizado: (u.role || '').trim().toLowerCase(),
                     is_active: u.is_active,
                     full_name: u.full_name
                 })) || []
             });
 
+            // Limpiar completamente allUsers antes de asignar
+            allUsers = [];
+            
             allUsers = (result.data || []).map(u => {
                 try {
-                    const normalizedRole = (u.role || '').trim().toLowerCase();
+                    const rawRole = u.role || '';
+                    const normalizedRole = String(rawRole).trim().toLowerCase();
+                    
+                    console.log(`🔍 Usuario ${u.email}: role="${rawRole}" → normalized="${normalizedRole}"`);
+                    
                     return {
                         id: u.id,
                         username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
@@ -409,11 +420,13 @@
 
             // Rol (con selector si puede cambiar)
             const tdRole = document.createElement('td');
-            const normalizedRole = (user.role || '').toLowerCase();
+            const normalizedRole = String(user.role || '').trim().toLowerCase();
+            
+            console.log(`🎨 Renderizando usuario ${user.email}: role="${user.role}" → normalized="${normalizedRole}"`);
+            
             if (canChangeRoles) {
                 const select = document.createElement('select');
                 select.className = 'form-select form-select-sm';
-                select.value = normalizedRole;
 
                 ALLOWED_GLOBAL_ROLES.forEach(r => {
                     const option = document.createElement('option');
@@ -428,6 +441,16 @@
                     option.textContent = roleLabels[r] || r;
                     select.appendChild(option);
                 });
+
+                // Importante: asignar el valor DESPUÉS de agregar opciones
+                select.value = normalizedRole;
+
+                // Si por alguna razón no coincide, forzar al primer match manual
+                if (select.value !== normalizedRole) {
+                    console.warn(`⚠️ No se pudo seleccionar rol "${normalizedRole}" para ${user.email}, valor actual: ${select.value}`);
+                    const optionToSelect = Array.from(select.options).find(opt => opt.value === normalizedRole);
+                    if (optionToSelect) optionToSelect.selected = true;
+                }
 
                 select.addEventListener('change', () => updateUserRole(user.id, select.value));
                 tdRole.appendChild(select);
@@ -557,8 +580,13 @@
             console.log('✅ Rol actualizado con éxito, recargando usuarios...');
             showSuccessMsg(`✅ Rol actualizado correctamente a: ${normalizedRole}`);
             
-            // Forzar recarga completa de la tabla
-            console.log('🔄 Forzando renderUsers después de actualizar rol...');
+            // Forzar recarga COMPLETA - limpiar caché y recargar
+            console.log('🔄 Limpiando caché y recargando usuarios...');
+            
+            // Limpiar cualquier caché local
+            allUsers = [];
+            
+            // Forzar recarga desde backend (datos frescos)
             await loadUsers();
             
             // Forzar actualización del select específico
