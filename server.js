@@ -391,6 +391,7 @@ app.get('/api/test-supabase', async (req, res) => {
 // Get all users
 app.get('/api/users', async (req, res) => {
     try {
+        // Usar service role para obtener todos los usuarios sin restricciones RLS
         const { data, error } = await supabase
             .from('users')
             .select('*');
@@ -398,11 +399,14 @@ app.get('/api/users', async (req, res) => {
         if (error) throw error;
 
         // Mapear full_name a name para compatibilidad con el frontend
+        // Normalizar roles para consistencia
         const mappedData = data.map(user => ({
             ...user,
-            name: user.full_name
+            name: user.full_name,
+            role: (user.role || '').trim().toLowerCase() // Normalizar rol
         }));
 
+        console.log(`📋 Backend /api/users: ${mappedData.length} usuarios con roles normalizados`);
         res.json({ success: true, data: mappedData });
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -1122,31 +1126,69 @@ app.get('/api/usuarios/:id', async (req, res) => {
 // Create user
 app.post('/api/usuarios', async (req, res) => {
     const body = req.body || {};
-    const payload = {
-        username: body.username,
-        password: body.password,
-        full_name: body.full_name || body.name || body.nombre,
-        email: body.email || body.correo,
-        phone: body.phone || body.telefono,
-        role: body.role || body.rol,
-        groups: body.groups || body.grupos || []
-    };
+    const fullName = body.full_name || body.name || body.nombre;
+    const email = body.email || body.correo;
+    const password = body.password;
+    const role = (body.role || body.rol || '').toLowerCase();
+    const username = body.username || (email ? email.split('@')[0] : null);
+    const phone = body.phone || body.telefono;
+    const groups = body.groups || body.grupos || (body.team ? [body.team] : []);
+    const team = body.team || null;
 
-    if (!payload.username || !payload.password || !payload.full_name || !payload.email || !payload.role) {
+    if (!username || !password || !fullName || !email || !role) {
         return res.status(400).json({ success: false, error: 'username, password, full_name, email y role son requeridos' });
     }
 
     try {
+        // 1) Crear usuario en Supabase Auth usando service role
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: {
+                full_name: fullName,
+                role,
+                team,
+                groups
+            }
+        });
+
+        if (authError || !authData?.user?.id) {
+            console.error('Error creando usuario en Supabase Auth:', authError);
+            return res.status(500).json({ success: false, error: authError?.message || 'No se pudo crear usuario en Auth' });
+        }
+
+        const authUserId = authData.user.id;
+
+        // 2) Upsert en tabla public.users con el mismo ID para respetar la FK
+        const userRecord = {
+            id: authUserId,
+            username,
+            full_name: fullName,
+            email,
+            phone,
+            role,
+            is_active: true,
+            groups,
+            raw_user_meta_data: {
+                full_name: fullName,
+                role,
+                team,
+                groups
+            }
+        };
+
         const { data, error } = await supabase
             .from('users')
-            .insert([payload])
-            .select();
+            .upsert([userRecord])
+            .select()
+            .limit(1);
 
         if (error) throw error;
         res.status(201).json({ success: true, data: data[0] });
     } catch (error) {
         console.error('Error creating usuario:', error);
-        res.status(500).json({ success: false, error: 'Failed to create usuario' });
+        res.status(500).json({ success: false, error: error?.message || 'Failed to create usuario' });
     }
 });
 
@@ -3268,45 +3310,29 @@ app.get('/api/excel/datasets', async (req, res) => {
                     users = users1;
                     console.log('✅ Usuarios encontrados con raw_user_meta_data');
                 } else {
-                    console.log('❌ Error con raw_user_meta_data, intentando user_metadata...');
-                    // Opción 2: Intentar con user_metadata
+                    console.log('❌ Error con raw_user_meta_data, intentando solo full_name...');
+                    // Opción 2: Intentar específicamente con full_name
                     const { data: users2, error: error2 } = await supabase
                         .from('users')
-                        .select('id, email, user_metadata')
+                        .select('id, email, full_name')
                         .in('id', userIds);
                     
                     if (!error2 && users2) {
-                        // Mapear user_metadata a raw_user_meta_data para consistencia
-                        users = users2.map(u => ({
-                            ...u,
-                            raw_user_meta_data: u.user_metadata
-                        }));
-                        console.log('✅ Usuarios encontrados con user_metadata');
+                        users = users2;
+                        console.log('✅ Usuarios encontrados con full_name');
                     } else {
-                        console.log('❌ Error con user_metadata, intentando solo full_name...');
-                        // Opción 3: Intentar específicamente con full_name
+                        console.log('❌ Error con full_name, usando solo email...');
+                        // Opción 3: Último fallback - solo email
                         const { data: users3, error: error3 } = await supabase
-                            .from('users')
-                            .select('id, email, full_name')
-                            .in('id', userIds);
-                        
-                        if (!error3 && users3) {
-                            users = users3;
-                            console.log('✅ Usuarios encontrados con full_name');
-                        } else {
-                            console.log('❌ Error con full_name, usando solo email...');
-                            // Opción 4: Último fallback - solo email
-                            const { data: users4, error: error4 } = await supabase
                                 .from('users')
                                 .select('id, email')
                                 .in('id', userIds);
                             
-                            if (!error4 && users4) {
-                                users = users4;
-                                console.log('✅ Usuarios encontrados con email únicamente');
-                            } else {
-                                usersError = error4 || error3 || error2 || error1;
-                            }
+                            if (!error3 && users3) {
+                            users = users3;
+                            console.log('✅ Usuarios encontrados con email únicamente');
+                        } else {
+                            usersError = error3 || error2 || error1;
                         }
                     }
                 }
