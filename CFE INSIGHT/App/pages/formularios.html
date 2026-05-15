@@ -6015,6 +6015,9 @@
 
         // Inicializar menús desplegables
         function initializeCustomSelects() {
+            // 📂 CARGAR SELECCIONES GUARDADAS AL INICIALIZAR
+            loadEntitySelectionsFromStorage();
+
             // Menú desplegable Entidad Padre
             const padreSelect = document.getElementById('entidadPadreSelect');
             const padreSelected = document.getElementById('entidadPadreSelected');
@@ -6216,6 +6219,9 @@
                     if (hijaClearBtn) hijaClearBtn.classList.remove('visible');
                 }
             }
+
+            // 💾 GUARDAR SELECCIONES EN localStorage
+            saveEntitySelectionsToStorage();
 
             // Cerrar todos los menús de forma agresiva
             closeAllDropdowns();
@@ -6420,12 +6426,93 @@
             }, 1000);
         });
 
+        // ==========================================
+        // 💾 PERSISTENCIA DE SELECCIONES EN localStorage
+        // ==========================================
+
+        // Función para guardar las selecciones actuales en localStorage
+        function saveEntitySelectionsToStorage() {
+            try {
+                const padreValue = document.getElementById('entidadPadre')?.value || '';
+                const padreText = document.getElementById('entidadPadreSelected')?.textContent || '';
+                const hijaValue = document.getElementById('entidadHijo')?.value || '';
+                const hijaText = document.getElementById('entidadHijoSelected')?.textContent || '';
+
+                const selections = {
+                    padre: { value: padreValue, text: padreText },
+                    hija: { value: hijaValue, text: hijaText },
+                    timestamp: new Date().toISOString()
+                };
+
+                localStorage.setItem('formularios_entity_selections', JSON.stringify(selections));
+                console.log('💾 Selecciones guardadas:', selections);
+            } catch (error) {
+                console.warn('⚠️ Error guardando selecciones:', error);
+            }
+        }
+
+        // Función para cargar las selecciones guardadas desde localStorage
+        function loadEntitySelectionsFromStorage() {
+            try {
+                const saved = localStorage.getItem('formularios_entity_selections');
+                if (!saved) {
+                    console.log('📂 No hay selecciones guardadas');
+                    return false;
+                }
+
+                const selections = JSON.parse(saved);
+                console.log('📂 Cargando selecciones guardadas:', selections);
+
+                // Restaurar selección del padre
+                if (selections.padre && selections.padre.value) {
+                    const padreSelected = document.getElementById('entidadPadreSelected');
+                    const padreHidden = document.getElementById('entidadPadre');
+                    
+                    if (padreSelected && padreHidden) {
+                        padreSelected.textContent = selections.padre.text;
+                        padreSelected.classList.add('selected');
+                        padreHidden.value = selections.padre.value;
+                    }
+                }
+
+                // Restaurar selección de la hija
+                if (selections.hija && selections.hija.value) {
+                    const hijaSelected = document.getElementById('entidadHijoSelected');
+                    const hijaHidden = document.getElementById('entidadHijo');
+                    
+                    if (hijaSelected && hijaHidden) {
+                        hijaSelected.textContent = selections.hija.text;
+                        hijaSelected.classList.add('selected');
+                        hijaHidden.value = selections.hija.value;
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.warn('⚠️ Error cargando selecciones guardadas:', error);
+                return false;
+            }
+        }
+
+        // Función para limpiar las selecciones guardadas
+        function clearEntitySelectionsFromStorage() {
+            try {
+                localStorage.removeItem('formularios_entity_selections');
+                console.log('🗑️ Selecciones guardadas eliminadas');
+            } catch (error) {
+                console.warn('⚠️ Error eliminando selecciones:', error);
+            }
+        }
+
         // Exponer utilidades de entidades en window para depuración
         window.initializeCustomSelects = initializeCustomSelects;
         window.restoreOriginalOptions = restoreOriginalOptions;
         window.reassignClickEvents = reassignClickEvents;
         window.entidadesPadreOriginales = entidadesPadreOriginales;
         window.entidadesHijoOriginales = entidadesHijoOriginales;
+        window.saveEntitySelectionsToStorage = saveEntitySelectionsToStorage;
+        window.loadEntitySelectionsFromStorage = loadEntitySelectionsFromStorage;
+        window.clearEntitySelectionsFromStorage = clearEntitySelectionsFromStorage;
 
         // Función para toggle de categorías
         function toggleCategoriaDropdown(categoriaId) {
