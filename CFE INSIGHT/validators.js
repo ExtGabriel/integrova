@@ -228,7 +228,43 @@ const schemas = {
                 created_by: data.created_by || null
             };
 
-            // Agregar work_group_id si se proporciona
+            // Agregar campos de presupuesto si se proporcionan
+            if (data.budget_hours !== undefined && data.budget_hours !== null) {
+                const hours = parseFloat(data.budget_hours);
+                if (isNaN(hours) || hours < 0) {
+                    errors.push('budget_hours debe ser un número válido mayor o igual a 0');
+                } else {
+                    sanitized.budget_hours = hours;
+                }
+            }
+
+            if (data.budget_amount !== undefined && data.budget_amount !== null) {
+                const amount = parseFloat(data.budget_amount);
+                if (isNaN(amount) || amount < 0) {
+                    errors.push('budget_amount debe ser un número válido mayor o igual a 0');
+                } else {
+                    sanitized.budget_amount = amount;
+                }
+            }
+
+            // Agregar campos de preparador y revisor si se proporcionan
+            if (data.preparer_id !== undefined && data.preparer_id !== null) {
+                sanitized.preparer_id = data.preparer_id;
+            }
+
+            if (data.preparer !== undefined && data.preparer !== null) {
+                sanitized.preparer = sanitizeString(data.preparer);
+            }
+
+            if (data.reviewer_id !== undefined && data.reviewer_id !== null) {
+                sanitized.reviewer_id = data.reviewer_id;
+            }
+
+            if (data.reviewer !== undefined && data.reviewer !== null) {
+                sanitized.reviewer = sanitizeString(data.reviewer);
+            }
+
+            // Agregar work_group_id si se proporciona (mantener compatibilidad)
             if (data.work_group_id !== undefined && data.work_group_id !== null) {
                 sanitized.work_group_id = data.work_group_id;
             }
