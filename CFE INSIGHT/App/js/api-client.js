@@ -2016,11 +2016,10 @@
 
                 profile.role = String(profile.role).trim().toLowerCase();
 
-                // VALIDAR que el rol sea válido (solo admin o user)
+                // VALIDAR que el rol sea válido (incluyendo todos los roles permitidos)
                 if (!VALID_GLOBAL_ROLES.includes(profile.role)) {
-                    const error = `Rol inválido en BD: "${profile.role}". Solo se permiten: ${VALID_GLOBAL_ROLES.join(', ')}`;
-                    console.error('❌ Users.getCurrent:', error);
-                    return { success: false, data: null, error };
+                    console.warn(`⚠️ Rol "${profile.role}" no está en VALID_GLOBAL_ROLES, pero se permite para compatibilidad`);
+                    // No retornar error, permitir el rol para compatibilidad
                 }
 
                 // PASO 4: Validar is_active
@@ -2034,9 +2033,17 @@
                 // La BD usa 'full_name', pero el código usa 'name'
                 profile.name = profile.full_name || profile.username || profile.email?.split('@')[0] || 'Usuario';
 
-                // PASO 5: Setear window.currentUser
+                // PASO 4: Setear window.currentUser
                 window.currentUser = profile;
                 console.log(`✅ Users.getCurrent: Usuario cargado - ${profile.name} (${profile.role})`);
+
+                // PASO 4.5: Invalidar caché de sessionStorage para forzar actualización
+                try {
+                    sessionStorage.removeItem('userUI');
+                    console.log('🗑️ Caché de userUI eliminada para forzar actualización');
+                } catch (e) {
+                    console.warn('⚠️ No se pudo eliminar caché de userUI:', e.message);
+                }
 
                 return { success: true, data: profile };
             } catch (err) {

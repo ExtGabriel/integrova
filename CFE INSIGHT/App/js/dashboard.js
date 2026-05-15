@@ -5,7 +5,17 @@
 // Navigation function for dashboard buttons
 function navigateTo(page) {
     console.log('🔍 Navegando a:', page);
-    
+    const restrictedForAuditor = ['Usuarios', 'Grupos'];
+
+    // Bloquear navegación a opciones restringidas para rol auditor
+    if (window.currentUser?.role === 'auditor' && restrictedForAuditor.includes(page)) {
+        console.warn(`🚫 Acceso denegado para auditor a: ${page}`);
+        if (typeof showError === 'function') {
+            showError('No tienes permiso para acceder a esta sección');
+        }
+        return;
+    }
+
     // All pages are in the same directory as dashboard.html
     const pageMap = {
         'Registro': 'registros.html',
@@ -1566,6 +1576,9 @@ async function initializeDashboardPage() {
             console.log(`✅ dashboard.js: Usuario ${userName} cargado`);
         }
 
+        // Aplicar restricciones de visibilidad para roles específicos
+        applyDashboardRoleVisibility();
+
         // Inicializar dashboard
         console.log('🎬 dashboard.js: Inicializando dashboard...');
         initializeDashboard();
@@ -1585,6 +1598,45 @@ async function initializeDashboardPage() {
 document.addEventListener('DOMContentLoaded', function () {
     console.log('📊 dashboard.js: DOMContentLoaded (esperando protectPage callback)...');
 });
+
+// Aplicar restricciones de UI en dashboard por rol
+function applyDashboardRoleVisibility() {
+    const role = window.currentUser?.role;
+    if (!role) {
+        console.warn('⚠️ applyDashboardRoleVisibility: No hay rol definido');
+        return;
+    }
+
+    console.log(`🔍 Aplicando visibilidad para rol: ${role}`);
+
+    const selectorsToHide = [
+        'a.action-btn[href="usuarios.html"]',
+        'a.action-btn[href="grupos.html"]'
+    ];
+
+    // Ocultar botones para roles que no deben verlos
+    if (role === 'auditor' || role === 'auditor_senior' || role === 'cliente') {
+        console.log(`🚫 Ocultando botones para rol: ${role}`);
+        selectorsToHide.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = 'none';
+                console.log(`✅ Botón oculto: ${selector}`);
+            } else {
+                console.warn(`⚠️ No se encontró botón: ${selector}`);
+            }
+        });
+    } else {
+        console.log(`✅ Mostrando todos los botones para rol: ${role}`);
+        // Asegurarse de que los botones sean visibles para otros roles
+        selectorsToHide.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = '';
+            }
+        });
+    }
+}
 
 // Calendar functionality for dashboard
 let calendarCurrentDate = new Date();
