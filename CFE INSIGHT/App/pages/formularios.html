@@ -6001,26 +6001,16 @@
         // Variables globales para entidades - inicializadas con datos estáticos
         let entidadesPadreOriginales = [
             { value: '', text: 'Entidad padre...' },
-            { value: 'entidad1', text: 'Dirección General' },
-            { value: 'entidad2', text: 'Subdirección Administrativa' },
-            { value: 'entidad3', text: 'Subdirección Técnica' },
-            { value: 'entidad4', text: 'Subdirección Financiera' },
-            { value: 'entidad5', text: 'Dirección de Recursos Humanos' },
-            { value: 'entidad6', text: 'Dirección de Finanzas' },
-            { value: 'entidad7', text: 'Dirección de Operaciones' },
-            { value: 'entidad8', text: 'Dirección de TI' }
+            { value: 'padre1', text: 'Padre 1' },
+            { value: 'padre2', text: 'Padre 2' },
+            { value: 'padre3', text: 'Padre 3' }
         ];
 
         let entidadesHijoOriginales = [
             { value: '', text: 'Entidad hija...' },
-            { value: 'hijo1', text: 'Departamento de Recursos Humanos' },
-            { value: 'hijo2', text: 'Departamento de TI' },
-            { value: 'hijo3', text: 'Departamento de Contabilidad' },
-            { value: 'hijo4', text: 'Departamento de Operaciones' },
-            { value: 'hijo5', text: 'Departamento de Compras' },
-            { value: 'hijo6', text: 'Departamento de Ventas' },
-            { value: 'hijo7', text: 'Departamento de Marketing' },
-            { value: 'hijo8', text: 'Departamento de Logística' }
+            { value: 'hija1', text: 'Hija 1' },
+            { value: 'hija2', text: 'Hija 2' },
+            { value: 'hija3', text: 'Hija 3' }
         ];
 
         // Inicializar menús desplegables
@@ -6196,6 +6186,36 @@
             const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
             searchInput.value = '';
             clearBtn.classList.remove('visible');
+
+            // 🎯 AUTO-MATCH: Si seleccionó un padre, seleccionar automáticamente la hija correspondiente
+            if (type === 'padre' && value && value !== '') {
+                const padreNumber = value.replace('padre', '');
+                const hijaValue = `hija${padreNumber}`;
+                const hijaOption = entidadesHijoOriginales.find(opt => opt.value === hijaValue);
+                
+                if (hijaOption) {
+                    console.log(`🔗 Auto-matching: Padre ${value} → Hija ${hijaValue}`);
+                    
+                    // Actualizar texto y valor de la hija
+                    const hijaSelected = document.getElementById('entidadHijoSelected');
+                    const hijaHidden = document.getElementById('entidadHijo');
+                    
+                    if (hijaSelected) {
+                        hijaSelected.textContent = hijaOption.text;
+                        hijaSelected.classList.add('selected');
+                    }
+                    
+                    if (hijaHidden) {
+                        hijaHidden.value = hijaValue;
+                    }
+                    
+                    // Limpiar búsqueda de hija
+                    const hijaSearchInput = document.getElementById('entidadHijoSearch');
+                    const hijaClearBtn = hijaSearchInput.parentElement.querySelector('.btn-clear-search');
+                    if (hijaSearchInput) hijaSearchInput.value = '';
+                    if (hijaClearBtn) hijaClearBtn.classList.remove('visible');
+                }
+            }
 
             // Cerrar todos los menús de forma agresiva
             closeAllDropdowns();
