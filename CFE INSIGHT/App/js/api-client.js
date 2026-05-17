@@ -1342,6 +1342,12 @@
                 console.error('❌ [Commitments.delete] Excepción:', err.message);
                 return { success: true, data: null };
             }
+        },
+
+        // Mantener compatibilidad con el patrón anterior
+        async getAll() {
+            const result = await this.list();
+            return { success: !result.error, data: result.data };
         }
     };
 
@@ -1353,20 +1359,32 @@
     const UsersModule = {
         async getAll() {
             try {
+                // SIEMPRE intentar backend /api/users primero (sin RLS, datos frescos)
+                console.log('👑 Intentando backend /api/users (service role)...');
+                try {
+                    const response = await fetch('/api/users');
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log(`✅ Backend /api/users: ${result.data.length} usuarios`);
+                        return { success: true, data: result.data };
+                    } else {
+                        console.log('⚠️ Backend /api/users falló, usando fallback a Supabase');
+                    }
+                } catch (backendErr) {
+                    console.log('⚠️ Backend /api/users no disponible, usando fallback a Supabase');
+                }
+
+                // Fallback: usar Supabase directo
                 const client = await getSupabaseClient();
                 if (!client) return { success: true, data: [] };
 
-                // Para administradores, intentar obtener todos los usuarios
-                // Para usuarios normales, aplicar restricciones RLS
                 let query = client.from('users').select('*');
                 
                 // Si el usuario actual es admin, intentar bypass RLS
                 if (window.currentUser && window.currentUser.role === 'admin') {
                     console.log('🔑 Usuario admin detectado, intentando obtener todos los usuarios...');
-                    
-                    // Intentar consulta directa (puede funcionar dependiendo de RLS)
                     const { data, error } = await query;
-                    
+
                     console.log('🔍 Debug getAll users:', {
                         totalUsers: data?.length || 0,
                         users: data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || [],
@@ -1383,11 +1401,11 @@
                         if (error.message?.includes('permission') || error.code === 'PGRST301') {
                             console.log('🔄 Error de permisos, intentando consulta alternativa...');
                             
-                            // Consulta alternativa: obtener usuarios por roles conocidos
+                            // Consulta alternativa: incluir roles globales conocidos
                             const { data: altData, error: altError } = await client
                                 .from('users')
                                 .select('*')
-                                .in('role', ['admin', 'user']);
+                                .in('role', ['admin', 'user', 'auditor', 'auditor_senior', 'socio', 'cliente']);
                                 
                             if (!altError && altData) {
                                 console.log(`✅ Consulta alternativa exitosa: ${altData.length} usuarios`);
@@ -1667,48 +1685,33 @@
                     return { success: false, error: `Rol inválido. Roles permitidos: ${VALID_GLOBAL_ROLES.join(', ')}` };
                 }
 
-                // Crear usuario en Auth
-                const { data: authData, error: authError } = await client.auth.signUp({
-                    email: userData.email,
-                    password: userData.password,
-                    options: {
-                        emailRedirectTo: window.location.origin,
-                        data: {
-                            full_name: userData.name,
-                            role: normalizedRole
-                        }
-                    }
+                // Delegar creación al backend (usa service role y respeta FK)
+                const response = await fetch('/api/usuarios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: userData.email.split('@')[0],
+                        password: userData.password,
+                        full_name: userData.name,
+                        email: userData.email,
+                        phone: userData.phone || null,
+                        role: normalizedRole,
+                        team: userData.team || null,
+                        groups: userData.team ? [userData.team] : []
+                    })
                 });
 
-                if (authError) {
-                    console.error('❌ Users.create auth error:', authError);
-                    return { success: false, error: authError.message || 'Error al crear usuario en Auth' };
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    const message = result?.error || 'Error al crear usuario en backend';
+                    console.error('❌ Users.create backend error:', message, result);
+                    return { success: false, error: message };
                 }
 
-                // Insertar/actualizar en tabla users
-                const userRecord = {
-                    id: authData.user.id,
-                    email: userData.email,
-                    full_name: userData.name,
-                    role: normalizedRole,
-                    team: userData.team || null,
-                    is_active: true,
-                    username: userData.email.split('@')[0]
-                };
-
-                const { data: dbData, error: dbError } = await client
-                    .from('users')
-                    .upsert(userRecord)
-                    .select()
-                    .single();
-
-                if (dbError) {
-                    console.error('❌ Users.create DB error:', dbError);
-                    return { success: false, error: dbError.message || 'Error al guardar usuario en BD' };
-                }
-
-                console.log('✅ Usuario creado exitosamente:', dbData);
-                return { success: true, data: dbData };
+                console.log('✅ Usuario creado exitosamente (backend):', result.data);
+                return { success: true, data: result.data };
             } catch (err) {
                 console.error('❌ Users.create excepción:', err);
                 return { success: false, error: err.message || 'Error desconocido al crear usuario' };
@@ -1747,12 +1750,12 @@
                     };
                 }
 
-                // Validar que NO sea un rol de entidad
-                const ENTITY_ROLES = ['owner', 'auditor', 'viewer'];
+                // Validar que NO sea un rol de entidad (excluir 'auditor' global)
+                const ENTITY_ROLES = ['owner', 'viewer']; // 'auditor' es un rol global válido
                 if (ENTITY_ROLES.includes(normalizedRole)) {
                     return {
                         success: false,
-                        error: `${normalizedRole} es un rol de entidad, no global. Use 'admin' o 'user'`
+                        error: `${normalizedRole} es un rol de entidad, no global. Use 'admin', 'user', 'auditor', 'auditor_senior', 'socio', 'cliente'`
                     };
                 }
 
@@ -1781,7 +1784,7 @@
                     if (error.code === '23514') {
                         return {
                             success: false,
-                            error: 'El rol no cumple con los constraints de BD. Asegúrate de usar solo: admin o user'
+                            error: `El rol no cumple con los constraints de BD. Asegúrate de usar solo: ${VALID_GLOBAL_ROLES.join(', ')}`
                         };
                     }
 

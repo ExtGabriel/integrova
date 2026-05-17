@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Validar variables de entorno críticas
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY'];
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
@@ -13,6 +13,7 @@ if (missingEnvVars.length > 0) {
 }
 
 console.log('✅ Variables de entorno cargadas correctamente');
+console.log('🔗 Supabase URL:', process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada');
 
 // ============================================
 // UTILIDADES DE VALIDACIÓN Y NORMALIZACIÓN
@@ -200,10 +201,20 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// ============================================
+// CONFIGURACIÓN DE CORREO ELECTRÓNICO (DESACTIVADA)
+// ============================================
+// Nota: El envío de correos está desactivado. Las notificaciones se manejan internamente.
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configuración de CORS: permitir frontend (Vercel) y desarrollo local
+const additionalFrontendOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
@@ -211,14 +222,18 @@ const corsOptions = {
             'http://localhost:3001',      // Servidor local (mismo puerto)
             'http://localhost:5000',      // Desarrollo local alternativo
             'http://localhost:8080',      // Desarrollo local alternativo
-            process.env.FRONTEND_URL      // Frontend en Vercel o dominio personalizado
-        ].filter(Boolean); // Remover valores undefined/null
+            ...additionalFrontendOrigins  // Frontend en Vercel o dominios personalizados
+        ];
+
+        const vercelPreviewRegex = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+        const isVercelPreview = typeof origin === 'string' && vercelPreviewRegex.test(origin);
 
         // Permitir requests sin origin (por ejemplo, Postman, cURL, apps móviles)
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
             callback(null, true);
         } else {
             console.warn(`❌ CORS rechazado para origin: ${origin}`);
+            console.warn('   ↳ Orígenes permitidos:', allowedOrigins);
             callback(new Error('CORS no permitido'));
         }
     },
@@ -229,6 +244,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
 app.use(express.static(path.join(__dirname, 'CFE INSIGHT/App'))); // Servir archivos estáticos
 
@@ -329,11 +345,53 @@ function processImageFile(buffer, filename) {
     return `[Archivo de imagen: ${filename}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB. Para análisis de imágenes, usar GPT-4 Vision en futuras versiones]`;
 }
 
+// Supabase Connection Test Endpoint
+app.get('/api/test-supabase', async (req, res) => {
+    try {
+        // Test basic connection
+        const { data, error } = await supabase
+            .from('users')
+            .select('count')
+            .limit(1);
+
+        if (error) {
+            return res.status(500).json({
+                success: false,
+                error: 'Error conectando a Supabase',
+                details: error.message,
+                config: {
+                    url: process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada',
+                    hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+                    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            message: '✅ Conexión a Supabase exitosa',
+            timestamp: new Date().toISOString(),
+            config: {
+                url: process.env.SUPABASE_URL ? '✅ Configurada' : '❌ No configurada',
+                hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+                hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+            }
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            error: 'Error en el servidor',
+            details: err.message
+        });
+    }
+});
+
 // User Management API Endpoints
 
 // Get all users
 app.get('/api/users', async (req, res) => {
     try {
+        // Usar service role para obtener todos los usuarios sin restricciones RLS
         const { data, error } = await supabase
             .from('users')
             .select('*');
@@ -341,11 +399,14 @@ app.get('/api/users', async (req, res) => {
         if (error) throw error;
 
         // Mapear full_name a name para compatibilidad con el frontend
+        // Normalizar roles para consistencia
         const mappedData = data.map(user => ({
             ...user,
-            name: user.full_name
+            name: user.full_name,
+            role: (user.role || '').trim().toLowerCase() // Normalizar rol
         }));
 
+        console.log(`📋 Backend /api/users: ${mappedData.length} usuarios con roles normalizados`);
         res.json({ success: true, data: mappedData });
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -1065,31 +1126,69 @@ app.get('/api/usuarios/:id', async (req, res) => {
 // Create user
 app.post('/api/usuarios', async (req, res) => {
     const body = req.body || {};
-    const payload = {
-        username: body.username,
-        password: body.password,
-        full_name: body.full_name || body.name || body.nombre,
-        email: body.email || body.correo,
-        phone: body.phone || body.telefono,
-        role: body.role || body.rol,
-        groups: body.groups || body.grupos || []
-    };
+    const fullName = body.full_name || body.name || body.nombre;
+    const email = body.email || body.correo;
+    const password = body.password;
+    const role = (body.role || body.rol || '').toLowerCase();
+    const username = body.username || (email ? email.split('@')[0] : null);
+    const phone = body.phone || body.telefono;
+    const groups = body.groups || body.grupos || (body.team ? [body.team] : []);
+    const team = body.team || null;
 
-    if (!payload.username || !payload.password || !payload.full_name || !payload.email || !payload.role) {
+    if (!username || !password || !fullName || !email || !role) {
         return res.status(400).json({ success: false, error: 'username, password, full_name, email y role son requeridos' });
     }
 
     try {
+        // 1) Crear usuario en Supabase Auth usando service role
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: {
+                full_name: fullName,
+                role,
+                team,
+                groups
+            }
+        });
+
+        if (authError || !authData?.user?.id) {
+            console.error('Error creando usuario en Supabase Auth:', authError);
+            return res.status(500).json({ success: false, error: authError?.message || 'No se pudo crear usuario en Auth' });
+        }
+
+        const authUserId = authData.user.id;
+
+        // 2) Upsert en tabla public.users con el mismo ID para respetar la FK
+        const userRecord = {
+            id: authUserId,
+            username,
+            full_name: fullName,
+            email,
+            phone,
+            role,
+            is_active: true,
+            groups,
+            raw_user_meta_data: {
+                full_name: fullName,
+                role,
+                team,
+                groups
+            }
+        };
+
         const { data, error } = await supabase
             .from('users')
-            .insert([payload])
-            .select();
+            .upsert([userRecord])
+            .select()
+            .limit(1);
 
         if (error) throw error;
         res.status(201).json({ success: true, data: data[0] });
     } catch (error) {
         console.error('Error creating usuario:', error);
-        res.status(500).json({ success: false, error: 'Failed to create usuario' });
+        res.status(500).json({ success: false, error: error?.message || 'Failed to create usuario' });
     }
 });
 
@@ -2141,6 +2240,92 @@ app.get('/api/excel/latest', async (req, res) => {
     }
 });
 
+// Endpoint para guardar datos procesados temporalmente
+app.post('/api/excel/save-temp-data', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { files, mappings } = req.body;
+        
+        console.log('💾 Save temp data request - User ID:', userId);
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No hay archivos para guardar' });
+        }
+
+        // Desactivar datasets anteriores del usuario
+        const { error: deactivateError } = await supabase
+            .from('conjuntos_datos')
+            .update({ is_active: false })
+            .eq('user_id', userId);
+
+        if (deactivateError) {
+            console.error('Error desactivando datasets anteriores:', deactivateError);
+        }
+
+        const processedFiles = [];
+
+        for (const file of files) {
+            try {
+                console.log('💾 Guardando archivo:', file.filename);
+                
+                // Guardar directamente en la base de datos
+                const { data: dataset, error: datasetError } = await supabase
+                    .from('conjuntos_datos')
+                    .insert([{
+                        nombre: file.filename,
+                        tipo: 'balance_comprobacion',
+                        fecha_importacion: new Date().toISOString(),
+                        total_debitos: 0, // Se calculará después del mapeo
+                        total_creditos: 0, // Se calculará después del mapeo
+                        estado: 'subido',
+                        user_id: userId,
+                        archivo_original: file.filename,
+                        is_active: true,
+                        data: {
+                            sheets: file.sheets,
+                            totalSheets: file.totalSheets,
+                            totalRows: file.totalRows,
+                            filename: file.filename
+                        }
+                    }])
+                    .select()
+                    .single();
+
+                if (datasetError) {
+                    console.error('Error guardando dataset:', datasetError);
+                    return res.status(500).json({ success: false, error: 'Error guardando en base de datos' });
+                }
+
+                processedFiles.push({
+                    filename: file.filename,
+                    datasetId: dataset.id,
+                    sheets: file.sheets,
+                    totalSheets: file.totalSheets,
+                    totalRows: file.totalRows
+                });
+
+            } catch (error) {
+                console.error(`Error guardando archivo ${file.filename}:`, error);
+                return res.status(500).json({ success: false, error: `Error guardando archivo ${file.filename}` });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Datos guardados correctamente',
+            files: processedFiles
+        });
+
+    } catch (error) {
+        console.error('Error guardando datos temporales:', error);
+        res.status(500).json({ success: false, error: 'Error guardando datos' });
+    }
+});
+
 // Endpoint para procesar el mapeo de columnas y guardar cuentas
 app.post('/api/excel/process-mapping', async (req, res) => {
     try {
@@ -2332,114 +2517,6 @@ function generatePreview(workbook, filename) {
 
     return preview;
 }
-
-// Endpoint para subir archivos Excel (estilo CaseWare)
-app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
-    try {
-        const files = req.files || [];
-        
-        if (files.length === 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'No se proporcionaron archivos' 
-            });
-        }
-
-        const results = [];
-
-        for (const file of files) {
-            try {
-                // Procesar el archivo Excel como CaseWare
-                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-                const analysis = analyzeExcelLikeCaseWare(workbook, file.originalname);
-                
-                // Preparar los datos completos del Excel para guardar
-                const excelData = {
-                    sheets: workbook.SheetNames.map(sheetName => {
-                        const worksheet = workbook.Sheets[sheetName];
-                        const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-                        return {
-                            sheetName: sheetName,
-                            data: jsonData,
-                            rows: jsonData.length,
-                            columns: jsonData.length > 0 ? jsonData[0].length : 0
-                        };
-                    }),
-                    totalSheets: workbook.SheetNames.length
-                };
-                
-                // Guardar en la base de datos (adaptado a estructura existente)
-                if (analysis.success) {
-                    try {
-                        const userId = req.user?.id || req.headers['user-id'];
-
-                        if (userId) {
-                            const { error: deactivateError } = await supabase
-                                .from('conjuntos_datos')
-                                .update({ is_active: false })
-                                .eq('user_id', userId);
-
-                            if (deactivateError) {
-                                console.warn('⚠️ Error desactivando datasets anteriores:', deactivateError);
-                            }
-                        }
-
-                        const { data, error } = await supabase
-                            .from('conjuntos_datos')
-                            .insert({
-                                nombre: file.originalname,
-                                tipo: analysis.fileType,
-                                fecha_importacion: new Date().toISOString(),
-                                total_debitos: analysis.totals.debits || 0,
-                                total_creditos: analysis.totals.credits || 0,
-                                estado: analysis.isBalanced ? 'balanceado' : 'desbalanceado',
-                                archivo_original: file.originalname,
-                                data: excelData, // <-- AGREGAR LOS DATOS COMPLETOS DEL EXCEL
-                                user_id: userId, // <- AGREGAR USER_ID
-                                is_active: true
-                            })
-                            .select();
-
-                        if (error) {
-                            console.error('Error guardando en BD:', error);
-                            analysis.savedToDatabase = false;
-                            analysis.dbError = error.message;
-                        } else {
-                            analysis.savedToDatabase = true;
-                            analysis.databaseId = data[0].id;
-                        }
-                    } catch (dbError) {
-                        console.error('Error en base de datos:', dbError);
-                        analysis.savedToDatabase = false;
-                        analysis.dbError = dbError.message;
-                    }
-                }
-                
-                results.push(analysis);
-
-            } catch (error) {
-                console.error(`Error procesando archivo ${file.originalname}:`, error);
-                results.push({
-                    success: false,
-                    fileName: file.originalname,
-                    error: `Error procesando archivo: ${error.message}`
-                });
-            }
-        }
-
-        res.json({
-            success: true,
-            results: results
-        });
-
-    } catch (error) {
-        console.error('Error en /api/excel/upload:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Error procesando archivos' 
-        });
-    }
-});
 
 // Función de análisis estilo CaseWare IDEA
 function analyzeExcelLikeCaseWare(workbook, filename) {
@@ -3233,45 +3310,29 @@ app.get('/api/excel/datasets', async (req, res) => {
                     users = users1;
                     console.log('✅ Usuarios encontrados con raw_user_meta_data');
                 } else {
-                    console.log('❌ Error con raw_user_meta_data, intentando user_metadata...');
-                    // Opción 2: Intentar con user_metadata
+                    console.log('❌ Error con raw_user_meta_data, intentando solo full_name...');
+                    // Opción 2: Intentar específicamente con full_name
                     const { data: users2, error: error2 } = await supabase
                         .from('users')
-                        .select('id, email, user_metadata')
+                        .select('id, email, full_name')
                         .in('id', userIds);
                     
                     if (!error2 && users2) {
-                        // Mapear user_metadata a raw_user_meta_data para consistencia
-                        users = users2.map(u => ({
-                            ...u,
-                            raw_user_meta_data: u.user_metadata
-                        }));
-                        console.log('✅ Usuarios encontrados con user_metadata');
+                        users = users2;
+                        console.log('✅ Usuarios encontrados con full_name');
                     } else {
-                        console.log('❌ Error con user_metadata, intentando solo full_name...');
-                        // Opción 3: Intentar específicamente con full_name
+                        console.log('❌ Error con full_name, usando solo email...');
+                        // Opción 3: Último fallback - solo email
                         const { data: users3, error: error3 } = await supabase
-                            .from('users')
-                            .select('id, email, full_name')
-                            .in('id', userIds);
-                        
-                        if (!error3 && users3) {
-                            users = users3;
-                            console.log('✅ Usuarios encontrados con full_name');
-                        } else {
-                            console.log('❌ Error con full_name, usando solo email...');
-                            // Opción 4: Último fallback - solo email
-                            const { data: users4, error: error4 } = await supabase
                                 .from('users')
                                 .select('id, email')
                                 .in('id', userIds);
                             
-                            if (!error4 && users4) {
-                                users = users4;
-                                console.log('✅ Usuarios encontrados con email únicamente');
-                            } else {
-                                usersError = error4 || error3 || error2 || error1;
-                            }
+                            if (!error3 && users3) {
+                            users = users3;
+                            console.log('✅ Usuarios encontrados con email únicamente');
+                        } else {
+                            usersError = error3 || error2 || error1;
                         }
                     }
                 }
@@ -3452,16 +3513,140 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
     }
 });
 
-// Endpoint para subir y procesar archivos Excel
-app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
+// Endpoint para procesar archivos Excel temporalmente (sin guardar en BD)
+app.post('/api/excel/process-temp', upload.array('files', 5), async (req, res) => {
     try {
         const files = req.files || [];
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId);
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
         }
+        
+        if (!userId) {
+            console.error('❌ Process - No user ID provided in headers');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado. Se requiere user-id en los headers.' });
+        }
+
+        // Validar tamaño máximo de archivos (10MB por archivo)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        for (const file of files) {
+            if (file.size > MAX_FILE_SIZE) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: `El archivo ${file.originalname} excede el tamaño máximo de 10MB` 
+                });
+            }
+        }
+
+        // Validar número máximo de filas (50,000 filas por archivo)
+        const MAX_ROWS = 50000;
+        const processedFiles = [];
+
+        for (const file of files) {
+            try {
+                console.log('📄 Procesando archivo temporal:', file.originalname, 'Tamaño:', file.size);
+                
+                if (!file.buffer) {
+                    throw new Error('No se pudo leer el contenido del archivo');
+                }
+
+                const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+                const sheetNames = workbook.SheetNames;
+                
+                if (sheetNames.length === 0) {
+                    return res.status(400).json({ success: false, error: 'El archivo Excel no contiene hojas' });
+                }
+
+                // Procesar todas las hojas
+                const sheetsData = [];
+                let totalRows = 0;
+
+                for (const sheetName of sheetNames) {
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    if (jsonData.length > 0) {
+                        const columns = jsonData[0] || [];
+                        const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
+                        
+                        // Validar límite de filas
+                        if (dataRows.length > MAX_ROWS) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                error: `La hoja "${sheetName}" tiene ${dataRows.length} filas. El máximo permitido es ${MAX_ROWS}` 
+                            });
+                        }
+                        
+                        sheetsData.push({
+                            sheetName: sheetName,
+                            columns: columns,
+                            data: dataRows,
+                            rows: dataRows.length,
+                            columnsCount: columns.length
+                        });
+                        
+                        totalRows += dataRows.length;
+                    }
+                }
+
+                processedFiles.push({
+                    filename: file.originalname,
+                    sheets: sheetsData,
+                    totalSheets: sheetsData.length,
+                    totalRows: totalRows
+                });
+
+            } catch (error) {
+                console.error(`Error procesando archivo ${file.originalname}:`, error);
+                return res.status(500).json({ success: false, error: `Error procesando archivo ${file.originalname}` });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Archivos procesados temporalmente',
+            files: processedFiles
+        });
+
+    } catch (error) {
+        console.error('Error en procesamiento temporal:', error);
+        res.status(500).json({ success: false, error: 'Error procesando archivos temporalmente' });
+    }
+});
+
+// Endpoint para subir y procesar archivos Excel
+app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
+    try {
+        const files = req.files || [];
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId);
+        
+        if (files.length === 0) {
+            return res.status(400).json({ success: false, error: 'No se subieron archivos' });
+        }
+        
+        if (!userId) {
+            console.error('❌ Upload - No user ID provided in headers');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado. Se requiere user-id en los headers.' });
+        }
 
         const processedFiles = [];
+
+        // Desactivar datasets anteriores del usuario
+        if (userId) {
+            const { error: deactivateError } = await supabase
+                .from('conjuntos_datos')
+                .update({ is_active: false })
+                .eq('user_id', userId);
+
+            if (deactivateError) {
+                console.error('Error desactivando datasets anteriores:', deactivateError);
+            }
+        }
 
         for (const file of files) {
             if (!file.mimetype.includes('spreadsheet') && !file.originalname.endsWith('.xlsx') && !file.originalname.endsWith('.xls')) {
@@ -3476,24 +3661,64 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                     return res.status(400).json({ success: false, error: 'El archivo Excel no contiene hojas' });
                 }
 
-                // Procesar la primera hoja
-                const firstSheet = workbook.Sheets[sheetNames[0]];
-                const jsonData = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
-                
-                if (jsonData.length === 0) {
-                    return res.status(400).json({ success: false, error: 'La hoja está vacía' });
+                // Procesar todas las hojas
+                const sheetsData = [];
+                let totalRows = 0;
+
+                for (const sheetName of sheetNames) {
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    if (jsonData.length > 0) {
+                        const columns = jsonData[0] || [];
+                        const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
+                        
+                        sheetsData.push({
+                            sheetName: sheetName,
+                            columns: columns,
+                            data: dataRows,
+                            rows: dataRows.length,
+                            columnsCount: columns.length
+                        });
+                        
+                        totalRows += dataRows.length;
+                    }
                 }
 
-                // Extraer columnas de la primera fila
-                const columns = jsonData[0] || [];
-                const dataRows = jsonData.slice(1).filter(row => row && row.some(cell => cell !== null && cell !== ''));
-                
+                // Guardar directamente en la base de datos
+                const { data: dataset, error: datasetError } = await supabase
+                    .from('conjuntos_datos')
+                    .insert([{
+                        nombre: file.originalname,
+                        tipo: 'balance_comprobacion',
+                        fecha_importacion: new Date().toISOString(),
+                        total_debitos: 0, // Se calculará después del mapeo
+                        total_creditos: 0, // Se calculará después del mapeo
+                        estado: 'subido',
+                        user_id: userId,
+                        archivo_original: file.originalname,
+                        is_active: true,
+                        data: {
+                            sheets: sheetsData,
+                            totalSheets: sheetsData.length,
+                            totalRows: totalRows,
+                            filename: file.originalname
+                        }
+                    }])
+                    .select()
+                    .single();
+
+                if (datasetError) {
+                    console.error('Error guardando dataset:', datasetError);
+                    return res.status(500).json({ success: false, error: 'Error guardando en base de datos' });
+                }
+
                 processedFiles.push({
                     filename: file.originalname,
-                    sheetName: sheetNames[0],
-                    columns: columns,
-                    data: dataRows,
-                    totalRows: dataRows.length
+                    datasetId: dataset.id,
+                    sheets: sheetsData,
+                    totalSheets: sheetsData.length,
+                    totalRows: totalRows
                 });
 
             } catch (error) {
@@ -3504,13 +3729,22 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
         res.json({ 
             success: true, 
-            message: 'Archivos procesados correctamente',
+            message: 'Archivos procesados y guardados correctamente',
             files: processedFiles
         });
 
     } catch (error) {
         console.error('Error en /api/excel/upload:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+        console.error('Stack trace:', error.stack);
+        console.error('Headers recibidos:', req.headers);
+        console.error('Files recibidos:', req.files?.length || 0);
+        console.error('User ID:', req.user?.id || req.headers['user-id']);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
@@ -3549,9 +3783,25 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         
         console.log('🗂️ Mapeo de columnas:', mapping);
         
-        // Extraer cuentas (ignorando la primera fila que son encabezados)
+        // Determinar si la primera fila es encabezado o datos reales
+        const toCleanString = (value) => {
+            if (value === null || value === undefined) return '';
+            return value.toString().trim();
+        };
+
+        const firstRow = sheetData[0] || [];
+        const firstAccountCell = toCleanString(firstRow[mapping.accountNumber]);
+        const firstNameCell = toCleanString(firstRow[mapping.accountName]);
+
+        const accountCellHasLetters = /[a-zA-Z]/.test(firstAccountCell);
+        const nameCellLooksHeader = /^(numero|número|cuenta|descripcion|descripción|nombre)/i.test(firstNameCell);
+        const accountCellMissing = firstAccountCell === '';
+
+        const shouldSkipFirstRow = accountCellMissing || accountCellHasLetters || nameCellLooksHeader;
+
+        // Extraer cuentas (solo omitir la primera fila cuando realmente es encabezado)
         const accounts = [];
-        const dataRows = sheetData.slice(1); // Ignorar encabezados
+        const dataRows = shouldSkipFirstRow ? sheetData.slice(1) : sheetData;
         
         dataRows.forEach((row, index) => {
             // Validar que la fila tenga datos suficientes
@@ -3569,12 +3819,32 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
                 return;
             }
             
-            // Crear objeto cuenta
+            // Crear objeto cuenta - Aplicar lógica de Caseware: convertir negativos a positivos
+            const currentYearNum = parseFloat(currentYearValue) || 0;
+            const previousYearNum = parseFloat(previousYearValue) || 0;
+            
+            // Logging para mostrar conversiones de negativos a positivos
+            const currentYearConverted = Math.abs(currentYearNum);
+            const previousYearConverted = Math.abs(previousYearNum);
+            
+            if (currentYearNum < 0 || previousYearNum < 0) {
+                console.log(`🔄 Conversión Caseware - Cuenta: ${accountNumber}`);
+                if (currentYearNum < 0) {
+                    console.log(`   Current Year: ${currentYearNum} → ${currentYearConverted}`);
+                }
+                if (previousYearNum < 0) {
+                    console.log(`   Previous Year: ${previousYearNum} → ${previousYearConverted}`);
+                }
+            }
+            
             const account = {
                 number: accountNumber.toString().trim(),
                 name: accountName.toString().trim(),
-                currentYear: parseFloat(currentYearValue) || 0,
-                previousYear: parseFloat(previousYearValue) || 0
+                currentYear: currentYearConverted, // Valor absoluto
+                previousYear: previousYearConverted, // Valor absoluto
+                // Guardar valores originales para referencia
+                currentYearOriginal: currentYearNum,
+                previousYearOriginal: previousYearNum
             };
             
             // Asignar valores según el tipo de débito/crédito
@@ -4011,6 +4281,150 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error obteniendo ajustes' 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINTS PARA OBSERVACIONES (PENDIENTES)
+// ============================================
+
+// Guardar observación
+app.post('/api/observations', async (req, res) => {
+    try {
+        const { 
+            formId, 
+            classification, 
+            description, 
+            status = 'pendiente',
+            userId,
+            userEmail 
+        } = req.body;
+        
+        if (!formId || !classification || !description || !userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Faltan datos requeridos' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('observaciones')
+            .insert({
+                form_id: formId,
+                classification: classification,
+                description: description,
+                status: status,
+                user_id: userId,
+                user_email: userEmail,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observation: data 
+        });
+
+    } catch (error) {
+        console.error('Error guardando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error guardando observación' 
+        });
+    }
+});
+
+// Obtener observaciones de un usuario
+app.get('/api/observations/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const { data, error } = await supabase
+            .from('observaciones')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observations: data || [] 
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo observaciones:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error obteniendo observaciones' 
+        });
+    }
+});
+
+// Actualizar estado de observación
+app.put('/api/observations/:observationId', async (req, res) => {
+    try {
+        const { observationId } = req.params;
+        const { status } = req.body;
+        
+        if (!status) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'El estado es requerido' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('observaciones')
+            .update({ 
+                status: status,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', observationId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            observation: data 
+        });
+
+    } catch (error) {
+        console.error('Error actualizando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error actualizando observación' 
+        });
+    }
+});
+
+// Eliminar observación
+app.delete('/api/observations/:observationId', async (req, res) => {
+    try {
+        const { observationId } = req.params;
+        
+        const { error } = await supabase
+            .from('observaciones')
+            .delete()
+            .eq('id', observationId);
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true 
+        });
+
+    } catch (error) {
+        console.error('Error eliminando observación:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error eliminando observación' 
         });
     }
 });
@@ -4790,6 +5204,708 @@ app.post('/api/fix-cuentas-contables', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: error.message 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA CREAR TABLA DE CONSULTAS
+// ============================================
+app.post('/api/crear-tabla-consultas', async (req, res) => {
+    try {
+        const results = [];
+        
+        // Crear tabla consultas
+        try {
+            const { error } = await supabase.rpc('create_table_consultas');
+            if (error) {
+                // Si la función no existe, crear la tabla manualmente
+                const { error: tableError } = await supabase
+                    .from('consultas')
+                    .select('id')
+                    .limit(1);
+                
+                if (tableError && tableError.code === 'PGRST116') {
+                    // La tabla no existe, necesitamos crearla manualmente en SQL
+                    results.push({
+                        statement: 'CREATE TABLE consultas',
+                        error: 'Tabla necesita ser creada manualmente en Supabase Dashboard. Por favor, crea la tabla con la siguiente estructura:',
+                        sql: `
+CREATE TABLE public.consultas (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    numero VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    objetivos TEXT,
+    tipo VARCHAR(100),
+    fecha_vencimiento DATE,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    fecha_envio TIMESTAMP WITH TIME ZONE,
+    estado VARCHAR(50) DEFAULT 'borrador',
+    instrucciones TEXT,
+    mensaje_correo TEXT,
+    asignar_todos BOOLEAN DEFAULT false,
+    usuario_asignado VARCHAR(255),
+    question_sets JSONB DEFAULT '[]',
+    archivos_adjuntos JSONB DEFAULT '[]',
+    metadata JSONB DEFAULT '{}',
+    creada_por VARCHAR(100),
+    activa BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                        `
+                    });
+                } else {
+                    results.push({
+                        statement: 'CREATE TABLE consultas',
+                        success: true,
+                        message: 'Tabla consultas ya existe'
+                    });
+                }
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE consultas',
+                    success: true
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE consultas',
+                error: err.message
+            });
+        }
+
+        // Crear tabla consulta_envios
+        try {
+            const { error } = await supabase
+                .from('consulta_envios')
+                .select('id')
+                .limit(1);
+            
+            if (error && error.code === 'PGRST116') {
+                results.push({
+                    statement: 'CREATE TABLE consulta_envios',
+                    error: 'Tabla necesita ser creada manualmente en Supabase Dashboard',
+                    sql: `
+CREATE TABLE public.consulta_envios (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    consulta_id UUID REFERENCES public.consultas(id) ON DELETE CASCADE,
+    consulta_numero VARCHAR(50) NOT NULL,
+    consulta_nombre VARCHAR(255) NOT NULL,
+    fecha_vencimiento DATE,
+    mensaje TEXT NOT NULL,
+    destinatarios JSONB NOT NULL,
+    resultados_envio JSONB NOT NULL,
+    fecha_envio TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    exitos INTEGER DEFAULT 0,
+    fallidos INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                    `
+                });
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE consulta_envios',
+                    success: true,
+                    message: 'Tabla consulta_envios ya existe'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE consulta_envios',
+                error: err.message
+            });
+        }
+
+        // Crear tabla contacts
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .select('id')
+                .limit(1);
+            
+            if (error && error.code === 'PGRST116') {
+                results.push({
+                    statement: 'CREATE TABLE contacts',
+                    error: 'Tabla necesita ser creada manualmente en Supabase Dashboard',
+                    sql: `
+CREATE TABLE public.contacts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(50),
+    company VARCHAR(255),
+    role VARCHAR(100),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+                    `
+                });
+            } else {
+                results.push({
+                    statement: 'CREATE TABLE contacts',
+                    success: true,
+                    message: 'Tabla contacts ya existe'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'CREATE TABLE contacts',
+                error: err.message
+            });
+        }
+
+        // Intentar insertar contactos de ejemplo si la tabla existe
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .upsert([
+                    { name: 'S&D Inversiones', email: 'contacto@sdinversiones.com', company: 'S&D Inversiones', role: 'Empresa' },
+                    { name: 'Administración', email: 'admin@cfeinsight.com', company: 'CFE INSIGHT', role: 'Administrador' }
+                ]);
+            
+            if (!error) {
+                results.push({
+                    statement: 'INSERT contacts examples',
+                    success: true,
+                    message: 'Contactos de ejemplo insertados'
+                });
+            }
+        } catch (err) {
+            results.push({
+                statement: 'INSERT contacts examples',
+                error: err.message
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Verificación de tablas completada',
+            results: results,
+            instructions: 'Si alguna tabla muestra error, por favor créala manualmente en Supabase Dashboard usando el SQL proporcionado'
+        });
+        
+    } catch (error) {
+        console.error('Error verificando tablas de consultas:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA OBTENER CONSULTAS
+// ============================================
+app.get('/api/consultas', async (req, res) => {
+    try {
+        const { data: consultas, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .eq('activa', true)
+            .order('fecha_creacion', { ascending: false });
+
+        if (error) {
+            console.error('Error obteniendo consultas:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener las consultas'
+            });
+        }
+
+        res.json({
+            success: true,
+            consultas: consultas || []
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/consultas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor'
+        });
+    }
+});
+
+
+// ============================================
+// FUNCIÓN PARA CALCULAR PROGRESO DE CONSULTA
+// ============================================
+function calcularProgreso(consulta) {
+    let progreso = 0;
+    let totalItems = 0;
+    
+    // Revisar si tiene instrucciones (20%)
+    totalItems++;
+    if (consulta.instrucciones && consulta.instrucciones.trim()) {
+        progreso++;
+    }
+    
+    // Revisar si tiene conjuntos de preguntas (40%)
+    totalItems++;
+    if (Array.isArray(consulta.question_sets) && consulta.question_sets.length > 0) {
+        progreso++;
+    }
+    
+    // Revisar si tiene archivos (20%)
+    totalItems++;
+    if (consulta.archivos_count > 0) {
+        progreso++;
+    }
+    
+    // Revisar si está enviada (20%)
+    totalItems++;
+    if (consulta.estado === 'enviada' || consulta.estado === 'completada') {
+        progreso++;
+    }
+    
+    // Calcular porcentaje
+    const porcentaje = totalItems > 0 ? Math.round((progreso / totalItems) * 100) : 0;
+    
+    return {
+        porcentaje: porcentaje,
+        estado: porcentaje === 100 ? 'completado' : porcentaje >= 50 ? 'en_progreso' : 'incompleto'
+    };
+}
+
+// ============================================
+// ENDPOINT PARA OBTENER HISTORIAL DE CONSULTAS
+// ============================================
+app.get('/api/historial-consultas', async (req, res) => {
+    try {
+        // Obtener todas las consultas ordenadas por fecha de creación
+        const { data: consultas, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error obteniendo historial de consultas:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener el historial: ' + error.message
+            });
+        }
+
+        // Formatear datos para el historial con los campos específicos
+        const historial = consultas.map(consulta => ({
+            documento_consulta: consulta.nombre, // Solo el nombre de la consulta
+            estado: consulta.estado || 'borrador', // Estado
+            progreso: calcularProgreso(consulta), // Progreso calculado
+            fecha_vencimiento: consulta.fecha_vencimiento, // Fecha de vencimiento
+            contactos: consulta.usuario_asignado || 'Sin asignar', // Contactos
+            id: consulta.id,
+            numero: consulta.numero,
+            nombre: consulta.nombre
+        }));
+
+        res.json({
+            success: true,
+            historial: historial,
+            total: historial.length
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/historial-consultas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al obtener historial'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA OBTENER UNA CONSULTA ESPECÍFICA
+// ============================================
+app.get('/api/consultas/:numero', async (req, res) => {
+    try {
+        const { numero } = req.params;
+
+        if (!numero) {
+            return res.status(400).json({
+                success: false,
+                error: 'El número de consulta es requerido'
+            });
+        }
+
+        // Obtener consulta específica
+        const { data: consulta, error } = await supabase
+            .from('consultas')
+            .select('*')
+            .eq('numero', numero)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Consulta no encontrada'
+                });
+            }
+            console.error('Error obteniendo consulta:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al obtener la consulta: ' + error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            consulta: consulta
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/consultas/:numero:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al obtener la consulta'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA GUARDAR CONSULTA
+// ============================================
+app.post('/api/guardar-consulta', async (req, res) => {
+    try {
+        const {
+            numero,
+            nombre,
+            fechaVencimiento,
+            instrucciones,
+            mensaje,
+            asignarTodos,
+            usuario,
+            questionSets
+        } = req.body;
+
+        // Validar datos requeridos
+        if (!numero || !nombre) {
+            return res.status(400).json({
+                success: false,
+                error: 'El número y nombre de la consulta son requeridos'
+            });
+        }
+
+        const normalizedQuestionSets = Array.isArray(questionSets) ? questionSets : [];
+        const archivosCount = normalizedQuestionSets.reduce((total, set) => {
+            if (!set || !Array.isArray(set.uploadedFiles)) return total;
+            return total + set.uploadedFiles.length;
+        }, 0);
+
+        // Primero verificar si la consulta ya existe
+        const { data: existingConsulta, error: checkError } = await supabase
+            .from('consultas')
+            .select('id, estado')
+            .eq('numero', numero)
+            .single();
+
+        let consulta, error;
+
+        if (checkError && checkError.code === 'PGRST116') {
+            // No existe, crear nueva
+            const result = await supabase
+                .from('consultas')
+                .insert({
+                    numero: numero,
+                    nombre: nombre,
+                    fecha_vencimiento: fechaVencimiento || null,
+                    instrucciones: instrucciones || null,
+                    mensaje_correo: mensaje || null,
+                    asignar_todos: asignarTodos || false,
+                    usuario_asignado: usuario || null,
+                    question_sets: normalizedQuestionSets,
+                    archivos_count: archivosCount,
+                    estado: 'borrador',
+                    updated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+            
+            consulta = result.data;
+            error = result.error;
+        } else if (checkError) {
+            // Error al verificar
+            error = checkError;
+        } else {
+            // Ya existe, actualizar
+            const result = await supabase
+                .from('consultas')
+                .update({
+                    nombre: nombre,
+                    fecha_vencimiento: fechaVencimiento || null,
+                    instrucciones: instrucciones || null,
+                    mensaje_correo: mensaje || null,
+                    asignar_todos: asignarTodos || false,
+                    usuario_asignado: usuario || null,
+                    question_sets: normalizedQuestionSets,
+                    archivos_count: archivosCount,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('numero', numero)
+                .select()
+                .single();
+            
+            consulta = result.data;
+            error = result.error;
+        }
+
+        if (error) {
+            console.error('Error guardando consulta:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al guardar la consulta: ' + error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Consulta guardada exitosamente',
+            consulta: consulta
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/guardar-consulta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al guardar la consulta'
+        });
+    }
+});
+
+// ============================================
+// ENDPOINT PARA ENVIAR CONSULTA POR CORREO
+// ============================================
+app.post('/api/enviar-consulta', async (req, res) => {
+    try {
+        const {
+            consultaNumero,
+            consultaNombre,
+            fechaVencimiento,
+            asignarTodos,
+            usuario,
+            mensaje,
+            instrucciones,
+            questionSets,
+            timestamp
+        } = req.body;
+
+        // Validar datos requeridos
+        if (!consultaNumero || !consultaNombre || !fechaVencimiento || !mensaje) {
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos para enviar la consulta'
+            });
+        }
+
+        // Determinar destinatarios
+        let destinatarios = [];
+        
+        if (asignarTodos) {
+            // Obtener todos los contactos de la base de datos
+            const { data: contacts, error } = await supabase
+                .from('contacts')
+                .select('email, name')
+                .eq('active', true);
+                
+            if (error) {
+                console.error('Error obteniendo contactos:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Error al obtener los contactos'
+                });
+            }
+            
+            destinatarios = contacts.map(contact => ({
+                email: contact.email,
+                name: contact.name || 'Contacto'
+            }));
+        } else if (usuario) {
+            // Validar formato de email del usuario
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(usuario)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'El formato del correo electrónico no es válido'
+                });
+            }
+            
+            destinatarios = [{
+                email: usuario,
+                name: usuario.split('@')[0]
+            }];
+        }
+
+        if (destinatarios.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No se encontraron destinatarios válidos'
+            });
+        }
+
+        // Preparar contenido del correo
+        const asunto = `Consulta: ${consultaNombre} - ${consultaNumero}`;
+        
+        // Construir HTML del correo
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: #1e3a8a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h1 style="margin: 0; font-size: 24px;">CFE INSIGHT</h1>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9;">Sistema de Auditoría</p>
+                </div>
+                
+                <div style="background: #f5f7fb; padding: 30px; border: 1px solid #e1e5e9; border-radius: 0 0 8px 8px;">
+                    <h2 style="color: #1e3a8a; margin-top: 0;">Nueva Consulta Asignada</h2>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 6px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>Código de consulta:</strong> ${consultaNumero}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Nombre:</strong> ${consultaNombre}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Fecha de vencimiento:</strong> ${new Date(fechaVencimiento).toLocaleDateString('es-MX')}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Fecha de envío:</strong> ${new Date(timestamp).toLocaleDateString('es-MX')}</p>
+                    </div>
+                    
+                    ${instrucciones ? `
+                    <div style="background: #fff7dc; padding: 15px; border-left: 4px solid #facc15; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #7c6a00;">Instrucciones:</h3>
+                        <p style="margin: 10px 0; white-space: pre-wrap;">${instrucciones}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #1e3a8a;">Mensaje:</h3>
+                        <div style="background: white; padding: 20px; border-radius: 6px; white-space: pre-wrap;">
+                            ${mensaje}
+                        </div>
+                    </div>
+                    
+                    ${questionSets && questionSets.length > 0 ? `
+                    <div style="margin: 20px 0;">
+                        <h3 style="color: #1e3a8a;">Conjuntos de preguntas:</h3>
+                        ${questionSets.map((set, index) => `
+                            <div style="background: white; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #42a5f5;">
+                                <h4 style="margin-top: 0; color: #1976d2;">${set.title || 'Sin nombre'}</h4>
+                                ${set.questionTitle ? `<p style="margin: 5px 0;"><strong>Pregunta:</strong> ${set.questionTitle}</p>` : ''}
+                                ${set.questionDetails ? `<p style="margin: 5px 0; white-space: pre-wrap;">${set.questionDetails}</p>` : ''}
+                                ${set.uploadedFiles && set.uploadedFiles.length > 0 ? `
+                                    <p style="margin: 10px 0 0 0;"><strong>Archivos adjuntos:</strong></p>
+                                    <ul style="margin: 5px 0; padding-left: 20px;">
+                                        ${set.uploadedFiles.map(file => `<li>${file.name || 'Archivo'}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <p style="color: #64748b; font-size: 14px;">
+                            Este es un mensaje automático del sistema CFE INSIGHT.<br>
+                            Por favor, responda a esta consulta antes de la fecha de vencimiento.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Generar notificaciones del sistema (sin envío de correo real)
+        const enviosPromises = destinatarios.map(async (destinatario) => {
+            try {
+                // Simular envío de notificación
+                console.log(`📧 Notificación generada para ${destinatario.email}`);
+                console.log(`📋 Asunto: ${asunto}`);
+                console.log(`📄 Contenido: Resumen de consulta asignada`);
+                
+                // Generar ID de notificación simulada
+                const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                return {
+                    success: true,
+                    email: destinatario.email,
+                    notificationId: notificationId,
+                    type: 'system_notification',
+                    message: 'Notificación del sistema generada exitosamente'
+                };
+            } catch (error) {
+                console.error(`❌ Error generando notificación para ${destinatario.email}:`, error);
+                return {
+                    success: false,
+                    email: destinatario.email,
+                    error: error.message
+                };
+            }
+        });
+
+        // Esperar a que todos los correos se envíen
+        const resultados = await Promise.all(enviosPromises);
+        
+        // Verificar si todos los envíos fueron exitosos
+        const exitosos = resultados.filter(r => r.success);
+        const fallidos = resultados.filter(r => !r.success);
+
+        if (fallidos.length > 0) {
+            console.warn(`⚠️ ${fallidos.length} correos fallaron de ${destinatarios.length} totales`);
+        }
+
+        // Actualizar el estado de la consulta a 'enviada'
+        try {
+            const { error: updateError } = await supabase
+                .from('consultas')
+                .update({
+                    estado: 'enviada',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('numero', consultaNumero);
+                
+            if (updateError) {
+                console.error('Error actualizando estado de consulta:', updateError);
+            } else {
+                console.log('✅ Estado de consulta actualizado a "enviada"');
+            }
+        } catch (error) {
+            console.error('Error actualizando estado:', error);
+        }
+
+        // Guardar registro del envío en la base de datos
+        try {
+            const { error: dbError } = await supabase
+                .from('consulta_envios')
+                .insert({
+                    consulta_numero: consultaNumero,
+                    consulta_nombre: consultaNombre,
+                    fecha_vencimiento: fechaVencimiento,
+                    mensaje: mensaje,
+                    destinatarios: destinatarios,
+                    resultados_envio: resultados,
+                    fecha_envio: new Date().toISOString(),
+                    exitosos: exitosos.length,
+                    fallidos: fallidos.length
+                });
+                
+            if (dbError) {
+                console.error('Error guardando registro de envío:', dbError);
+            }
+        } catch (error) {
+            console.error('Error en base de datos:', error);
+        }
+
+        res.json({
+            success: true,
+            message: `Notificaciones del sistema generadas para ${exitosos.length} destinatarios${fallidos.length > 0 ? ` (${fallidos.length} fallidos)` : ''}`,
+            resultados: {
+                total: destinatarios.length,
+                exitosos: exitosos.length,
+                fallidos: fallidos.length,
+                tipo: 'notificaciones_sistema'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en endpoint /api/enviar-consulta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error interno del servidor al enviar la consulta'
         });
     }
 });
