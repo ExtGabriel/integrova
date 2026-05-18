@@ -37,9 +37,6 @@
             <button class="header-btn" onclick="window.location.href='dashboard.html'" title="Regresar">
                 <i class="bi bi-arrow-left"></i>
             </button>
-            <button class="header-btn" onclick="logoutLocal()" title="Salir">
-                <i class="bi bi-box-arrow-right"></i>
-            </button>
         </div>
     </header>
 
@@ -276,6 +273,13 @@
         // Función para cargar grupos de trabajo desde la API
         async function loadWorkGroupsFromAPI() {
             try {
+                // Verificar si API.WorkGroups está disponible
+                if (!API?.WorkGroups?.getAll) {
+                    console.warn('⚠️ API.WorkGroups.getAll no disponible, usando datos vacíos');
+                    workGroupsData = [];
+                    return;
+                }
+                
                 const response = await API.WorkGroups.getAll();
                 if (response.success) {
                     workGroupsData = Array.isArray(response.data) ? response.data : [];

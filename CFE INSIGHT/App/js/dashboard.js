@@ -404,21 +404,11 @@ async function loadDashboardData() {
         const loggedInUsers = await getCurrentlyLoggedInUsers();
         const activeUsers = loggedInUsers.length;
         const totalUsers = usersData.length;
-        
+
         document.getElementById('activeUsersCount').textContent = activeUsers;
         document.getElementById('totalUsersCount').textContent = totalUsers;
 
-        // Load recent activities
-        await loadRecentActivities();
-
-        // Load calendar events
-        await loadCalendarEvents();
-
-        // Load AI insights
-        loadAIInsights();
-
-        // Hide loading state - ya no necesario
-        // API.showLoading(false);
+        // ...
 
     } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -427,8 +417,71 @@ async function loadDashboardData() {
     }
 }
 
+// Función para obtener el ID del usuario actual
+function getCurrentUserId() {
+    try {
+        // Intentar obtener desde window.currentUser (usado en dashboard)
+        if (window.currentUser && window.currentUser.id) {
+            return window.currentUser.id;
+        }
+
+        // Intentar obtener desde getUserUI (usado en formularios)
+        if (typeof window.getUserUI === 'function') {
+            const user = window.getUserUI();
+            if (user && user.id) {
+                return user.id;
+            }
+        }
+
+        // Intentar obtener desde sessionStorage
+        const sessionUser = sessionStorage.getItem('currentUser');
+        if (sessionUser) {
+            const parsed = JSON.parse(sessionUser);
+            return parsed.id || parsed.user_id || parsed.uid;
+        }
+
+        // Intentar obtener desde localStorage
+        const localUser = localStorage.getItem('currentUser');
+        if (localUser) {
+            const parsed = JSON.parse(localUser);
+            return parsed.id || parsed.user_id || parsed.uid;
+        }
+
+        console.warn('⚠️ No se pudo obtener el ID del usuario');
+        return null;
+    } catch (error) {
+        console.error('❌ Error obteniendo ID del usuario:', error);
+        return null;
+    }
+}
+
+// Initialize dashboard page
+async function initializeDashboardPage() {
+    console.log('🎬 initializeDashboardPage iniciado');
+    try {
+        // Show loading state
+        showLoading('Cargando dashboard...');
+
+        // Load dashboard data
+        await loadDashboardData();
+
+        // Update UI
+        updateDashboardUI();
+
+        // Hide loading state
+        hideLoading();
+
+        console.log('✅ Dashboard inicializado exitosamente');
+    } catch (error) {
+        console.error('❌ Error inicializando dashboard:', error);
+        showError('Error al cargar el dashboard');
+        hideLoading();
+    }
+}
+
 // Update dashboard UI elements
 function updateDashboardUI() {
+    // ...
     // Update notification badge
     updateNotificationBadge();
 
@@ -768,7 +821,7 @@ async function updateNotificationBadge() {
                     <i class="bi ${notification.icon}"></i>
                 </div>
                 <div class="notification-content">
-                    <div class="notification-text">${notification.text}</div>
+                    <div class="notification-text">${notification.title || notification.text || 'Notificación'}</div>
                     <div class="notification-time">${notification.time}</div>
                 </div>
                 <button class="mark-read-btn" onclick="markNotificationAsRead('${notification.id}', event)" title="Marcar como leído">
@@ -799,12 +852,23 @@ async function updateNotificationBadge() {
 async function generateRealNotifications() {
     const notifications = [];
     const now = new Date();
+    const userId = getCurrentUserId();
 
-    // Notificaciones leídas en memoria (se pierden al recargar) - NO localStorage
-    window.readNotificationsCache = window.readNotificationsCache || [];
-    const readNotifications = window.readNotificationsCache;
+    if (!userId) {
+        console.warn('⚠️ No user ID available for notifications');
+        return [];
+    }
 
     try {
+        // First, get existing notifications from database
+        const existingNotificationsResponse = await fetch(`http://localhost:3001/api/notifications?user_id=${userId}`);
+        let existingNotifications = [];
+        
+        if (existingNotificationsResponse.ok) {
+            const result = await existingNotificationsResponse.json();
+            existingNotifications = result.success ? result.data : [];
+        }
+
         // Get commitments from API for deadlines
         const commitmentsResponse = API?.Commitments?.getAll
             ? await API.Commitments.getAll()
@@ -824,20 +888,73 @@ async function generateRealNotifications() {
                 return daysDiff <= 7 && daysDiff > 0 && commitment.status !== 'completed';
             });
 
-            upcomingDeadlines.forEach(commitment => {
+            // Create notifications for upcoming deadlines
+            for (const commitment of upcomingDeadlines) {
+                // Skip invalid commitments
+                if (!commitment?.id) {
+                    continue;
+                }
                 const deadlineDate = new Date(commitment.due_date);
                 const daysDiff = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-                const notificationId = `deadline-${commitment.id}`;
+                const commitmentTitle = commitment.name || commitment.title || 'Sin título';
+                const notificationText = `Compromiso "${commitmentTitle}" vence en ${daysDiff} día${daysDiff !== 1 ? 's' : ''}`;
+                const timeText = `${daysDiff === 1 ? 'Mañana' : `En ${daysDiff} días`}`;
+                
+                // Check if notification already exists
+                const existingNotification = existingNotifications.find(n => 
+                    n.title === notificationText && n.type === 'deadline' && 
+                    n.metadata?.commitment_id === commitment.id
+                );
 
-                notifications.push({
-                    id: notificationId,
-                    icon: 'bi-calendar-event',
-                    text: `Compromiso "${commitment.title}" vence en ${daysDiff} día${daysDiff !== 1 ? 's' : ''}`,
-                    time: `${daysDiff === 1 ? 'Mañana' : `En ${daysDiff} días`}`,
-                    type: 'deadline',
-                    read: readNotifications.includes(notificationId)
-                });
-            });
+                if (existingNotification) {
+                    notifications.push({
+                        id: existingNotification.id,
+                        icon: 'bi-calendar-event',
+                        text: notificationText,
+                        time: timeText,
+                        type: 'deadline',
+                        read: existingNotification.read
+                    });
+                } else {
+                    // Create new notification in database
+                    try {
+                        const createResponse = await fetch('http://localhost:3001/api/notifications', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'user-id': userId
+                            },
+                            body: JSON.stringify({
+                                title: notificationText,
+                                message: `Tienes un compromiso próximo a vencer: ${commitment.title}`,
+                                type: 'deadline',
+                                read: false,
+                                metadata: {
+                                    commitment_id: commitment.id,
+                                    deadline: commitment.due_date,
+                                    days_until: daysDiff
+                                }
+                            })
+                        });
+
+                        if (createResponse.ok) {
+                            const result = await createResponse.json();
+                            if (result.success) {
+                                notifications.push({
+                                    id: result.data.id,
+                                    icon: 'bi-calendar-event',
+                                    text: notificationText,
+                                    time: timeText,
+                                    type: 'deadline',
+                                    read: false
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Error creating deadline notification:', error);
+                    }
+                }
+            }
 
             // Check for recently created commitments (last 24 hours)
             const recentCommitments = commitmentsData.filter(commitment => {
@@ -847,20 +964,82 @@ async function generateRealNotifications() {
                 return hoursDiff <= 24;
             });
 
-            recentCommitments.forEach(commitment => {
+            // Create notifications for recent commitments
+            for (const commitment of recentCommitments) {
+                // Skip invalid commitments
+                if (!commitment?.id) {
+                    continue;
+                }
                 const createdDate = new Date(commitment.created_at);
-                const hoursDiff = Math.floor((now - createdDate) / (1000 * 60 * 60));
-                const notificationId = `activity-commitment-${commitment.id}`;
+                const minutesDiff = Math.floor((now - createdDate) / (1000 * 60));
+                const hoursDiff = Math.floor(minutesDiff / 60);
+                const commitmentTitle = commitment.name || commitment.title || 'Sin título';
+                const notificationText = `Nuevo compromiso creado: "${commitmentTitle}"`;
+                
+                let timeText;
+                if (minutesDiff < 1) {
+                    timeText = 'Ahora mismo';
+                } else if (minutesDiff < 60) {
+                    timeText = `Hace ${minutesDiff} minuto${minutesDiff !== 1 ? 's' : ''}`;
+                } else {
+                    timeText = `Hace ${hoursDiff} hora${hoursDiff !== 1 ? 's' : ''}`;
+                }
+                
+                // Check if notification already exists
+                const existingNotification = existingNotifications.find(n => 
+                    n.title === notificationText && n.type === 'activity' && 
+                    n.metadata?.commitment_id === commitment.id
+                );
 
-                notifications.push({
-                    id: notificationId,
-                    icon: 'bi-clipboard-check',
-                    text: `Nuevo compromiso creado: "${commitment.title}"`,
-                    time: `Hace ${hoursDiff} hora${hoursDiff !== 1 ? 's' : ''}`,
-                    type: 'activity',
-                    read: readNotifications.includes(notificationId)
-                });
-            });
+                if (existingNotification) {
+                    notifications.push({
+                        id: existingNotification.id,
+                        icon: 'bi-clipboard-check',
+                        text: notificationText,
+                        time: timeText,
+                        type: 'activity',
+                        read: existingNotification.read
+                    });
+                } else {
+                    // Create new notification in database
+                    try {
+                        const createResponse = await fetch('http://localhost:3001/api/notifications', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'user-id': userId
+                            },
+                            body: JSON.stringify({
+                                title: notificationText,
+                                message: `Se ha creado un nuevo compromiso: ${commitment.title}`,
+                                type: 'activity',
+                                read: false,
+                                metadata: {
+                                    commitment_id: commitment.id,
+                                    created_at: commitment.created_at,
+                                    hours_ago: hoursDiff
+                                }
+                            })
+                        });
+
+                        if (createResponse.ok) {
+                            const result = await createResponse.json();
+                            if (result.success) {
+                                notifications.push({
+                                    id: result.data.id,
+                                    icon: 'bi-clipboard-check',
+                                    text: notificationText,
+                                    time: timeText,
+                                    type: 'activity',
+                                    read: false
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Error creating activity notification:', error);
+                    }
+                }
+            }
         }
 
         // Get entities from API for recent updates with defensive access
@@ -927,19 +1106,69 @@ function handleNotificationClick(notificationId) {
 }
 
 // Mark notification as read
-function markNotificationAsRead(notificationId, event) {
+async function markNotificationAsRead(notificationId, event) {
     event.stopPropagation(); // Prevent triggering the notification click
 
-    // Notificaciones leídas en memoria (se pierden al recargar) - NO localStorage
-    window.readNotificationsCache = window.readNotificationsCache || [];
+    console.log(`🔍 markNotificationAsRead - notificationId: ${notificationId}`);
 
-    // Add notification to read list if not already there
-    if (!window.readNotificationsCache.includes(notificationId)) {
-        window.readNotificationsCache.push(notificationId);
+    // Update UI immediately for better UX
+    const notificationList = document.getElementById('notificationList');
+    const notifications = notificationList.querySelectorAll('.notification-item');
+
+    notifications.forEach(notification => {
+        // Find the mark-read button inside this notification and check if it matches the ID
+        const markReadBtn = notification.querySelector('.mark-read-btn');
+        if (markReadBtn && markReadBtn.getAttribute('onclick').includes(notificationId)) {
+            notification.classList.add('read');
+            markReadBtn.style.display = 'none';
+        }
+    });
+
+    // Sync with database
+    const synced = await syncNotificationAsRead(notificationId);
+
+    // Refresh badge after sync to reflect DB state
+    if (synced) {
+        updateNotificationBadge();
     }
+}
 
-    // Update the UI
-    updateNotificationBadge();
+// Sync notification as read with database
+async function syncNotificationAsRead(notificationId) {
+    try {
+        const userId = getCurrentUserId();
+        console.log(`🔍 syncNotificationAsRead - userId: ${userId}, notificationId: ${notificationId}`);
+
+        if (!userId) {
+            console.warn('⚠️ No user ID available for sync');
+            return;
+        }
+
+        console.log(`📡 Enviando PUT a /api/notifications/${notificationId}/read con user-id: ${userId}`);
+
+        const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            }
+        });
+
+        console.log(`📡 Respuesta del servidor: ${response.status} ${response.statusText}`);
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Notificación marcada como leída en servidor:', result);
+            return true;
+        } else {
+            const errorText = await response.text();
+            console.warn(`⚠️ Error sincronizando notificación con servidor (${response.status}):`, errorText);
+            return false;
+        }
+    } catch (error) {
+        console.warn('⚠️ Error de red sincronizando notificación, pero se marcó localmente:', error);
+        return false;
+    }
 }
 
 // Load recent activities from API

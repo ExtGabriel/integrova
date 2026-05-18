@@ -3357,10 +3357,10 @@ app.get('/api/excel/datasets', async (req, res) => {
                 let users = null;
                 let usersError = null;
                 
-                // Opción 1: Intentar con raw_user_meta_data
+                // Opción 1: Intentar con raw_user_meta_data y full_name
                 const { data: users1, error: error1 } = await supabase
                     .from('users')
-                    .select('id, email, raw_user_meta_data')
+                    .select('id, email, raw_user_meta_data, full_name')
                     .in('id', userIds);
                 
                 if (!error1 && users1) {
@@ -3397,6 +3397,13 @@ app.get('/api/excel/datasets', async (req, res) => {
                 console.log('🔍 Usuarios encontrados:', users?.length || 0);
                 if (users) {
                     console.log('👤 Primer usuario completo:', users[0]);
+                    console.log('📋 Campos disponibles:', Object.keys(users[0]));
+                    console.log('🔍 Valores de nombre:', {
+                        full_name: users[0].full_name,
+                        name: users[0].name,
+                        email: users[0].email,
+                        raw_user_meta_data: users[0].raw_user_meta_data
+                    });
                 }
                 
                 if (!usersError && users) {
@@ -3431,7 +3438,8 @@ app.get('/api/excel/datasets', async (req, res) => {
                         
                         map[user.id] = {
                             ...user,
-                            name: userName
+                            name: userName,
+                            full_name: user.full_name || userName
                         };
                         return map;
                     }, {});
@@ -5962,8 +5970,309 @@ app.post('/api/enviar-consulta', async (req, res) => {
         console.error('Error en endpoint /api/enviar-consulta:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor al enviar la consulta'
+            error: 'Error interno del servidor'
         });
+    }
+});
+
+// ============================================
+// NOTIFICATIONS API ENDPOINTS
+// ============================================
+
+// Get user notifications
+app.get('/api/notifications', async (req, res) => {
+    const userId = req.user?.id || req.headers['user-id'] || req.query.user_id;
+    
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'User ID required' });
+    }
+    
+    try {
+        console.log(`🔍 Getting notifications for user ${userId}`);
+        
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+            
+        if (error) {
+            console.error('❌ Error fetching notifications:', error);
+            return res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
+        }
+        
+        console.log(`✅ Found ${data?.length || 0} notifications`);
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        console.error('❌ Error getting notifications:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
+    }
+});
+
+// Create new notification
+app.post('/api/notifications', async (req, res) => {
+    const userId = req.user?.id || req.headers['user-id'];
+    const { title, message, type = 'info', metadata = null } = req.body;
+    
+    if (!userId || !title || !message) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'User ID, title, and message are required' 
+        });
+    }
+    
+    try {
+        console.log(`🔍 Creating notification for user ${userId}: ${title}`);
+        
+        const { data, error } = await supabase
+            .from('notifications')
+            .insert({
+                user_id: userId,
+                title,
+                message,
+                type,
+                metadata,
+                read: false
+            })
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error creating notification:', error);
+            return res.status(500).json({ success: false, error: 'Failed to create notification' });
+        }
+        
+        console.log('✅ Notification created successfully');
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('❌ Error creating notification:', error);
+        res.status(500).json({ success: false, error: 'Failed to create notification' });
+    }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:id/read', async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id || req.headers['user-id'];
+    
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'User ID required' });
+    }
+    
+    try {
+        console.log(`🔍 Marking notification ${id} as read for user ${userId}`);
+
+        // 1) Try to update by real ID first
+        console.log(`🔍 Attempting to update notification by ID: ${id} for user: ${userId}`);
+        const { data: updatedById, error: updateByIdError } = await supabase
+            .from('notifications')
+            .update({
+                read: true,
+                read_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('user_id', userId)
+            .select()
+            .single();
+
+        console.log(`📊 Update by ID result:`, { updatedById, updateByIdError });
+
+        if (updateByIdError && updateByIdError.code !== 'PGRST116') { // PGRST116 = no rows
+            console.error('❌ Error updating notification by ID:', updateByIdError);
+            return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+        }
+
+        if (updatedById) {
+            console.log('✅ Notification marked as read by ID:', updatedById.id);
+
+            // Also mark any sibling notifications (legacy duplicates) for same user
+            const virtualId = updatedById.metadata?.virtual_id;
+            const commitmentId = updatedById.metadata?.commitment_id;
+            try {
+                if (virtualId || commitmentId) {
+                    const siblingFilter = [];
+                    if (virtualId) siblingFilter.push(`metadata->>virtual_id.eq.${virtualId}`);
+                    if (commitmentId) siblingFilter.push(`metadata->>commitment_id.eq.${commitmentId}`);
+
+                    if (siblingFilter.length > 0) {
+                        const { error: siblingError } = await supabase
+                            .from('notifications')
+                            .update({
+                                read: true,
+                                read_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('user_id', userId)
+                            .neq('id', updatedById.id)
+                            .or(siblingFilter.join(','));
+
+                        if (siblingError) {
+                            console.warn('⚠️ Could not mark sibling notifications as read:', siblingError);
+                        } else {
+                            console.log('✅ Sibling notifications (duplicates) marked as read');
+                        }
+                    }
+                }
+            } catch (dupError) {
+                console.warn('⚠️ Error marking sibling notifications as read:', dupError);
+            }
+
+            return res.json({ success: true, data: updatedById });
+        }
+
+        // 2) Fallback: check if this ID is a virtual_id stored in metadata
+        const { data: existingByVirtualId, error: checkVirtualError } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('metadata->>virtual_id', id)
+            .maybeSingle();
+
+        if (checkVirtualError && checkVirtualError.code !== 'PGRST116') {
+            console.error('❌ Error checking virtual_id:', checkVirtualError);
+            return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+        }
+
+        if (existingByVirtualId) {
+            console.log(`📝 Found notification by virtual_id ${id}, updating...`);
+            const { data: updatedVirtual, error: updateVirtualError } = await supabase
+                .from('notifications')
+                .update({
+                    read: true,
+                    read_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingByVirtualId.id)
+                .eq('user_id', userId)
+                .select()
+                .single();
+
+            if (updateVirtualError) {
+                console.error('❌ Error updating notification by virtual_id:', updateVirtualError);
+                return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+            }
+
+            console.log('✅ Notification marked as read by virtual_id');
+            return res.json({ success: true, data: updatedVirtual });
+        }
+
+        // 3) If not found, create a new notification (for legacy virtual IDs)
+        console.log(`📝 Notification ${id} not found, creating virtual notification...`);
+
+        let title = 'Notificación del sistema';
+        let message = 'Notificación marcada como leída';
+        let type = 'info';
+
+        if (id.startsWith('deadline-')) {
+            title = 'Compromiso próximo a vencer';
+            message = 'Tienes un compromiso próximo a vencer';
+            type = 'warning';
+        } else if (id.startsWith('activity-')) {
+            title = 'Actividad reciente';
+            message = 'Nueva actividad en el sistema';
+            type = 'info';
+        }
+
+        const realId = crypto.randomUUID();
+
+        const { data: newNotification, error: createError } = await supabase
+            .from('notifications')
+            .insert({
+                id: realId,
+                user_id: userId,
+                title,
+                message,
+                type,
+                read: true,
+                read_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                metadata: {
+                    virtual_id: id,
+                    source: 'dashboard_virtual'
+                }
+            })
+            .select()
+            .single();
+
+        if (createError) {
+            console.error('❌ Error creating virtual notification:', createError);
+            return res.status(500).json({ success: false, error: 'Failed to create notification' });
+        }
+
+        console.log('✅ Virtual notification created and marked as read');
+        return res.json({ success: true, data: newNotification });
+    } catch (error) {
+        console.error('❌ Error marking notification as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+    }
+});
+
+// Mark all notifications as read
+app.put('/api/notifications/read-all', async (req, res) => {
+    const userId = req.user?.id || req.headers['user-id'];
+    
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'User ID required' });
+    }
+    
+    try {
+        console.log(`🔍 Marking all notifications as read for user ${userId}`);
+        
+        const { data, error } = await supabase
+            .from('notifications')
+            .update({ 
+                read: true, 
+                read_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId)
+            .eq('read', false)
+            .select();
+            
+        if (error) {
+            console.error('❌ Error marking all notifications as read:', error);
+            return res.status(500).json({ success: false, error: 'Failed to mark all notifications as read' });
+        }
+        
+        console.log(`✅ ${data?.length || 0} notifications marked as read`);
+        res.json({ success: true, count: data?.length || 0 });
+    } catch (error) {
+        console.error('❌ Error marking all notifications as read:', error);
+        res.status(500).json({ success: false, error: 'Failed to mark all notifications as read' });
+    }
+});
+
+// Delete notification
+app.delete('/api/notifications/:id', async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id || req.headers['user-id'];
+    
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'User ID required' });
+    }
+    
+    try {
+        console.log(`🔍 Deleting notification ${id} for user ${userId}`);
+        
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', userId);
+            
+        if (error) {
+            console.error('❌ Error deleting notification:', error);
+            return res.status(500).json({ success: false, error: 'Failed to delete notification' });
+        }
+        
+        console.log('✅ Notification deleted successfully');
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Error deleting notification:', error);
+        res.status(500).json({ success: false, error: 'Failed to delete notification' });
     }
 });
 
