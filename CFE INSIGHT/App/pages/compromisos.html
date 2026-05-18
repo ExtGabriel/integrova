@@ -441,9 +441,9 @@
             const initCompromisos = function () {
                 const userData = window.currentUser;
 
-                // Hide "Crear Compromiso" link based on role
+                // Hide "Crear Compromiso" link based on role - Allow admin and auditor roles
                 const createCommitmentBtn = document.getElementById('createCommitmentBtn');
-                if (userData && userData.role !== 'admin') {
+                if (userData && !['admin', 'auditor', 'auditor_senior'].includes(userData.role)) {
                     if (createCommitmentBtn) createCommitmentBtn.style.display = 'none';
                 }
 
@@ -536,6 +536,10 @@
         // Función para cargar grupos de trabajo en el select
         function loadWorkGroupsForSelect() {
             const select = document.getElementById('commitmentGroup');
+            if (!select) {
+                return;
+            }
+
             select.innerHTML = '<option value="">Selecciona un equipo...</option>';
             
            
@@ -566,6 +570,114 @@
             }
         }
 
+        // Función para cargar usuarios con roles específicos para preparador y revisor
+        async function loadAuditUsers() {
+            try {
+                console.log('🔍 Cargando usuarios con roles de auditoría...');
+                
+                // Obtener usuarios desde la API
+                const response = await API.Users.getAll();
+                if (!response.success || !response.data) {
+                    console.warn('⚠️ No se pudieron cargar usuarios, usando fallback');
+                    loadAuditUsersFallback();
+                    return;
+                }
+
+                const users = response.data;
+                console.log('📋 Usuarios cargados:', users.length);
+
+                // Filtrar usuarios por roles de auditoría
+                const auditRoles = ['auditor', 'auditor_senior', 'socio'];
+                const auditUsers = users.filter(user => 
+                    auditRoles.includes(user.role?.toLowerCase())
+                );
+
+                console.log('👥 Usuarios de auditoría:', auditUsers.length);
+
+                // Almacenar usuarios para ambos selects
+                window.auditUsersData = auditUsers;
+
+                // Cargar en selects de preparador y revisor
+                loadPreparersSelect();
+                loadReviewersSelect();
+
+            } catch (error) {
+                console.error('❌ Error cargando usuarios de auditoría:', error);
+                loadAuditUsersFallback();
+            }
+        }
+
+        // Función fallback si la API falla
+        function loadAuditUsersFallback() {
+            console.log('🔄 Usando datos de ejemplo para usuarios de auditoría');
+            
+            const fallbackUsers = [
+                { id: 'user1', name: 'Maria Esther Rosales', role: 'auditor_senior', email: 'maria.rosales@cfe.com' },
+                { id: 'user2', name: 'Gabriela Azurdia', role: 'auditor', email: 'gabriela.azurdia@cfe.com' },
+                { id: 'user3', name: 'Carlos Lopez', role: 'socio', email: 'carlos.lopez@cfe.com' },
+                { id: 'user4', name: 'Ana Martinez', role: 'auditor', email: 'ana.martinez@cfe.com' },
+                { id: 'user5', name: 'Roberto Sanchez', role: 'auditor_senior', email: 'roberto.sanchez@cfe.com' }
+            ];
+
+            window.auditUsersData = fallbackUsers;
+            loadPreparersSelect();
+            loadReviewersSelect();
+        }
+
+        // Función para cargar select de preparadores
+        function loadPreparersSelect() {
+            const select = document.getElementById('commitmentPreparer');
+            if (!select) {
+                console.log('⚠️ No se encontró el select de preparador');
+                return;
+            }
+
+            console.log('📋 Cargando select de preparadores...');
+            select.innerHTML = '<option value="">Selecciona un preparador...</option>';
+
+            const users = window.auditUsersData || [];
+            console.log('👥 Usuarios disponibles:', users.length);
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.name} (${user.role})`;
+                select.appendChild(option);
+                console.log(`✅ Agregado preparador: ${user.name} (${user.role})`);
+            });
+        }
+
+        // Función para cargar select de revisores
+        function loadReviewersSelect() {
+            const select = document.getElementById('commitmentReviewer');
+            if (!select) {
+                console.log('⚠️ No se encontró el select de revisor');
+                return;
+            }
+
+            console.log('📋 Cargando select de revisores...');
+            select.innerHTML = '<option value="">Selecciona un revisor...</option>';
+
+            const users = window.auditUsersData || [];
+            console.log('👥 Usuarios disponibles:', users.length);
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.name} (${user.role})`;
+                select.appendChild(option);
+                console.log(`✅ Agregado revisor: ${user.name} (${user.role})`);
+            });
+        }
+
+        
+        // Función para obtener nombre de usuario por ID
+        function getUserNameById(userId) {
+            const users = window.auditUsersData || [];
+            const user = users.find(u => u.id === userId);
+            return user ? user.name : '';
+        }
+
         // Función para abrir modal de crear compromiso
         function createCommitment() {
             // Crear modal dinámicamente
@@ -579,55 +691,100 @@
                             </div>
                             <div class="modal-body">
                                 <form id="createCommitmentForm">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="commitmentName" class="form-label">Nombre del Compromiso *</label>
-                                                <input type="text" class="form-control" id="commitmentName" required>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="commitmentStatus" class="form-label">Estado *</label>
-                                                <select class="form-control" id="commitmentStatus" required>
-                                                    <option value="activo">Activo</option>
-                                                    <option value="pendiente">Pendiente</option>
-                                                    <option value="completado">Completado</option>
-                                                </select>
-                                            </div>
+                                    <div class="mb-3">
+                                        <label for="commitmentEntity" class="form-label">Entidad *</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="entitySearch"
+                                            placeholder="Buscar entidad..."
+                                            oninput="filterEntities()"
+                                            style="margin-bottom: 20px;"
+                                        >
+                                        <div>
+                                            <select class="form-control" id="commitmentEntity" required>
+                                                <!-- Opciones se cargan dinámicamente -->
+                                            </select>
                                         </div>
                                     </div>
+
+                                    <div class="mb-3">
+                                        <label for="commitmentName" class="form-label">Nombre *</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="commitmentName"
+                                            placeholder="Nombre del compromiso"
+                                            required
+                                        >
+                                    </div>
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="commitmentStartDate" class="form-label">Fecha de Inicio *</label>
+                                                <label for="commitmentStartDate" class="form-label">Fecha de inicio *</label>
                                                 <input type="date" class="form-control" id="commitmentStartDate" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="commitmentEndDate" class="form-label">Fecha de Fin *</label>
+                                                <label for="commitmentEndDate" class="form-label">Fecha de cierre *</label>
                                                 <input type="date" class="form-control" id="commitmentEndDate" required>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentBudgetHours" class="form-label">Horas de presupuesto</label>
+                                                <input
+                                                    type="number"
+                                                    class="form-control"
+                                                    id="commitmentBudgetHours"
+                                                    placeholder="0.0"
+                                                    min="0"
+                                                    step="0.1"
+                                                >
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentBudgetAmount" class="form-label">Importe de presupuesto</label>
+                                                <input
+                                                    type="number"
+                                                    class="form-control"
+                                                    id="commitmentBudgetAmount"
+                                                    placeholder="Q0.00"
+                                                    min="0"
+                                                    step="0.01"
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="commitmentPreparer" class="form-label">Preparador</label>
+                                        <select class="form-control" id="commitmentPreparer">
+                                            <option value="">Selecciona un preparador...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="commitmentReviewer" class="form-label">Revisor</label>
+                                        <select class="form-control" id="commitmentReviewer">
+                                            <option value="">Selecciona un revisor...</option>
+                                        </select>
+                                    </div>
+
                                     <div class="mb-3">
                                         <label for="commitmentDescription" class="form-label">Descripción</label>
-                                        <textarea class="form-control" id="commitmentDescription" rows="3"></textarea>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="commitmentEntity" class="form-label">Entidad Asociada *</label>
-                                        <input type="text" class="form-control" id="entitySearch" placeholder="Buscar entidad..." oninput="filterEntities()">
-                                        <select class="form-control mt-2" id="commitmentEntity" required>
-                                            <!-- Opciones se cargan dinámicamente -->
-                                        </select>
-                                    </div>
-                                    <div class="mb-3 mt-4">
-                                        <label for="commitmentGroup" class="form-label">Equipo de trabajo *</label>
-                                        <select class="form-control" id="commitmentGroup" required>
-                                            <option value="">Selecciona un equipo...</option>
-                                            <!-- Opciones se cargan dinámicamente -->
-                                        </select>
+                                        <textarea
+                                            class="form-control"
+                                            id="commitmentDescription"
+                                            rows="3"
+                                            placeholder="Describe el compromiso"
+                                        ></textarea>
                                     </div>
                                 </form>
                             </div>
@@ -753,8 +910,8 @@
             document.getElementById('createCommitmentForm').reset();
             // Cargar entidades
             loadEntitiesForSelect();
-            // Cargar grupos de trabajo
-            loadWorkGroupsForSelect();
+            // Cargar usuarios de auditoría para preparador y revisor
+            loadAuditUsers();
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('createCommitmentModal'));
             modal.show();
@@ -778,19 +935,22 @@
             const description = sanitizeInput(document.getElementById('commitmentDescription').value.trim());
             const startDate = document.getElementById('commitmentStartDate').value;
             const endDate = document.getElementById('commitmentEndDate').value;
-            const status = document.getElementById('commitmentStatus').value;
             const entityId = document.getElementById('commitmentEntity').value; // Keep as string (UUID)
-            const workGroupId = document.getElementById('commitmentGroup').value; // Keep as string (UUID)
+            const budgetHoursInput = document.getElementById('commitmentBudgetHours').value;
+            const budgetAmountInput = document.getElementById('commitmentBudgetAmount').value;
+            const preparerId = document.getElementById('commitmentPreparer').value;
+            const reviewerId = document.getElementById('commitmentReviewer').value;
+            
+            // Obtener nombres de usuario desde los datos cargados
+            const preparer = preparerId ? getUserNameById(preparerId) : '';
+            const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
+
+            const budgetHours = budgetHoursInput === '' ? null : parseFloat(budgetHoursInput);
+            const budgetAmount = budgetAmountInput === '' ? null : parseFloat(budgetAmountInput);
 
             // Validación adicional: fecha fin > fecha inicio
             if (new Date(endDate) <= new Date(startDate)) {
                 alert('La fecha de fin debe ser posterior a la fecha de inicio.');
-                return;
-            }
-
-            // Validación adicional: grupo de trabajo es requerido
-            if (!workGroupId || workGroupId.trim() === '') {
-                alert('Debe seleccionar un grupo de trabajo.');
                 return;
             }
 
@@ -800,10 +960,27 @@
                 description: description || '',
                 start_date: startDate,
                 end_date: endDate,
-                status: status,
-                entity_id: entityId,
-                work_group_id: workGroupId
+                status: 'pendiente',
+                entity_id: entityId
             };
+
+            if (budgetHours !== null && !Number.isNaN(budgetHours)) {
+                newCommitment.budget_hours = budgetHours;
+            }
+
+            if (budgetAmount !== null && !Number.isNaN(budgetAmount)) {
+                newCommitment.budget_amount = budgetAmount;
+            }
+
+            if (preparerId) {
+                newCommitment.preparer_id = preparerId;
+                newCommitment.preparer = preparer;
+            }
+
+            if (reviewerId) {
+                newCommitment.reviewer_id = reviewerId;
+                newCommitment.reviewer = reviewer;
+            }
 
             console.log(' Enviando commitment a la API:', newCommitment);
 

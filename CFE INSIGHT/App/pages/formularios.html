@@ -6001,30 +6001,23 @@
         // Variables globales para entidades - inicializadas con datos estáticos
         let entidadesPadreOriginales = [
             { value: '', text: 'Entidad padre...' },
-            { value: 'entidad1', text: 'Dirección General' },
-            { value: 'entidad2', text: 'Subdirección Administrativa' },
-            { value: 'entidad3', text: 'Subdirección Técnica' },
-            { value: 'entidad4', text: 'Subdirección Financiera' },
-            { value: 'entidad5', text: 'Dirección de Recursos Humanos' },
-            { value: 'entidad6', text: 'Dirección de Finanzas' },
-            { value: 'entidad7', text: 'Dirección de Operaciones' },
-            { value: 'entidad8', text: 'Dirección de TI' }
+            { value: 'padre1', text: 'Padre 1' },
+            { value: 'padre2', text: 'Padre 2' },
+            { value: 'padre3', text: 'Padre 3' }
         ];
 
         let entidadesHijoOriginales = [
             { value: '', text: 'Entidad hija...' },
-            { value: 'hijo1', text: 'Departamento de Recursos Humanos' },
-            { value: 'hijo2', text: 'Departamento de TI' },
-            { value: 'hijo3', text: 'Departamento de Contabilidad' },
-            { value: 'hijo4', text: 'Departamento de Operaciones' },
-            { value: 'hijo5', text: 'Departamento de Compras' },
-            { value: 'hijo6', text: 'Departamento de Ventas' },
-            { value: 'hijo7', text: 'Departamento de Marketing' },
-            { value: 'hijo8', text: 'Departamento de Logística' }
+            { value: 'hija1', text: 'Hija 1' },
+            { value: 'hija2', text: 'Hija 2' },
+            { value: 'hija3', text: 'Hija 3' }
         ];
 
         // Inicializar menús desplegables
         function initializeCustomSelects() {
+            // 📂 CARGAR SELECCIONES GUARDADAS AL INICIALIZAR
+            loadEntitySelectionsFromStorage();
+
             // Menú desplegable Entidad Padre
             const padreSelect = document.getElementById('entidadPadreSelect');
             const padreSelected = document.getElementById('entidadPadreSelected');
@@ -6196,6 +6189,39 @@
             const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
             searchInput.value = '';
             clearBtn.classList.remove('visible');
+
+            // 🎯 AUTO-MATCH: Si seleccionó un padre, seleccionar automáticamente la hija correspondiente
+            if (type === 'padre' && value && value !== '') {
+                const padreNumber = value.replace('padre', '');
+                const hijaValue = `hija${padreNumber}`;
+                const hijaOption = entidadesHijoOriginales.find(opt => opt.value === hijaValue);
+                
+                if (hijaOption) {
+                    console.log(`🔗 Auto-matching: Padre ${value} → Hija ${hijaValue}`);
+                    
+                    // Actualizar texto y valor de la hija
+                    const hijaSelected = document.getElementById('entidadHijoSelected');
+                    const hijaHidden = document.getElementById('entidadHijo');
+                    
+                    if (hijaSelected) {
+                        hijaSelected.textContent = hijaOption.text;
+                        hijaSelected.classList.add('selected');
+                    }
+                    
+                    if (hijaHidden) {
+                        hijaHidden.value = hijaValue;
+                    }
+                    
+                    // Limpiar búsqueda de hija
+                    const hijaSearchInput = document.getElementById('entidadHijoSearch');
+                    const hijaClearBtn = hijaSearchInput.parentElement.querySelector('.btn-clear-search');
+                    if (hijaSearchInput) hijaSearchInput.value = '';
+                    if (hijaClearBtn) hijaClearBtn.classList.remove('visible');
+                }
+            }
+
+            // 💾 GUARDAR SELECCIONES EN localStorage
+            saveEntitySelectionsToStorage();
 
             // Cerrar todos los menús de forma agresiva
             closeAllDropdowns();
@@ -6400,12 +6426,93 @@
             }, 1000);
         });
 
+        // ==========================================
+        // 💾 PERSISTENCIA DE SELECCIONES EN localStorage
+        // ==========================================
+
+        // Función para guardar las selecciones actuales en localStorage
+        function saveEntitySelectionsToStorage() {
+            try {
+                const padreValue = document.getElementById('entidadPadre')?.value || '';
+                const padreText = document.getElementById('entidadPadreSelected')?.textContent || '';
+                const hijaValue = document.getElementById('entidadHijo')?.value || '';
+                const hijaText = document.getElementById('entidadHijoSelected')?.textContent || '';
+
+                const selections = {
+                    padre: { value: padreValue, text: padreText },
+                    hija: { value: hijaValue, text: hijaText },
+                    timestamp: new Date().toISOString()
+                };
+
+                localStorage.setItem('formularios_entity_selections', JSON.stringify(selections));
+                console.log('💾 Selecciones guardadas:', selections);
+            } catch (error) {
+                console.warn('⚠️ Error guardando selecciones:', error);
+            }
+        }
+
+        // Función para cargar las selecciones guardadas desde localStorage
+        function loadEntitySelectionsFromStorage() {
+            try {
+                const saved = localStorage.getItem('formularios_entity_selections');
+                if (!saved) {
+                    console.log('📂 No hay selecciones guardadas');
+                    return false;
+                }
+
+                const selections = JSON.parse(saved);
+                console.log('📂 Cargando selecciones guardadas:', selections);
+
+                // Restaurar selección del padre
+                if (selections.padre && selections.padre.value) {
+                    const padreSelected = document.getElementById('entidadPadreSelected');
+                    const padreHidden = document.getElementById('entidadPadre');
+                    
+                    if (padreSelected && padreHidden) {
+                        padreSelected.textContent = selections.padre.text;
+                        padreSelected.classList.add('selected');
+                        padreHidden.value = selections.padre.value;
+                    }
+                }
+
+                // Restaurar selección de la hija
+                if (selections.hija && selections.hija.value) {
+                    const hijaSelected = document.getElementById('entidadHijoSelected');
+                    const hijaHidden = document.getElementById('entidadHijo');
+                    
+                    if (hijaSelected && hijaHidden) {
+                        hijaSelected.textContent = selections.hija.text;
+                        hijaSelected.classList.add('selected');
+                        hijaHidden.value = selections.hija.value;
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.warn('⚠️ Error cargando selecciones guardadas:', error);
+                return false;
+            }
+        }
+
+        // Función para limpiar las selecciones guardadas
+        function clearEntitySelectionsFromStorage() {
+            try {
+                localStorage.removeItem('formularios_entity_selections');
+                console.log('🗑️ Selecciones guardadas eliminadas');
+            } catch (error) {
+                console.warn('⚠️ Error eliminando selecciones:', error);
+            }
+        }
+
         // Exponer utilidades de entidades en window para depuración
         window.initializeCustomSelects = initializeCustomSelects;
         window.restoreOriginalOptions = restoreOriginalOptions;
         window.reassignClickEvents = reassignClickEvents;
         window.entidadesPadreOriginales = entidadesPadreOriginales;
         window.entidadesHijoOriginales = entidadesHijoOriginales;
+        window.saveEntitySelectionsToStorage = saveEntitySelectionsToStorage;
+        window.loadEntitySelectionsFromStorage = loadEntitySelectionsFromStorage;
+        window.clearEntitySelectionsFromStorage = clearEntitySelectionsFromStorage;
 
         // Función para toggle de categorías
         function toggleCategoriaDropdown(categoriaId) {
