@@ -156,6 +156,28 @@
             }
         }
 
+        // Función para cargar usuarios desde la API
+        async function loadUsersFromAPI() {
+            try {
+                const response = await API.Users.getAll();
+                console.log('Raw users response:', response);
+                if (response.success) {
+                    window.allUsers = {};
+                    const users = Array.isArray(response.data) ? response.data : [];
+                    users.forEach(user => {
+                        window.allUsers[user.id] = user;
+                    });
+                    console.log('Usuarios cargados:', window.allUsers);
+                } else {
+                    console.error('Error loading users:', response.error);
+                    window.allUsers = {};
+                }
+            } catch (error) {
+                console.error('Error loading users from API:', error);
+                window.allUsers = {};
+            }
+        }
+
         // Función para cargar compromisos desde la API
         async function loadCommitmentsFromAPI() {
             try {
@@ -173,11 +195,13 @@
             }
         }
 
-        // Cargar entidades, compromisos y grupos de trabajo al iniciar
+        // Cargar entidades, usuarios, compromisos y grupos de trabajo al iniciar
         async function initializeData() {
             console.log('Iniciando carga de datos...');
             await loadEntitiesFromAPI();
             console.log('Entidades cargadas:', allEntities);
+            await loadUsersFromAPI();
+            console.log('Usuarios cargados:', window.allUsers);
             await loadWorkGroupsFromAPI();
             console.log('Grupos de trabajo cargados:', workGroupsData);
             await loadCommitmentsFromAPI();
@@ -208,19 +232,39 @@
                 (commitment.entity ? commitment.entity :
                     (allEntities[commitment.entity_id] ? allEntities[commitment.entity_id].name : 'Entidad no encontrada'));
 
+            // Obtener información del creador
+            let creatorInfo = '';
+            if (commitment.user_id) {
+                // Si tenemos el user_id, intentar obtener el nombre completo del usuario
+                if (commitment.users && commitment.users.full_name) {
+                    // Si viene con relación de usuarios
+                    creatorInfo = `Creado por: ${commitment.users.full_name}`;
+                } else if (window.allUsers && window.allUsers[commitment.user_id]) {
+                    // Si tenemos usuarios cargados en memoria
+                    const user = window.allUsers[commitment.user_id];
+                    creatorInfo = `Creado por: ${user.full_name || user.name || user.email || 'Usuario sin nombre'}`;
+                } else {
+                    // Si solo tenemos el ID
+                    creatorInfo = `ID: ${commitment.user_id}`;
+                }
+            } else {
+                creatorInfo = 'Sin información de creador';
+            }
+
             return `
                 <div class="commitment-card" data-status="${commitment.status}" data-entity="${entityName.toLowerCase()}">
                     <div class="commitment-main">
                         <h3>${title}</h3>
                         <span class="commitment-entity">${entityName}</span>
                         <span class="commitment-dates">${dates}</span>
+                        <span class="commitment-creator">${creatorInfo}</span>
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </div>
                     <div class="card-actions">
                         <a href="entidades.html?compromiso=${commitment.id}" class="action-btn btn-primary" title="Entidades"><i class="bi bi-building"></i></a>
-                        <button class="action-btn btn-secondary" onclick="viewDetails(${commitment.id})" title="Ver Detalles"><i class="bi bi-eye"></i></button>
-                        <button class="action-btn btn-warning" onclick="editCommitment(${commitment.id})" title="Modificar"><i class="bi bi-pencil-square"></i></button>
-                        <button class="action-btn btn-danger" onclick="deleteCommitment(${commitment.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
+                        <button class="action-btn btn-secondary" onclick="console.log('Click en ver detalles, ID:', '${commitment.id}'); viewDetails('${commitment.id}')" title="Ver Detalles"><i class="bi bi-eye"></i></button>
+                        <button class="action-btn btn-warning" onclick="console.log('Click en editar, ID:', '${commitment.id}'); editCommitment('${commitment.id}')" title="Modificar"><i class="bi bi-pencil-square"></i></button>
+                        <button class="action-btn btn-danger" onclick="console.log('Click en eliminar, ID:', '${commitment.id}'); deleteCommitment('${commitment.id}')" title="Eliminar"><i class="bi bi-trash"></i></button>
                     </div>
                 </div>
             `;
@@ -493,31 +537,30 @@
             }
         });
 
-        // Función para cargar entidades desde localStorage para el select
+        // Función para cargar entidades desde la API para el select
         function loadEntitiesForSelect() {
-            const storedEntities = localStorage.getItem('entitiesData');
-            let entities = {};
-            if (storedEntities) {
-                entities = JSON.parse(storedEntities);
-            } else {
-                // Fallback a mock data si no hay en localStorage
-                entities = {
-                    1: { name: 'Entidad Ejemplo A', id: 'ENT-001' },
-                    2: { name: 'Entidad Ejemplo B', id: 'ENT-002' },
-                    3: { name: 'Entidad Ejemplo C', id: 'ENT-003' },
-                    4: { name: 'Entidad Ejemplo D', id: 'ENT-004' }
-                };
-            }
-
+            console.log('Cargando entidades para select, allEntities:', allEntities);
+            
             const select = document.getElementById('commitmentEntity');
             select.innerHTML = '<option value="">Selecciona una entidad...</option>';
-            Object.keys(entities).forEach(key => {
-                const entity = entities[key];
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = `${entity.name} (${entity.id})`;
-                select.appendChild(option);
-            });
+            
+            // Usar las entidades cargadas desde la API (allEntities)
+            if (Object.keys(allEntities).length > 0) {
+                Object.keys(allEntities).forEach(key => {
+                    const entity = allEntities[key];
+                    const option = document.createElement('option');
+                    option.value = key; // Usar el UUID real como value
+                    option.textContent = `${entity.name} (${entity.id || entity.code || 'N/A'})`;
+                    select.appendChild(option);
+                });
+            } else {
+                // Si no hay entidades cargadas, mostrar mensaje y opcionalmente cargarlas
+                console.warn('No hay entidades cargadas, intentando cargar desde API...');
+                loadEntitiesFromAPI().then(() => {
+                    // Reintentar cargar el select después de cargar desde API
+                    setTimeout(() => loadEntitiesForSelect(), 500);
+                });
+            }
         }
 
         // Función para filtrar entidades en el select basado en búsqueda
@@ -667,6 +710,52 @@
                 option.textContent = `${user.name} (${user.role})`;
                 select.appendChild(option);
                 console.log(`✅ Agregado revisor: ${user.name} (${user.role})`);
+            });
+        }
+
+        // Función para cargar select de preparadores en edición
+        function loadEditPreparersSelect() {
+            const select = document.getElementById('editCommitmentPreparer');
+            if (!select) {
+                console.log('⚠️ No se encontró el select de preparador en edición');
+                return;
+            }
+
+            console.log('📋 Cargando select de preparadores (edición)...');
+            select.innerHTML = '<option value="">Selecciona un preparador...</option>';
+
+            const users = window.auditUsersData || [];
+            console.log('👥 Usuarios disponibles:', users.length);
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.name} (${user.role})`;
+                select.appendChild(option);
+                console.log(`✅ Agregado preparador (edición): ${user.name} (${user.role})`);
+            });
+        }
+
+        // Función para cargar select de revisores en edición
+        function loadEditReviewersSelect() {
+            const select = document.getElementById('editCommitmentReviewer');
+            if (!select) {
+                console.log('⚠️ No se encontró el select de revisor en edición');
+                return;
+            }
+
+            console.log('📋 Cargando select de revisores (edición)...');
+            select.innerHTML = '<option value="">Selecciona un revisor...</option>';
+
+            const users = window.auditUsersData || [];
+            console.log('👥 Usuarios disponibles:', users.length);
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.name} (${user.role})`;
+                select.appendChild(option);
+                console.log(`✅ Agregado revisor (edición): ${user.name} (${user.role})`);
             });
         }
 
@@ -954,6 +1043,12 @@
                 return;
             }
 
+            // Debug: Verificar autenticación primero
+            const currentUser = getCurrentSession();
+            console.log('🔍 Usuario actual:', currentUser);
+            console.log('🔍 window.currentUser:', window.currentUser);
+            console.log('🔍 window.currentUserReady:', window.currentUserReady);
+
             // Crear nuevo compromiso
             const newCommitment = {
                 name: name,
@@ -984,12 +1079,6 @@
 
             console.log(' Enviando commitment a la API:', newCommitment);
 
-            // Debug: Verificar autenticación
-            const currentUser = getCurrentSession();
-            console.log('🔍 Usuario actual:', currentUser);
-            console.log('🔍 window.currentUser:', window.currentUser);
-            console.log('🔍 window.currentUserReady:', window.currentUserReady);
-
             // Agregar user_id si está disponible (para RLS)
             if (currentUser && currentUser.id) {
                 newCommitment.user_id = currentUser.id;
@@ -999,54 +1088,66 @@
             }
 
             try {
-                // Crear compromiso via API
-                const response = await API.Commitments.create(newCommitment);
-                console.log(' Respuesta de la API:', response);
+                // Crear compromiso via servidor proxy
+                const response = await fetch('http://localhost:3001/api/commitments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newCommitment)
+                });
+                const result = await response.json();
+                console.log(' Respuesta del servidor:', result);
 
-                if (response.success) {
-                    const createdCommitment = response.data;
-                    console.log(' Compromiso creado exitosamente:', createdCommitment);
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || `Error HTTP ${response.status}`);
+                }
 
-                    // Log de acción
+                const createdCommitment = result.data;
+                console.log(' Compromiso creado exitosamente:', createdCommitment);
+
+                // Log de acción (no bloquear el flujo si falla)
+                try {
                     const currentUser = getCurrentSession();
                     if (currentUser) {
                         await API.logAction('creo_compromiso', null, createdCommitment.id, name);
                     }
-
-                    // Cerrar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('createCommitmentModal'));
-                    modal.hide();
-
-                    // Mostrar mensaje de éxito
-                    document.getElementById('successMessage').textContent = 'Compromiso creado exitosamente.';
-                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-                    successModal.show();
-
-                    // Recargar lista después de cerrar modal de éxito
-                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
-                        // Recargar datos desde API
-                        initializeData().then(filteredCommitments => {
-                            loadCommitments(filteredCommitments);
-                            // Redirigir a detalles del nuevo compromiso
-                            window.location.href = `compromisos-detalles.html?id=${createdCommitment.id}`;
-                        });
-                    }, { once: true });
-                } else {
-                    console.error(' Error creating commitment:', response.error);
-                    console.error(' Datos enviados:', newCommitment);
-                    alert('Error al crear el compromiso: ' + response.error);
+                } catch (logError) {
+                    console.warn('⚠️ Error registrando la acción, se omite:', logError);
                 }
+
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createCommitmentModal'));
+                modal.hide();
+
+                // Mostrar mensaje de éxito
+                document.getElementById('successMessage').textContent = 'Compromiso creado exitosamente.';
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+
+                // Recargar lista después de cerrar modal de éxito (sin redirigir)
+                document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+                    initializeData().then(filteredCommitments => {
+                        loadCommitments(filteredCommitments);
+                    });
+                }, { once: true });
             } catch (error) {
                 console.error(' Error saving commitment:', error);
                 console.error(' Datos que se intentaron guardar:', newCommitment);
-                alert('Error al guardar el compromiso. Intente nuevamente.');
+                alert('Error al guardar el compromiso: ' + (error.message || 'Intente nuevamente.'));
             }
         }
 
         // Función para editar compromiso
         async function editCommitment(id) {
+            console.log('editCommitment called with ID:', id);
+            console.log('allCommitments:', allCommitments);
+            
             const commitment = allCommitments.find(c => c.id === id);
+            console.log('Found commitment:', commitment);
+            
             if (!commitment) {
+                console.error('Compromiso no encontrado con ID:', id);
                 alert('Compromiso no encontrado');
                 return;
             }
@@ -1107,6 +1208,49 @@
                                                 <!-- Opciones se cargan dinámicamente -->
                                             </select>
                                         </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentBudgetHours" class="form-label">Horas de presupuesto</label>
+                                                    <input
+                                                        type="number"
+                                                        class="form-control"
+                                                        id="editCommitmentBudgetHours"
+                                                        placeholder="0.0"
+                                                        min="0"
+                                                        step="0.1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentBudgetAmount" class="form-label">Importe de presupuesto</label>
+                                                    <input
+                                                        type="number"
+                                                        class="form-control"
+                                                        id="editCommitmentBudgetAmount"
+                                                        placeholder="Q0.00"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="editCommitmentPreparer" class="form-label">Preparador</label>
+                                            <select class="form-control" id="editCommitmentPreparer">
+                                                <option value="">Selecciona un preparador...</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="editCommitmentReviewer" class="form-label">Revisor</label>
+                                            <select class="form-control" id="editCommitmentReviewer">
+                                                <option value="">Selecciona un revisor...</option>
+                                            </select>
+                                        </div>
                                     </form>
                                 </div>
                                 <div class="modal-footer">
@@ -1127,6 +1271,13 @@
 
             // Cargar entidades para el select
             loadEntitiesForEditSelect();
+            
+            // Cargar usuarios para preparador y revisor
+            loadAuditUsers();
+            
+            // Cargar selects específicos de edición
+            loadEditPreparersSelect();
+            loadEditReviewersSelect();
 
             // Llenar formulario con datos del compromiso
             document.getElementById('editCommitmentId').value = commitment.id;
@@ -1136,6 +1287,12 @@
             document.getElementById('editCommitmentEndDate').value = commitment.end_date;
             document.getElementById('editCommitmentStatus').value = commitment.status;
             document.getElementById('editCommitmentEntity').value = commitment.entity_id;
+            
+            // Llenar campos opcionales (pueden ser undefined o null)
+            document.getElementById('editCommitmentBudgetHours').value = commitment.budget_hours || '';
+            document.getElementById('editCommitmentBudgetAmount').value = commitment.budget_amount || '';
+            document.getElementById('editCommitmentPreparer').value = commitment.preparer_id || '';
+            document.getElementById('editCommitmentReviewer').value = commitment.reviewer_id || '';
 
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('editCommitmentModal'));
@@ -1177,13 +1334,26 @@
             }
 
             // Obtener valores del formulario
-            const id = parseInt(document.getElementById('editCommitmentId').value);
+            const id = document.getElementById('editCommitmentId').value; // UUID como string
             const name = sanitizeInput(document.getElementById('editCommitmentName').value.trim());
             const description = sanitizeInput(document.getElementById('editCommitmentDescription').value.trim());
             const startDate = document.getElementById('editCommitmentStartDate').value;
             const endDate = document.getElementById('editCommitmentEndDate').value;
             const status = document.getElementById('editCommitmentStatus').value;
-            const entityId = parseInt(document.getElementById('editCommitmentEntity').value);
+            const entityId = document.getElementById('editCommitmentEntity').value; // UUID como string
+            
+            // Obtener valores de campos opcionales
+            const budgetHoursInput = document.getElementById('editCommitmentBudgetHours').value;
+            const budgetAmountInput = document.getElementById('editCommitmentBudgetAmount').value;
+            const preparerId = document.getElementById('editCommitmentPreparer').value;
+            const reviewerId = document.getElementById('editCommitmentReviewer').value;
+            
+            // Obtener nombres de usuario desde los datos cargados
+            const preparer = preparerId ? getUserNameById(preparerId) : '';
+            const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
+
+            const budgetHours = budgetHoursInput === '' ? null : parseFloat(budgetHoursInput);
+            const budgetAmount = budgetAmountInput === '' ? null : parseFloat(budgetAmountInput);
 
             // Validación adicional: fecha fin > fecha inicio
             if (new Date(endDate) <= new Date(startDate)) {
@@ -1201,61 +1371,95 @@
                 entity_id: entityId
             };
 
-            try {
-                // Actualizar compromiso via API
-                const response = await API.Commitments.update(id, updatedCommitment);
+            // Agregar campos opcionales si tienen valores
+            if (budgetHours !== null && !Number.isNaN(budgetHours)) {
+                updatedCommitment.budget_hours = budgetHours;
+            }
 
-                if (response.success) {
-                    // Log de acción
+            if (budgetAmount !== null && !Number.isNaN(budgetAmount)) {
+                updatedCommitment.budget_amount = budgetAmount;
+            }
+
+            if (preparerId) {
+                updatedCommitment.preparer_id = preparerId;
+                updatedCommitment.preparer = preparer;
+            }
+
+            if (reviewerId) {
+                updatedCommitment.reviewer_id = reviewerId;
+                updatedCommitment.reviewer = reviewer;
+            }
+
+            try {
+                // Actualizar compromiso via servidor proxy
+                const response = await fetch(`http://localhost:3001/api/commitments/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatedCommitment)
+                });
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || `Error HTTP ${response.status}`);
+                }
+
+                // Log de acción (no bloquear si falla o no existe)
+                try {
                     const currentUser = getCurrentSession();
-                    if (currentUser) {
+                    if (currentUser && typeof API?.logAction === 'function') {
                         await API.logAction('modifico_compromiso', null, id, name);
                     }
+                } catch (logError) {
+                    console.warn('⚠️ Error registrando la acción, se omite:', logError);
+                }
 
-                    // Cerrar modal de edición
-                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editCommitmentModal'));
-                    if (editModal) {
-                        editModal.hide();
-                    }
+                // Cerrar modal de edición
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editCommitmentModal'));
+                if (editModal) {
+                    editModal.hide();
+                }
 
-                    // Mostrar mensaje de éxito
-                    const successMessageEl = document.getElementById('successMessage');
-                    if (successMessageEl) {
-                        successMessageEl.textContent = 'Compromiso actualizado exitosamente.';
-                    }
+                // Mostrar mensaje de éxito
+                const successMessageEl = document.getElementById('successMessage');
+                if (successMessageEl) {
+                    successMessageEl.textContent = 'Compromiso actualizado exitosamente.';
+                }
 
-                    const successModalEl = document.getElementById('successModal');
-                    if (successModalEl) {
-                        const successModal = new bootstrap.Modal(successModalEl);
-                        successModal.show();
+                const successModalEl = document.getElementById('successModal');
+                if (successModalEl) {
+                    const successModal = new bootstrap.Modal(successModalEl);
+                    successModal.show();
 
-                        // Recargar lista después de cerrar modal de éxito
-                        successModalEl.addEventListener('hidden.bs.modal', function () {
-                            // Recargar datos desde API
-                            initializeData().then(filteredCommitments => {
-                                loadCommitments(filteredCommitments);
-                            });
-                        }, { once: true });
-                    } else {
-                        // Si no existe el modal, recargar directamente
+                    // Recargar lista después de cerrar modal de éxito
+                    successModalEl.addEventListener('hidden.bs.modal', function () {
                         initializeData().then(filteredCommitments => {
                             loadCommitments(filteredCommitments);
                         });
-                    }
+                    }, { once: true });
                 } else {
-                    console.error('Error updating commitment:', response.error);
-                    alert('Error al actualizar el compromiso: ' + response.error);
+                    // Si no existe el modal, recargar directamente
+                    initializeData().then(filteredCommitments => {
+                        loadCommitments(filteredCommitments);
+                    });
                 }
             } catch (error) {
                 console.error('Error saving edited commitment:', error);
-                alert('Error al guardar los cambios. Intente nuevamente.');
+                alert('Error al guardar los cambios: ' + (error.message || 'Intente nuevamente.'));
             }
         }
 
         // Función para eliminar compromiso
         async function deleteCommitment(id) {
+            console.log('deleteCommitment called with ID:', id);
+            console.log('allCommitments:', allCommitments);
+            
             const commitment = allCommitments.find(c => c.id === id);
+            console.log('Found commitment for deletion:', commitment);
+            
             if (!commitment) {
+                console.error('Compromiso no encontrado con ID:', id);
                 alert('Compromiso no encontrado');
                 return;
             }
@@ -1304,43 +1508,45 @@
 
         // Función para confirmar eliminación
         async function confirmDeleteCommitment() {
-            const id = parseInt(document.getElementById('deleteCommitmentId').value);
+            const id = document.getElementById('deleteCommitmentId').value; // UUID como string
             const commitmentName = document.getElementById('deleteCommitmentName').textContent;
 
             try {
-                // Eliminar compromiso via API
-                const response = await API.Commitments.delete(id);
+                // Eliminar compromiso via servidor proxy
+                const response = await fetch(`http://localhost:3001/api/commitments/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || `Error HTTP ${response.status}`);
+                }
 
-                if (response.success) {
-                    // Log de acción
+                // Log de acción (no bloquear si falla)
+                try {
                     const currentUser = getCurrentSession();
                     if (currentUser) {
                         await API.logAction('elimino_compromiso', null, id, commitmentName);
                     }
-
-                    // Cerrar modal de confirmación
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-                    modal.hide();
-
-                    // Mostrar mensaje de éxito
-                    document.getElementById('successMessage').textContent = 'Compromiso eliminado exitosamente.';
-                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-                    successModal.show();
-
-                    // Recargar lista después de cerrar modal de éxito
-                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
-                        // Recargar datos desde API
-                        initializeData().then(filteredCommitments => {
-                            loadCommitments(filteredCommitments);
-                        });
-                    }, { once: true });
-                } else {
-                    console.error('Error deleting commitment:', response.error);
-                    alert('Error al eliminar el compromiso: ' + response.error);
+                } catch (logError) {
+                    console.warn('⚠️ Error registrando la acción, se omite:', logError);
                 }
+
+                // Cerrar modal de confirmación
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                modal.hide();
+
+                // Refrescar lista sin modal extra
+                initializeData().then(filteredCommitments => {
+                    loadCommitments(filteredCommitments);
+                });
             } catch (error) {
                 console.error('Error deleting commitment:', error);
-                alert('Error al eliminar el compromiso. Intente nuevamente.');
+                alert('Error al eliminar el compromiso: ' + (error.message || 'Intente nuevamente.'));
             }
         }
 

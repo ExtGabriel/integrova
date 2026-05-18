@@ -687,11 +687,37 @@ app.get('/api/commitments/entity/:entityId', async (req, res) => {
 
 // Create a new commitment
 app.post('/api/commitments', async (req, res) => {
-    const { name, description, start_date, end_date, status, entity_id, created_by } = req.body;
+    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id } = req.body;
+    
+    console.log('🔍 POST /api/commitments - Datos recibidos:', {
+        name, description, start_date, end_date, status, entity_id,
+        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id
+    });
+    
     try {
+        const insertData = { name, description, start_date, end_date, status, entity_id };
+        
+        // Agregar campos opcionales si existen
+        if (budget_hours !== undefined && budget_hours !== null) insertData.budget_hours = budget_hours;
+        if (budget_amount !== undefined && budget_amount !== null) insertData.budget_amount = budget_amount;
+        if (preparer_id) {
+            insertData.preparer_id = preparer_id;
+            insertData.preparer = preparer;
+        }
+        if (reviewer_id) {
+            insertData.reviewer_id = reviewer_id;
+            insertData.reviewer = reviewer;
+        }
+        if (user_id) {
+            insertData.user_id = user_id;
+            console.log('✅ Agregando user_id:', user_id);
+        } else {
+            console.warn('⚠️ No se recibió user_id');
+        }
+        
         const { data, error } = await supabase
             .from('commitments')
-            .insert([{ name, description, start_date, end_date, status, entity_id, created_by }])
+            .insert([insertData])
             .select();
 
         if (error) throw error;
@@ -705,11 +731,42 @@ app.post('/api/commitments', async (req, res) => {
 // Update a commitment
 app.put('/api/commitments/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, description, start_date, end_date, status, entity_id } = req.body;
+    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer } = req.body;
+    
+    console.log('🔍 PUT /api/commitments/:id - Datos recibidos:', {
+        id,
+        name, description, start_date, end_date, status, entity_id,
+        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer
+    });
+    
     try {
+        const updateData = { name, description, start_date, end_date, status, entity_id };
+        
+        // Agregar campos opcionales si existen
+        if (budget_hours !== undefined && budget_hours !== null) {
+            updateData.budget_hours = budget_hours;
+            console.log('✅ Agregando budget_hours:', budget_hours);
+        }
+        if (budget_amount !== undefined && budget_amount !== null) {
+            updateData.budget_amount = budget_amount;
+            console.log('✅ Agregando budget_amount:', budget_amount);
+        }
+        if (preparer_id) {
+            updateData.preparer_id = preparer_id;
+            updateData.preparer = preparer;
+            console.log('✅ Agregando preparer:', preparer_id, preparer);
+        }
+        if (reviewer_id) {
+            updateData.reviewer_id = reviewer_id;
+            updateData.reviewer = reviewer;
+            console.log('✅ Agregando reviewer:', reviewer_id, reviewer);
+        }
+        
+        console.log('📋 Datos finales a actualizar:', updateData);
+        
         const { data, error } = await supabase
             .from('commitments')
-            .update({ name, description, start_date, end_date, status, entity_id })
+            .update(updateData)
             .eq('id', id)
             .select();
 
