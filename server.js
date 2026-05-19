@@ -6276,6 +6276,184 @@ app.delete('/api/notifications/:id', async (req, res) => {
     }
 });
 
+// ============================================
+// ENDPOINTS PARA GUARDAR CARPETAS Y DOCUMENTOS DE SUBCATEGORÍAS
+// ============================================
+
+// Guardar subcarpeta
+app.post('/api/subfolders/save', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { nombre, descripcion, categoria, subcategoria, parent_folder_id } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!nombre || !categoria || !subcategoria) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+        }
+        
+        console.log(`💾 Guardando subcarpeta: ${nombre} en ${categoria}/${subcategoria}`);
+        
+        const { data: subfolder, error } = await supabase
+            .from('subcarpetas')
+            .insert([{
+                nombre,
+                descripcion: descripcion || null,
+                categoria,
+                subcategoria,
+                parent_folder_id: parent_folder_id || null,
+                user_id: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('❌ Error guardando subcarpeta:', error);
+            return res.status(500).json({ success: false, error: 'Error al guardar la subcarpeta' });
+        }
+        
+        console.log('✅ Subcarpeta guardada exitosamente');
+        res.json({
+            success: true,
+            message: 'Subcarpeta guardada exitosamente',
+            subfolder
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subfolders/save:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Guardar subdocumento
+app.post('/api/subdocuments/save', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { categoria, subcategoria, tipo, titulo, contenido, metadata, parent_folder_id } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!categoria || !subcategoria || !tipo || !titulo) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+        }
+        
+        console.log(`💾 Guardando subdocumento: ${titulo} (${tipo}) en ${categoria}/${subcategoria}`);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .insert([{
+                titulo,
+                contenido: contenido || null,
+                tipo,
+                categoria,
+                subcategoria,
+                parent_folder_id: parent_folder_id || null,
+                metadata: metadata || {},
+                user_id: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error guardando subdocumento:', error);
+            return res.status(500).json({ success: false, error: 'Error al guardar el subdocumento' });
+        }
+        
+        console.log('✅ Subdocumento guardado exitosamente');
+        res.json({
+            success: true,
+            message: 'Subdocumento guardado exitosamente',
+            document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/save:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener subcarpetas de una subcategoría
+app.get('/api/subfolders/:categoria/:subcategoria', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { categoria, subcategoria } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        console.log(`🔍 Obteniendo subcarpetas de ${categoria}/${subcategoria}`);
+        
+        const { data: subfolders, error } = await supabase
+            .from('subcarpetas')
+            .select('*')
+            .eq('categoria', categoria)
+            .eq('subcategoria', subcategoria)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('❌ Error obteniendo subcarpetas:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener las subcarpetas' });
+        }
+        
+        console.log(`✅ ${subfolders?.length || 0} subcarpetas encontradas`);
+        res.json({
+            success: true,
+            subfolders: subfolders || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subfolders:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener subdocumentos de una subcategoría
+app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { categoria, subcategoria } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        console.log(`🔍 Obteniendo subdocumentos de ${categoria}/${subcategoria}`);
+        
+        const { data: documents, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('categoria', categoria)
+            .eq('subcategoria', subcategoria)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('❌ Error obteniendo subdocumentos:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
+        }
+        
+        console.log(`✅ ${documents?.length || 0} subdocumentos encontrados`);
+        res.json({
+            success: true,
+            documents: documents || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`\ud83d\ude80 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
@@ -6284,6 +6462,7 @@ app.listen(PORT, () => {
     console.log(`\ud83d\udcdd Account Assignments API habilitada`);
     console.log(`\ud83d\udcca Financial Groups API habilitada`);
     console.log(`\ud83d\udcca Accounts API habilitada`);
+    console.log(`\ud83d\udcc1 Subcarpetas y Subdocumentos API habilitada`);
 });
 
 module.exports = app;
