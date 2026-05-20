@@ -8130,47 +8130,64 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Guardar documento
             const saveButton = document.getElementById('saveDocumentBtn');
-            saveButton.onclick = async function() {
-                const documentName = document.getElementById('documentName').value.trim();
-                const documentId = document.getElementById('documentIdentifier').value.trim();
-                
-                if (!documentName) {
-                    showNotification('Por favor, ingrese un nombre para el documento', 'warning');
-                    document.getElementById('documentName').focus();
-                    return;
-                }
-                
-                // Verificar que tengamos la categoría y subcategoría actuales
-                if (!currentSection || !currentCategory || !currentDocumentType) {
-                    showNotification('Error: No se pudo determinar la categoría, subcategoría o tipo de documento', 'error');
-                    return;
-                }
-                
-                try {
-                    // Guardar usando el nuevo sistema
-                    await window.subcategoriasManager.saveSubdocument(
-                        currentCategory,
-                        currentSection,
-                        currentDocumentType,
-                        documentName,
-                        '', // contenido inicial vacío
-                        { identifier: documentId },
-                        currentParentFolderId
-                    );
+            if (saveButton) {
+                saveButton.onclick = async function() {
+                    console.log('🔥 Botón Guardar clickeado');
+                    const documentName = document.getElementById('documentName').value.trim();
+                    const documentId = document.getElementById('documentIdentifier').value.trim();
                     
-                    showNotification(`Documento "${documentName}" guardado exitosamente`, 'success');
-                    closeDocumentModal();
+                    console.log('📋 Datos del documento:', { documentName, documentId, currentSection, currentCategory, currentDocumentType, currentParentFolderId });
                     
-                    // Actualizar la UI para mostrar el nuevo documento
-                    setTimeout(() => {
-                        window.subcategoriasManager.updateUI(currentCategory, currentSection);
-                    }, 100);
+                    if (!documentName) {
+                        showNotification('Por favor, ingrese un nombre para el documento', 'warning');
+                        document.getElementById('documentName').focus();
+                        return;
+                    }
                     
-                } catch (error) {
-                    console.error('Error guardando documento:', error);
-                    showNotification('Error al guardar el documento: ' + error.message, 'error');
-                }
-            };
+                    // Verificar que tengamos la categoría y subcategoría actuales
+                    if (!currentSection || !currentCategory || !currentDocumentType) {
+                        showNotification('Error: No se pudo determinar la categoría, subcategoría o tipo de documento', 'error');
+                        console.error('❌ Variables faltantes:', { currentSection, currentCategory, currentDocumentType });
+                        return;
+                    }
+                    
+                    try {
+                        console.log('💾 Guardando documento...');
+                        console.log('📤 Enviando datos:', {
+                            currentCategory,
+                            currentSection,
+                            currentDocumentType,
+                            documentName,
+                            documentId,
+                            currentParentFolderId
+                        });
+                        
+                        // Guardar usando el nuevo sistema
+                        const result = await window.subcategoriasManager.saveSubdocument(
+                            currentCategory,
+                            currentSection,
+                            currentDocumentType,
+                            documentName,
+                            '', // contenido inicial vacío
+                            { identifier: documentId },
+                            currentParentFolderId
+                        );
+                        
+                        console.log('✅ Documento guardado:', result);
+                        showNotification(`Documento "${documentName}" guardado exitosamente`, 'success');
+                        closeDocumentModal();
+                        
+                        // La UI se actualiza automáticamente en saveSubdocument
+                        
+                    } catch (error) {
+                        console.error('Error guardando documento:', error);
+                        showNotification('Error al guardar el documento: ' + error.message, 'error');
+                    }
+                };
+                console.log('✅ Event listener del botón Guardar configurado');
+            } else {
+                console.error('❌ No se encontró el botón saveDocumentBtn');
+            }
             
             // Editar visibilidad
             const visibilityButton = document.querySelector('.document-modal-footer .btn-secondary');
@@ -10001,6 +10018,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         let currentCategory = '';
         let currentDocumentType = '';
         let currentParentFolderId = null;
+        let currentEditingDocumentId = null;
 
         // Función para abrir el modal de propiedades de carpeta
         function openFolderModal(event, sectionName, parentFolderId = null) {
@@ -10160,10 +10178,160 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modal = document.getElementById('documentPropertiesModal');
             modal.classList.add('show');
             
+            // Configurar eventos del modal (asegurar que el botón Guardar funcione)
+            setupDocumentModalEvents();
+            
             // Poner foco en el primer campo
             setTimeout(() => {
                 document.getElementById('documentIdentifier').focus();
             }, 100);
+        }
+
+        // Función para abrir modal de edición de documento
+        function openEditDocumentModal(document) {
+            console.log(' Abriendo modal de edición para:', document);
+            
+            // Establecer variables globales
+            currentSection = document.subcategoria;
+            currentCategory = getCurrentCategory(document.subcategoria);
+            currentDocumentType = document.tipo;
+            currentEditingDocumentId = document.id;
+            
+            // Cerrar todos los menús dropdown
+            try {
+                const allMenus = window.document.querySelectorAll('.plus-dropdown-content');
+                if (allMenus && allMenus.forEach) {
+                    allMenus.forEach(menu => {
+                        menu.classList.remove('show');
+                    });
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cerrando menús dropdown:', error);
+            }
+            
+            // Configuración según el tipo de documento
+            const config = {
+                'carta': { icon: 'bi-envelope', name: 'Carta' },
+                'memorandum': { icon: 'bi-file-text', name: 'Memorándum' },
+                'hoja-trabajo': { icon: 'bi-file-earmark-spreadsheet', name: 'Hoja de trabajo' },
+                'analisis': { icon: 'bi-graph-up', name: 'Análisis' },
+                'lista-verificacion': { icon: 'bi-check-square', name: 'Lista de verificación' },
+                'estados-financieros': { icon: 'bi-currency-dollar', name: 'Estados financieros' },
+                'word': { icon: 'bi-file-word', name: 'Microsoft Word' },
+                'excel': { icon: 'bi-file-excel', name: 'Microsoft Excel' },
+                'enlace': { icon: 'bi-link', name: 'Enlace' }
+            };
+            
+            const docConfig = config[document.tipo] || config.carta;
+            
+            // Actualizar el título y icono del modal
+            const modalHeader = window.document.querySelector('#documentPropertiesModal .document-modal-header h3');
+            if (modalHeader) {
+                modalHeader.innerHTML = `<i class="bi ${docConfig.icon}"></i> Editar ${docConfig.name.toLowerCase()}`;
+            }
+            
+            // Prellenar campos con los datos del documento
+            const identifierField = window.document.getElementById('documentIdentifier');
+            const nameField = window.document.getElementById('documentName');
+            if (identifierField) identifierField.value = document.metadata?.identifier || document.id;
+            if (nameField) nameField.value = document.titulo;
+            
+            // Cambiar texto del botón de guardar
+            const saveButton = window.document.getElementById('saveDocumentBtn');
+            if (saveButton) {
+                saveButton.innerHTML = '<i class="bi bi-check-circle"></i> Actualizar';
+            }
+            
+            // Abrir el modal
+            const modal = window.document.getElementById('documentPropertiesModal');
+            if (modal) {
+                modal.classList.add('show');
+            }
+            
+            // Configurar eventos del modal
+            setupEditDocumentModalEvents();
+            
+            // Poner foco en el primer campo
+            setTimeout(() => {
+                const nameField = window.document.getElementById('documentName');
+                if (nameField) nameField.focus();
+            }, 100);
+        }
+
+        // Función para configurar eventos del modal de edición
+        function setupEditDocumentModalEvents() {
+            const saveButton = window.document.getElementById('saveDocumentBtn');
+            if (saveButton) {
+                // Remover event listeners anteriores
+                saveButton.replaceWith(saveButton.cloneNode(true));
+                const newSaveButton = window.document.getElementById('saveDocumentBtn');
+                
+                newSaveButton.onclick = async function() {
+                    console.log(' Actualizando documento...');
+                    const documentName = window.document.getElementById('documentName').value.trim();
+                    const documentId = window.document.getElementById('documentIdentifier').value.trim();
+                    
+                    if (!documentName) {
+                        showNotification('Por favor, ingrese un nombre para el documento', 'warning');
+                        const nameField = window.document.getElementById('documentName');
+                        if (nameField) nameField.focus();
+                        return;
+                    }
+                    
+                    if (!currentEditingDocumentId) {
+                        showNotification('Error: No se pudo determinar el documento a editar', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        // Obtener la categoría y subcategoría actuales del documento
+                        const currentCategory = window.subcategoriasManager.currentCategory || 'planificacion';
+                        const currentSubcategory = window.subcategoriasManager.currentSubcategory || 'configuracion';
+                        
+                        console.log('📍 Actualizando documento con contexto:', { currentCategory, currentSubcategory });
+                        
+                        // Actualizar usando el nuevo sistema
+                        const result = await window.subcategoriasManager.updateSubdocument(
+                            currentEditingDocumentId,
+                            documentName,
+                            '', // contenido se mantiene igual
+                            { identifier: documentId },
+                            currentCategory,
+                            currentSubcategory
+                        );
+                        
+                        console.log(' Documento actualizado:', result);
+                        showNotification(`Documento "${documentName}" actualizado exitosamente`, 'success');
+                        closeEditDocumentModal();
+                        
+                    } catch (error) {
+                        console.error('Error actualizando documento:', error);
+                        showNotification('Error al actualizar el documento: ' + error.message, 'error');
+                    }
+                };
+                
+                console.log(' Event listener del botón Actualizar configurado');
+            }
+        }
+
+        // Función para cerrar modal de edición
+        function closeEditDocumentModal() {
+            const modal = window.document.getElementById('documentPropertiesModal');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+            
+            // Restaurar texto del botón
+            const saveButton = window.document.getElementById('saveDocumentBtn');
+            if (saveButton) {
+                saveButton.innerHTML = '<i class="bi bi-check-circle"></i> Guardar';
+            }
+            
+            // Limpiar variables
+            currentEditingDocumentId = null;
+            
+            // Reconfigurar eventos para modo de creación
+            setupDocumentModalEvents();
         }
 
         // Función para obtener la categoría actual basada en la subcategoría
@@ -10177,28 +10345,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 'materialidad': 'planificacion',
                 'revision-analitica': 'planificacion',
                 'comprension-entidad': 'planificacion',
-                'planificacion': 'planificacion',
-                
-                // Evaluación de riesgo
+                // Evaluación
                 'diseno-control': 'evaluacion',
                 'areas-riesgo': 'evaluacion',
                 'resumen-evaluacion': 'evaluacion',
                 'procedimientos-evaluacion': 'evaluacion',
-                'evaluacion': 'evaluacion',
-                
-                // Respuesta al riesgo
-                'procedimientos-auditoria': 'respuesta',
+                // Respuesta
                 'respuesta': 'respuesta',
-                
-                // Planes de acción
+                'procedimientos-auditoria': 'respuesta',
+                // Planes
+                'planes': 'planes',
                 'incorr-identificadas': 'planes',
                 'eval-evidencia': 'planes',
                 'informes-direccion': 'planes',
-                'planes': 'planes',
-                
-                // Cierre del compromiso
-                'cierre-compromiso': 'cierre',
-                'cierre': 'cierre'
+                // Cierre
+                'cierre': 'cierre',
+                'cierre-compromiso': 'cierre'
             };
             
             return categoryMap[subcategoryName] || 'planificacion';

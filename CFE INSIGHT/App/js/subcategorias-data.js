@@ -163,6 +163,10 @@
                 // Limpiar cache para forzar recarga
                 this.cache.delete(`${categoria}/${subcategoria}/documents`);
                 
+                // Actualizar UI inmediatamente
+                console.log('🔄 Actualizando UI después de guardar documento...');
+                this.updateUI(categoria, subcategoria);
+                
                 // Disparar evento para notificar cambios
                 window.dispatchEvent(new CustomEvent('subdocumentCreated', {
                     detail: {
@@ -271,10 +275,12 @@
         async updateUI(categoria, subcategoria) {
             try {
                 console.log(`🔄 Actualizando UI para ${categoria}/${subcategoria}`);
+                console.log('🔍 Parámetros recibidos:', { categoria, subcategoria });
                 
                 // Guardar referencia a la categoría y subcategoría actual
                 this.currentCategory = categoria;
                 this.currentSubcategory = subcategoria;
+                console.log('✅ Estado actualizado:', { currentCategory: this.currentCategory, currentSubcategory: this.currentSubcategory });
                 
                 // Asegurarse de que tenemos userId
                 if (!this.userId) {
@@ -290,11 +296,15 @@
                 console.log(`✅ userId disponible: ${this.userId}`);
                 
                 // Obtener el contenedor de la subcategoría
-                const subcategoriaContent = document.getElementById(`${subcategoria}-content`);
+                const containerId = `${subcategoria}-content`;
+                console.log('🔍 Buscando contenedor:', containerId);
+                const subcategoriaContent = document.getElementById(containerId);
                 if (!subcategoriaContent) {
-                    console.warn(`⚠️ Contenedor no encontrado: ${subcategoria}-content`);
+                    console.warn(`⚠️ Contenedor no encontrado: ${containerId}`);
+                    console.log('📋 Contenedores disponibles:', Array.from(document.querySelectorAll('[id$="-content"]')).map(el => el.id));
                     return;
                 }
+                console.log('✅ Contenedor encontrado:', containerId);
 
                 // Guardar el contenido estático existente si es la primera carga
                 const hasStaticContent = subcategoriaContent.querySelector('.form-item-lista');
@@ -303,19 +313,25 @@
                 console.log(`🔍 Cargando datos para ${categoria}/${subcategoria} con userId: ${this.userId}`);
 
                 // Cargar datos y actualizar UI
+                console.log('🔍 Iniciando carga de datos...');
                 const [subfolders, documents] = await Promise.all([
                     this.getSubfolders(categoria, subcategoria, false),
                     this.getSubdocuments(categoria, subcategoria, false)
                 ]);
                 
                 console.log(`📊 Datos cargados: ${subfolders.length} carpetas, ${documents.length} documentos`);
+                console.log('📄 Detalle de documentos:', documents.map(d => ({ id: d.id, titulo: d.titulo, tipo: d.tipo })));
                 
                 // Si hay contenido estático, restaurarlo primero
                 if (staticContent) {
+                    console.log('🔄 Restaurando contenido estático...');
                     subcategoriaContent.innerHTML = staticContent;
                 }
+                
                 // Agregar contenido dinámico
+                console.log('🎨 Renderizando contenido dinámico...');
                 this.renderSubcategoriaContent(subcategoriaContent, subfolders, documents);
+                console.log('✅ UI actualizada completamente');
                 
             } catch (error) {
                 console.error('❌ Error en updateUI:', error);
@@ -335,6 +351,15 @@
 
         // Renderizar contenido de subcategoría
         renderSubcategoriaContent(container, subfolders, documents) {
+            console.log('🔍 renderSubcategoriaContent llamado con:', {
+                subfolders: subfolders.length,
+                documents: documents.length,
+                containerId: container.id
+            });
+            
+            console.log('📋 Subcarpetas:', subfolders);
+            console.log('📄 Documentos:', documents);
+            
             const rootKey = 'root';
             const foldersByParent = {};
             const docsByParent = {};
@@ -350,6 +375,9 @@
                 if (!docsByParent[key]) docsByParent[key] = [];
                 docsByParent[key].push(doc);
             });
+            
+            console.log('🗂️ Carpetas agrupadas por padre:', foldersByParent);
+            console.log('📄 Documentos agrupados por padre:', docsByParent);
 
             const renderDocuments = (parentId) => {
                 const list = docsByParent[parentId || rootKey] || [];
@@ -414,47 +442,20 @@
                 return html;
             };
 
-            // Renderizar TODAS las carpetas, no solo las de nivel raíz
-            let allContent = '';
-            
-            // Carpetas de nivel raíz (parent_folder_id = null)
-            allContent += renderFolders(null);
-            allContent += renderDocuments(null);
-            
-            // Carpetas con parent_folder_id específico (las que no son de nivel raíz)
-            Object.keys(foldersByParent).forEach(parentId => {
-                if (parentId !== rootKey) {
-                    allContent += renderFolders(parentId);
-                }
-            });
-            
-            // Documentos con parent_folder_id específico
-            Object.keys(docsByParent).forEach(parentId => {
-                if (parentId !== rootKey) {
-                    allContent += renderDocuments(parentId);
-                }
-            });
+            const rootHtml = `${renderFolders(null)}${renderDocuments(null)}`.trim();
 
-            // AGREGAR contenido dinámico al existente en lugar de reemplazar
-            if (allContent.trim()) {
-                // Si hay contenido dinámico, agregarlo al final del contenedor
-                console.log(`🔍 HTML a agregar a ${container.id}:`, allContent);
-                console.log(`🔍 Estado del contenedor antes:`, {
-                    existe: !!container,
-                    hijos: container?.children?.length,
-                    innerHTML: container?.innerHTML?.substring(0, 200) + '...'
-                });
-                
-                container.insertAdjacentHTML('beforeend', allContent);
-                
-                console.log(`✅ Contenido dinámico agregado a ${container.id}:`, {subfolders: subfolders.length, documents: documents.length});
-                console.log(`🔍 Estado del contenedor después:`, {
-                    hijos: container?.children?.length,
-                    innerHTML: container?.innerHTML?.substring(0, 300) + '...'
-                });
+            // Buscar o crear contenedor dinámico dedicado
+            let dynamicContainer = container.querySelector('.dynamic-subcategory-content');
+            if (!dynamicContainer) {
+                dynamicContainer = document.createElement('div');
+                dynamicContainer.className = 'dynamic-subcategory-content';
+                container.appendChild(dynamicContainer);
+            }
+
+            if (rootHtml) {
+                dynamicContainer.innerHTML = rootHtml;
             } else {
-                // Si no hay contenido dinámico, no hacer nada (mantener contenido estático)
-                console.log(`📂 No hay contenido dinámico para ${container.id}, manteniendo contenido estático`);
+                dynamicContainer.innerHTML = '';
             }
         }
 
@@ -513,21 +514,18 @@
                 }));
 
                 // Actualizar UI
-                // Intentar actualizar la carpeta eliminada usando el DOM
                 const folderElement = document.querySelector(`[data-id="${folderId}"]`);
                 if (folderElement) {
-                    // Eliminar el elemento del DOM inmediatamente
                     folderElement.remove();
-                    console.log('🗑️ Carpeta eliminada del DOM inmediatamente');
+                    console.log('🗑️ Elemento de carpeta eliminado del DOM');
                 }
                 
-                // Luego actualizar la UI completa si tenemos categoría/subcategoría
                 if (this.currentCategory && this.currentSubcategory) {
-                    await this.updateUI(this.currentCategory, this.currentSubcategory);
-                } else {
-                    console.log('⚠️ No se puede actualizar UI automáticamente - recarga la página para ver cambios');
+                    setTimeout(() => {
+                        this.updateUI(this.currentCategory, this.currentSubcategory);
+                    }, 100);
                 }
-
+                
                 return result;
                 
             } catch (error) {
@@ -535,12 +533,159 @@
                 throw error;
             }
         }
+
+        // Eliminar subdocumento
+        async deleteSubdocument(documentId, documentTitle) {
+            try {
+                if (!this.userId) {
+                    throw new Error('Usuario no autenticado');
+                }
+
+                if (!confirm(`¿Estás seguro de que quieres eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
+                    return;
+                }
+
+                const response = await fetch(buildApiUrl('/api/subdocuments/delete'), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': this.userId
+                    },
+                    body: JSON.stringify({ documentId })
+                });
+
+                const result = await parseJsonSafe(response);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al eliminar subdocumento');
+                }
+
+                this.cache.delete(`${this.currentCategory}/${this.currentSubcategory}/documents`);
+                
+                console.log('✅ Subdocumento eliminado:', documentTitle);
+                
+                window.dispatchEvent(new CustomEvent('subdocumentDeleted', {
+                    detail: { documentId, documentTitle }
+                }));
+
+                const documentElement = document.querySelector(`.document-row[data-id="${documentId}"]`);
+                if (documentElement) {
+                    documentElement.remove();
+                    console.log('🗑️ Elemento de documento eliminado del DOM');
+                }
+                
+                if (this.currentCategory && this.currentSubcategory) {
+                    setTimeout(() => {
+                        this.updateUI(this.currentCategory, this.currentSubcategory);
+                    }, 100);
+                }
+                
+                return result;
+                
+            } catch (error) {
+                console.error('❌ Error eliminando subdocumento:', error);
+                throw error;
+            }
+        }
+
+        // Obtener un subdocumento por ID
+        async getSubdocument(documentId) {
+            try {
+                if (!this.userId) {
+                    throw new Error('Usuario no autenticado');
+                }
+
+                const response = await fetch(buildApiUrl('/api/subdocuments/get'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': this.userId
+                    },
+                    body: JSON.stringify({ documentId })
+                });
+
+                const result = await parseJsonSafe(response);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al obtener subdocumento');
+                }
+                
+                return result.document;
+                
+            } catch (error) {
+                console.error('❌ Error obteniendo subdocumento:', error);
+                throw error;
+            }
+        }
+
+        // Actualizar subdocumento
+        async updateSubdocument(documentId, titulo, contenido, metadata, category = null, subcategory = null) {
+            try {
+                if (!this.userId) {
+                    throw new Error('Usuario no autenticado');
+                }
+
+                const response = await fetch(buildApiUrl('/api/subdocuments/update'), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': this.userId
+                    },
+                    body: JSON.stringify({
+                        documentId,
+                        titulo,
+                        contenido,
+                        metadata
+                    })
+                });
+
+                const result = await parseJsonSafe(response);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al actualizar subdocumento');
+                }
+
+                // Usar la categoría y subcategoría proporcionadas o las actuales
+                const targetCategory = category || this.currentCategory || 'planificacion';
+                const targetSubcategory = subcategory || this.currentSubcategory || 'configuracion';
+                
+                console.log('📍 Usando categoría/subcategoría:', { targetCategory, targetSubcategory });
+                
+                // Limpiar cache
+                this.cache.delete(`${targetCategory}/${targetSubcategory}/documents`);
+                
+                console.log('✅ Subdocumento actualizado:', titulo);
+                
+                // Disparar evento para notificar cambios
+                window.dispatchEvent(new CustomEvent('subdocumentUpdated', {
+                    detail: { documentId, titulo, document: result.document, category: targetCategory, subcategory: targetSubcategory }
+                }));
+
+                // Actualizar UI inmediatamente
+                console.log('� Actualizando UI después de editar documento...');
+                console.log('📝 Actualizando con:', { targetCategory, targetSubcategory });
+                
+                // Forzar actualización de la UI
+                this.updateUI(targetCategory, targetSubcategory);
+                
+                // Disparar evento adicional para asegurar actualización
+                setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('forceUIUpdate', {
+                        detail: { category: this.currentCategory, subcategory: this.currentSubcategory }
+                    }));
+                }, 100);
+                
+                return result.document;
+                
+            } catch (error) {
+                console.error('❌ Error actualizando subdocumento:', error);
+                throw error;
+            }
+        }
     }
 
-    // Crear instancia global
     window.subcategoriasManager = new SubcategoriasDataManager();
 
-    // Hacer deleteSubfolder disponible globalmente
     window.deleteSubfolder = async (folderId, folderName) => {
         try {
             await window.subcategoriasManager.deleteSubfolder(folderId, folderName);
@@ -550,17 +695,44 @@
         }
     };
 
+    window.deleteSubdocument = async (documentId, documentTitle) => {
+        try {
+            await window.subcategoriasManager.deleteSubdocument(documentId, documentTitle);
+        } catch (error) {
+            console.error('Error al eliminar documento:', error);
+            alert('Error al eliminar el documento: ' + error.message);
+        }
+    };
+
+    window.editSubdocument = async (docId) => {
+        try {
+            console.log('🔧 Iniciando edición de documento:', docId);
+            
+            // Obtener datos del documento
+            const docData = await window.subcategoriasManager.getSubdocument(docId);
+            console.log('📄 Datos del documento obtenidos:', docData);
+            
+            // Abrir modal con los datos del documento
+            openEditDocumentModal(docData);
+            
+        } catch (error) {
+            console.error('❌ Error al editar documento:', error);
+            console.error('📍 Stack trace:', error.stack);
+            alert('Error al editar el documento: ' + error.message);
+        }
+    };
+
     // Hacer togglePlusMenu disponible globalmente (con posicionamiento corregido)
     window.togglePlusMenu = function(event, menuId) {
         event.stopPropagation();
         
-        // Cerrar todos los demás menús
+        // Cerrar todos los menús dropdown
         const allMenus = document.querySelectorAll('.plus-dropdown-content');
-        allMenus.forEach(menu => {
-            if (menu.id !== menuId) {
+        if (allMenus && allMenus.forEach) {
+            allMenus.forEach(menu => {
                 menu.classList.remove('show');
-            }
-        });
+            });
+        }
         
         // Toggle del menú actual
         const menu = document.getElementById(menuId);

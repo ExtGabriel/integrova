@@ -6506,6 +6506,160 @@ app.delete('/api/subfolders/delete', async (req, res) => {
     }
 });
 
+// Eliminar subdocumento
+app.delete('/api/subdocuments/delete', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'Falta el ID del documento' });
+        }
+        
+        console.log(`🗑️ Eliminando subdocumento: ${documentId}`);
+        
+        // Primero verificar que el documento pertenezca al usuario
+        const { data: document, error: fetchError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (fetchError || !document) {
+            console.error('❌ Documento no encontrado o no pertenece al usuario:', fetchError);
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Eliminar el documento
+        const { error: deleteError } = await supabase
+            .from('subdocumentos')
+            .delete()
+            .eq('id', documentId)
+            .eq('user_id', userId);
+        
+        if (deleteError) {
+            console.error('❌ Error eliminando subdocumento:', deleteError);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el documento' });
+        }
+        
+        console.log('✅ Subdocumento eliminado exitosamente');
+        res.json({
+            success: true,
+            message: 'Subdocumento eliminado exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/delete:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener un subdocumento por ID
+app.post('/api/subdocuments/get', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'Falta el ID del documento' });
+        }
+        
+        console.log(`🔍 Obteniendo subdocumento: ${documentId}`);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (error || !document) {
+            console.error('❌ Documento no encontrado:', error);
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        console.log('✅ Subdocumento obtenido:', document.titulo);
+        res.json({
+            success: true,
+            document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/get:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Actualizar subdocumento
+app.put('/api/subdocuments/update', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId, titulo, contenido, metadata } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId || !titulo) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+        }
+        
+        console.log(`📝 Actualizando subdocumento: ${documentId}`);
+        
+        // Primero verificar que el documento pertenezca al usuario
+        const { data: existingDoc, error: fetchError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (fetchError || !existingDoc) {
+            console.error('❌ Documento no encontrado o no pertenece al usuario:', fetchError);
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Actualizar el documento
+        const { data: document, error: updateError } = await supabase
+            .from('subdocumentos')
+            .update({
+                titulo,
+                contenido: contenido || existingDoc.contenido,
+                metadata: metadata || existingDoc.metadata,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .select()
+            .single();
+        
+        if (updateError) {
+            console.error('❌ Error actualizando subdocumento:', updateError);
+            return res.status(500).json({ success: false, error: 'Error al actualizar el documento' });
+        }
+        
+        console.log('✅ Subdocumento actualizado exitosamente:', document.titulo);
+        res.json({
+            success: true,
+            message: 'Subdocumento actualizado exitosamente',
+            document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/update:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
