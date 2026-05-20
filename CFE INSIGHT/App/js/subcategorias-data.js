@@ -29,23 +29,54 @@
 
         async getCurrentUserId() {
             try {
-                // Intentar obtener desde localStorage
+                console.log('🔍 Buscando ID de usuario en múltiples fuentes...');
+                
+                // 1. Intentar obtener desde window.currentUser (auth-guard)
+                if (window.currentUser && window.currentUser.id) {
+                    console.log('✅ ID de usuario encontrado en window.currentUser:', window.currentUser.id);
+                    return window.currentUser.id;
+                }
+                
+                // 2. Intentar obtener desde localStorage
                 const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
                 if (userData) {
                     const user = JSON.parse(userData);
-                    return user.id || user.user_id;
+                    const userId = user.id || user.user_id;
+                    if (userId) {
+                        console.log('✅ ID de usuario encontrado en localStorage:', userId);
+                        return userId;
+                    }
                 }
                 
-                // Intentar obtener desde sessionStorage
+                // 3. Intentar obtener desde sessionStorage
                 const sessionData = sessionStorage.getItem('userUI');
                 if (sessionData) {
                     const user = JSON.parse(sessionData);
-                    return user.id || user.user_id;
+                    const userId = user.id || user.user_id;
+                    if (userId) {
+                        console.log('✅ ID de usuario encontrado en sessionStorage:', userId);
+                        return userId;
+                    }
                 }
                 
+                // 4. Intentar obtener desde la sesión de Supabase directamente
+                if (window.getSupabaseSession) {
+                    try {
+                        const { data } = await window.getSupabaseSession();
+                        if (data.session && data.session.user) {
+                            const userId = data.session.user.id;
+                            console.log('✅ ID de usuario encontrado en sesión Supabase:', userId);
+                            return userId;
+                        }
+                    } catch (sessionErr) {
+                        console.warn('⚠️ Error obteniendo sesión de Supabase:', sessionErr.message);
+                    }
+                }
+                
+                console.warn('❌ No se encontró ID de usuario en ninguna fuente');
                 return null;
             } catch (error) {
-                console.warn('Error obteniendo ID de usuario:', error);
+                console.warn('❌ Error obteniendo ID de usuario:', error);
                 return null;
             }
         }
@@ -237,24 +268,69 @@
         }
 
         // Actualizar datos en la UI
-        updateUI(categoria, subcategoria) {
-            // Obtener el contenedor de la subcategoría
-            const subcategoriaContent = document.getElementById(`${subcategoria}-content`);
-            if (!subcategoriaContent) return;
+        async updateUI(categoria, subcategoria) {
+            try {
+                console.log(`🔄 Actualizando UI para ${categoria}/${subcategoria}`);
+                
+                // Guardar referencia a la categoría y subcategoría actual
+                this.currentCategory = categoria;
+                this.currentSubcategory = subcategoria;
+                
+                // Asegurarse de que tenemos userId
+                if (!this.userId) {
+                    console.log('🔍 userId no disponible, obteniendo...');
+                    this.userId = await this.getCurrentUserId();
+                }
+                
+                if (!this.userId) {
+                    console.error('❌ No se pudo obtener ID de usuario para updateUI');
+                    return;
+                }
+                
+                console.log(`✅ userId disponible: ${this.userId}`);
+                
+                // Obtener el contenedor de la subcategoría
+                const subcategoriaContent = document.getElementById(`${subcategoria}-content`);
+                if (!subcategoriaContent) {
+                    console.warn(`⚠️ Contenedor no encontrado: ${subcategoria}-content`);
+                    return;
+                }
 
-            // Mostrar indicador de carga
-            subcategoriaContent.innerHTML = '<div class="loading-indicator">Cargando...</div>';
+                // Guardar el contenido estático existente si es la primera carga
+                const hasStaticContent = subcategoriaContent.querySelector('.form-item-lista');
+                const staticContent = hasStaticContent ? subcategoriaContent.innerHTML : null;
 
-            // Cargar datos y actualizar UI
-            Promise.all([
-                this.getSubfolders(categoria, subcategoria, false),
-                this.getSubdocuments(categoria, subcategoria, false)
-            ]).then(([subfolders, documents]) => {
+                console.log(`🔍 Cargando datos para ${categoria}/${subcategoria} con userId: ${this.userId}`);
+
+                // Cargar datos y actualizar UI
+                const [subfolders, documents] = await Promise.all([
+                    this.getSubfolders(categoria, subcategoria, false),
+                    this.getSubdocuments(categoria, subcategoria, false)
+                ]);
+                
+                console.log(`📊 Datos cargados: ${subfolders.length} carpetas, ${documents.length} documentos`);
+                
+                // Si hay contenido estático, restaurarlo primero
+                if (staticContent) {
+                    subcategoriaContent.innerHTML = staticContent;
+                }
+                // Agregar contenido dinámico
                 this.renderSubcategoriaContent(subcategoriaContent, subfolders, documents);
-            }).catch(error => {
-                console.error('Error cargando datos de subcategoría:', error);
-                subcategoriaContent.innerHTML = '<div class="error-message">Error al cargar los datos</div>';
-            });
+                
+            } catch (error) {
+                console.error('❌ Error en updateUI:', error);
+                const subcategoriaContent = document.getElementById(`${subcategoria}-content`);
+                if (subcategoriaContent) {
+                    const hasStaticContent = subcategoriaContent.querySelector('.form-item-lista');
+                    const staticContent = hasStaticContent ? subcategoriaContent.innerHTML : null;
+                    
+                    if (staticContent) {
+                        subcategoriaContent.innerHTML = staticContent;
+                    } else {
+                        subcategoriaContent.innerHTML = '<div class="error-message">Error al cargar los datos</div>';
+                    }
+                }
+            }
         }
 
         // Renderizar contenido de subcategoría
@@ -314,6 +390,7 @@
                                 </div>
                                 <div class="folder-block-actions">
                                     <i class="bi bi-plus-circle" onclick="togglePlusMenu(event, '${menuId}')"></i>
+                                    <i class="bi bi-trash" onclick="deleteSubfolder(${folder.id}, '${folder.nombre}')" title="Eliminar carpeta" style="color: #dc2626; cursor: pointer;"></i>
                                     <div class="plus-dropdown-content" id="${menuId}">
                                         <a href="#" onclick="openSubFolderModal(event, '${folder.subcategoria}', ${folder.id})"><i class="bi bi-folder"></i> Subcarpeta</a>
                                         <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
@@ -337,9 +414,48 @@
                 return html;
             };
 
-            const rootContent = `${renderFolders(null)}${renderDocuments(null)}`;
+            // Renderizar TODAS las carpetas, no solo las de nivel raíz
+            let allContent = '';
+            
+            // Carpetas de nivel raíz (parent_folder_id = null)
+            allContent += renderFolders(null);
+            allContent += renderDocuments(null);
+            
+            // Carpetas con parent_folder_id específico (las que no son de nivel raíz)
+            Object.keys(foldersByParent).forEach(parentId => {
+                if (parentId !== rootKey) {
+                    allContent += renderFolders(parentId);
+                }
+            });
+            
+            // Documentos con parent_folder_id específico
+            Object.keys(docsByParent).forEach(parentId => {
+                if (parentId !== rootKey) {
+                    allContent += renderDocuments(parentId);
+                }
+            });
 
-            container.innerHTML = rootContent || '<div class="empty-state">No hay elementos en esta subcategoría. Usa el menú + para agregar.</div>';
+            // AGREGAR contenido dinámico al existente en lugar de reemplazar
+            if (allContent.trim()) {
+                // Si hay contenido dinámico, agregarlo al final del contenedor
+                console.log(`🔍 HTML a agregar a ${container.id}:`, allContent);
+                console.log(`🔍 Estado del contenedor antes:`, {
+                    existe: !!container,
+                    hijos: container?.children?.length,
+                    innerHTML: container?.innerHTML?.substring(0, 200) + '...'
+                });
+                
+                container.insertAdjacentHTML('beforeend', allContent);
+                
+                console.log(`✅ Contenido dinámico agregado a ${container.id}:`, {subfolders: subfolders.length, documents: documents.length});
+                console.log(`🔍 Estado del contenedor después:`, {
+                    hijos: container?.children?.length,
+                    innerHTML: container?.innerHTML?.substring(0, 300) + '...'
+                });
+            } else {
+                // Si no hay contenido dinámico, no hacer nada (mantener contenido estático)
+                console.log(`📂 No hay contenido dinámico para ${container.id}, manteniendo contenido estático`);
+            }
         }
 
         // Obtener ícono según tipo de documento
@@ -358,10 +474,218 @@
             
             return iconMap[tipo] || 'bi-file-earmark';
         }
+
+        // Eliminar subcarpeta
+        async deleteSubfolder(folderId, folderName) {
+            try {
+                if (!this.userId) {
+                    throw new Error('Usuario no autenticado');
+                }
+
+                // Confirmación
+                if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todo su contenido? Esta acción no se puede deshacer.`)) {
+                    return;
+                }
+
+                const response = await fetch(buildApiUrl('/api/subfolders/delete'), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': this.userId
+                    },
+                    body: JSON.stringify({ folderId })
+                });
+
+                const result = await parseJsonSafe(response);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error al eliminar subcarpeta');
+                }
+
+                // Limpiar cache
+                this.cache.delete(`${this.currentCategory}/${this.currentSubcategory}/subfolders`);
+                
+                console.log('✅ Subcarpeta eliminada:', folderName);
+                
+                // Disparar evento para notificar cambios
+                window.dispatchEvent(new CustomEvent('subfolderDeleted', {
+                    detail: { folderId, folderName }
+                }));
+
+                // Actualizar UI
+                // Intentar actualizar la carpeta eliminada usando el DOM
+                const folderElement = document.querySelector(`[data-id="${folderId}"]`);
+                if (folderElement) {
+                    // Eliminar el elemento del DOM inmediatamente
+                    folderElement.remove();
+                    console.log('🗑️ Carpeta eliminada del DOM inmediatamente');
+                }
+                
+                // Luego actualizar la UI completa si tenemos categoría/subcategoría
+                if (this.currentCategory && this.currentSubcategory) {
+                    await this.updateUI(this.currentCategory, this.currentSubcategory);
+                } else {
+                    console.log('⚠️ No se puede actualizar UI automáticamente - recarga la página para ver cambios');
+                }
+
+                return result;
+                
+            } catch (error) {
+                console.error('❌ Error eliminando subcarpeta:', error);
+                throw error;
+            }
+        }
     }
 
     // Crear instancia global
     window.subcategoriasManager = new SubcategoriasDataManager();
+
+    // Hacer deleteSubfolder disponible globalmente
+    window.deleteSubfolder = async (folderId, folderName) => {
+        try {
+            await window.subcategoriasManager.deleteSubfolder(folderId, folderName);
+        } catch (error) {
+            console.error('Error al eliminar carpeta:', error);
+            alert('Error al eliminar la carpeta: ' + error.message);
+        }
+    };
+
+    // Hacer togglePlusMenu disponible globalmente (con posicionamiento corregido)
+    window.togglePlusMenu = function(event, menuId) {
+        event.stopPropagation();
+        
+        // Cerrar todos los demás menús
+        const allMenus = document.querySelectorAll('.plus-dropdown-content');
+        allMenus.forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        // Toggle del menú actual
+        const menu = document.getElementById(menuId);
+        if (!menu) {
+            console.warn('⚠️ Menú no encontrado:', menuId);
+            return;
+        }
+        
+        const isVisible = menu.classList.contains('show');
+        if (isVisible) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        menu.classList.add('show');
+
+        let button = event.target.closest('.subcategoria-plus-icon, .categoria-plus-icon');
+
+        // Manejar el caso en que el botón está dentro del dropdown (carpetas recién creadas)
+        if (!button && event.currentTarget && event.currentTarget.classList) {
+            button = event.currentTarget.closest('.subcategoria-plus-icon, .categoria-plus-icon');
+        }
+        if (!button) {
+            button = event.target.closest('.folder-block-actions i');
+        }
+        if (!button) {
+            return;
+        }
+
+        const rect = button.getBoundingClientRect();
+        const menuWidth = menu.offsetWidth || 220;
+        const menuHeight = menu.offsetHeight || 260;
+
+        let left = rect.left;
+        let top = rect.bottom + 5;
+
+        // Asegurar que el menú no se salga horizontalmente de la ventana
+        if (left + menuWidth > window.innerWidth - 12) {
+            left = Math.max(12, rect.right - menuWidth);
+        }
+        if (left < 12) {
+            left = 12;
+        }
+
+        // Asegurar que el menú no se salga verticalmente de la ventana
+        if (top + menuHeight > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - menuHeight - 5);
+        }
+        if (top < 12) {
+            top = 12;
+        }
+
+        menu.style.position = 'fixed';
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.zIndex = '1000';
+    };
+    console.log('✅ togglePlusMenu definido globalmente con posicionamiento corregido');
+
+    // Funciones de depuración para consola
+    window.debugSubcategories = {
+        // Verificar estado del manager
+        checkManager: () => {
+            console.log('🔍 Estado del SubcategoriasDataManager:');
+            console.log('- Manager disponible:', !!window.subcategoriasManager);
+            console.log('- User ID:', window.subcategoriasManager?.userId);
+            console.log('- Cache size:', window.subcategoriasManager?.cache?.size);
+            return window.subcategoriasManager;
+        },
+
+        // Forzar carga de una subcategoría específica
+        loadSubcategory: async (categoria = 'planificacion', subcategoria = 'configuracion') => {
+            console.log(`🔄 Forzando carga de ${categoria}/${subcategoria}`);
+            try {
+                const subfolders = await window.subcategoriasManager.getSubfolders(categoria, subcategoria, false);
+                const documents = await window.subcategoriasManager.getSubdocuments(categoria, subcategoria, false);
+                console.log('✅ Subcarpetas encontradas:', subfolders);
+                console.log('✅ Documentos encontrados:', documents);
+                
+                // Forzar actualización UI
+                window.subcategoriasManager.updateUI(categoria, subcategoria);
+                return { subfolders, documents };
+            } catch (error) {
+                console.error('❌ Error cargando subcategoría:', error);
+                return null;
+            }
+        },
+
+        // Verificar contenedores DOM
+        checkContainers: () => {
+            const containers = ['configuracion-content', 'aceptacion-content', 'estrategia-content'];
+            containers.forEach(id => {
+                const container = document.getElementById(id);
+                console.log(`📂 Contenedor ${id}:`, {
+                    existe: !!container,
+                    hijos: container?.children?.length || 0,
+                    contenido: container?.innerHTML?.substring(0, 100) + '...'
+                });
+            });
+        },
+
+        // Verificar API directamente
+        testAPI: async (categoria = 'planificacion', subcategoria = 'configuracion') => {
+            console.log(`🌐 Probando API para ${categoria}/${subcategoria}`);
+            try {
+                const response = await fetch(`${(window.API_BASE_URL || '').replace(/\/$/, '')}/api/subfolders/${categoria}/${subcategoria}`, {
+                    headers: { 'user-id': window.subcategoriasManager.userId }
+                });
+                const result = await response.json();
+                console.log('📊 Respuesta API:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error API:', error);
+                return null;
+            }
+        },
+
+        // Limpiar y recargar todo
+        fullReset: async () => {
+            console.log('🔄 Reset completo del sistema');
+            window.subcategoriasManager.clearCache();
+            await window.subcategoriasManager.init();
+            await window.loadExistingSubcategories?.();
+        }
+    };
 
     // Escuchar eventos de creación para actualizar UI automáticamente
     window.addEventListener('subfolderCreated', (event) => {

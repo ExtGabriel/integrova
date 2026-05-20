@@ -6300,6 +6300,24 @@
             // Cargar historial de datasets automáticamente
             loadDatasetHistory();
             
+            // Cargar subcategorías existentes
+            setTimeout(() => {
+                if (window.subcategoriasManager) {
+                    console.log('🚀 Iniciando carga de subcategorías existentes...');
+                    loadExistingSubcategories();
+                } else {
+                    console.warn('⚠️ subcategoriasManager no disponible aún');
+                    // Reintentar después
+                    setTimeout(() => {
+                        if (window.subcategoriasManager) {
+                            loadExistingSubcategories();
+                        } else {
+                            console.error('❌ subcategoriasManager no disponible después de reintentar');
+                        }
+                    }, 1000);
+                }
+            }, 1500); // Aumentar a 1.5 segundos para dar más tiempo a la inicialización
+            
             // Intentar cargar desde API (opcional)
             setTimeout(() => {
                 if (window.API && window.API.Entities) {
@@ -6307,6 +6325,106 @@
                 }
             }, 1000);
         });
+
+        // ==========================================
+        // 📁 CARGA INICIAL DE SUBCATEGORÍAS
+        // ==========================================
+
+        // Función para cargar todas las subcategorías existentes al iniciar la página
+        async function loadExistingSubcategories() {
+            try {
+                console.log('🔄 Cargando subcategorías existentes...');
+                
+                // Esperar a que el usuario esté autenticado
+                if (!window.currentUser) {
+                    console.log('⏳ Esperando usuario autenticado...');
+                    await new Promise(resolve => {
+                        const checkUser = () => {
+                            if (window.currentUser) {
+                                resolve();
+                            } else {
+                                setTimeout(checkUser, 100);
+                            }
+                        };
+                        checkUser();
+                    });
+                }
+                
+                console.log(`✅ Usuario autenticado: ${window.currentUser?.name}`);
+                
+                // Esperar a que subcategoriasManager esté inicializado
+                if (!window.subcategoriasManager || !window.subcategoriasManager.userId) {
+                    console.log('⏳ Esperando inicialización de subcategoriasManager...');
+                    await window.subcategoriasManager.init();
+                }
+                
+                // Lista de todas las subcategorías de todas las categorías (coinciden con IDs reales)
+                const subcategories = [
+                    // Categoría: Planificación
+                    'planificacion',
+                    // Subcategorías de planificación
+                    'configuracion', 'aceptacion', 'estrategia', 'discusiones', 
+                    'materialidad', 'revision-analitica', 'comprension-entidad', 
+                    // Categoría: Evaluación de riesgo
+                    'evaluacion',
+                    // Subcategorías de evaluación
+                    'diseno-control', 'areas-riesgo', 'resumen-evaluacion', 
+                    'procedimientos-evaluacion',
+                    // Categoría: Respuesta al riesgo
+                    'respuesta',
+                    // Subcategorías de respuesta
+                    'procedimientos-auditoria',
+                    // Categoría: Planes de acción
+                    'planes',
+                    // Subcategorías de planes
+                    'incorr-identificadas', 'eval-evidencia', 'informes-direccion',
+                    // Categoría: Cierre del compromiso
+                    'cierre',
+                    // Subcategorías de cierre
+                    'cierre-compromiso'
+                ];
+                
+                // Cargar cada subcategoría secuencialmente para evitar sobrecarga
+                for (const subcategory of subcategories) {
+                    try {
+                        console.log(`📂 Cargando subcategoría: ${subcategory}`);
+                        
+                        // Determinar la categoría correcta para esta subcategoría
+                        let category = 'planificacion'; // default
+                        
+                        if (['diseno-control', 'areas-riesgo', 'resumen-evaluacion', 'procedimientos-evaluacion'].includes(subcategory)) {
+                            category = 'evaluacion';
+                        } else if (['procedimientos-auditoria'].includes(subcategory)) {
+                            category = 'respuesta';
+                        } else if (['incorr-identificadas', 'eval-evidencia', 'informes-direccion'].includes(subcategory)) {
+                            category = 'planes';
+                        } else if (['cierre-compromiso'].includes(subcategory)) {
+                            category = 'cierre';
+                        } else if (subcategory === 'planificacion') {
+                            category = 'planificacion';
+                        } else if (subcategory === 'evaluacion') {
+                            category = 'evaluacion';
+                        } else if (subcategory === 'respuesta') {
+                            category = 'respuesta';
+                        } else if (subcategory === 'planes') {
+                            category = 'planes';
+                        } else if (subcategory === 'cierre') {
+                            category = 'cierre';
+                        }
+                        
+                        await window.subcategoriasManager.updateUI(category, subcategory);
+                        // Pequeña pausa entre cargas para no saturar
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    } catch (error) {
+                        console.warn(`⚠️ Error cargando subcategoría ${subcategory}:`, error);
+                    }
+                }
+                
+                console.log('✅ Carga inicial de subcategorías completada');
+            } catch (error) {
+                console.error('❌ Error en carga inicial de subcategorías:', error);
+            }
+        }
 
         // ==========================================
         // 💾 PERSISTENCIA DE SELECCIONES EN localStorage
@@ -10051,15 +10169,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para obtener la categoría actual basada en la subcategoría
         function getCurrentCategory(subcategoryName) {
             const categoryMap = {
+                // Planificación
                 'configuracion': 'planificacion',
                 'aceptacion': 'planificacion',
                 'estrategia': 'planificacion',
                 'discusiones': 'planificacion',
                 'materialidad': 'planificacion',
                 'revision-analitica': 'planificacion',
+                'comprension-entidad': 'planificacion',
+                'planificacion': 'planificacion',
+                
+                // Evaluación de riesgo
                 'diseno-control': 'evaluacion',
                 'areas-riesgo': 'evaluacion',
-                'resumen-evaluacion': 'evaluacion'
+                'resumen-evaluacion': 'evaluacion',
+                'procedimientos-evaluacion': 'evaluacion',
+                'evaluacion': 'evaluacion',
+                
+                // Respuesta al riesgo
+                'procedimientos-auditoria': 'respuesta',
+                'respuesta': 'respuesta',
+                
+                // Planes de acción
+                'incorr-identificadas': 'planes',
+                'eval-evidencia': 'planes',
+                'informes-direccion': 'planes',
+                'planes': 'planes',
+                
+                // Cierre del compromiso
+                'cierre-compromiso': 'cierre',
+                'cierre': 'cierre'
             };
             
             return categoryMap[subcategoryName] || 'planificacion';
@@ -24538,6 +24677,28 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     </div>
 
     
+    <!-- 1. SDK Supabase v2 PRIMERO (desde CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 2. Configuración global -->
+    <script src="/js/config.js"></script>
+
+    <!-- 3. Configuración Supabase (inyecta window.SUPABASE_CONFIG) -->
+    <script src="/js/config-supabase.js"></script>
+
+    <!-- 4. Cliente Supabase (crea window.supabaseClient, window.getSupabaseClient) -->
+    <script src="/js/supabaseClient.js"></script>
+
+    <!-- 5. Utilidades globales -->
+    <script src="/js/utils.js"></script>
+
+    <!-- 6. API Client centralizado -->
+    <script src="/js/api-client.js"></script>
+
+    <!-- 7. Auth Guard - Protección de página -->
+    <script src="/js/auth-guard.js"></script>
+
+    <!-- 8. Scripts específicos de formularios -->
     <script src="/js/database-api.js"></script>
     <script src="/js/subcategorias-data.js"></script>
     <script>
@@ -24559,9 +24720,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
     </script>
     <script src="/js/formularios-ajustes.js"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/api-client.js"></script>
-    <script src="/js/auth-guard.js"></script>
 
     <!-- Modal para seleccionar roles -->
     <div id="rolesModal" class="modal">

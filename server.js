@@ -6417,6 +6417,95 @@ app.get('/api/subfolders/:categoria/:subcategoria', async (req, res) => {
     }
 });
 
+// Eliminar subcarpeta
+app.delete('/api/subfolders/delete', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { folderId } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!folderId) {
+            return res.status(400).json({ success: false, error: 'Falta el ID de la carpeta' });
+        }
+        
+        console.log(`🗑️ Eliminando subcarpeta: ${folderId}`);
+        
+        // Primero verificar que la carpeta pertenezca al usuario
+        const { data: folder, error: fetchError } = await supabase
+            .from('subcarpetas')
+            .select('*')
+            .eq('id', folderId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (fetchError || !folder) {
+            console.error('❌ Carpeta no encontrada o no pertenece al usuario:', fetchError);
+            return res.status(404).json({ success: false, error: 'Carpeta no encontrada' });
+        }
+        
+        // Eliminar documentos dentro de la carpeta
+        const { error: docsDeleteError } = await supabase
+            .from('subdocumentos')
+            .delete()
+            .eq('parent_folder_id', folderId)
+            .eq('user_id', userId);
+            
+        if (docsDeleteError) {
+            console.error('❌ Error eliminando documentos de la carpeta:', docsDeleteError);
+            // Continuar con la eliminación de la carpeta aunque falle la eliminación de documentos
+        }
+        
+        // Eliminar subcarpetas hijas
+        const { data: childFolders, error: childFetchError } = await supabase
+            .from('subcarpetas')
+            .select('id')
+            .eq('parent_folder_id', folderId)
+            .eq('user_id', userId);
+            
+        if (!childFetchError && childFolders && childFolders.length > 0) {
+            // Eliminar documentos de las subcarpetas hijas
+            const childIds = childFolders.map(f => f.id);
+            await supabase
+                .from('subdocumentos')
+                .delete()
+                .in('parent_folder_id', childIds)
+                .eq('user_id', userId);
+                
+            // Eliminar las subcarpetas hijas
+            await supabase
+                .from('subcarpetas')
+                .delete()
+                .in('parent_folder_id', folderId)
+                .eq('user_id', userId);
+        }
+        
+        // Finalmente eliminar la carpeta
+        const { error: deleteError } = await supabase
+            .from('subcarpetas')
+            .delete()
+            .eq('id', folderId)
+            .eq('user_id', userId);
+        
+        if (deleteError) {
+            console.error('❌ Error eliminando subcarpeta:', deleteError);
+            return res.status(500).json({ success: false, error: 'Error al eliminar la carpeta' });
+        }
+        
+        console.log('✅ Subcarpeta eliminada exitosamente');
+        res.json({
+            success: true,
+            message: 'Subcarpeta eliminada exitosamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subfolders/delete:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
