@@ -414,6 +414,100 @@
      * ✅ Patrón defensivo: verifica permisos y disponibilidad
      * ✅ GARANTÍA: window.API.Entities SIEMPRE existe, nunca undefined
      */
+    function buildEntityMetadata(payload = {}) {
+        return {
+            country: payload.country ?? null,
+            address: payload.address ?? null,
+            email: payload.email ?? null,
+            phone: payload.phone ?? null,
+            encargado: payload.encargado ?? null,
+            es_grupo: payload.is_group ?? false,
+            relationship_type: payload.relationship_type ?? 'none',
+            parent_id: payload.parent_id ?? null
+        };
+    }
+
+    function normalizeEntityPayload(raw = {}) {
+        if (!raw || typeof raw !== 'object') {
+            return {};
+        }
+
+        const payload = {};
+
+        const simpleFields = ['name', 'entity_id', 'entityId', 'description', 'status', 'country', 'address', 'email', 'phone', 'is_group', 'relationship_type', 'parent_id', 'parentId', 'metadata', 'responsible', 'created_by'];
+        simpleFields.forEach(field => {
+            if (Object.prototype.hasOwnProperty.call(raw, field)) {
+                const targetKey = field === 'entityId' ? 'entity_id' : field === 'parentId' ? 'parent_id' : field;
+                const value = raw[field];
+                payload[targetKey] = value === '' ? null : value;
+            }
+        });
+
+        if (Object.prototype.hasOwnProperty.call(raw, 'encargado')) {
+            const value = raw.encargado === '' ? null : raw.encargado;
+            payload.encargado = value;
+            payload.responsible = value;
+        } else if (Object.prototype.hasOwnProperty.call(raw, 'responsible')) {
+            payload.responsible = raw.responsible === '' ? null : raw.responsible;
+        }
+
+        // Normalizar defaults
+        if (payload.status === undefined || payload.status === null) {
+            payload.status = 'activa';
+        }
+
+        if (payload.is_group === undefined || payload.is_group === null) {
+            payload.is_group = false;
+        }
+
+        if (payload.relationship_type === undefined || payload.relationship_type === null) {
+            payload.relationship_type = 'none';
+        }
+
+        if (payload.entity_id === undefined || payload.entity_id === null) {
+            payload.entity_id = null;
+        }
+
+        if (payload.parent_id === undefined) {
+            payload.parent_id = null;
+        }
+
+        if (!payload.metadata) {
+            payload.metadata = buildEntityMetadata(payload);
+        }
+
+        return payload;
+    }
+
+    function deriveUserName(user) {
+        if (!user) {
+            return 'Usuario desconocido';
+        }
+
+        if (user.full_name) {
+            return user.full_name;
+        }
+
+        if (user.raw_user_meta_data) {
+            try {
+                const meta = typeof user.raw_user_meta_data === 'string'
+                    ? JSON.parse(user.raw_user_meta_data)
+                    : user.raw_user_meta_data;
+                if (meta) {
+                    return meta.full_name || meta.name || meta.nombre || meta.display_name || user.email || 'Usuario desconocido';
+                }
+            } catch (err) {
+                console.warn('⚠️ [deriveUserName] Error parseando metadata de usuario:', err);
+            }
+        }
+
+        if (user.email) {
+            return user.email;
+        }
+
+        return 'Usuario desconocido';
+    }
+
     const EntitiesModule = {
         /**
          * Listar todas las entidades visibles para el usuario actual
@@ -489,11 +583,18 @@
                 }
 
                 // Preparar datos para inserción
-                const entityData = {
-                    name: data.name,
-                    responsible: data.responsible || null
-                    // created_by se llena automáticamente por trigger
-                };
+                const entityData = normalizeEntityPayload({
+                    ...data,
+                    created_by: window.currentUser?.id || null
+                });
+
+                if (!entityData.metadata) {
+                    entityData.metadata = buildEntityMetadata(entityData);
+                }
+
+                if (entityData.created_by === null) {
+                    delete entityData.created_by;
+                }
 
                 const { data: newEntity, error } = await client
                     .from('entities')
@@ -658,9 +759,11 @@
                     return { data: null, error: 'Datos de actualización inválidos' };
                 }
 
+                const normalizedUpdates = normalizeEntityPayload(updates);
+
                 const { data, error } = await client
                     .from('entities')
-                    .update(updates)
+                    .update(normalizedUpdates)
                     .eq('id', entityId)
                     .select()
                     .single();
@@ -867,9 +970,10 @@
                         created_at,
                         users:user_id (
                             id,
-                            name,
+                            full_name,
                             email,
-                            role
+                            role,
+                            raw_user_meta_data
                         )
                     `)
                     .eq('entity_id', entityId);
@@ -890,7 +994,7 @@
                     user_id: item.user_id,
                     role: item.role,
                     created_at: item.created_at,
-                    user_name: item.users?.name || 'Usuario desconocido',
+                    user_name: deriveUserName(item.users),
                     user_email: item.users?.email || '',
                     user_role: item.users?.role || ''
                 }));

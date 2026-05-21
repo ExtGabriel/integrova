@@ -5880,20 +5880,50 @@
         // FUNCIONES PARA MENÚS DESPLEGABLES CON BÚSQUEDA
         // ==========================================
 
-        // Variables globales para entidades - inicializadas con datos estáticos
-        let entidadesPadreOriginales = [
-            { value: '', text: 'Entidad padre...' },
-            { value: 'padre1', text: 'Padre 1' },
-            { value: 'padre2', text: 'Padre 2' },
-            { value: 'padre3', text: 'Padre 3' }
-        ];
+        // Variables globales para entidades
+        const ENTIDAD_PADRE_PLACEHOLDER = { value: '', text: 'Entidad padre...' };
+        const ENTIDAD_HIJO_PLACEHOLDER = { value: '', text: 'Entidad hija...' };
 
-        let entidadesHijoOriginales = [
-            { value: '', text: 'Entidad hija...' },
-            { value: 'hija1', text: 'Hija 1' },
-            { value: 'hija2', text: 'Hija 2' },
-            { value: 'hija3', text: 'Hija 3' }
-        ];
+        let entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER];
+        let entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER];
+
+        let entidadCatalogo = {};
+        let entidadHijosMap = {};
+
+        function escapeOptionText(text = '') {
+            return String(text).replace(/'/g, "\\'");
+        }
+
+        function formatEntityLabel(entidad) {
+            if (!entidad) return 'Entidad sin nombre';
+            const name = (entidad.name || '').trim();
+            const commercial = (entidad.entity_id || '').trim();
+            if (name && commercial) {
+                return `${name} (${commercial})`;
+            }
+            return name || commercial || 'Entidad sin nombre';
+        }
+
+        function getPlaceholderText(type) {
+            return type === 'padre'
+                ? (entidadesPadreOriginales[0]?.text || ENTIDAD_PADRE_PLACEHOLDER.text)
+                : (entidadesHijoOriginales[0]?.text || ENTIDAD_HIJO_PLACEHOLDER.text);
+        }
+
+        function getEntityLabelByValue(type, value) {
+            if (!value) {
+                return getPlaceholderText(type);
+            }
+
+            const registro = entidadCatalogo[value];
+            if (registro?.label) {
+                return registro.label;
+            }
+
+            const lista = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+            const opcion = lista.find(opt => opt.value === value);
+            return opcion?.text || value;
+        }
 
         // Inicializar menús desplegables
         function initializeCustomSelects() {
@@ -6035,7 +6065,7 @@
             // Actualizar opciones visibles con eventos onclick directos
             if (filteredOptions.length > 0) {
                 items.innerHTML = filteredOptions.map(option =>
-                    `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${option.text.replace(/'/g, "\\'")}')">${option.text}</div>`
+                    `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
                 ).join('');
             } else {
                 items.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No se encontraron resultados</div>';
@@ -6054,65 +6084,73 @@
         }
 
         // Función directa para seleccionar opción y cerrar menú
-        function selectOption(type, value, text) {
-            console.log(`Seleccionando: ${text} (${value})`);
-            
-            // Actualizar el texto seleccionado
-            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
-            selected.textContent = text;
-            selected.classList.add('selected');
-            
-            // Actualizar valor oculto
-            const hiddenInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}`);
-            if (hiddenInput) hiddenInput.value = value;
+        function applySelection(type, value, text, options = {}) {
+            const { skipAutoMatch = false } = options;
+            const target = type === 'padre' ? 'Padre' : 'Hijo';
+            const normalizedValue = value ? String(value) : '';
+            const label = normalizedValue ? (text || getEntityLabelByValue(type, normalizedValue)) : getPlaceholderText(type);
 
-            // Limpiar búsqueda
-            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
-            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
-            searchInput.value = '';
-            clearBtn.classList.remove('visible');
-
-            // 🎯 AUTO-MATCH: Si seleccionó un padre, seleccionar automáticamente la hija correspondiente
-            if (type === 'padre' && value && value !== '') {
-                const padreNumber = value.replace('padre', '');
-                const hijaValue = `hija${padreNumber}`;
-                const hijaOption = entidadesHijoOriginales.find(opt => opt.value === hijaValue);
-                
-                if (hijaOption) {
-                    console.log(`🔗 Auto-matching: Padre ${value} → Hija ${hijaValue}`);
-                    
-                    // Actualizar texto y valor de la hija
-                    const hijaSelected = document.getElementById('entidadHijoSelected');
-                    const hijaHidden = document.getElementById('entidadHijo');
-                    
-                    if (hijaSelected) {
-                        hijaSelected.textContent = hijaOption.text;
-                        hijaSelected.classList.add('selected');
-                    }
-                    
-                    if (hijaHidden) {
-                        hijaHidden.value = hijaValue;
-                    }
-                    
-                    // Limpiar búsqueda de hija
-                    const hijaSearchInput = document.getElementById('entidadHijoSearch');
-                    const hijaClearBtn = hijaSearchInput.parentElement.querySelector('.btn-clear-search');
-                    if (hijaSearchInput) hijaSearchInput.value = '';
-                    if (hijaClearBtn) hijaClearBtn.classList.remove('visible');
+            const selected = document.getElementById(`entidad${target}Selected`);
+            if (selected) {
+                selected.textContent = label;
+                if (normalizedValue) {
+                    selected.classList.add('selected');
+                } else {
+                    selected.classList.remove('selected');
                 }
             }
 
-            // 💾 GUARDAR SELECCIONES EN localStorage
-            saveEntitySelectionsToStorage();
+            const hiddenInput = document.getElementById(`entidad${target}`);
+            if (hiddenInput) {
+                hiddenInput.value = normalizedValue;
+            }
 
-            // Cerrar todos los menús de forma agresiva
+            const searchInput = document.getElementById(`entidad${target}Search`);
+            if (searchInput) {
+                searchInput.value = '';
+                const clearBtn = searchInput.parentElement?.querySelector('.btn-clear-search');
+                if (clearBtn) {
+                    clearBtn.classList.remove('visible');
+                }
+            }
+
+            if (!skipAutoMatch) {
+                if (type === 'padre') {
+                    const children = entidadHijosMap[normalizedValue] || [];
+                    const hiddenChild = document.getElementById('entidadHijo');
+                    const currentChildValue = hiddenChild ? hiddenChild.value : '';
+
+                    if (children.length > 0) {
+                        const alreadySelected = children.some(child => child.value === currentChildValue);
+                        if (!alreadySelected) {
+                            const firstChild = children[0];
+                            applySelection('hijo', firstChild.value, firstChild.text, { skipAutoMatch: true });
+                        }
+                    } else {
+                        applySelection('hijo', '', null, { skipAutoMatch: true });
+                    }
+                } else if (type === 'hijo') {
+                    const registro = entidadCatalogo[normalizedValue];
+                    const parentId = registro?.parentId;
+                    if (parentId) {
+                        const hiddenParent = document.getElementById('entidadPadre');
+                        const currentParentValue = hiddenParent ? hiddenParent.value : '';
+                        if (currentParentValue !== parentId) {
+                            const parentLabel = getEntityLabelByValue('padre', parentId);
+                            applySelection('padre', parentId, parentLabel, { skipAutoMatch: true });
+                        }
+                    }
+                }
+            }
+        }
+
+        function selectOption(type, value, text) {
+            applySelection(type, value, text);
+            saveEntitySelectionsToStorage();
             closeAllDropdowns();
-            
-            // Restaurar opciones después de un breve retraso
             setTimeout(() => {
                 restoreOriginalOptions(type);
             }, 100);
-            
             return false;
         }
 
@@ -6201,7 +6239,7 @@
             }
 
             items.innerHTML = originalOptions.map(option =>
-                `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${option.text.replace(/'/g, "\\'")}')">${option.text}</div>`
+                `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
             ).join('');
             
             console.log('Options rendered successfully');
@@ -6215,76 +6253,114 @@
         // Función actualizada para cargar entidades con menús personalizados
         async function cargarEntidadesConCustomSelects() {
             try {
-                // Cargar entidades padre
-                const entidadesResponse = await API.Entities.getAll();
-                if (entidadesResponse.success && entidadesResponse.data) {
-                    entidadesPadreOriginales = [
-                        { value: '', text: 'Entidad padre...' },
-                        ...entidadesResponse.data.map(entidad => ({
-                            value: entidad.id,
-                            text: entidad.name
-                        }))
-                    ];
-
-                    // Actualizar menú desplegable
-                    const padreItems = document.getElementById('entidadPadreItems');
-                    if (padreItems) {
-                        padreItems.innerHTML = entidadesPadreOriginales.map(option =>
-                            `<div data-value="${option.value}">${option.text}</div>`
-                        ).join('');
-                    }
+                if (!window.API || !window.API.Entities?.getAll) {
+                    console.warn('API.Entities.getAll no disponible');
+                    return;
                 }
 
-                // Cargar entidades hijas (si hay una tabla separada o las mismas)
-                const hijasResponse = await API.Entities.getAll();
-                if (hijasResponse.success && hijasResponse.data) {
-                    entidadesHijoOriginales = [
-                        { value: '', text: 'Entidad hija...' },
-                        ...hijasResponse.data.map(entidad => ({
-                            value: entidad.id,
-                            text: entidad.name
-                        }))
-                    ];
-
-                    // Actualizar menú desplegable
-                    const hijoItems = document.getElementById('entidadHijoItems');
-                    if (hijoItems) {
-                        hijoItems.innerHTML = entidadesHijoOriginales.map(option =>
-                            `<div data-value="${option.value}">${option.text}</div>`
-                        ).join('');
-                    }
+                const response = await API.Entities.getAll();
+                if (!response?.success || !Array.isArray(response.data)) {
+                    throw new Error(response?.error || 'No se recibieron entidades');
                 }
+
+                const entidades = response.data;
+
+                entidadCatalogo = {};
+                entidadHijosMap = {};
+
+                const padres = [];
+                const hijas = [];
+
+                entidades.forEach(entidad => {
+                    const id = entidad?.id ? String(entidad.id) : null;
+                    if (!id) return;
+
+                    const label = formatEntityLabel(entidad);
+                    const relationship = (entidad.relationship_type || '').toLowerCase();
+                    const parentId = entidad.parent_id ? String(entidad.parent_id) : null;
+                    const isChild = Boolean(parentId) || relationship === 'child';
+                    const isParent = relationship === 'parent' || !parentId;
+
+                    entidadCatalogo[id] = {
+                        ...entidad,
+                        label,
+                        parentId,
+                        isParent,
+                        isChild
+                    };
+
+                    if (isParent) {
+                        padres.push({ value: id, text: label });
+                    }
+
+                    if (isChild) {
+                        hijas.push({ value: id, text: label, parentId });
+                        if (parentId) {
+                            if (!entidadHijosMap[parentId]) {
+                                entidadHijosMap[parentId] = [];
+                            }
+                            entidadHijosMap[parentId].push({ value: id, text: label });
+                        }
+                    }
+                });
+
+                padres.sort((a, b) => a.text.localeCompare(b.text, 'es', { sensitivity: 'base' }));
+                hijas.sort((a, b) => a.text.localeCompare(b.text, 'es', { sensitivity: 'base' }));
+
+                entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER, ...padres];
+                entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER, ...hijas];
+
+                restoreOriginalOptions('padre');
+                restoreOriginalOptions('hijo');
+
+                reassignClickEvents('padre');
+                reassignClickEvents('hijo');
+
+                loadEntitySelectionsFromStorage(true);
 
             } catch (error) {
                 console.error('Error cargando entidades:', error);
-                // Mantener opciones estáticas como fallback
-                entidadesPadreOriginales = [
-                    { value: '', text: 'Entidad padre...' },
-                    { value: 'entidad1', text: 'Dirección General' },
-                    { value: 'entidad2', text: 'Subdirección Administrativa' },
-                    { value: 'entidad3', text: 'Subdirección Técnica' },
-                    { value: 'entidad4', text: 'Subdirección Financiera' },
-                    { value: 'entidad5', text: 'Dirección de Recursos Humanos' },
-                    { value: 'entidad6', text: 'Dirección de Finanzas' },
-                    { value: 'entidad7', text: 'Dirección de Operaciones' },
-                    { value: 'entidad8', text: 'Dirección de TI' }
+
+                const fallbackPadres = [
+                    { value: 'padre1', text: 'Dirección General' },
+                    { value: 'padre2', text: 'Subdirección Administrativa' },
+                    { value: 'padre3', text: 'Subdirección Técnica' },
+                    { value: 'padre4', text: 'Dirección de Finanzas' }
                 ];
 
-                entidadesHijoOriginales = [
-                    { value: '', text: 'Entidad hija...' },
-                    { value: 'hijo1', text: 'Departamento de Recursos Humanos' },
-                    { value: 'hijo2', text: 'Departamento de TI' },
-                    { value: 'hijo3', text: 'Departamento de Contabilidad' },
-                    { value: 'hijo4', text: 'Departamento de Operaciones' },
-                    { value: 'hijo5', text: 'Departamento de Compras' },
-                    { value: 'hijo6', text: 'Departamento de Ventas' },
-                    { value: 'hijo7', text: 'Departamento de Marketing' },
-                    { value: 'hijo8', text: 'Departamento de Logística' }
+                const fallbackHijas = [
+                    { value: 'hija1', text: 'Departamento de Recursos Humanos', parentId: 'padre1' },
+                    { value: 'hija2', text: 'Departamento de TI', parentId: 'padre2' },
+                    { value: 'hija3', text: 'Departamento de Contabilidad', parentId: 'padre3' },
+                    { value: 'hija4', text: 'Departamento de Operaciones', parentId: 'padre4' }
                 ];
-                
-                // Actualizar menús con datos estáticos
+
+                entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER, ...fallbackPadres];
+                entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER, ...fallbackHijas];
+
+                entidadCatalogo = {};
+                entidadHijosMap = {};
+
+                entidadesPadreOriginales.forEach(option => {
+                    if (!option.value) return;
+                    entidadCatalogo[option.value] = { label: option.text, parentId: null, isParent: true };
+                });
+
+                entidadesHijoOriginales.forEach(option => {
+                    if (!option.value) return;
+                    entidadCatalogo[option.value] = { label: option.text, parentId: option.parentId || null, isChild: true };
+                    const parentId = option.parentId;
+                    if (parentId) {
+                        if (!entidadHijosMap[parentId]) {
+                            entidadHijosMap[parentId] = [];
+                        }
+                        entidadHijosMap[parentId].push({ value: option.value, text: option.text });
+                    }
+                });
+
                 restoreOriginalOptions('padre');
                 restoreOriginalOptions('hijo');
+                loadEntitySelectionsFromStorage(true);
             }
         }
 
@@ -6292,8 +6368,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             // Inicializar menús desplegables personalizados
             initializeCustomSelects();
-            
-            // Cargar datos iniciales inmediatamente
+
             restoreOriginalOptions('padre');
             restoreOriginalOptions('hijo');
             
@@ -6434,13 +6509,13 @@
         function saveEntitySelectionsToStorage() {
             try {
                 const padreValue = document.getElementById('entidadPadre')?.value || '';
-                const padreText = document.getElementById('entidadPadreSelected')?.textContent || '';
                 const hijaValue = document.getElementById('entidadHijo')?.value || '';
-                const hijaText = document.getElementById('entidadHijoSelected')?.textContent || '';
+                const padreLabel = padreValue ? getEntityLabelByValue('padre', padreValue) : getPlaceholderText('padre');
+                const hijaLabel = hijaValue ? getEntityLabelByValue('hijo', hijaValue) : getPlaceholderText('hijo');
 
                 const selections = {
-                    padre: { value: padreValue, text: padreText },
-                    hija: { value: hijaValue, text: hijaText },
+                    padre: { value: padreValue, text: padreLabel },
+                    hija: { value: hijaValue, text: hijaLabel },
                     timestamp: new Date().toISOString()
                 };
 
@@ -6452,7 +6527,7 @@
         }
 
         // Función para cargar las selecciones guardadas desde localStorage
-        function loadEntitySelectionsFromStorage() {
+        function loadEntitySelectionsFromStorage(reapply = false) {
             try {
                 const saved = localStorage.getItem('formularios_entity_selections');
                 if (!saved) {
@@ -6463,29 +6538,13 @@
                 const selections = JSON.parse(saved);
                 console.log('📂 Cargando selecciones guardadas:', selections);
 
-                // Restaurar selección del padre
-                if (selections.padre && selections.padre.value) {
-                    const padreSelected = document.getElementById('entidadPadreSelected');
-                    const padreHidden = document.getElementById('entidadPadre');
-                    
-                    if (padreSelected && padreHidden) {
-                        padreSelected.textContent = selections.padre.text;
-                        padreSelected.classList.add('selected');
-                        padreHidden.value = selections.padre.value;
-                    }
-                }
+                const padreValue = selections.padre?.value || '';
+                const padreText = reapply ? null : (selections.padre?.text || null);
+                applySelection('padre', padreValue, padreText, { skipAutoMatch: true });
 
-                // Restaurar selección de la hija
-                if (selections.hija && selections.hija.value) {
-                    const hijaSelected = document.getElementById('entidadHijoSelected');
-                    const hijaHidden = document.getElementById('entidadHijo');
-                    
-                    if (hijaSelected && hijaHidden) {
-                        hijaSelected.textContent = selections.hija.text;
-                        hijaSelected.classList.add('selected');
-                        hijaHidden.value = selections.hija.value;
-                    }
-                }
+                const hijaValue = selections.hija?.value || '';
+                const hijaText = reapply ? null : (selections.hija?.text || null);
+                applySelection('hijo', hijaValue, hijaText, { skipAutoMatch: false });
 
                 return true;
             } catch (error) {
@@ -11089,9 +11148,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para guardar el formulario B400
         function guardarFormularioB400() {
-            // Aquí puedes agregar la lógica para guardar los datos del formulario
-            showNotification('Formulario B400 guardado correctamente', 'success');
-            cerrarFormularioB400();
+            // Recopilar datos del formulario B400
+            const datosFormulario = {
+                fecha: document.getElementById('b400_fecha')?.value || '',
+                hora: document.getElementById('b400_hora')?.value || '',
+                participantes: document.getElementById('b400_participantes')?.value || '',
+                tema: document.getElementById('b400_tema')?.value || '',
+                notas: document.getElementById('b400_notas')?.value || ''
+            };
+            
+            console.log('Datos del formulario B400:', datosFormulario);
+            
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('B400', 'Reunión Inicial y Planificación', datosFormulario);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario B400 guardado localmente', 'warning');
+                cerrarFormularioB400();
+            }
         }
         
         // Función para toggle de documentación preferida
@@ -11329,6 +11404,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Agregar el modal al body
             document.body.appendChild(modal);
+
+            // Pre-cargar respuestas guardadas si existen
+            cargarRespuestasGuardadasA100();
             
             // Forzar reflow y mostrar el modal
             modal.offsetHeight; // Forzar reflow
@@ -11347,7 +11425,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para guardar el formulario A100
-        function guardarFormularioA100() {
+        async function guardarFormularioA100() {
             // Recopilar todas las respuestas
             const respuestas = {};
             for (let i = 1; i <= 6; i++) {
@@ -11356,10 +11434,38 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
             
             console.log('Respuestas del formulario A100:', respuestas);
-            showNotification('Formulario A100 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA100();
+            // Guardar en la base de datos usando la nueva función de Supabase
+            try {
+                await guardarFormularioEnBD('A100', 'Lista de verificación del Optimizador - Decisiones iniciales de compromiso', respuestas);
+                cerrarFormularioA100();
+            } catch (error) {
+                console.error('❌ Error guardando formulario A100:', error);
+                showNotification('Error al guardar formulario A100', 'error');
+            }
+        }
+
+        // Cargar respuestas guardadas para A100 y marcarlas en la UI
+        async function cargarRespuestasGuardadasA100() {
+            try {
+                const guardado = await getFormularioGuardado('A100');
+                if (!guardado || !guardado.form_data) return;
+
+                const data = guardado.form_data;
+                for (let i = 1; i <= 6; i++) {
+                    const valor = data[`q${i}`];
+                    if (!valor || valor === 'no_respondido') continue;
+
+                    const input = document.querySelector(`input[name="a100_q${i}"][value="${valor}"]`);
+                    if (input) {
+                        input.checked = true;
+                    }
+                }
+
+                console.log('✅ Respuestas A100 precargadas en la UI');
+            } catch (error) {
+                console.error('❌ No se pudieron cargar respuestas guardadas de A100:', error);
+            }
         }
         
         // Función para mostrar el formulario A200
@@ -12186,10 +12292,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
             
             console.log('Respuestas del formulario A200:', respuestas);
-            showNotification('Formulario A200 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA200();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('A200', 'Independencia y Carta de Confidencialidad', respuestas);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario A200 guardado localmente', 'warning');
+                cerrarFormularioA200();
+            }
         }
         
         // Función para mostrar el formulario A300
@@ -12782,10 +12893,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
             
             console.log('Respuestas del formulario A300:', respuestas);
-            showNotification('Formulario A300 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA300();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('A300', 'Evaluación de Riesgos y Documentación', respuestas);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario A300 guardado localmente', 'warning');
+                cerrarFormularioA300();
+            }
         }
         
         // Función para mostrar el formulario A360
@@ -13752,10 +13868,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
             
             console.log('Respuestas del formulario A360:', respuestas);
-            showNotification('Formulario A360 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA360();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('A360', 'Modificaciones al Compromiso', respuestas);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario A360 guardado localmente', 'warning');
+                cerrarFormularioA360();
+            }
         }
 
         // Función para controlar el dropdown multiselección
@@ -19290,10 +19411,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
             
             console.log('Respuestas del formulario A400:', respuestas);
-            showNotification('Formulario A400 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA400();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('A400', 'Revisión del Compromiso y Planificación', respuestas);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario A400 guardado localmente', 'warning');
+                cerrarFormularioA400();
+            }
         }
 
         // Función para mostrar el formulario B100
@@ -19709,10 +19835,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
 
             console.log('Datos del formulario B100:', datosFormulario);
-            showNotification('Formulario B100 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioB100();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('B100', 'Comprensión de la Entidad y su Entorno', datosFormulario);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario B100 guardado localmente', 'warning');
+                cerrarFormularioB100();
+            }
         }
 
         // Función para mostrar el formulario B200
@@ -20990,10 +21121,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
 
             console.log('Datos del formulario B200:', datosFormulario);
-            showNotification('Formulario B200 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioB200();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('B200', 'Entidad y Entorno - Información General', datosFormulario);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario B200 guardado localmente', 'warning');
+                cerrarFormularioB200();
+            }
         }
 
         // Función para mostrar el formulario A500
@@ -21407,10 +21543,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
             
             console.log('Datos del formulario A500:', datosFormulario);
-            showNotification('Formulario A500 guardado correctamente', 'success');
             
-            // Cerrar el modal
-            cerrarFormularioA500();
+            // Guardar en la base de datos usando el sistema de subdocumentos
+            if (window.subcategoriasManager) {
+                guardarFormularioEnBD('A500', 'Materialidad y Equipo del Trabajo', datosFormulario);
+            } else {
+                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                showNotification('Formulario A500 guardado localmente', 'warning');
+                cerrarFormularioA500();
+            }
         }
 
         // Funciones para los botones de bases
@@ -24870,6 +25011,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     <!-- 8. Scripts específicos de formularios -->
     <script src="/js/database-api.js"></script>
     <script src="/js/subcategorias-data.js"></script>
+    <script src="/js/formularios-api.js"></script>
     <script>
         // Verificar que database-api.js se cargó correctamente
         console.log('Verificando carga de database-api.js...');
@@ -26026,5 +26168,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
     </script>
 
+    
 </body>
 </html>

@@ -559,11 +559,68 @@ app.get('/api/entities/:id', async (req, res) => {
 
 // Create a new entity
 app.post('/api/entities', async (req, res) => {
-    const { name, entity_id, description, status } = req.body;
+    const body = req.body || {};
+    const {
+        name,
+        entity_id,
+        description,
+        status = 'activa',
+        country = null,
+        address = null,
+        email = null,
+        phone = null,
+        encargado = null,
+        responsible = null,
+        is_group = false,
+        relationship_type = 'none',
+        parent_id = null,
+        metadata = null,
+        created_by = null
+    } = body;
+
+    const payload = {
+        name,
+        entity_id: entity_id || null,
+        description: description || null,
+        status: status || 'activa',
+        country,
+        address,
+        email,
+        phone,
+        encargado,
+        responsible: responsible || encargado || null,
+        is_group: typeof is_group === 'boolean' ? is_group : Boolean(is_group),
+        relationship_type: relationship_type || 'none',
+        parent_id: parent_id || null,
+        metadata,
+        created_by: created_by || null
+    };
+
+    if (!payload.name) {
+        return res.status(400).json({ success: false, error: 'El nombre de la entidad es obligatorio' });
+    }
+
+    if (!payload.metadata) {
+        payload.metadata = {
+            country,
+            address,
+            email,
+            phone,
+            encargado: payload.encargado,
+            es_grupo: payload.is_group,
+            relationship_type: payload.relationship_type,
+            parent_id: payload.parent_id
+        };
+    }
+
+    if (!payload.created_by) {
+        delete payload.created_by;
+    }
+
     try {
         const { data, error } = await supabase
             .from('entities')
-            .insert([{ name, entity_id, description, status: status || 'activo' }])
+            .insert([payload])
             .select();
 
         if (error) throw error;
@@ -577,11 +634,59 @@ app.post('/api/entities', async (req, res) => {
 // Update an entity
 app.put('/api/entities/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, entity_id, description, status } = req.body;
+    const body = req.body || {};
+    const {
+        name,
+        entity_id,
+        description,
+        status,
+        country,
+        address,
+        email,
+        phone,
+        encargado,
+        responsible,
+        is_group,
+        relationship_type,
+        parent_id,
+        metadata
+    } = body;
+
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (entity_id !== undefined) updates.entity_id = entity_id;
+    if (description !== undefined) updates.description = description;
+    if (status !== undefined) updates.status = status;
+    if (country !== undefined) updates.country = country;
+    if (address !== undefined) updates.address = address;
+    if (email !== undefined) updates.email = email;
+    if (phone !== undefined) updates.phone = phone;
+    if (encargado !== undefined) updates.encargado = encargado;
+    if (responsible !== undefined || encargado !== undefined) {
+        updates.responsible = responsible !== undefined ? responsible : encargado;
+    }
+    if (is_group !== undefined) updates.is_group = is_group;
+    if (relationship_type !== undefined) updates.relationship_type = relationship_type;
+    if (parent_id !== undefined) updates.parent_id = parent_id;
+    if (metadata !== undefined) {
+        updates.metadata = metadata;
+    } else {
+        updates.metadata = {
+            country: country ?? null,
+            address: address ?? null,
+            email: email ?? null,
+            phone: phone ?? null,
+            encargado: (encargado ?? responsible) ?? null,
+            es_grupo: is_group ?? null,
+            relationship_type: relationship_type ?? null,
+            parent_id: parent_id ?? null
+        };
+    }
+
     try {
         const { data, error } = await supabase
             .from('entities')
-            .update({ name, entity_id, description, status })
+            .update(updates)
             .eq('id', id)
             .select();
 
@@ -6693,6 +6798,140 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/subdocuments:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// ============================================
+// ENDPOINTS PARA FORMULARIOS
+// ============================================
+
+// Guardar formulario
+app.post('/api/formularios/save', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { form_id, form_title, form_data, subdocument_id, metadata } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!form_id || !form_title || !form_data) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_id, form_title, form_data' });
+        }
+        
+        console.log(`💾 Guardando formulario: ${form_id} - ${form_title}`);
+        
+        const { data: formulario, error } = await supabase
+            .from('form_responses')
+            .insert([{
+                form_id,
+                form_title,
+                form_data: form_data,
+                subdocument_id: subdocument_id || null,
+                created_by: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error guardando formulario:', error);
+            return res.status(500).json({ success: false, error: 'Error al guardar el formulario' });
+        }
+        
+        console.log('✅ Formulario guardado exitosamente');
+        res.json({
+            success: true,
+            message: 'Formulario guardado exitosamente',
+            formulario
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/save:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener un formulario por ID y tipo
+app.post('/api/formularios/get', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { form_id, subdocument_id } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!form_id) {
+            return res.status(400).json({ success: false, error: 'Falta el campo form_id' });
+        }
+        
+        console.log(`🔍 Obteniendo formulario: ${form_id}`);
+        
+        let query = supabase
+            .from('form_responses')
+            .select('*')
+            .eq('form_id', form_id)
+            .eq('created_by', userId);
+            
+        if (subdocument_id) {
+            query = query.eq('subdocument_id', subdocument_id);
+        }
+        
+        const { data: formulario, error } = await query
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.error('❌ Error obteniendo formulario:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el formulario' });
+        }
+        
+        console.log(formulario ? '✅ Formulario encontrado' : 'ℹ️ No se encontró formulario');
+        res.json({
+            success: true,
+            formulario: formulario || null
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/get:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Listar todos los formularios del usuario
+app.get('/api/formularios/list', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        console.log(`🔍 Listando formularios del usuario: ${userId}`);
+        
+        const { data: formularios, error } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('created_by', userId)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('❌ Error listando formularios:', error);
+            return res.status(500).json({ success: false, error: 'Error al listar los formularios' });
+        }
+        
+        console.log(`✅ ${formularios?.length || 0} formularios encontrados`);
+        res.json({
+            success: true,
+            formularios: formularios || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/list:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
