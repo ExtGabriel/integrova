@@ -387,13 +387,12 @@
                     const icon = this.getDocumentIcon(doc.tipo);
                     html += `
                         <div class="document-row" data-id="${doc.id}">
-                            <div class="document-row-main">
+                            <div class="document-row-main" onclick="viewSubdocument(${doc.id})" style="cursor: pointer;">
                                 <i class="bi ${icon}"></i>
                                 <span class="document-title">${doc.titulo}</span>
                                 <span class="document-type">${doc.tipo}</span>
                             </div>
                             <div class="document-row-actions">
-                                <button class="btn-view" onclick="viewSubdocument(${doc.id})" title="Ver"><i class="bi bi-eye"></i></button>
                                 <button class="btn-edit" onclick="editSubdocument(${doc.id})" title="Editar"><i class="bi bi-pencil"></i></button>
                                 <button class="btn-delete" onclick="deleteSubdocument(${doc.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
                             </div>
@@ -704,6 +703,32 @@
         }
     };
 
+    window.viewSubdocument = async (docId) => {
+        try {
+            console.log('👁️ Iniciando vista de documento:', docId);
+            
+            // Obtener datos del documento
+            const docData = await window.subcategoriasManager.getSubdocument(docId);
+            console.log('📄 Datos del documento obtenidos:', docData);
+            
+            // Si es una hoja de trabajo, redirigir a la página especializada
+            if (docData.tipo === 'hoja-trabajo') {
+                console.log('🔄 Redirigiendo a página de hojas de trabajo...');
+                window.location.href = 'hojas-trabajo.html';
+                return;
+            }
+            
+            // Para otros tipos de documentos, aquí podrías implementar la lógica de visualización
+            console.log('📄 Visualizando documento de tipo:', docData.tipo);
+            // TODO: Implementar visualización para otros tipos de documentos
+            
+        } catch (error) {
+            console.error('❌ Error al ver documento:', error);
+            console.error('📍 Stack trace:', error.stack);
+            alert('Error al ver el documento: ' + error.message);
+        }
+    };
+
     window.editSubdocument = async (docId) => {
         try {
             console.log('🔧 Iniciando edición de documento:', docId);
@@ -711,6 +736,13 @@
             // Obtener datos del documento
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
+            
+            // Si es una hoja de trabajo, redirigir a la página especializada
+            if (docData.tipo === 'hoja-trabajo') {
+                console.log('🔄 Redirigiendo a página de hojas de trabajo para editar...');
+                window.location.href = 'hojas-trabajo.html';
+                return;
+            }
             
             // Abrir modal con los datos del documento
             openEditDocumentModal(docData);
