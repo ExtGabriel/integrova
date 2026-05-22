@@ -396,8 +396,13 @@
             <div id="menuBar" class="menu-bar" style="display: none;">
                 <div class="menu-left">
                     <div class="menu-logo">
-                        <i class="bi bi-play-circle"></i>
-                        <span>PRUEBA</span>
+                        <div class="commitment-dropdown" id="commitmentDropdown">
+                            <button type="button" class="commitment-dropdown-toggle" id="commitmentDropdownToggle" aria-haspopup="true" aria-expanded="false">
+                                <span id="commitmentDropdownLabel">Selecciona un compromiso</span>
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            <div class="commitment-dropdown-menu" id="commitmentDropdownMenu" role="menu" aria-labelledby="commitmentDropdownToggle"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -4814,7 +4819,29 @@
 
         async function getLedgerDataFromLatestExcel() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                // Obtener contexto actual de entidad/compromiso
+                const currentEntity = commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                
+                // Construir URL con contexto
+                let apiUrl = `${API_BASE_URL}/api/excel/latest`;
+                const params = new URLSearchParams();
+                
+                if (currentEntity) {
+                    params.append('entity_id', currentEntity);
+                }
+                if (currentCommitment) {
+                    params.append('commitment_id', currentCommitment);
+                }
+                params.append('user-id', getCurrentUserId());
+                
+                if (params.toString()) {
+                    apiUrl += '?' + params.toString();
+                }
+                
+                console.log(`📊 Obteniendo datos Excel para entidad: ${currentEntity}, compromiso: ${currentCommitment}`);
+                
+                const response = await fetch(apiUrl, {
                     headers: {
                         'user-id': getCurrentUserId()
                     }
@@ -5890,6 +5917,698 @@
         let entidadCatalogo = {};
         let entidadHijosMap = {};
 
+        const COMMITMENTS_CACHE_TTL = 60 * 1000;
+        const commitmentDropdownState = {
+            cache: null,
+            cacheTimestamp: 0,
+            selectedCommitmentId: null,
+            selectedCommitmentName: '',
+            currentEntityId: null,
+            initialized: false
+        };
+
+        // Sistema de datos por entidad/compromiso
+        const formDataManager = {
+            // Clave para identificar la instancia actual
+            currentKey: null,
+            
+            // Obtener clave única para entidad/compromiso
+            getKey(entityId, commitmentId = null) {
+                return commitmentId ? `commitment_${commitmentId}` : `entity_${entityId}`;
+            },
+            
+            // Guardar todos los datos del formulario actual
+            async saveFormData() {
+                if (!this.currentKey) return;
+                
+                const formData = this.collectFormData();
+                const entityId = this.currentKey?.startsWith('entity_') ? 
+                    this.currentKey.replace('entity_', '') : null;
+                const commitmentId = this.currentKey?.startsWith('commitment_') ? 
+                    this.currentKey.replace('commitment_', '') : null;
+                
+                try {
+                    if (window.saveFormData) {
+                        await window.saveFormData(formData, entityId, commitmentId);
+                        console.log('💾 Datos guardados para:', this.currentKey);
+                    } else {
+                        // Fallback a localStorage si API no está disponible
+                        localStorage.setItem(`formData_${this.currentKey}`, JSON.stringify(formData));
+                        console.log('💾 Datos guardados en localStorage (fallback) para:', this.currentKey);
+                    }
+                } catch (error) {
+                    console.error('❌ Error guardando datos del formulario:', error);
+                    // Fallback a localStorage en caso de error
+                    localStorage.setItem(`formData_${this.currentKey}`, JSON.stringify(formData));
+                    console.log('💾 Datos guardados en localStorage (fallback tras error) para:', this.currentKey);
+                }
+            },
+            
+            // Cargar datos para una entidad/compromiso específico
+            async loadFormData(entityId, commitmentId = null) {
+                const key = this.getKey(entityId, commitmentId);
+                this.currentKey = key;
+                
+                try {
+                    if (window.loadFormData) {
+                        const formData = await window.loadFormData(entityId, commitmentId);
+                        if (formData) {
+                            this.populateFormData(formData);
+                            console.log('📂 Datos cargados desde API para:', key);
+                            return true;
+                        }
+                    }
+                    
+                    // Fallback a localStorage si API no está disponible o no hay datos
+                    const savedData = localStorage.getItem(`formData_${key}`);
+                    if (savedData) {
+                        const formData = JSON.parse(savedData);
+                        this.populateFormData(formData);
+                        console.log('📂 Datos cargados desde localStorage (fallback) para:', key);
+                        return true;
+                    }
+                    
+                    console.log('🆓 No hay datos guardados para:', key, '- usando formulario vacío');
+                    this.clearFormData();
+                    return false;
+                } catch (error) {
+                    console.error('❌ Error cargando datos del formulario:', error);
+                    
+                    // Fallback a localStorage en caso de error
+                    const savedData = localStorage.getItem(`formData_${key}`);
+                    if (savedData) {
+                        const formData = JSON.parse(savedData);
+                        this.populateFormData(formData);
+                        console.log('📂 Datos cargados desde localStorage (fallback tras error) para:', key);
+                        return true;
+                    }
+                    
+                    console.log('🆓 No hay datos guardados para:', key, '- usando formulario vacío');
+                    this.clearFormData();
+                    return false;
+                }
+            },
+            
+            // Recolectar todos los datos del formulario
+            collectFormData() {
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    sections: {}
+                };
+                
+                // Recolectar datos de cada sección del formulario
+                const sections = ['planificacion', 'evaluacion-riesgo', 'respuesta-riesgo', 'planes-procedimientos', 'documentos-cierre'];
+                
+                sections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        data.sections[sectionId] = this.extractSectionData(section);
+                    }
+                });
+                
+                // Datos adicionales
+                data.commitmentId = commitmentDropdownState.selectedCommitmentId;
+                data.entityId = this.currentKey?.startsWith('entity_') ? 
+                    this.currentKey.replace('entity_', '') : null;
+                
+                return data;
+            },
+            
+            // Extraer datos de una sección específica
+            extractSectionData(section) {
+                const data = {};
+                
+                // Extraer inputs de texto
+                section.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea').forEach(input => {
+                    if (input.id || input.name) {
+                        data[input.id || input.name] = input.value;
+                    }
+                });
+                
+                // Extraer selects
+                section.querySelectorAll('select').forEach(select => {
+                    if (select.id || select.name) {
+                        data[select.id || select.name] = select.value;
+                    }
+                });
+                
+                // Extraer checkboxes
+                section.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    if (checkbox.id || checkbox.name) {
+                        data[checkbox.id || checkbox.name] = checkbox.checked;
+                    }
+                });
+                
+                // Extraer TinyMCE content si existe
+                if (window.tinymce) {
+                    section.querySelectorAll('.tinymce-editor').forEach(editor => {
+                        const editorInstance = tinymce.get(editor.id);
+                        if (editorInstance) {
+                            data[editor.id] = editorInstance.getContent();
+                        }
+                    });
+                }
+                
+                return data;
+            },
+            
+            // Poblar el formulario con datos guardados
+            populateFormData(formData) {
+                if (!formData.sections) return;
+                
+                // Limpiar formulario primero
+                this.clearFormData();
+                
+                // Poblar cada sección
+                Object.entries(formData.sections).forEach(([sectionId, sectionData]) => {
+                    const section = document.getElementById(sectionId);
+                    if (section && sectionData) {
+                        this.populateSectionData(section, sectionData);
+                    }
+                });
+                
+                // Restaurar estado de dropdowns
+                Object.keys(formData.sections || {}).forEach(sectionId => {
+                    const arrow = document.getElementById(`${sectionId}-arrow`);
+                    if (arrow && formData.sections[sectionId].isExpanded) {
+                        arrow.classList.remove('bi-chevron-down');
+                        arrow.classList.add('bi-chevron-up');
+                    }
+                });
+            },
+            
+            // Poblar datos de una sección específica
+            populateSectionData(section, data) {
+                // Poblar inputs de texto
+                Object.entries(data).forEach(([key, value]) => {
+                    const element = section.querySelector(`#${key}, [name="${key}"]`);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = value;
+                        } else if (element.tagName === 'TEXTAREA' && element.classList.contains('tinymce-editor')) {
+                            // TinyMCE se manejará después de que se inicialice
+                            setTimeout(() => {
+                                const editor = tinymce.get(element.id);
+                                if (editor && value) {
+                                    editor.setContent(value);
+                                }
+                            }, 500);
+                        } else {
+                            element.value = value;
+                        }
+                    }
+                });
+            },
+            
+            // Limpiar/resetear el formulario
+            clearFormData() {
+                const sections = ['planificacion', 'evaluacion-riesgo', 'respuesta-riesgo', 'planes-procedimientos', 'documentos-cierre'];
+                
+                sections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        // Limpiar inputs
+                        section.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea, select').forEach(input => {
+                            if (input.type === 'checkbox') {
+                                input.checked = false;
+                            } else {
+                                input.value = '';
+                            }
+                        });
+                        
+                        // Limpiar TinyMCE
+                        if (window.tinymce) {
+                            section.querySelectorAll('.tinymce-editor').forEach(editor => {
+                                const editorInstance = tinymce.get(editor.id);
+                                if (editorInstance) {
+                                    editorInstance.setContent('');
+                                }
+                            });
+                        }
+                    }
+                });
+                
+                // Resetear estado de dropdowns
+                document.querySelectorAll('.dropdown-arrow').forEach(arrow => {
+                    arrow.classList.remove('bi-chevron-up');
+                    arrow.classList.add('bi-chevron-down');
+                });
+                
+                console.log('🧹 Formulario limpiado');
+            },
+            
+            // Cambiar a una nueva entidad/compromiso
+            async switchTo(entityId, commitmentId = null) {
+                // Guardar datos actuales antes de cambiar
+                if (this.currentKey) {
+                    await this.saveFormData();
+                }
+                
+                // Limpiar cache de datos del contexto anterior
+                entityDataManager.clearContextData();
+                
+                // Cargar datos nuevos
+                await this.loadFormData(entityId, commitmentId);
+                
+                // Filtrar archivos para el nuevo contexto
+                entityFileManager.filterFilesInUI();
+                
+                // Recargar secciones de datos para el nuevo contexto
+                setTimeout(() => {
+                    entityDataManager.reloadAllSections();
+                }, 500);
+            },
+            
+            // Inicializar auto-guardado
+            initAutoSave() {
+                let saveTimeout;
+                
+                // Función de guardado con debounce
+                const scheduleSave = () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(async () => {
+                        await this.saveFormData();
+                    }, 1000); // Guardar después de 1 segundo de inactividad
+                };
+                
+                // Agregar listeners a todos los inputs del formulario
+                const sections = ['planificacion', 'evaluacion-riesgo', 'respuesta-riesgo', 'planes-procedimientos', 'documentos-cierre'];
+                
+                sections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        // Inputs y textareas
+                        section.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], textarea, select').forEach(element => {
+                            element.addEventListener('input', scheduleSave);
+                            element.addEventListener('change', scheduleSave);
+                        });
+                        
+                        // Checkboxes
+                        section.querySelectorAll('input[type="checkbox"]').forEach(element => {
+                            element.addEventListener('change', scheduleSave);
+                        });
+                        
+                        // TinyMCE editors
+                        if (window.tinymce) {
+                            section.querySelectorAll('.tinymce-editor').forEach(editor => {
+                                // Esperar a que TinyMCE se inicialice
+                                const checkEditor = () => {
+                                    const editorInstance = tinymce.get(editor.id);
+                                    if (editorInstance) {
+                                        editorInstance.on('input', scheduleSave);
+                                        editorInstance.on('change', scheduleSave);
+                                    } else {
+                                        setTimeout(checkEditor, 100);
+                                    }
+                                };
+                                checkEditor();
+                            });
+                        }
+                    }
+                });
+                
+                console.log('🔄 Auto-guardado inicializado');
+            }
+        };
+
+        function normalizeValue(value) {
+            return value === null || value === undefined ? '' : String(value).trim();
+        }
+
+        function getEntityLookupData(entityId) {
+            const normalizedId = normalizeValue(entityId);
+            const record = normalizedId ? entidadCatalogo[normalizedId] : null;
+            let displayName = '';
+
+            if (record) {
+                displayName =
+                    normalizeValue(record.name) ||
+                    normalizeValue(record.label) ||
+                    normalizeValue(record.text) ||
+                    normalizeValue(record.commercial_name) ||
+                    normalizeValue(record.legal_name);
+            }
+
+            if (!displayName && normalizedId) {
+                const fallback = entidadesHijoOriginales.find(opt => normalizeValue(opt.value) === normalizedId);
+                if (fallback) {
+                    displayName = normalizeValue(fallback.text);
+                }
+            }
+
+            if (!displayName && normalizedId && typeof getEntityLabelByValue === 'function') {
+                displayName = normalizeValue(getEntityLabelByValue('hijo', normalizedId));
+            }
+
+            const cleanName = displayName.includes('(')
+                ? displayName.split('(')[0].trim()
+                : displayName;
+
+            return {
+                id: normalizedId,
+                idLower: normalizedId.toLowerCase(),
+                name: displayName,
+                nameLower: cleanName.trim().toLowerCase()
+            };
+        }
+
+        function getCommitmentName(commitment) {
+            if (!commitment) return 'Compromiso sin nombre';
+
+            const candidates = [
+                commitment.name,
+                commitment.title,
+                commitment.commitment_name,
+                commitment.description,
+                commitment.label
+            ];
+
+            for (const value of candidates) {
+                const normalized = normalizeValue(value);
+                if (normalized) {
+                    return normalized;
+                }
+            }
+
+            return 'Compromiso sin nombre';
+        }
+
+        function matchesEntityForDropdown(commitment, lookup) {
+            if (!commitment || !lookup) return false;
+            const { idLower, nameLower } = lookup;
+            
+            // Debug logging para identificar problemas de matching
+            console.log('🔍 Debug - Comparando compromiso:', {
+                commitment: {
+                    entity_id: commitment.entity_id,
+                    entityId: commitment.entityId,
+                    entityID: commitment.entityID,
+                    entity_uuid: commitment.entity_uuid,
+                    'entities.id': commitment.entities?.id,
+                    'entities.entity_id': commitment.entities?.entity_id,
+                    'entity.id': commitment.entity?.id,
+                    entity_name: commitment.entity_name,
+                    entityName: commitment.entityName,
+                    entity_label: commitment.entity_label,
+                    entity: commitment.entity,
+                    'entities.name': commitment.entities?.name,
+                    'entities.label': commitment.entities?.label,
+                    'entity.name': commitment.entity?.name
+                },
+                lookup: { idLower, nameLower }
+            });
+
+            const idCandidates = [
+                commitment.entity_id,
+                commitment.entityId,
+                commitment.entityID,
+                commitment.entity_uuid,
+                commitment.entities?.id,
+                commitment.entities?.entity_id,
+                commitment.entity?.id
+            ];
+
+            for (const candidate of idCandidates) {
+                const normalized = normalizeValue(candidate);
+                if (normalized && idLower && normalized.toLowerCase() === idLower) {
+                    console.log('✅ Match encontrado por ID:', { candidate, normalized, idLower });
+                    return true;
+                }
+            }
+
+            if (!nameLower) {
+                return false;
+            }
+
+            const nameCandidates = [
+                commitment.entity_name,
+                commitment.entityName,
+                commitment.entity_label,
+                commitment.entity,
+                commitment.entities?.name,
+                commitment.entities?.label,
+                commitment.entity?.name
+            ];
+
+            for (const candidate of nameCandidates) {
+                const normalized = normalizeValue(candidate);
+                if (normalized && normalized.toLowerCase() === nameLower) {
+                    console.log('✅ Match encontrado por nombre:', { candidate, normalized, nameLower });
+                    return true;
+                }
+            }
+
+            console.log('❌ No se encontró match para el compromiso');
+            return false;
+        }
+
+        async function loadAllCommitments(force = false) {
+            if (!window.API?.Commitments?.list) {
+                console.warn('⚠️ API.Commitments.list no disponible');
+                return [];
+            }
+
+            const now = Date.now();
+            if (
+                !force &&
+                commitmentDropdownState.cache &&
+                now - commitmentDropdownState.cacheTimestamp < COMMITMENTS_CACHE_TTL
+            ) {
+                return commitmentDropdownState.cache;
+            }
+
+            try {
+                const response = await window.API.Commitments.list();
+                if (response?.success === false) {
+                    throw new Error(response.error || 'Error al obtener compromisos');
+                }
+
+                const data = Array.isArray(response?.data)
+                    ? response.data
+                    : Array.isArray(response)
+                        ? response
+                        : [];
+
+                commitmentDropdownState.cache = data;
+                commitmentDropdownState.cacheTimestamp = now;
+                return data;
+            } catch (error) {
+                console.error('❌ Error obteniendo compromisos:', error);
+                commitmentDropdownState.cacheTimestamp = 0;
+                commitmentDropdownState.cache = null;
+                throw error;
+            }
+        }
+
+        function closeCommitmentDropdownMenu() {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const toggle = document.getElementById('commitmentDropdownToggle');
+            if (menu) {
+                menu.classList.remove('show');
+            }
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function selectCommitmentFromDropdown(commitmentId, commitmentName) {
+            const label = document.getElementById('commitmentDropdownLabel');
+            const menu = document.getElementById('commitmentDropdownMenu');
+
+            commitmentDropdownState.selectedCommitmentId = normalizeValue(commitmentId) || null;
+            commitmentDropdownState.selectedCommitmentName = normalizeValue(commitmentName);
+
+            if (label) {
+                label.textContent = commitmentDropdownState.selectedCommitmentName || 'Selecciona un compromiso';
+            }
+            
+            // Cambiar a los datos de este compromiso si hay uno seleccionado
+            if (commitmentId) {
+                console.log('🔄 Cambiando a compromiso:', commitmentId);
+                formDataManager.switchTo(null, commitmentId);
+            } else {
+                // Si no hay compromiso, usar la entidad actual
+                const entityValue = commitmentDropdownState.currentEntityId;
+                if (entityValue) {
+                    console.log('🔄 Volviendo a entidad:', entityValue);
+                    formDataManager.switchTo(entityValue);
+                }
+            }
+
+            if (menu) {
+                Array.from(menu.querySelectorAll('.commitment-dropdown-item')).forEach(item => {
+                    const itemId = normalizeValue(item.dataset.commitmentId);
+                    if (itemId && itemId === commitmentDropdownState.selectedCommitmentId) {
+                        item.classList.add('is-selected');
+                    } else {
+                        item.classList.remove('is-selected');
+                    }
+                });
+            }
+
+            closeCommitmentDropdownMenu();
+        }
+
+        function setupCommitmentDropdown() {
+            if (commitmentDropdownState.initialized) return;
+
+            const dropdown = document.getElementById('commitmentDropdown');
+            const toggle = document.getElementById('commitmentDropdownToggle');
+            const menu = document.getElementById('commitmentDropdownMenu');
+
+            if (!dropdown || !toggle || !menu) {
+                return;
+            }
+
+            commitmentDropdownState.initialized = true;
+
+            toggle.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (toggle.disabled || toggle.getAttribute('aria-disabled') === 'true') {
+                    return;
+                }
+
+                const isOpen = menu.classList.toggle('show');
+                toggle.setAttribute('aria-expanded', String(isOpen));
+            });
+
+            menu.addEventListener('click', event => {
+                const item = event.target.closest('.commitment-dropdown-item');
+                if (!item) return;
+                event.preventDefault();
+                const commitmentId = item.dataset.commitmentId || '';
+                const commitmentName = item.dataset.commitmentName || item.textContent || '';
+                selectCommitmentFromDropdown(commitmentId, commitmentName);
+            });
+
+            document.addEventListener('click', event => {
+                if (!dropdown.contains(event.target)) {
+                    closeCommitmentDropdownMenu();
+                }
+            });
+        }
+
+        async function updateCommitmentDropdown(entityId, options = {}) {
+            setupCommitmentDropdown();
+
+            const dropdown = document.getElementById('commitmentDropdown');
+            const toggle = document.getElementById('commitmentDropdownToggle');
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const label = document.getElementById('commitmentDropdownLabel');
+
+            if (!dropdown || !toggle || !menu || !label) {
+                return;
+            }
+
+            closeCommitmentDropdownMenu();
+
+            const normalizedId = normalizeValue(entityId);
+            const previousEntityId = commitmentDropdownState.currentEntityId;
+            commitmentDropdownState.currentEntityId = normalizedId;
+
+            if (!normalizedId) {
+                commitmentDropdownState.selectedCommitmentId = null;
+                commitmentDropdownState.selectedCommitmentName = '';
+
+                dropdown.classList.add('is-disabled');
+                dropdown.classList.remove('loading');
+                toggle.setAttribute('aria-disabled', 'true');
+                toggle.disabled = true;
+                label.textContent = 'Selecciona un compromiso';
+
+                menu.innerHTML = '';
+                const empty = document.createElement('div');
+                empty.className = 'commitment-dropdown-empty';
+                empty.textContent = 'Selecciona una entidad para ver sus compromisos.';
+                menu.appendChild(empty);
+                return;
+            }
+
+            dropdown.classList.remove('is-disabled');
+            toggle.removeAttribute('aria-disabled');
+            toggle.disabled = false;
+
+            if (previousEntityId !== normalizedId) {
+                commitmentDropdownState.selectedCommitmentId = null;
+                commitmentDropdownState.selectedCommitmentName = '';
+            }
+
+            label.textContent = 'Cargando...';
+            dropdown.classList.add('loading');
+            menu.innerHTML = '';
+            const loading = document.createElement('div');
+            loading.className = 'commitment-dropdown-empty';
+            loading.textContent = 'Cargando compromisos...';
+            menu.appendChild(loading);
+
+            try {
+                const allCommitments = await loadAllCommitments(options.force === true);
+                const lookup = getEntityLookupData(normalizedId);
+                const filtered = (allCommitments || []).filter(commitment =>
+                    matchesEntityForDropdown(commitment, lookup)
+                );
+
+                dropdown.classList.remove('loading');
+                menu.innerHTML = '';
+
+                if (!filtered.length) {
+                    label.textContent = 'Sin compromisos asignados';
+                    const empty = document.createElement('div');
+                    empty.className = 'commitment-dropdown-empty';
+                    empty.textContent = 'Esta entidad no tiene compromisos asignados.';
+                    menu.appendChild(empty);
+                    return;
+                }
+
+                filtered
+                    .slice()
+                    .sort((a, b) => getCommitmentName(a).localeCompare(getCommitmentName(b), 'es', { sensitivity: 'base' }))
+                    .forEach(commitment => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'commitment-dropdown-item';
+
+                        const commitmentId = normalizeValue(
+                            commitment.id ||
+                            commitment.commitment_id ||
+                            commitment.uuid ||
+                            commitment.identifier
+                        );
+
+                        if (commitmentId) {
+                            item.dataset.commitmentId = commitmentId;
+                        }
+
+                        const commitmentName = getCommitmentName(commitment);
+                        item.dataset.commitmentName = commitmentName;
+                        item.textContent = commitmentName;
+
+                        if (commitmentId && commitmentId === commitmentDropdownState.selectedCommitmentId) {
+                            item.classList.add('is-selected');
+                        }
+
+                        menu.appendChild(item);
+                    });
+
+                if (commitmentDropdownState.selectedCommitmentName) {
+                    label.textContent = commitmentDropdownState.selectedCommitmentName;
+                } else {
+                    label.textContent = 'Selecciona un compromiso';
+                }
+            } catch (error) {
+                dropdown.classList.remove('loading');
+                console.error('❌ Error actualizando dropdown de compromisos:', error);
+                menu.innerHTML = '';
+                const errorEl = document.createElement('div');
+                errorEl.className = 'commitment-dropdown-error';
+                errorEl.textContent = 'No se pudieron cargar los compromisos.';
+                menu.appendChild(errorEl);
+                label.textContent = 'Error al cargar';
+            }
+        }
+
         function escapeOptionText(text = '') {
             return String(text).replace(/'/g, "\\'");
         }
@@ -6114,6 +6833,37 @@
                 }
             }
 
+            // ✅ Resetear selección de compromisos al cambiar de entidad
+            const selectedEntityForCommitment = type === 'hijo'
+                ? normalizedValue || (document.getElementById('entidadPadre')?.value || '')
+                : (document.getElementById('entidadHijo')?.value || normalizedValue);
+
+            if (selectedEntityForCommitment) {
+                commitmentDropdownState.currentEntityId = selectedEntityForCommitment;
+                commitmentDropdownState.selectedCommitmentId = null;
+                commitmentDropdownState.selectedCommitmentName = '';
+                // invalidar cache para forzar recarga con la nueva entidad
+                commitmentDropdownState.cacheTimestamp = 0;
+                commitmentDropdownState.cache = null;
+
+                // limpiar UI del dropdown de compromisos mientras se recarga
+                const commitLabel = document.getElementById('commitmentDropdownLabel');
+                if (commitLabel) commitLabel.textContent = 'Cargando...';
+                const commitMenu = document.getElementById('commitmentDropdownMenu');
+                if (commitMenu) {
+                    commitMenu.innerHTML = '';
+                    const loading = document.createElement('div');
+                    loading.className = 'commitment-dropdown-empty';
+                    loading.textContent = 'Cargando compromisos...';
+                    commitMenu.appendChild(loading);
+                }
+
+                // Forzar recarga inmediata del dropdown de compromisos
+                updateCommitmentDropdown(selectedEntityForCommitment, { force: true }).catch(err => {
+                    console.warn('⚠️ Error al recargar dropdown de compromisos:', err);
+                });
+            }
+
             if (!skipAutoMatch) {
                 if (type === 'padre') {
                     const children = entidadHijosMap[normalizedValue] || [];
@@ -6141,6 +6891,24 @@
                         }
                     }
                 }
+            }
+
+            try {
+                // Usar entidad hijo si tiene valor, sino usar entidad padre
+                const childValue = document.getElementById('entidadHijo')?.value || '';
+                const parentValue = document.getElementById('entidadPadre')?.value || '';
+                const entityValue = childValue || parentValue;
+                
+                console.log('🎯 Actualizando dropdown de compromisos con entidad:', entityValue);
+                
+                // Cambiar a los datos de esta entidad
+                formDataManager.switchTo(entityValue);
+                
+                updateCommitmentDropdown(entityValue, { force: true }).catch(err => {
+                    console.warn('⚠️ No se pudo actualizar el dropdown de compromisos:', err);
+                });
+            } catch (updateError) {
+                console.warn('⚠️ Error disparando actualización de compromisos:', updateError);
             }
         }
 
@@ -6371,7 +7139,21 @@
 
             restoreOriginalOptions('padre');
             restoreOriginalOptions('hijo');
-            
+
+            try {
+                // Usar entidad hijo si tiene valor, sino usar entidad padre
+                const childValue = document.getElementById('entidadHijo')?.value || '';
+                const parentValue = document.getElementById('entidadPadre')?.value || '';
+                const entityValue = childValue || parentValue;
+                
+                console.log('🚀 Inicializando dropdown de compromisos con entidad:', entityValue);
+                updateCommitmentDropdown(entityValue, { force: true }).catch(err => {
+                    console.warn('⚠️ No se pudo inicializar el dropdown de compromisos:', err);
+                });
+            } catch (initError) {
+                console.warn('⚠️ Error inicializando el dropdown de compromisos:', initError);
+            }
+
             // Cargar historial de datasets automáticamente
             loadDatasetHistory();
             
@@ -8023,9 +8805,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                file.name.toLowerCase().endsWith('.xls') || 
                                file.name.toLowerCase().endsWith('.csv');
             
+            // Agregar contexto de entidad/compromiso al archivo
+            const fileContext = {
+                entity_id: commitmentDropdownState.currentEntityId,
+                commitment_id: commitmentDropdownState.selectedCommitmentId,
+                section: section
+            };
+            
+            console.log('📁 Subiendo archivo con contexto:', fileContext);
+            
             if (isExcelFile) {
-                // Para archivos Excel, iniciar nuestro flujo personalizado
-                startExcelUploadFlow(file);
+                // Para archivos Excel, iniciar nuestro flujo personalizado con contexto
+                startExcelUploadFlow(file, fileContext);
                 return;
             }
             
@@ -8092,16 +8883,255 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para iniciar el flujo de subida de Excel
-        function startExcelUploadFlow(file) {
+        function startExcelUploadFlow(file, fileContext = {}) {
             // Formatear el tamaño del archivo
             const fileSize = formatFileSize(file.size);
             
             // Mostrar nuestro modal personalizado
             showUploadExcelModal(file.name, fileSize);
             
-            // Guardar el archivo para procesamiento posterior
+            // Guardar el archivo y su contexto para procesamiento posterior
             window.currentExcelFile = file;
+            window.currentFileContext = fileContext;
+            
+            // Guardar información del archivo en el gestor
+            entityFileManager.saveFile(file, fileContext);
+            
+            console.log('📊 Contexto del archivo Excel:', fileContext);
         }
+        
+        // Sistema de gestión de datos por entidad/compromiso
+        const entityDataManager = {
+            // Cache de datos por contexto
+            dataCache: new Map(),
+            
+            // Obtener clave de contexto
+            getContextKey(entityId, commitmentId) {
+                return `${entityId || 'global'}_${commitmentId || 'none'}`;
+            },
+            
+            // Limpiar cache cuando cambia el contexto
+            clearContextData() {
+                const currentKey = this.getContextKey(
+                    commitmentDropdownState.currentEntityId,
+                    commitmentDropdownState.selectedCommitmentId
+                );
+                
+                // Limpiar datos cargados que no pertenecen al contexto actual
+                dataLoadState = {
+                    asignarCuentas: false,
+                    ledgerIntegrity: false,
+                    gruposFinancieros: false,
+                    cuentas: false
+                };
+                
+                // Limpiar caches específicas
+                cachedTrialBalanceAccounts = [];
+                cachedFinancialGroupStructure = null;
+                cachedAssignments = new Map();
+                
+                console.log(`🗑️ Cache limpiado para nuevo contexto: ${currentKey}`);
+            },
+            
+            // Recargar todas las secciones para el contexto actual
+            reloadAllSections() {
+                console.log('🔄 Recargando todas las secciones para nuevo contexto...');
+                
+                // Recargar solo las secciones que están visibles
+                const visibleSections = [];
+                
+                if (document.getElementById('asignarCuentasSection')?.style.display !== 'none') {
+                    visibleSections.push('asignar-cuentas');
+                }
+                if (document.getElementById('ledgerIntegritySection')?.style.display !== 'none') {
+                    visibleSections.push('integridad-libro');
+                }
+                if (document.getElementById('gruposFinancierosSection')?.style.display !== 'none') {
+                    visibleSections.push('grupos-financieros');
+                }
+                if (document.getElementById('cuentasSection')?.style.display !== 'none') {
+                    visibleSections.push('cuentas');
+                }
+                
+                // Recargar cada sección visible
+                visibleSections.forEach(section => {
+                    this.reloadSection(section);
+                });
+            },
+            
+            // Recargar sección específica
+            reloadSection(sectionId) {
+                console.log(`🔄 Recargando sección: ${sectionId}`);
+                
+                switch(sectionId) {
+                    case 'asignar-cuentas':
+                        this.reloadAssignAccounts();
+                        break;
+                    case 'integridad-libro':
+                        this.reloadLedgerIntegrity();
+                        break;
+                    case 'grupos-financieros':
+                        this.reloadGruposFinancieros();
+                        break;
+                    case 'cuentas':
+                        this.reloadCuentas();
+                        break;
+                }
+            },
+            
+            // Recargar Asignar Cuentas
+            reloadAssignAccounts() {
+                dataLoadState.asignarCuentas = false;
+                if (typeof loadAssignAccountsFromLatestExcel === 'function') {
+                    loadAssignAccountsFromLatestExcel();
+                }
+            },
+            
+            // Recargar Integridad del Libro Mayor
+            reloadLedgerIntegrity() {
+                dataLoadState.ledgerIntegrity = false;
+                if (typeof loadLedgerIntegrityFromLatestExcel === 'function') {
+                    loadLedgerIntegrityFromLatestExcel();
+                }
+            },
+            
+            // Recargar Grupos Financieros
+            reloadGruposFinancieros() {
+                dataLoadState.gruposFinancieros = false;
+                if (typeof loadGruposFinancierosFromLatestExcel === 'function') {
+                    loadGruposFinancierosFromLatestExcel();
+                }
+            },
+            
+            // Recargar Cuentas
+            reloadCuentas() {
+                dataLoadState.cuentas = false;
+                if (typeof loadCuentasFromLatestExcel === 'function') {
+                    loadCuentasFromLatestExcel();
+                }
+            },
+            
+            // Inicializar
+            init() {
+                console.log('📊 Gestor de datos por entidad/compromiso inicializado');
+            }
+        };
+
+        // Sistema de gestión de archivos por entidad/compromiso
+        const entityFileManager = {
+            // Almacenamiento local de archivos (temporal, hasta que se implemente BD)
+            files: {},
+            
+            // Guardar archivo con contexto
+            saveFile(file, context) {
+                const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const fileData = {
+                    id: fileId,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    context: {
+                        entity_id: context.entity_id,
+                        commitment_id: context.commitment_id,
+                        section: context.section
+                    },
+                    uploaded_at: new Date().toISOString(),
+                    uploaded_by: window.currentUser?.id || null
+                };
+                
+                // Guardar en localStorage temporalmente
+                if (!this.files[fileId]) {
+                    this.files[fileId] = fileData;
+                    this.saveToStorage();
+                    console.log('💾 Archivo guardado con contexto:', fileData);
+                }
+                
+                return fileId;
+            },
+            
+            // Obtener archivos del contexto actual
+            getFilesForCurrentContext() {
+                const currentEntity = commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                
+                return Object.values(this.files).filter(file => {
+                    // Filtrar por entidad si hay una seleccionada
+                    if (currentEntity && file.context.entity_id !== currentEntity) {
+                        return false;
+                    }
+                    
+                    // Filtrar por compromiso si hay uno seleccionado
+                    if (currentCommitment && file.context.commitment_id !== currentCommitment) {
+                        return false;
+                    }
+                    
+                    // Si no hay compromiso seleccionado, mostrar archivos de la entidad
+                    if (!currentCommitment && file.context.commitment_id) {
+                        return false;
+                    }
+                    
+                    return true;
+                });
+            },
+            
+            // Filtrar archivos en la UI
+            filterFilesInUI() {
+                const currentFiles = this.getFilesForCurrentContext();
+                console.log('🔍 Archivos para contexto actual:', currentFiles);
+                
+                // Aquí puedes actualizar la UI para mostrar solo los archivos filtrados
+                // Por ejemplo, actualizar una lista de documentos en la sección Datos
+                this.updateFileDisplay(currentFiles);
+            },
+            
+            // Actualizar display de archivos
+            updateFileDisplay(files) {
+                // Buscar contenedores de archivos en las diferentes secciones
+                const sections = ['planificacion', 'evaluacion-riesgo', 'respuesta-riesgo', 'planes-procedimientos', 'documentos-cierre'];
+                
+                sections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        // Filtrar archivos por sección
+                        const sectionFiles = files.filter(file => file.context.section === sectionId);
+                        
+                        // Actualizar UI de la sección (implementar según necesidad)
+                        console.log(`📂 Archivos en ${sectionId}:`, sectionFiles);
+                        
+                        // Aquí puedes actualizar los elementos visuales que muestran los archivos
+                        // Por ejemplo, badges, listas, etc.
+                    }
+                });
+            },
+            
+            // Guardar en localStorage
+            saveToStorage() {
+                try {
+                    localStorage.setItem('entityFiles', JSON.stringify(this.files));
+                } catch (e) {
+                    console.warn('⚠️ No se pudo guardar archivos en localStorage:', e);
+                }
+            },
+            
+            // Cargar desde localStorage
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem('entityFiles');
+                    if (stored) {
+                        this.files = JSON.parse(stored);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ No se pudo cargar archivos desde localStorage:', e);
+                    this.files = {};
+                }
+            },
+            
+            // Inicializar
+            init() {
+                this.loadFromStorage();
+                console.log('📁 Gestor de archivos inicializado');
+            }
+        };
         
         // Función para formatear el tamaño del archivo
         function formatFileSize(bytes) {
@@ -15730,17 +16760,39 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const entidadPadre = document.getElementById('entidadPadre').value;
             const entidadHijo = document.getElementById('entidadHijo').value;
             
-            // Validar que se hayan seleccionado ambas entidades
-            if (!entidadPadre || !entidadHijo) {
-                alert('Por favor seleccione tanto la Entidad Padre como la Entidad Hijo antes de generar formularios.');
+            // Validar que se haya seleccionado al menos una entidad
+            if (!entidadPadre && !entidadHijo) {
+                alert('Por favor seleccione al menos una entidad (Padre o Hijo) antes de generar formularios.');
                 return;
             }
+            
+            // Determinar qué entidad se usará
+            const entidadActiva = entidadHijo || entidadPadre;
+            console.log('📋 Generando formularios para entidad:', entidadActiva);
             
             // Mostrar las opciones de formularios y la barra de menú con animación
             if (opcionesDiv.style.display === 'none') {
                 opcionesDiv.style.display = 'flex';
                 menuBar.style.display = 'flex';
                 opcionesDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Inicializar auto-guardado la primera vez que se muestra
+                if (!formDataManager.autoSaveInitialized) {
+                    formDataManager.initAutoSave();
+                    formDataManager.autoSaveInitialized = true;
+                }
+                
+                // Inicializar gestor de archivos la primera vez que se muestra
+                if (!entityFileManager.initialized) {
+                    entityFileManager.init();
+                    entityFileManager.initialized = true;
+                }
+                
+                // Inicializar gestor de datos la primera vez que se muestra
+                if (!entityDataManager.initialized) {
+                    entityDataManager.init();
+                    entityDataManager.initialized = true;
+                }
             } else {
                 opcionesDiv.style.display = 'none';
                 menuBar.style.display = 'none';
@@ -17027,7 +18079,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // 4. Sincronizar datos del Excel
             try {
                 if (window.getExcelData) {
-                    const excelData = await getExcelData(currentDatasetId);
+                    const entityId = commitmentDropdownState.currentEntityId;
+                    const commitmentId = commitmentDropdownState.selectedCommitmentId;
+                    const excelData = await getExcelData(currentDatasetId, entityId, commitmentId);
                     if (excelData) {
                         // Actualizar localStorage con datos del Excel
                         localStorage.setItem('excel_data_current', JSON.stringify(excelData));
@@ -17734,11 +18788,26 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             `;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/excel/datasets`, {
-                    headers: {
-                        'user-id': getCurrentUserId()
-                    }
-                });
+                const entityId = commitmentDropdownState.currentEntityId;
+                const commitmentId = commitmentDropdownState.selectedCommitmentId;
+
+                // Construir URL con filtros de contexto
+                let apiUrl = `${API_BASE_URL}/api/excel/datasets`;
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) {
+                    apiUrl += `?${params.toString()}`;
+                }
+
+                // Headers con contexto para RLS/validación
+                const headers = {
+                    'user-id': getCurrentUserId()
+                };
+                if (entityId) headers['entity-id'] = entityId;
+                if (commitmentId) headers['commitment-id'] = commitmentId;
+
+                const response = await fetch(apiUrl, { headers });
                 const result = await response.json();
 
                 if (!response.ok || !result.success) {
@@ -17829,11 +18898,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
                 
                 // Eliminar dataset del backend
+                const headers = {
+                    'user-id': getCurrentUserId()
+                };
+                const entityId = commitmentDropdownState.currentEntityId;
+                const commitmentId = commitmentDropdownState.selectedCommitmentId;
+                if (entityId) headers['entity-id'] = entityId;
+                if (commitmentId) headers['commitment-id'] = commitmentId;
+
                 const response = await fetch(`${API_BASE_URL}/api/conjuntos/${datasetId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'user-id': getCurrentUserId()
-                    }
+                    headers
                 });
                 
                 const result = await response.json();

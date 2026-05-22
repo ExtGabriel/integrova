@@ -818,6 +818,21 @@
                     return { data: null, error: 'El ID de la entidad es requerido' };
                 }
 
+                // Primero eliminar compromisos asociados a la entidad
+                console.log('🗑️ [Entities.delete] Eliminando compromisos asociados a la entidad:', entityId);
+                const { error: commitmentsError } = await client
+                    .from('commitments')
+                    .delete()
+                    .eq('entity_id', entityId);
+
+                if (commitmentsError) {
+                    console.error('❌ [Entities.delete] Error eliminando compromisos:', commitmentsError.message);
+                    return { data: null, error: 'Error eliminando compromisos asociados: ' + commitmentsError.message };
+                }
+
+                console.log('✅ [Entities.delete] Compromisos eliminados, procediendo a eliminar entidad');
+
+                // Luego eliminar la entidad
                 const { data, error } = await client
                     .from('entities')
                     .delete()
@@ -830,7 +845,7 @@
                     return { data: null, error: error.message };
                 }
 
-                console.log('✅ [Entities.delete] Entidad eliminada:', entityId);
+                console.log('✅ [Entities.delete] Entidad eliminada con sus compromisos:', entityId);
                 return { data: data || { id: entityId }, error: null };
             } catch (err) {
                 console.error('❌ [Entities.delete] Excepción:', err);

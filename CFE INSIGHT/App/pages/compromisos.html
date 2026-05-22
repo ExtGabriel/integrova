@@ -618,7 +618,8 @@
         }
 
         // Función para cargar usuarios con roles específicos para preparador y revisor
-        async function loadAuditUsers() {
+        async function loadAuditUsers(options = {}) {
+            const { populateCreateSelects = true } = options;
             try {
                 console.log('🔍 Cargando usuarios con roles de auditoría...');
                 
@@ -626,18 +627,23 @@
                 const response = await API.Users.getAll();
                 if (!response.success || !response.data) {
                     console.warn('⚠️ No se pudieron cargar usuarios, usando fallback');
-                    loadAuditUsersFallback();
-                    return;
+                    return loadAuditUsersFallback(options);
                 }
 
                 const users = response.data;
                 console.log('📋 Usuarios cargados:', users.length);
 
-                // Filtrar usuarios por roles de auditoría
-                const auditRoles = ['auditor', 'auditor_senior', 'socio'];
+                // Filtrar usuarios por roles de auditoría (ampliado para incluir más usuarios)
+                const auditRoles = ['auditor', 'auditor_senior', 'socio', 'admin', 'user'];
                 const auditUsers = users.filter(user => 
                     auditRoles.includes(user.role?.toLowerCase())
                 );
+                
+                // Si no hay usuarios con roles específicos, mostrar todos los usuarios
+                if (auditUsers.length === 0) {
+                    console.log('⚠️ No se encontraron usuarios con roles de auditoría, mostrando todos los usuarios');
+                    auditUsers.push(...users);
+                }
 
                 console.log('👥 Usuarios de auditoría:', auditUsers.length);
 
@@ -645,17 +651,22 @@
                 window.auditUsersData = auditUsers;
 
                 // Cargar en selects de preparador y revisor
-                loadPreparersSelect();
-                loadReviewersSelect();
+                if (populateCreateSelects) {
+                    loadPreparersSelect();
+                    loadReviewersSelect();
+                }
+
+                return auditUsers;
 
             } catch (error) {
                 console.error('❌ Error cargando usuarios de auditoría:', error);
-                loadAuditUsersFallback();
+                return loadAuditUsersFallback(options);
             }
         }
 
         // Función fallback si la API falla
-        function loadAuditUsersFallback() {
+        function loadAuditUsersFallback(options = {}) {
+            const { populateCreateSelects = true } = options;
             console.log('🔄 Usando datos de ejemplo para usuarios de auditoría');
             
             const fallbackUsers = [
@@ -667,8 +678,12 @@
             ];
 
             window.auditUsersData = fallbackUsers;
-            loadPreparersSelect();
-            loadReviewersSelect();
+            if (populateCreateSelects) {
+                loadPreparersSelect();
+                loadReviewersSelect();
+            }
+
+            return fallbackUsers;
         }
 
         // Función para cargar select de preparadores
@@ -1277,7 +1292,7 @@
             loadEntitiesForEditSelect();
             
             // Cargar usuarios para preparador y revisor
-            loadAuditUsers();
+            await loadAuditUsers({ populateCreateSelects: false });
             
             // Cargar selects específicos de edición
             loadEditPreparersSelect();
