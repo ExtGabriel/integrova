@@ -800,7 +800,7 @@ app.post('/api/commitments', async (req, res) => {
     });
     
     try {
-        const insertData = { name, description, start_date, end_date, status, entity_id };
+        const insertData = { name, description, start_date, end_date, status, entity: entity_id };
         
         // Agregar campos opcionales si existen
         if (budget_hours !== undefined && budget_hours !== null) insertData.budget_hours = budget_hours;
@@ -845,7 +845,7 @@ app.put('/api/commitments/:id', async (req, res) => {
     });
     
     try {
-        const updateData = { name, description, start_date, end_date, status, entity_id };
+        const updateData = { name, description, start_date, end_date, status, entity: entity_id };
         
         // Agregar campos opcionales si existen
         if (budget_hours !== undefined && budget_hours !== null) {
@@ -4468,7 +4468,9 @@ app.post('/api/observations', async (req, res) => {
             description, 
             status = 'pendiente',
             userId,
-            userEmail 
+            userEmail,
+            entityId = null,
+            commitmentId = null
         } = req.body;
         
         if (!formId || !classification || !description || !userId) {
@@ -4487,6 +4489,8 @@ app.post('/api/observations', async (req, res) => {
                 status: status,
                 user_id: userId,
                 user_email: userEmail,
+                entity_id: entityId,
+                commitment_id: commitmentId,
                 created_at: new Date().toISOString()
             })
             .select()
@@ -4508,16 +4512,32 @@ app.post('/api/observations', async (req, res) => {
     }
 });
 
-// Obtener observaciones de un usuario
+// Obtener observaciones de un usuario (con filtro opcional por contexto)
 app.get('/api/observations/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        const { entity_id: entityId, commitment_id: commitmentId } = req.query;
         
-        const { data, error } = await supabase
+        let query = supabase
             .from('observaciones')
             .select('*')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
+
+        if (entityId) {
+            query = query.eq('entity_id', entityId);
+        }
+
+        // Diferenciar entre "no viene el parámetro" y "viene pero vacío" para permitir filtrar por nulos
+        if (Object.prototype.hasOwnProperty.call(req.query, 'commitment_id')) {
+            if (commitmentId) {
+                query = query.eq('commitment_id', commitmentId);
+            } else {
+                query = query.is('commitment_id', null);
+            }
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -6810,7 +6830,15 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
 app.post('/api/formularios/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { form_id, form_title, form_data, subdocument_id, metadata } = req.body;
+        const { 
+            form_id, 
+            form_title, 
+            form_data, 
+            subdocument_id, 
+            metadata,
+            entity_id = null,
+            commitment_id = null
+        } = req.body;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -6820,19 +6848,23 @@ app.post('/api/formularios/save', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_id, form_title, form_data' });
         }
         
-        console.log(`💾 Guardando formulario: ${form_id} - ${form_title}`);
-        
+        const payload = {
+            form_id,
+            form_title,
+            form_data: form_data,
+            subdocument_id: subdocument_id || null,
+            created_by: userId,
+            entity_id: entity_id || null,
+            commitment_id: commitment_id || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        console.log('💾 Guardando formulario con payload:', payload);
+
         const { data: formulario, error } = await supabase
             .from('form_responses')
-            .insert([{
-                form_id,
-                form_title,
-                form_data: form_data,
-                subdocument_id: subdocument_id || null,
-                created_by: userId,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
+            .insert([payload])
             .select()
             .single();
             
@@ -6854,47 +6886,59 @@ app.post('/api/formularios/save', async (req, res) => {
     }
 });
 
-// Obtener un formulario por ID y tipo
+// Obtener formularios (por ID o todos los del contexto)
 app.post('/api/formularios/get', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { form_id, subdocument_id } = req.body;
+        const { 
+            form_id, 
+            subdocument_id,
+            entity_id = null,
+            commitment_id = null
+        } = req.body;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
         
-        if (!form_id) {
-            return res.status(400).json({ success: false, error: 'Falta el campo form_id' });
-        }
-        
-        console.log(`🔍 Obteniendo formulario: ${form_id}`);
-        
         let query = supabase
             .from('form_responses')
             .select('*')
-            .eq('form_id', form_id)
             .eq('created_by', userId);
+            
+        if (form_id) {
+            query = query.eq('form_id', form_id);
+        }
+        
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        
+        if (commitment_id) {
+            query = query.eq('commitment_id', commitment_id);
+        }
             
         if (subdocument_id) {
             query = query.eq('subdocument_id', subdocument_id);
         }
         
-        const { data: formulario, error } = await query
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        // Si viene form_id, regresamos solo el último; si no, todos los del contexto
+        const { data, error } = form_id
+            ? await query.order('created_at', { ascending: false }).limit(1).single()
+            : await query.order('created_at', { ascending: false });
             
         if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-            console.error('❌ Error obteniendo formulario:', error);
+            console.error('❌ Error obteniendo formularios:', error);
             return res.status(500).json({ success: false, error: 'Error al obtener el formulario' });
         }
         
-        console.log(formulario ? '✅ Formulario encontrado' : 'ℹ️ No se encontró formulario');
-        res.json({
-            success: true,
-            formulario: formulario || null
-        });
+        if (form_id) {
+            console.log(data ? '✅ Formulario encontrado' : 'ℹ️ No se encontró formulario');
+            return res.json({ success: true, formulario: data || null });
+        }
+        
+        console.log(`✅ Formularios encontrados: ${(data || []).length}`);
+        return res.json({ success: true, formularios: data || [] });
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/get:', error);

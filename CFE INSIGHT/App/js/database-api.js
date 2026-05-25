@@ -1369,13 +1369,17 @@ async function saveFormData(formData, entityId, commitmentId = null) {
         if (entityId) headers['entity-id'] = entityId;
         if (commitmentId) headers['commitment-id'] = commitmentId;
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/form-data/save`, {
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
-                formData: formData,
-                entityId: entityId,
-                commitmentId: commitmentId
+                form_id: 'formularios_general',
+                form_title: 'Formulario General',
+                form_data: formData,
+                subdocument_id: null,
+                metadata: {},
+                entity_id: entityId,
+                commitment_id: commitmentId
             })
         });
 
@@ -1416,9 +1420,15 @@ async function loadFormData(entityId, commitmentId = null) {
         if (entityId) params.append('entity_id', entityId);
         if (commitmentId) params.append('commitment_id', commitmentId);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/form-data/load?${params}`, {
-            method: 'GET',
-            headers: headers
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                form_id: 'formularios_general',
+                subdocument_id: null,
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
         });
 
         const result = await response.json();

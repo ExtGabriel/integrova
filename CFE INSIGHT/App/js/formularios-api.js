@@ -43,6 +43,39 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
             throw new Error('No se encontró ID de usuario');
         }
         
+        // Obtener contexto directamente desde el DOM y variables globales
+        const entityDropdown = document.getElementById('entidadHijo');
+        const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
+        
+        let entityId = null;
+        let commitmentId = null;
+        
+        // Obtener entity_id desde el dropdown de entidades
+        if (entityDropdown && entityDropdown.value) {
+            entityId = entityDropdown.value;
+        }
+        
+        // Obtener commitment_id desde commitmentDropdownState (definido en formularios.html)
+        if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
+            commitmentId = commitmentDropdownState.selectedCommitmentId;
+        } else if (window.currentCommitmentId) {
+            commitmentId = window.currentCommitmentId;
+        } else if (commitmentDropdown && commitmentDropdown.getAttribute('data-commitment-id')) {
+            commitmentId = commitmentDropdown.getAttribute('data-commitment-id');
+        }
+        
+        // Intentar desde formDataManager si está disponible
+        if (window.formDataManager && window.formDataManager.getContext) {
+            const context = window.formDataManager.getContext();
+            if (!entityId) entityId = context.entityId;
+            if (!commitmentId) commitmentId = context.commitmentId;
+        }
+        
+        console.log('� Guardando formulario con contexto:', { 
+            entityId: entityId || 'SIN ENTIDAD', 
+            commitmentId: commitmentId || 'SIN COMPROMISO'
+        });
+        
         // Enviar datos a la API
         const response = await fetch(buildApiUrl('/api/formularios/save'), {
             method: 'POST',
@@ -55,10 +88,14 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
                 form_title: formTitle,
                 form_data: formData,
                 subdocument_id: subdocumentId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 metadata: {
                     userAgent: navigator.userAgent,
                     timestamp: new Date().toISOString(),
-                    userId: userId
+                    userId: userId,
+                    entityId: entityId,
+                    commitmentId: commitmentId
                 }
             })
         });
@@ -100,6 +137,29 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
             throw new Error('No se encontró ID de usuario');
         }
         
+        // Obtener contexto actual de entidad/compromiso
+        const entityDropdown = document.getElementById('entidadHijo');
+        const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
+        
+        let entityId = null;
+        let commitmentId = null;
+        
+        // Obtener entity_id desde el dropdown de entidades
+        if (entityDropdown && entityDropdown.value) {
+            entityId = entityDropdown.value;
+        }
+        
+        // Obtener commitment_id desde commitmentDropdownState
+        if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
+            commitmentId = commitmentDropdownState.selectedCommitmentId;
+        }
+        
+        console.log('🔍 Cargando formulario con contexto:', { 
+            formId, 
+            entityId: entityId || 'SIN ENTIDAD', 
+            commitmentId: commitmentId || 'SIN COMPROMISO' 
+        });
+        
         const response = await fetch(buildApiUrl('/api/formularios/get'), {
             method: 'POST',
             headers: {
@@ -108,7 +168,9 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
             },
             body: JSON.stringify({
                 form_id: formId,
-                subdocument_id: subdocumentId
+                subdocument_id: subdocumentId,
+                entity_id: entityId,
+                commitment_id: commitmentId
             })
         });
 

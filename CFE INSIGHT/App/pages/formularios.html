@@ -5927,10 +5927,136 @@
             initialized: false
         };
 
+        // Funciones de API para formularios
+        window.loadFormData = async function(entityId, commitmentId = null) {
+            try {
+                const userId = getCurrentUserId();
+                if (!userId) {
+                    console.warn('⚠️ No hay userId para cargar formulario');
+                    return null;
+                }
+
+                // Cargar todos los formularios del contexto
+                const response = await fetch('/api/formularios/get', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': userId
+                    },
+                    body: JSON.stringify({
+                        entity_id: entityId,
+                        commitment_id: commitmentId
+                    })
+                });
+
+                if (!response.ok) {
+                    console.warn('⚠️ Error en API de formularios:', response.status);
+                    return null;
+                }
+
+                const data = await response.json();
+
+                // Soportar ambas respuestas: { formulario } o { formularios: [] }
+                const formularios = [];
+                if (data?.formulario) {
+                    formularios.push(data.formulario);
+                }
+                if (Array.isArray(data?.formularios)) {
+                    formularios.push(...data.formularios);
+                }
+
+                // Construir mapa de secciones por form_id
+                const sections = {};
+                const metadata = {};
+                formularios.forEach(f => {
+                    if (f?.form_id) {
+                        sections[f.form_id] = f.form_data || {};
+                        metadata[f.form_id] = f;
+                    }
+                });
+
+                if (Object.keys(sections).length > 0) {
+                    console.log('📂 Formularios cargados desde BD:', Object.keys(sections));
+                    return { sections, metadata };
+                }
+
+                return null;
+            } catch (error) {
+                console.error('❌ Error en window.loadFormData:', error);
+                return null;
+            }
+        };
+
+        window.saveFormData = async function(formData, entityId, commitmentId = null) {
+            try {
+                const userId = getCurrentUserId();
+                if (!userId) {
+                    console.warn('⚠️ No hay userId para guardar formulario');
+                    return false;
+                }
+
+                console.log('🔍 DEBUG saveFormData:', { entityId, commitmentId, userId });
+
+                // Guardar cada sección del formulario
+                const promises = Object.entries(formData.sections).map(async ([sectionId, sectionData]) => {
+                    const payload = {
+                        form_id: sectionId,
+                        form_title: `Formulario ${sectionId}`,
+                        form_data: sectionData,
+                        entity_id: entityId,
+                        commitment_id: commitmentId
+                    };
+                    
+                    console.log('🔍 DEBUG payload para', sectionId, ':', payload);
+
+                    const response = await fetch('/api/formularios/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'user-id': userId
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error guardando ${sectionId}: ${response.status}`);
+                    }
+
+                    return await response.json();
+                });
+
+                await Promise.all(promises);
+                console.log('💾 Todos los formularios guardados en BD');
+                return true;
+            } catch (error) {
+                console.error('❌ Error en window.saveFormData:', error);
+                return false;
+            }
+        };
+
         // Sistema de datos por entidad/compromiso
         const formDataManager = {
             // Clave para identificar la instancia actual
             currentKey: null,
+            currentEntityId: null,
+            currentCommitmentId: null,
+            
+            // Establecer contexto actual
+            setContext(entityId, commitmentId = null) {
+                this.currentEntityId = entityId;
+                this.currentCommitmentId = commitmentId;
+                this.currentKey = this.getKey(entityId, commitmentId);
+                console.log('📋 Contexto establecido:', { entityId, commitmentId, key: this.currentKey });
+            },
+            
+            // Obtener contexto actual
+            getContext() {
+                return {
+                    entityId: this.currentEntityId,
+                    commitmentId: this.currentCommitmentId,
+                    key: this.currentKey
+                };
+            },
             
             // Obtener clave única para entidad/compromiso
             getKey(entityId, commitmentId = null) {
@@ -5939,35 +6065,45 @@
             
             // Guardar todos los datos del formulario actual
             async saveFormData() {
-                if (!this.currentKey) return;
+                console.log('🔍 DEBUG formDataManager.saveFormData:', {
+                    currentEntityId: this.currentEntityId,
+                    currentCommitmentId: this.currentCommitmentId,
+                    currentKey: this.currentKey,
+                    hasContext: !!(this.currentEntityId)
+                });
+
+                if (!this.currentEntityId) {
+                    console.warn('⚠️ No hay contexto establecido para guardar');
+                    return false;
+                }
                 
                 const formData = this.collectFormData();
-                const entityId = this.currentKey?.startsWith('entity_') ? 
-                    this.currentKey.replace('entity_', '') : null;
-                const commitmentId = this.currentKey?.startsWith('commitment_') ? 
-                    this.currentKey.replace('commitment_', '') : null;
                 
                 try {
+                    // Usar API con contexto de entidad/compromiso
                     if (window.saveFormData) {
-                        await window.saveFormData(formData, entityId, commitmentId);
-                        console.log('💾 Datos guardados para:', this.currentKey);
+                        await window.saveFormData(formData, this.currentEntityId, this.currentCommitmentId);
+                        console.log('💾 Datos guardados en BD para:', this.currentKey);
+                        return true;
                     } else {
                         // Fallback a localStorage si API no está disponible
                         localStorage.setItem(`formData_${this.currentKey}`, JSON.stringify(formData));
                         console.log('💾 Datos guardados en localStorage (fallback) para:', this.currentKey);
+                        return true;
                     }
                 } catch (error) {
                     console.error('❌ Error guardando datos del formulario:', error);
                     // Fallback a localStorage en caso de error
                     localStorage.setItem(`formData_${this.currentKey}`, JSON.stringify(formData));
                     console.log('💾 Datos guardados en localStorage (fallback tras error) para:', this.currentKey);
+                    return false;
                 }
             },
             
             // Cargar datos para una entidad/compromiso específico
             async loadFormData(entityId, commitmentId = null) {
                 const key = this.getKey(entityId, commitmentId);
-                this.currentKey = key;
+                this.setContext(entityId, commitmentId);
                 
                 try {
                     if (window.loadFormData) {
@@ -6157,6 +6293,29 @@
                 console.log('🧹 Formulario limpiado');
             },
             
+            // Limpiar observaciones por contexto
+            clearObservationsForContext() {
+                if (!this.currentEntityId) return;
+                
+                const contextKey = `observations_${this.currentEntityId}_${this.currentCommitmentId || 'none'}`;
+                
+                // Limpiar observaciones del contexto actual en memoria
+                if (window.currentObservations) {
+                    window.currentObservations = window.currentObservations.filter(obs => {
+                        const obsContextKey = `observations_${obs.entityId}_${obs.commitmentId || 'none'}`;
+                        return obsContextKey !== contextKey;
+                    });
+                }
+                
+                // Limpiar UI de observaciones si están visibles
+                const existingModal = document.querySelector('.observations-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                console.log('🧹 Observaciones limpiadas para contexto:', contextKey);
+            },
+            
             // Cambiar a una nueva entidad/compromiso
             async switchTo(entityId, commitmentId = null) {
                 // Guardar datos actuales antes de cambiar
@@ -6166,6 +6325,9 @@
                 
                 // Limpiar cache de datos del contexto anterior
                 entityDataManager.clearContextData();
+                
+                // Limpiar observaciones del contexto anterior
+                this.clearObservationsForContext();
                 
                 // Cargar datos nuevos
                 await this.loadFormData(entityId, commitmentId);
@@ -6297,26 +6459,18 @@
             if (!commitment || !lookup) return false;
             const { idLower, nameLower } = lookup;
             
-            // Debug logging para identificar problemas de matching
-            console.log('🔍 Debug - Comparando compromiso:', {
-                commitment: {
-                    entity_id: commitment.entity_id,
-                    entityId: commitment.entityId,
-                    entityID: commitment.entityID,
-                    entity_uuid: commitment.entity_uuid,
-                    'entities.id': commitment.entities?.id,
-                    'entities.entity_id': commitment.entities?.entity_id,
-                    'entity.id': commitment.entity?.id,
-                    entity_name: commitment.entity_name,
-                    entityName: commitment.entityName,
-                    entity_label: commitment.entity_label,
-                    entity: commitment.entity,
-                    'entities.name': commitment.entities?.name,
-                    'entities.label': commitment.entities?.label,
-                    'entity.name': commitment.entity?.name
-                },
-                lookup: { idLower, nameLower }
-            });
+            // Debug logging solo para el primer compromiso de cada batch (para reducir spam)
+            if (window._firstMatchDebug === undefined) {
+                window._firstMatchDebug = true;
+                console.log('🔍 Debug - Primer compromiso analizado:', {
+                    commitment: {
+                        entity: commitment.entity,
+                        entity_id: commitment.entity_id,
+                        name: commitment.name || commitment.description || 'Sin nombre'
+                    },
+                    lookup: { idLower, nameLower }
+                });
+            }
 
             const idCandidates = [
                 commitment.entity_id,
@@ -6325,7 +6479,12 @@
                 commitment.entity_uuid,
                 commitment.entities?.id,
                 commitment.entities?.entity_id,
-                commitment.entity?.id
+                commitment.entity?.id,
+                commitment.entity_uuid,
+                commitment.organizacion_id,
+                commitment.organization_id,
+                commitment.company_id,
+                commitment.empresa_id
             ];
 
             for (const candidate of idCandidates) {
@@ -6358,11 +6517,17 @@
                 }
             }
 
-            console.log('❌ No se encontró match para el compromiso');
+            console.log('❌ No se encontró match para el compromiso - IDs diferentes:', {
+                entidadSeleccionada: idLower,
+                entidadDelCompromiso: normalizeValue(commitment.entity_id),
+                compromiso: commitment.name || commitment.description || 'Sin nombre'
+            });
             return false;
         }
 
         async function loadAllCommitments(force = false) {
+            // Resetear flag de debug para cada carga
+            window._firstMatchDebug = undefined;
             if (!window.API?.Commitments?.list) {
                 console.warn('⚠️ API.Commitments.list no disponible');
                 return [];
@@ -6388,6 +6553,16 @@
                     : Array.isArray(response)
                         ? response
                         : [];
+
+                // Debug: Ver estructura de compromisos
+                console.log('🔍 Estructura de compromisos desde API:', {
+                    totalCount: data.length,
+                    firstCommitment: data[0] ? {
+                        keys: Object.keys(data[0]),
+                        sample: data[0]
+                    } : null,
+                    allCommitmentKeys: [...new Set(data.flatMap(c => Object.keys(c)))].sort()
+                });
 
                 commitmentDropdownState.cache = data;
                 commitmentDropdownState.cacheTimestamp = now;
@@ -6424,8 +6599,9 @@
             
             // Cambiar a los datos de este compromiso si hay uno seleccionado
             if (commitmentId) {
-                console.log('🔄 Cambiando a compromiso:', commitmentId);
-                formDataManager.switchTo(null, commitmentId);
+                const entityValue = commitmentDropdownState.currentEntityId;
+                console.log('🔄 Cambiando a compromiso:', { commitmentId, entityValue });
+                formDataManager.switchTo(entityValue, commitmentId);
             } else {
                 // Si no hay compromiso, usar la entidad actual
                 const entityValue = commitmentDropdownState.currentEntityId;
@@ -8918,12 +9094,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 );
                 
                 // Limpiar datos cargados que no pertenecen al contexto actual
-                dataLoadState = {
-                    asignarCuentas: false,
-                    ledgerIntegrity: false,
-                    gruposFinancieros: false,
-                    cuentas: false
-                };
+                Object.keys(dataLoadState).forEach(key => {
+                    // Solo reseteamos las secciones vinculadas a Excel/formularios
+                    if ([
+                        'asignarCuentas',
+                        'ledgerIntegrity',
+                        'gruposFinancieros',
+                        'cuentas'
+                    ].includes(key)) {
+                        dataLoadState[key] = false;
+                    }
+                });
                 
                 // Limpiar caches específicas
                 cachedTrialBalanceAccounts = [];
@@ -16102,18 +16283,35 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         async function loadStoredObservations() {
             try {
                 const userId = getCurrentUserId();
-                console.log('🔍 Cargando observaciones desde BD para userId:', userId);
+                const context = formDataManager.getContext();
+                
+                console.log('🔍 Cargando observaciones desde BD para userId:', userId, 'contexto:', context);
                 
                 if (!userId) {
                     console.warn('🔍 No hay userId, retornando array vacío');
                     return [];
                 }
 
-                const response = await fetch(`/api/observations/${userId}`);
+                // Construir URL con parámetros de contexto
+                let url = `/api/observations/${userId}`;
+                const params = new URLSearchParams();
+                
+                if (context.entityId) {
+                    params.append('entity_id', context.entityId);
+                }
+                if (context.commitmentId) {
+                    params.append('commitment_id', context.commitmentId);
+                }
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.success) {
-                    console.log('🔍 Observaciones cargadas desde BD:', data.observations);
+                    console.log('🔍 Observaciones cargadas desde BD para contexto:', data.observations);
                     // Convertir formato de BD al formato esperado por el frontend
                     return data.observations.map(obs => ({
                         id: obs.id,
@@ -16123,7 +16321,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         status: obs.status,
                         createdBy: obs.user_id,
                         createdAt: obs.created_at,
-                        updatedAt: obs.updated_at
+                        updatedAt: obs.updated_at,
+                        entityId: obs.entity_id,
+                        commitmentId: obs.commitment_id
                     }));
                 } else {
                     console.error('🔍 Error cargando observaciones:', data.error);
@@ -16202,6 +16402,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                 } else {
                     // Crear nueva observación
+                    const context = formDataManager.getContext();
                     const response = await fetch('/api/observations', {
                         method: 'POST',
                         headers: {
@@ -16213,7 +16414,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             description: observationText,
                             status: 'pendiente',
                             userId: currentUserId,
-                            userEmail: currentUserEmail
+                            userEmail: currentUserEmail,
+                            entityId: context.entityId,
+                            commitmentId: context.commitmentId
                         })
                     });
                     
