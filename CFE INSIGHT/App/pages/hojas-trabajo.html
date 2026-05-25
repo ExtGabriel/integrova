@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hojas de Trabajo - CFE INSIGHT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="../css/main.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #edf1f7;
+            --sidebar-border: #d7ddea;
+            --primary: #334bfa;
+            --primary-dark: #2639c7;
+            --text-main: #1f2a44;
+            --text-muted: #70809b;
+            --card-bg: #ffffff;
+            --line-color: #c7d2eb;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f5f7fb;
+            color: var(--text-main);
+        }
+
+        .breadcrumb-nav {
+            background: transparent;
+            padding: 24px 0 0;
+            margin-bottom: 0;
+        }
+
+        .workspace-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 48px;
+        }
+
+        .workspace-topbar {
+            background: #1e3a8a;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #ffffff;
+        }
+
+        .back-button-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .back-button-icon:hover {
+            background: rgba(255, 255, 255, 0.28);
+            color: #ffffff;
+        }
+
+        .workspace-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .workspace-toolbar h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .workspace-toolbar p {
+            margin: 4px 0 0;
+            color: var(--text-muted);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .toolbar-actions button {
+            border: none;
+            background: var(--card-bg);
+            box-shadow: 0 4px 12px rgba(18, 47, 89, 0.08);
+            border-radius: 12px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-actions button:hover {
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .worksheet-layout {
+            display: flex;
+            gap: 24px;
+        }
+
+        .worksheet-sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--sidebar-border);
+            border-radius: 18px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 520px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sidebar-header span {
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .icon-button {
+            background: transparent;
+            border: 1px solid var(--sidebar-border);
+            color: var(--text-muted);
+            border-radius: 12px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .icon-button:hover {
+            background: var(--card-bg);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .area-menu {
+            position: absolute;
+            top: 62px;
+            right: 24px;
+            background: var(--card-bg);
+            box-shadow: 0 16px 28px rgba(22, 35, 73, 0.15);
+            border-radius: 14px;
+            padding: 8px 0;
+            width: 180px;
+            display: none;
+            z-index: 20;
+        }
+
+        .area-menu.show {
+            display: block;
+        }
+
+        .area-menu button {
+            width: 100%;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            text-align: left;
+            font-weight: 500;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .area-menu button:hover {
+            background: rgba(51, 75, 250, 0.08);
+            color: var(--primary);
+        }
+
+        .area-empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            gap: 12px;
+        }
+
+        .area-empty i {
+            font-size: 1.75rem;
+            opacity: 0.5;
+        }
+
+        .area-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .area-item {
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.65);
+            border-radius: 14px;
+            border: 1px solid transparent;
+            font-weight: 500;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .area-item > div {
+            flex: 1;
+        }
+
+        .area-item .area-delete {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .area-item .area-delete:hover {
+            background: rgba(210, 59, 74, 0.08);
+            color: #d23b4a;
+        }
+
+        .area-item:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 10px 18px rgba(38, 57, 115, 0.12);
+        }
+
+        .area-item.active {
+            background: #ffffff;
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 14px 22px rgba(38, 57, 115, 0.18);
+        }
+
+        .worksheet-content {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 22px;
+            padding: 32px;
+            box-shadow: 0 16px 40px rgba(33, 56, 102, 0.12);
+        }
+
+        .area-detail-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .area-detail-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .area-name-input {
+            border: none;
+            border-bottom: 2px solid var(--line-color);
+            font-size: 1.1rem;
+            padding: 8px 4px;
+            width: 100%;
+            font-weight: 500;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .area-name-input:focus {
+            border-color: var(--primary);
+        }
+
+        .area-instruction {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+
+        .area-add-line {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .section-plus-wrapper {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .section-menu {
+            position: absolute;
+            top: 44px;
+            left: 0;
+            background: var(--card-bg);
+            box-shadow: 0 12px 24px rgba(18, 31, 68, 0.16);
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 180px;
+            display: none;
+            z-index: 15;
+        }
+
+        .section-menu.show {
+            display: block;
+        }
+
+        .section-menu button {
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .section-menu button i {
+            color: var(--primary);
+        }
+
+        .section-menu button:hover {
+            background: rgba(51, 75, 250, 0.08);
+            color: var(--primary);
+        }
+
+        .circle-plus-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px dashed var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            background: rgba(51, 75, 250, 0.08);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .circle-plus-btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .line-divider {
+            flex: 1;
+            height: 2px;
+            background: var(--line-color);
+        }
+
+        .btn-add-section {
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-add-section:hover {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .sections-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .dynamic-table-section {
+            border: 1px solid rgba(30, 58, 138, 0.28);
+            border-radius: 18px;
+            background: #ffffff;
+            padding: 18px 22px;
+            box-shadow: 0 12px 24px rgba(33, 56, 102, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dynamic-table-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 2fr) 110px repeat(2, minmax(140px, 1fr)) minmax(150px, 1.1fr) minmax(130px, 0.9fr) 90px;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .dynamic-table-header {
+            font-weight: 600;
+            color: var(--text-main);
+            border-bottom: 2px solid #000000;
+            padding-bottom: 12px;
+        }
+
+        .dynamic-table-header .dynamic-header-cell span {
+            letter-spacing: 0.03em;
+        }
+
+        .dynamic-header-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.95rem;
+        }
+
+        .dynamic-header-cell.actions {
+            align-items: flex-end;
+        }
+
+        .dynamic-header-cell .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .dynamic-table-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .dynamic-row {
+            display: grid;
+            grid-template-columns: inherit;
+            align-items: center;
+            border-bottom: 1px solid rgba(30, 58, 138, 0.18);
+            padding: 12px 0;
+            transition: background 0.2s ease;
+        }
+
+        .dynamic-row:last-child {
+            border-bottom: none;
+        }
+
+        .dynamic-row:hover {
+            background: rgba(30, 58, 138, 0.05);
+            border-radius: 12px;
+        }
+
+        .dynamic-cell {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dynamic-cell input {
+            width: 100%;
+            border: none;
+            border-bottom: 2px solid #000000;
+            padding: 6px 0;
+            font-weight: 500;
+            color: var(--text-main);
+            background: transparent;
+            outline: none;
+        }
+
+        .dynamic-cell--description input {
+            font-weight: 600;
+        }
+
+        .dynamic-cell input:focus {
+            border-color: var(--primary);
+        }
+
+        .dynamic-input--center {
+            text-align: center;
+        }
+
+        .dynamic-input--number {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dynamic-input--percent {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dynamic-row-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .dynamic-row-actions button,
+        .dynamic-actions button {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .dynamic-row-actions button:hover,
+        .dynamic-actions button:hover {
+            background: rgba(30, 58, 138, 0.12);
+            color: var(--primary);
+        }
+
+        .dynamic-row-actions .add-row {
+            background: var(--primary);
+            color: #ffffff;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+        }
+
+        .dynamic-row-actions .add-row:hover {
+            background: var(--primary-dark);
+            color: #ffffff;
+        }
+
+        .dynamic-row-actions .expand-row,
+        .dynamic-row-actions .more-actions {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+        }
+
+        .dynamic-row-actions .row-remove,
+        .dynamic-actions .section-delete {
+            color: #d23b4a;
+        }
+
+        .dynamic-row-actions .row-remove:hover,
+        .dynamic-actions .section-delete:hover {
+            background: rgba(210, 59, 74, 0.12);
+            color: #b91c1c;
+        }
+
+        .dynamic-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding-top: 6px;
+        }
+
+        .section-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid #e3e8f5;
+            border-radius: 14px;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+        }
+
+        .section-item input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .section-item button {
+            border: none;
+            background: transparent;
+            color: #d23b4a;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+        }
+
+        .sections-empty {
+            padding: 20px;
+            border: 1px dashed var(--line-color);
+            border-radius: 14px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+        }
+
+        .area-detail-empty {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .area-detail-empty i {
+            font-size: 2rem;
+            opacity: 0.4;
+        }
+
+        @media (max-width: 992px) {
+            .worksheet-layout {
+                flex-direction: column;
+            }
+
+            .worksheet-sidebar {
+                width: 100%;
+                flex-direction: row;
+                gap: 16px;
+                overflow-x: auto;
+                min-height: auto;
+            }
+
+            .area-list {
+                flex-direction: row;
+            }
+
+            .area-item {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .workspace-toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .worksheet-content {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Topbar -->
+    <div class="workspace-topbar">
+        <div class="flex-grow-1"></div>
+        <a href="formularios.html" class="back-button-icon">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-nav">
+        <div class="workspace-container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item">
+                        <a href="formularios.html" class="text-decoration-none">
+                            <i class="bi bi-file-earmark-text"></i> Formularios
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="bi bi-grid-3x3"></i> Hojas de Trabajo
+                    </li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="workspace-container">
+        <div class="workspace-toolbar">
+            <div>
+                            </div>
+            <div class="toolbar-actions">
+                <button type="button" title="Historial"><i class="bi bi-arrow-counterclockwise"></i></button>
+                <button type="button" title="Imprimir"><i class="bi bi-printer"></i></button>
+                <button type="button" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+                <button type="button" title="Configuración"><i class="bi bi-gear"></i></button>
+            </div>
+        </div>
+
+        <div class="worksheet-layout">
+            <aside class="worksheet-sidebar">
+                <div class="sidebar-header">
+                    <span>Áreas</span>
+                    <button class="icon-button" id="areaMenuBtn" onclick="toggleAreaMenu(event)" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+
+                <div class="area-menu" id="areaMenu" role="menu">
+                    <button type="button" onclick="createNewArea()"><i class="bi bi-journal-plus"></i> Nueva área</button>
+                </div>
+
+                <div id="areaListWrapper" style="flex:1; display:flex; flex-direction:column;">
+                    <div class="area-empty" id="areaEmpty">
+                        <i class="bi bi-layers"></i>
+                        <span>Agrega tu primera área para comenzar.</span>
+                    </div>
+                    <ul class="area-list" id="areaList"></ul>
+                </div>
+            </aside>
+
+            <section class="worksheet-content" id="areaDetailPanel">
+                <div class="area-detail-empty">
+                    <i class="bi bi-layout-sidebar-inset"></i>
+                    <p>Selecciona o crea un área para comenzar.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config-supabase.js"></script>
+    <script src="../js/auth-guard.js"></script>
+    <script>
+        let areas = [];
+        let selectedAreaId = null;
+        let areaCounter = 1;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', handleGlobalClick);
+        });
+
+        function handleGlobalClick(event) {
+            const areaMenu = document.getElementById('areaMenu');
+            const areaBtn = document.getElementById('areaMenuBtn');
+
+            if (areaMenu && areaBtn && !areaMenu.contains(event.target) && !areaBtn.contains(event.target)) {
+                areaMenu.classList.remove('show');
+                areaBtn.setAttribute('aria-expanded', 'false');
+            }
+
+            document.querySelectorAll('.section-menu').forEach(menu => {
+                const wrapper = menu.closest('.section-plus-wrapper');
+                if (!wrapper) return;
+                const trigger = wrapper.querySelector('.circle-plus-btn');
+
+                if (!wrapper.contains(event.target)) {
+                    menu.classList.remove('show');
+                    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        function toggleAreaMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('areaMenu');
+            const btn = document.getElementById('areaMenuBtn');
+            if (!menu || !btn) return;
+
+            const shouldShow = !menu.classList.contains('show');
+            menu.classList.toggle('show', shouldShow);
+            btn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+        }
+
+        function toggleSectionMenu(event, areaId) {
+            event.stopPropagation();
+
+            document.querySelectorAll('.section-menu').forEach(menu => {
+                const wrapper = menu.closest('.section-plus-wrapper');
+                const trigger = wrapper ? wrapper.querySelector('.circle-plus-btn') : null;
+                menu.classList.remove('show');
+                if (trigger) trigger.setAttribute('aria-expanded', 'false');
+            });
+
+            const menu = document.getElementById(`sectionMenu-${areaId}`);
+            const btn = document.getElementById(`sectionMenuBtn-${areaId}`);
+            if (!menu || !btn) return;
+
+            const shouldShow = !menu.classList.contains('show');
+            menu.classList.toggle('show', shouldShow);
+            btn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+        }
+
+        function createNewArea() {
+            const menu = document.getElementById('areaMenu');
+            const btn = document.getElementById('areaMenuBtn');
+            if (menu) menu.classList.remove('show');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+
+            const defaultName = areas.length ? `Nueva área ${areaCounter++}` : 'Nueva área';
+            const newArea = {
+                id: `area-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                name: defaultName,
+                sections: []
+            };
+
+            areas.push(newArea);
+            selectedAreaId = newArea.id;
+
+            renderAreas();
+            renderAreaDetail();
+
+            setTimeout(() => {
+                const input = document.getElementById('areaNameInput');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 50);
+        }
+
+        function renderAreas() {
+            const list = document.getElementById('areaList');
+            const emptyState = document.getElementById('areaEmpty');
+            if (!list || !emptyState) return;
+
+            if (!areas.length) {
+                emptyState.style.display = 'flex';
+                list.innerHTML = '';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            list.innerHTML = areas.map(area => {
+                const label = area.name && area.name.trim() ? area.name.trim() : 'Área sin título';
+                const isActive = area.id === selectedAreaId;
+                return `
+                    <li class="area-item ${isActive ? 'active' : ''}">
+                        <div onclick="selectArea('${area.id}')">${label}</div>
+                        <button type="button" class="area-delete" onclick="removeArea(event, '${area.id}')" title="Eliminar área">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </li>`;
+            }).join('');
+        }
+
+        function selectArea(areaId) {
+            selectedAreaId = areaId;
+            renderAreas();
+            renderAreaDetail();
+        }
+
+        function renderAreaDetail() {
+            const panel = document.getElementById('areaDetailPanel');
+            if (!panel) return;
+
+            const area = areas.find(item => item.id === selectedAreaId);
+            if (!area) {
+                panel.innerHTML = `
+                    <div class="area-detail-empty">
+                        <i class="bi bi-layout-sidebar-inset"></i>
+                        <p>Selecciona o crea un área para comenzar.</p>
+                    </div>`;
+                return;
+            }
+
+            const safeName = area.name || '';
+            const sectionsHtml = buildSectionsHtml(area);
+
+            panel.innerHTML = `
+                <div class="area-detail-header">
+                    <h2 id="areaDetailTitle">${safeName || 'Área sin título'}</h2>
+                    <input id="areaNameInput" class="area-name-input" type="text" placeholder="Nombre del área" value="${safeName}" oninput="handleAreaNameInput('${area.id}', this.value)">
+                </div>
+                <div class="area-add-line">
+                    <div class="section-plus-wrapper">
+                        <button id="sectionMenuBtn-${area.id}" class="circle-plus-btn" onclick="toggleSectionMenu(event, '${area.id}')" aria-haspopup="true" aria-expanded="false" title="Agregar sección">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <div class="section-menu" id="sectionMenu-${area.id}">
+                            <button type="button" onclick="createDynamicSection('${area.id}')">
+                                <i class="bi bi-table"></i> Tabla dinámica
+                            </button>
+                        </div>
+                    </div>
+                    <div class="line-divider"></div>
+                </div>
+                ${sectionsHtml}
+            `;
+        }
+
+        function buildSectionsHtml(area) {
+            if (!area.sections.length) {
+                return '';
+            }
+
+            return `<div class="sections-container">
+                ${area.sections.map(section => renderSection(area.id, section)).join('')}
+            </div>`;
+        }
+
+        function renderSection(areaId, section) {
+            if (section.type === 'dynamic-table') {
+                const years = Array.isArray(section.years) && section.years.length === 2
+                    ? section.years
+                    : getDefaultYears();
+
+                if (!section.years || section.years.length !== 2) {
+                    section.years = years;
+                }
+
+                const rows = section.rows && section.rows.length
+                    ? section.rows
+                    : createDefaultRows(years);
+
+                if (!section.rows || !section.rows.length) {
+                    section.rows = rows;
+                }
+
+                const [currentYear, previousYear] = years;
+
+                return `
+                    <div class="dynamic-table-section" data-id="${section.id}">
+                        <div class="dynamic-table-grid dynamic-table-header">
+                            ${renderHeaderCell('Descripción')}
+                            ${renderHeaderCell('Ref.')}
+                            ${renderHeaderCell(currentYear, 'Q')}
+                            ${renderHeaderCell(previousYear, 'Q')}
+                            ${renderHeaderCell('Variación', 'Q')}
+                            ${renderHeaderCell('Variación', '%')}
+                            ${renderHeaderCell('', '', 'actions')}
+                        </div>
+                        <div class="dynamic-table-body">
+                            ${rows.map(row => renderDynamicRow(areaId, section.id, row, years)).join('')}
+                        </div>
+                        <div class="dynamic-actions">
+                            <button type="button" title="Agregar fila" onclick="addDynamicRow('${areaId}', '${section.id}')"><i class="bi bi-plus-circle"></i></button>
+                            <button type="button" class="section-delete" onclick="removeSection('${areaId}', '${section.id}')" title="Eliminar sección"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const safeName = escapeHtml(section.name || '');
+            return `
+                <div class="section-item" data-id="${section.id}">
+                    <i class="bi bi-grip-vertical text-muted"></i>
+                    <input type="text" value="${safeName}" placeholder="Nombre de la sección" oninput="handleSectionNameInput('${areaId}', '${section.id}', this.value)">
+                    <button type="button" onclick="removeSection('${areaId}', '${section.id}')" title="Eliminar sección"><i class="bi bi-trash"></i></button>
+                </div>
+            `;
+        }
+
+        function renderHeaderCell(label, subtitle = '', extraClass = '') {
+            const safeLabel = label !== undefined && label !== null && label !== ''
+                ? `<span>${escapeHtml(label)}</span>`
+                : '<span>&nbsp;</span>';
+            const safeSubtitle = subtitle ? `<span class="subtitle">${escapeHtml(subtitle)}</span>` : '';
+            return `<div class="dynamic-header-cell ${extraClass}">${safeLabel}${safeSubtitle}</div>`;
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderDynamicRow(areaId, sectionId, row, yearsOverride) {
+            const years = yearsOverride && yearsOverride.length === 2 ? yearsOverride : getSectionYears(sectionId);
+            const [currentYear, previousYear] = years;
+            const values = row.values || {};
+
+            const safeDescription = escapeHtml(row.description || '');
+            const safeReference = escapeHtml(row.reference || '');
+            const safeCurrent = escapeHtml(values[currentYear] ?? '');
+            const safePrevious = escapeHtml(values[previousYear] ?? '');
+            const safeVariationQ = escapeHtml(values.variationQ ?? '');
+            const safeVariationPercent = escapeHtml(values.variationPercent ?? '');
+            const indentStyle = row.level ? ` style="padding-left: ${row.level * 18}px"` : '';
+
+            return `
+                <div class="dynamic-table-grid dynamic-row" data-row-id="${row.id}">
+                    <div class="dynamic-cell dynamic-cell--description"${indentStyle}>
+                        <input type="text" value="${safeDescription}" placeholder="" oninput="handleRowChange('${areaId}', '${sectionId}', '${row.id}', 'description', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--center" value="${safeReference}" placeholder="" oninput="handleRowChange('${areaId}', '${sectionId}', '${row.id}', 'reference', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safeCurrent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${currentYear}', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safePrevious}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${previousYear}', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationQ', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--percent" value="${safeVariationPercent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationPercent', this.value)">
+                    </div>
+                    <div class="dynamic-row-actions">
+                        <button type="button" class="add-row" title="Agregar fila debajo" onclick="addDynamicRow('${areaId}', '${sectionId}', '${row.id}')"><i class="bi bi-plus"></i></button>
+                        <button type="button" class="expand-row" title="Expandir fila"><i class="bi bi-play-fill"></i></button>
+                        <button type="button" class="more-actions" title="Más opciones"><i class="bi bi-three-dots"></i></button>
+                        <button type="button" class="row-remove" title="Eliminar fila" onclick="removeDynamicRow('${areaId}', '${sectionId}', '${row.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleAreaNameInput(areaId, value) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            area.name = value;
+
+            const title = document.getElementById('areaDetailTitle');
+            if (title) {
+                title.textContent = value && value.trim() ? value.trim() : 'Área sin título';
+            }
+
+            renderAreas();
+        }
+
+        function createDynamicSection(areaId) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+
+            const menu = document.getElementById(`sectionMenu-${areaId}`);
+            const btn = document.getElementById(`sectionMenuBtn-${areaId}`);
+            if (menu) menu.classList.remove('show');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+
+            const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+            const years = getDefaultYears();
+            const newSection = {
+                id: sectionId,
+                type: 'dynamic-table',
+                years,
+                rows: createDefaultRows(years)
+            };
+
+            area.sections.push(newSection);
+
+            renderAreaDetail();
+
+            setTimeout(() => {
+                const input = document.querySelector(`.dynamic-table-section[data-id="${sectionId}"] .dynamic-row input`);
+                if (input) {
+                    input.focus();
+                }
+            }, 50);
+        }
+
+        function getDefaultYears() {
+            const currentYear = new Date().getFullYear();
+            return [currentYear, currentYear - 1];
+        }
+
+        function getSectionYears(sectionId) {
+            const section = findSectionById(sectionId);
+            if (section && section.type === 'dynamic-table') {
+                return section.years && section.years.length === 2
+                    ? section.years
+                    : getDefaultYears();
+            }
+            return getDefaultYears();
+        }
+
+        function findSectionById(sectionId) {
+            for (const area of areas) {
+                const section = area.sections.find(item => item.id === sectionId);
+                if (section) {
+                    return section;
+                }
+            }
+            return null;
+        }
+
+        function createEmptyRow(years) {
+            return {
+                id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                description: '',
+                reference: '',
+                values: {
+                    [years[0]]: '',
+                    [years[1]]: '',
+                    variationQ: '',
+                    variationPercent: ''
+                }
+            };
+        }
+
+        function createDefaultRows(years) {
+            return [createEmptyRow(years)];
+        }
+
+        function addDynamicRow(areaId, sectionId, parentRowId = null) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            const section = area.sections.find(item => item.id === sectionId);
+            if (!section || section.type !== 'dynamic-table') return;
+
+            const years = getSectionYears(sectionId);
+            const newRow = createEmptyRow(years);
+
+            section.rows = section.rows || [];
+
+            if (parentRowId) {
+                const index = section.rows.findIndex(row => row.id === parentRowId);
+                if (index !== -1) {
+                    section.rows.splice(index + 1, 0, newRow);
+                } else {
+                    section.rows.push(newRow);
+                }
+            } else {
+                section.rows.push(newRow);
+            }
+
+            renderAreaDetail();
+
+            setTimeout(() => {
+                const input = document.querySelector(`.dynamic-table-section[data-id="${sectionId}"] .dynamic-row[data-row-id="${newRow.id}"] input`);
+                if (input) {
+                    input.focus();
+                }
+            }, 50);
+        }
+
+        function removeDynamicRow(areaId, sectionId, rowId) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            const section = area.sections.find(item => item.id === sectionId);
+            if (!section || section.type !== 'dynamic-table') return;
+
+            section.rows = (section.rows || []).filter(row => row.id !== rowId);
+            if (!section.rows.length) {
+                const years = section.years && section.years.length === 2 ? section.years : getDefaultYears();
+                section.rows.push(createEmptyRow(years));
+            }
+            renderAreaDetail();
+        }
+
+        function handleRowChange(areaId, sectionId, rowId, key, value) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            const section = area.sections.find(item => item.id === sectionId);
+            if (!section || section.type !== 'dynamic-table') return;
+            const row = (section.rows || []).find(item => item.id === rowId);
+            if (!row) return;
+            row[key] = value;
+        }
+
+        function handleRowValue(areaId, sectionId, rowId, key, value) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            const section = area.sections.find(item => item.id === sectionId);
+            if (!section || section.type !== 'dynamic-table') return;
+            const row = (section.rows || []).find(item => item.id === rowId);
+            if (!row) return;
+            row.values = row.values || {};
+            row.values[key] = value;
+        }
+
+        function handleSectionNameInput(areaId, sectionId, value) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            const section = area.sections.find(item => item.id === sectionId);
+            if (!section) return;
+            section.name = value;
+        }
+
+        function removeSection(areaId, sectionId) {
+            const area = areas.find(item => item.id === areaId);
+            if (!area) return;
+            area.sections = area.sections.filter(item => item.id !== sectionId);
+            renderAreaDetail();
+        }
+
+        function removeArea(event, areaId) {
+            event.stopPropagation();
+            areas = areas.filter(area => area.id !== areaId);
+            if (selectedAreaId === areaId) {
+                selectedAreaId = areas.length ? areas[0].id : null;
+            }
+            renderAreas();
+            renderAreaDetail();
+        }
+
+    </script>
+</body>
+</html>

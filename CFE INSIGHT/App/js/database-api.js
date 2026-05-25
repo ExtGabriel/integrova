@@ -1,5 +1,7 @@
-
-const DATABASE_API_BASE_URL = 'http://localhost:3001';
+const DATABASE_API_BASE_URL = (window.API_BASE_URL)
+    || (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL))
+    || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
+    || '';
 
 // ============================================
 // ACCOUNT ASSIGNMENTS
@@ -1119,20 +1121,53 @@ async function syncAllDataToDatabase() {
 // ============================================
 
 /**
- * Obtiene los datos del Excel desde Conjuntos_datos
- * @param {string} datasetId - ID del dataset
+ * Obtiene los datos del Excel desde Conjuntos_datos con contexto de entidad/compromiso
+ * @param {string} datasetId - ID del dataset (opcional, si no se proporciona busca el más reciente)
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Object>} Datos del Excel
  */
-async function getExcelData(datasetId) {
+async function getExcelData(datasetId = null, entityId = null, commitmentId = null) {
     try {
-        console.log('Getting Excel data from Conjuntos_datos:', datasetId);
+        console.log('Getting Excel data from Conjuntos_datos:', { datasetId, entityId, commitmentId });
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/conjuntos/${datasetId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
+        // Construir URL con contexto
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        const params = new URLSearchParams();
+        
+        if (datasetId) {
+            apiUrl += `/${datasetId}`;
+        } else {
+            // Si no hay datasetId, buscar el más reciente con contexto
+            if (entityId) {
+                params.append('entity_id', entityId);
             }
+            if (commitmentId) {
+                params.append('commitment_id', commitmentId);
+            }
+            params.append('latest', 'true'); // Indicar que queremos el más reciente
+            
+            if (params.toString()) {
+                apiUrl += '?' + params.toString();
+            }
+        }
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        // Agregar contexto a headers si se proporciona
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: headers
         });
 
         const result = await response.json();
@@ -1151,21 +1186,43 @@ async function getExcelData(datasetId) {
 }
 
 /**
- * Guarda los datos del Excel en Conjuntos_datos
+ * Guarda los datos del Excel en Conjuntos_datos con contexto de entidad/compromiso
  * @param {Object} excelData - Datos del Excel
+ * @param {string} entityId - ID de la entidad
+ * @param {string} commitmentId - ID del compromiso
+ * @param {string} uploadSection - Sección donde se sube (opcional, por defecto 'conjunto-datos')
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function saveExcelData(excelData) {
+async function saveExcelData(excelData, entityId, commitmentId, uploadSection = 'conjunto-datos') {
     try {
-        console.log('Saving Excel data to Conjuntos_datos:', excelData);
+        console.log('Saving Excel data to Conjuntos_datos:', { excelData, entityId, commitmentId, uploadSection });
+        
+        // Preparar datos con contexto
+        const payload = {
+            ...excelData,
+            entity_id: entityId,
+            commitment_id: commitmentId,
+            upload_section: uploadSection,
+            user_id: getCurrentUserId()
+        };
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        // Agregar contexto a headers
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
         
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/conjuntos/save`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
-            },
-            body: JSON.stringify(excelData)
+            headers: headers,
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
@@ -1184,20 +1241,94 @@ async function saveExcelData(excelData) {
 }
 
 /**
+ * Lista conjuntos de datos por contexto de entidad/compromiso
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @param {string} uploadSection - Sección específica (opcional)
+ * @returns {Promise<Array>} Lista de conjuntos de datos
+ */
+async function listExcelDatasets(entityId = null, commitmentId = null, uploadSection = null) {
+    try {
+        console.log('Listing Excel datasets by context:', { entityId, commitmentId, uploadSection });
+        
+        // Construir URL con filtros
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        const params = new URLSearchParams();
+        
+        if (entityId) {
+            params.append('entity_id', entityId);
+        }
+        if (commitmentId) {
+            params.append('commitment_id', commitmentId);
+        }
+        if (uploadSection) {
+            params.append('upload_section', uploadSection);
+        }
+        
+        if (params.toString()) {
+            apiUrl += '?' + params.toString();
+        }
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        // Agregar contexto a headers
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error listando conjuntos de datos');
+        }
+
+        console.log('Excel datasets listed successfully:', result.data);
+        return result.data;
+
+    } catch (error) {
+        console.error('Error in listExcelDatasets:', error);
+        throw error;
+    }
+}
+
+/**
  * Elimina los datos del Excel de Conjuntos_datos
  * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (para verificación de permisos)
+ * @param {string} commitmentId - ID del compromiso (para verificación de permisos)
  * @returns {Promise<boolean>} Resultado de la operación
  */
-async function deleteExcelData(datasetId) {
+async function deleteExcelData(datasetId, entityId = null, commitmentId = null) {
     try {
-        console.log('Deleting Excel data from Conjuntos_datos:', datasetId);
+        console.log('Deleting Excel data from Conjuntos_datos:', { datasetId, entityId, commitmentId });
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        // Agregar contexto a headers para verificación de permisos
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
         
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/conjuntos/${datasetId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
-            }
+            headers: headers
         });
 
         const result = await response.json();
@@ -1211,6 +1342,236 @@ async function deleteExcelData(datasetId) {
 
     } catch (error) {
         console.error('Error in deleteExcelData:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// FORM DATA MANAGEMENT
+// ============================================
+
+/**
+ * Guarda datos del formulario para una entidad/compromiso específico
+ * @param {Object} formData - Datos del formulario
+ * @param {string} entityId - ID de la entidad
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFormData(formData, entityId, commitmentId = null) {
+    try {
+        console.log('Saving form data:', { entityId, commitmentId });
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        if (entityId) headers['entity-id'] = entityId;
+        if (commitmentId) headers['commitment-id'] = commitmentId;
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                form_id: 'formularios_general',
+                form_title: 'Formulario General',
+                form_data: formData,
+                subdocument_id: null,
+                metadata: {},
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error guardando datos del formulario');
+        }
+
+        console.log('Form data saved successfully');
+        return result;
+
+    } catch (error) {
+        console.error('Error in saveFormData:', error);
+        throw error;
+    }
+}
+
+/**
+ * Carga datos del formulario para una entidad/compromiso específico
+ * @param {string} entityId - ID de la entidad
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @returns {Promise<Object|null>} Datos del formulario o null si no hay
+ */
+async function loadFormData(entityId, commitmentId = null) {
+    try {
+        console.log('Loading form data:', { entityId, commitmentId });
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        if (entityId) headers['entity-id'] = entityId;
+        if (commitmentId) headers['commitment-id'] = commitmentId;
+        
+        const params = new URLSearchParams();
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                form_id: 'formularios_general',
+                subdocument_id: null,
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error cargando datos del formulario');
+        }
+
+        console.log('Form data loaded successfully');
+        return result.data;
+
+    } catch (error) {
+        console.error('Error in loadFormData:', error);
+        return null;
+    }
+}
+
+// ============================================
+// FILE MANAGEMENT
+// ============================================
+
+/**
+ * Sube un archivo con contexto de entidad/compromiso
+ * @param {File} file - Archivo a subir
+ * @param {string} entityId - ID de la entidad
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @param {string} section - Sección del formulario
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function uploadFile(file, entityId, commitmentId = null, section = 'general') {
+    try {
+        console.log('Uploading file:', { fileName: file.name, entityId, commitmentId, section });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('entity_id', entityId);
+        if (commitmentId) formData.append('commitment_id', commitmentId);
+        formData.append('section', section);
+        
+        const headers = {
+            'user-id': getCurrentUserId()
+        };
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/upload`, {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error subiendo archivo');
+        }
+
+        console.log('File uploaded successfully');
+        return result;
+
+    } catch (error) {
+        console.error('Error in uploadFile:', error);
+        throw error;
+    }
+}
+
+/**
+ * Lista archivos para una entidad/compromiso específico
+ * @param {string} entityId - ID de la entidad
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @param {string} section - Sección específica (opcional)
+ * @returns {Promise<Array>} Lista de archivos
+ */
+async function listFiles(entityId, commitmentId = null, section = null) {
+    try {
+        console.log('Listing files:', { entityId, commitmentId, section });
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        if (entityId) headers['entity-id'] = entityId;
+        if (commitmentId) headers['commitment-id'] = commitmentId;
+        
+        const params = new URLSearchParams();
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+        if (section) params.append('section', section);
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/list?${params}`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error listando archivos');
+        }
+
+        console.log('Files listed successfully:', result.data?.length || 0);
+        return result.data || [];
+
+    } catch (error) {
+        console.error('Error in listFiles:', error);
+        return [];
+    }
+}
+
+/**
+ * Elimina un archivo específico
+ * @param {string} fileId - ID del archivo
+ * @param {string} entityId - ID de la entidad (para verificación)
+ * @param {string} commitmentId - ID del compromiso (para verificación)
+ * @returns {Promise<boolean>} Resultado de la operación
+ */
+async function deleteFile(fileId, entityId = null, commitmentId = null) {
+    try {
+        console.log('Deleting file:', { fileId, entityId, commitmentId });
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': getCurrentUserId()
+        };
+        
+        if (entityId) headers['entity-id'] = entityId;
+        if (commitmentId) headers['commitment-id'] = commitmentId;
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/${fileId}`, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error eliminando archivo');
+        }
+
+        console.log('File deleted successfully');
+        return true;
+
+    } catch (error) {
+        console.error('Error in deleteFile:', error);
         throw error;
     }
 }
@@ -1234,6 +1595,15 @@ window.syncAllDataToDatabase = syncAllDataToDatabase;
 window.getExcelData = getExcelData;
 window.saveExcelData = saveExcelData;
 window.deleteExcelData = deleteExcelData;
+
+// Form data management
+window.saveFormData = saveFormData;
+window.loadFormData = loadFormData;
+
+// File management
+window.uploadFile = uploadFile;
+window.listFiles = listFiles;
+window.deleteFile = deleteFile;
 
 // Nuevas funciones para grupos financieros y cuentas
 window.saveFinancialGroup = saveFinancialGroup;

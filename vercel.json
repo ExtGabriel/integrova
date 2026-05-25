@@ -1,50 +1,20 @@
 {
-    "version": 2,
-    "name": "cfe-insight",
-    "builds": [
-        {
-            "src": "CFE INSIGHT/App/**",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "api/**/*.js",
-            "use": "@vercel/node"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "dest": "/api/$1"
-        },
-        {
-            "src": "/(?!api)(.*)",
-            "dest": "/CFE INSIGHT/App/$1"
-        },
-        {
-            "handle": "filesystem"
-        },
-        {
-            "src": "/(?!api)(.*)",
-            "dest": "/CFE INSIGHT/App/index.html"
-        }
-    ],
-    "headers": [
-        {
-            "source": "/(.*)",
-            "headers": [
-                {
-                    "key": "X-Content-Type-Options",
-                    "value": "nosniff"
-                },
-                {
-                    "key": "X-Frame-Options",
-                    "value": "DENY"
-                },
-                {
-                    "key": "X-XSS-Protection",
-                    "value": "1; mode=block"
-                }
-            ]
-        }
-    ]
+  "buildCommand": null,
+  "outputDirectory": "CFE INSIGHT/App",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://integrova-production-0e08.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/",
+      "destination": "/pages/login.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/pages/:path*"
+    }
+  ]
 }

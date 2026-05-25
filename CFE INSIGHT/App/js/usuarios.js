@@ -271,6 +271,9 @@
             showLoading(true);
             console.log('📥 Cargando usuarios...');
 
+            // Limpiar caché local para forzar datos frescos
+            allUsers = [];
+            
             // Obtener usuarios según permisos
             const result = await API.Users.getAccessibleUsers();
 
@@ -296,20 +299,29 @@
                 return;
             }
 
-            // Normalizar datos
-            console.log('🔍 Debug normalización:', {
+            // Normalizar datos con logging detallado
+            console.log('🔍 Debug normalización - DATOS CRUDOS DESDE API:', {
                 usuariosRecibidos: result.data?.length || 0,
-                usuariosCrudos: result.data?.map(u => ({ 
-                    id: u.id, 
-                    email: u.email, 
-                    role: u.role, 
+                usuariosCrudos: result.data?.map(u => ({
+                    id: u.id,
+                    email: u.email,
+                    role: u.role, // SIN normalizar para ver valor exacto
+                    role_normalizado: (u.role || '').trim().toLowerCase(),
                     is_active: u.is_active,
                     full_name: u.full_name
                 })) || []
             });
 
+            // Limpiar completamente allUsers antes de asignar
+            allUsers = [];
+            
             allUsers = (result.data || []).map(u => {
                 try {
+                    const rawRole = u.role || '';
+                    const normalizedRole = String(rawRole).trim().toLowerCase();
+                    
+                    console.log(`🔍 Usuario ${u.email}: role="${rawRole}" → normalized="${normalizedRole}"`);
+                    
                     return {
                         id: u.id,
                         username: u.username || (u.email ? u.email.split('@')[0] : 'N/A'),
@@ -317,8 +329,15 @@
                         full_name: u.full_name || u.name || 'Sin nombre',
                         email: u.email || 'No disponible',
                         phone: u.phone || 'No disponible',
-                        role: u.role || 'Sin rol',
-                        team: Array.isArray(u.groups) && u.groups.length ? u.groups[0] : (u.group || 'Sin grupo'),
+                        role: normalizedRole || 'Sin rol',
+                        team: (() => {
+                            if (u.team) return u.team;
+                            const groupsArray = Array.isArray(u.groups) ? u.groups : [];
+                            if (groupsArray.length) return groupsArray[0];
+                            if (u.group) return u.group;
+                            const metaTeam = u.raw_user_meta_data?.team;
+                            return metaTeam || 'Sin grupo';
+                        })(),
                         active: u.is_active === true,  // ← Más seguro: solo true si es explícitamente true
                         password: '••••••••',
                         created_at: u.created_at || null
@@ -331,7 +350,7 @@
 
             console.log('🔍 Debug después de normalizar:', {
                 usuariosNormalizados: allUsers.length,
-                usuarios: allUsers.map(u => ({ id: u.id, email: u.email, active: u.active }))
+                usuarios: allUsers.map(u => ({ id: u.id, email: u.email, role: u.role, active: u.active }))
             });
 
             console.log(`✅ ${allUsers.length} usuarios cargados`);
@@ -381,6 +400,8 @@
 
         safeUsers.forEach(user => {
             const row = document.createElement('tr');
+            // Guardar el ID en el DOM para actualizaciones posteriores
+            row.setAttribute('data-user-id', user.id || '');
 
             // Username
             const tdUsername = document.createElement('td');
@@ -399,10 +420,13 @@
 
             // Rol (con selector si puede cambiar)
             const tdRole = document.createElement('td');
+            const normalizedRole = String(user.role || '').trim().toLowerCase();
+            
+            console.log(`🎨 Renderizando usuario ${user.email}: role="${user.role}" → normalized="${normalizedRole}"`);
+            
             if (canChangeRoles) {
                 const select = document.createElement('select');
                 select.className = 'form-select form-select-sm';
-                select.value = (user.role || '').toLowerCase();
 
                 ALLOWED_GLOBAL_ROLES.forEach(r => {
                     const option = document.createElement('option');
@@ -418,10 +442,20 @@
                     select.appendChild(option);
                 });
 
+                // Importante: asignar el valor DESPUÉS de agregar opciones
+                select.value = normalizedRole;
+
+                // Si por alguna razón no coincide, forzar al primer match manual
+                if (select.value !== normalizedRole) {
+                    console.warn(`⚠️ No se pudo seleccionar rol "${normalizedRole}" para ${user.email}, valor actual: ${select.value}`);
+                    const optionToSelect = Array.from(select.options).find(opt => opt.value === normalizedRole);
+                    if (optionToSelect) optionToSelect.selected = true;
+                }
+
                 select.addEventListener('change', () => updateUserRole(user.id, select.value));
                 tdRole.appendChild(select);
             } else {
-                tdRole.textContent = user.role || 'Sin rol';
+                tdRole.textContent = normalizedRole || 'Sin rol';
                 tdRole.style.fontStyle = 'italic';
             }
             row.appendChild(tdRole);
@@ -532,6 +566,7 @@
             console.log(`🔄 Cambiando rol de usuario ${userId} a ${normalizedRole}...`);
 
             const result = await API.Users.updateRole(userId, normalizedRole);
+            console.log('🔄 Resultado de updateRole:', result);
             showLoading(false);
 
             if (!result.success) {
@@ -542,8 +577,29 @@
                 return;
             }
 
+            console.log('✅ Rol actualizado con éxito, recargando usuarios...');
             showSuccessMsg(`✅ Rol actualizado correctamente a: ${normalizedRole}`);
-            loadUsers();
+            
+            // Forzar recarga COMPLETA - limpiar caché y recargar
+            console.log('🔄 Limpiando caché y recargando usuarios...');
+            
+            // Limpiar cualquier caché local
+            allUsers = [];
+            
+            // Forzar recarga desde backend (datos frescos)
+            await loadUsers();
+            
+            // Forzar actualización del select específico
+            setTimeout(() => {
+                const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (userRow) {
+                    const select = userRow.querySelector('select.form-select');
+                    if (select) {
+                        select.value = normalizedRole;
+                        console.log('✅ Select actualizado manualmente a:', normalizedRole);
+                    }
+                }
+            }, 100);
         } catch (err) {
             showLoading(false);
             console.error('❌ Error en updateUserRole:', err);
@@ -735,9 +791,15 @@
             console.log('✅ Respuesta de creación:', response);
 
             if (!response.success) {
+                // Mejorar mensaje de error para email ya registrado
+                let errorMsg = response.error || 'Error desconocido al crear usuario';
+                if (errorMsg.includes('email_exists') || errorMsg.toLowerCase().includes('email') && errorMsg.toLowerCase().includes('already')) {
+                    errorMsg = 'Este correo electrónico ya está registrado. Por favor, usa otro correo o contacta al administrador.';
+                }
+
                 // Mostrar error
                 errorSection.style.display = 'block';
-                errorMessage.textContent = response.error || 'Error desconocido al crear usuario';
+                errorMessage.textContent = errorMsg;
                 return;
             }
 

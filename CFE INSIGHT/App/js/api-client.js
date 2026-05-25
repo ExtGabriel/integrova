@@ -414,6 +414,100 @@
      * ✅ Patrón defensivo: verifica permisos y disponibilidad
      * ✅ GARANTÍA: window.API.Entities SIEMPRE existe, nunca undefined
      */
+    function buildEntityMetadata(payload = {}) {
+        return {
+            country: payload.country ?? null,
+            address: payload.address ?? null,
+            email: payload.email ?? null,
+            phone: payload.phone ?? null,
+            encargado: payload.encargado ?? null,
+            es_grupo: payload.is_group ?? false,
+            relationship_type: payload.relationship_type ?? 'none',
+            parent_id: payload.parent_id ?? null
+        };
+    }
+
+    function normalizeEntityPayload(raw = {}) {
+        if (!raw || typeof raw !== 'object') {
+            return {};
+        }
+
+        const payload = {};
+
+        const simpleFields = ['name', 'entity_id', 'entityId', 'description', 'status', 'country', 'address', 'email', 'phone', 'is_group', 'relationship_type', 'parent_id', 'parentId', 'metadata', 'responsible', 'created_by'];
+        simpleFields.forEach(field => {
+            if (Object.prototype.hasOwnProperty.call(raw, field)) {
+                const targetKey = field === 'entityId' ? 'entity_id' : field === 'parentId' ? 'parent_id' : field;
+                const value = raw[field];
+                payload[targetKey] = value === '' ? null : value;
+            }
+        });
+
+        if (Object.prototype.hasOwnProperty.call(raw, 'encargado')) {
+            const value = raw.encargado === '' ? null : raw.encargado;
+            payload.encargado = value;
+            payload.responsible = value;
+        } else if (Object.prototype.hasOwnProperty.call(raw, 'responsible')) {
+            payload.responsible = raw.responsible === '' ? null : raw.responsible;
+        }
+
+        // Normalizar defaults
+        if (payload.status === undefined || payload.status === null) {
+            payload.status = 'activa';
+        }
+
+        if (payload.is_group === undefined || payload.is_group === null) {
+            payload.is_group = false;
+        }
+
+        if (payload.relationship_type === undefined || payload.relationship_type === null) {
+            payload.relationship_type = 'none';
+        }
+
+        if (payload.entity_id === undefined || payload.entity_id === null) {
+            payload.entity_id = null;
+        }
+
+        if (payload.parent_id === undefined) {
+            payload.parent_id = null;
+        }
+
+        if (!payload.metadata) {
+            payload.metadata = buildEntityMetadata(payload);
+        }
+
+        return payload;
+    }
+
+    function deriveUserName(user) {
+        if (!user) {
+            return 'Usuario desconocido';
+        }
+
+        if (user.full_name) {
+            return user.full_name;
+        }
+
+        if (user.raw_user_meta_data) {
+            try {
+                const meta = typeof user.raw_user_meta_data === 'string'
+                    ? JSON.parse(user.raw_user_meta_data)
+                    : user.raw_user_meta_data;
+                if (meta) {
+                    return meta.full_name || meta.name || meta.nombre || meta.display_name || user.email || 'Usuario desconocido';
+                }
+            } catch (err) {
+                console.warn('⚠️ [deriveUserName] Error parseando metadata de usuario:', err);
+            }
+        }
+
+        if (user.email) {
+            return user.email;
+        }
+
+        return 'Usuario desconocido';
+    }
+
     const EntitiesModule = {
         /**
          * Listar todas las entidades visibles para el usuario actual
@@ -489,11 +583,18 @@
                 }
 
                 // Preparar datos para inserción
-                const entityData = {
-                    name: data.name,
-                    responsible: data.responsible || null
-                    // created_by se llena automáticamente por trigger
-                };
+                const entityData = normalizeEntityPayload({
+                    ...data,
+                    created_by: window.currentUser?.id || null
+                });
+
+                if (!entityData.metadata) {
+                    entityData.metadata = buildEntityMetadata(entityData);
+                }
+
+                if (entityData.created_by === null) {
+                    delete entityData.created_by;
+                }
 
                 const { data: newEntity, error } = await client
                     .from('entities')
@@ -658,9 +759,11 @@
                     return { data: null, error: 'Datos de actualización inválidos' };
                 }
 
+                const normalizedUpdates = normalizeEntityPayload(updates);
+
                 const { data, error } = await client
                     .from('entities')
-                    .update(updates)
+                    .update(normalizedUpdates)
                     .eq('id', entityId)
                     .select()
                     .single();
@@ -715,6 +818,21 @@
                     return { data: null, error: 'El ID de la entidad es requerido' };
                 }
 
+                // Primero eliminar compromisos asociados a la entidad
+                console.log('🗑️ [Entities.delete] Eliminando compromisos asociados a la entidad:', entityId);
+                const { error: commitmentsError } = await client
+                    .from('commitments')
+                    .delete()
+                    .eq('entity_id', entityId);
+
+                if (commitmentsError) {
+                    console.error('❌ [Entities.delete] Error eliminando compromisos:', commitmentsError.message);
+                    return { data: null, error: 'Error eliminando compromisos asociados: ' + commitmentsError.message };
+                }
+
+                console.log('✅ [Entities.delete] Compromisos eliminados, procediendo a eliminar entidad');
+
+                // Luego eliminar la entidad
                 const { data, error } = await client
                     .from('entities')
                     .delete()
@@ -727,7 +845,7 @@
                     return { data: null, error: error.message };
                 }
 
-                console.log('✅ [Entities.delete] Entidad eliminada:', entityId);
+                console.log('✅ [Entities.delete] Entidad eliminada con sus compromisos:', entityId);
                 return { data: data || { id: entityId }, error: null };
             } catch (err) {
                 console.error('❌ [Entities.delete] Excepción:', err);
@@ -867,9 +985,10 @@
                         created_at,
                         users:user_id (
                             id,
-                            name,
+                            full_name,
                             email,
-                            role
+                            role,
+                            raw_user_meta_data
                         )
                     `)
                     .eq('entity_id', entityId);
@@ -890,7 +1009,7 @@
                     user_id: item.user_id,
                     role: item.role,
                     created_at: item.created_at,
-                    user_name: item.users?.name || 'Usuario desconocido',
+                    user_name: deriveUserName(item.users),
                     user_email: item.users?.email || '',
                     user_role: item.users?.role || ''
                 }));
@@ -1342,6 +1461,12 @@
                 console.error('❌ [Commitments.delete] Excepción:', err.message);
                 return { success: true, data: null };
             }
+        },
+
+        // Mantener compatibilidad con el patrón anterior
+        async getAll() {
+            const result = await this.list();
+            return { success: !result.error, data: result.data };
         }
     };
 
@@ -1353,20 +1478,41 @@
     const UsersModule = {
         async getAll() {
             try {
+                // SIEMPRE intentar backend /api/users primero (sin RLS, datos frescos)
+                console.log('👑 Intentando backend /api/users (service role)...');
+                try {
+                    const response = await fetch('/api/users');
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log(`✅ Backend /api/users: ${result.data.length} usuarios`);
+                        
+                        // Limpiar caché local para asegurar datos frescos
+                        try {
+                            sessionStorage.removeItem('usersCache');
+                            console.log('🗑️ usersCache limpiada después de obtener datos frescos');
+                        } catch (e) {
+                            console.warn('⚠️ No se pudo limpiar usersCache:', e.message);
+                        }
+                        
+                        return { success: true, data: result.data };
+                    } else {
+                        console.log('⚠️ Backend /api/users falló, usando fallback a Supabase');
+                    }
+                } catch (backendErr) {
+                    console.log('⚠️ Backend /api/users no disponible, usando fallback a Supabase');
+                }
+
+                // Fallback: usar Supabase directo
                 const client = await getSupabaseClient();
                 if (!client) return { success: true, data: [] };
 
-                // Para administradores, intentar obtener todos los usuarios
-                // Para usuarios normales, aplicar restricciones RLS
                 let query = client.from('users').select('*');
                 
                 // Si el usuario actual es admin, intentar bypass RLS
                 if (window.currentUser && window.currentUser.role === 'admin') {
                     console.log('🔑 Usuario admin detectado, intentando obtener todos los usuarios...');
-                    
-                    // Intentar consulta directa (puede funcionar dependiendo de RLS)
                     const { data, error } = await query;
-                    
+
                     console.log('🔍 Debug getAll users:', {
                         totalUsers: data?.length || 0,
                         users: data?.map(u => ({ id: u.id, email: u.email, role: u.role, is_active: u.is_active })) || [],
@@ -1383,11 +1529,11 @@
                         if (error.message?.includes('permission') || error.code === 'PGRST301') {
                             console.log('🔄 Error de permisos, intentando consulta alternativa...');
                             
-                            // Consulta alternativa: obtener usuarios por roles conocidos
+                            // Consulta alternativa: incluir roles globales conocidos
                             const { data: altData, error: altError } = await client
                                 .from('users')
                                 .select('*')
-                                .in('role', ['admin', 'user']);
+                                .in('role', ['admin', 'user', 'auditor', 'auditor_senior', 'socio', 'cliente']);
                                 
                             if (!altError && altData) {
                                 console.log(`✅ Consulta alternativa exitosa: ${altData.length} usuarios`);
@@ -1667,48 +1813,33 @@
                     return { success: false, error: `Rol inválido. Roles permitidos: ${VALID_GLOBAL_ROLES.join(', ')}` };
                 }
 
-                // Crear usuario en Auth
-                const { data: authData, error: authError } = await client.auth.signUp({
-                    email: userData.email,
-                    password: userData.password,
-                    options: {
-                        emailRedirectTo: window.location.origin,
-                        data: {
-                            full_name: userData.name,
-                            role: normalizedRole
-                        }
-                    }
+                // Delegar creación al backend (usa service role y respeta FK)
+                const response = await fetch('/api/usuarios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: userData.email.split('@')[0],
+                        password: userData.password,
+                        full_name: userData.name,
+                        email: userData.email,
+                        phone: userData.phone || null,
+                        role: normalizedRole,
+                        team: userData.team || null,
+                        groups: userData.team ? [userData.team] : []
+                    })
                 });
 
-                if (authError) {
-                    console.error('❌ Users.create auth error:', authError);
-                    return { success: false, error: authError.message || 'Error al crear usuario en Auth' };
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    const message = result?.error || 'Error al crear usuario en backend';
+                    console.error('❌ Users.create backend error:', message, result);
+                    return { success: false, error: message };
                 }
 
-                // Insertar/actualizar en tabla users
-                const userRecord = {
-                    id: authData.user.id,
-                    email: userData.email,
-                    full_name: userData.name,
-                    role: normalizedRole,
-                    team: userData.team || null,
-                    is_active: true,
-                    username: userData.email.split('@')[0]
-                };
-
-                const { data: dbData, error: dbError } = await client
-                    .from('users')
-                    .upsert(userRecord)
-                    .select()
-                    .single();
-
-                if (dbError) {
-                    console.error('❌ Users.create DB error:', dbError);
-                    return { success: false, error: dbError.message || 'Error al guardar usuario en BD' };
-                }
-
-                console.log('✅ Usuario creado exitosamente:', dbData);
-                return { success: true, data: dbData };
+                console.log('✅ Usuario creado exitosamente (backend):', result.data);
+                return { success: true, data: result.data };
             } catch (err) {
                 console.error('❌ Users.create excepción:', err);
                 return { success: false, error: err.message || 'Error desconocido al crear usuario' };
@@ -1747,12 +1878,12 @@
                     };
                 }
 
-                // Validar que NO sea un rol de entidad
-                const ENTITY_ROLES = ['owner', 'auditor', 'viewer'];
+                // Validar que NO sea un rol de entidad (excluir 'auditor' global)
+                const ENTITY_ROLES = ['owner', 'viewer']; // 'auditor' es un rol global válido
                 if (ENTITY_ROLES.includes(normalizedRole)) {
                     return {
                         success: false,
-                        error: `${normalizedRole} es un rol de entidad, no global. Use 'admin' o 'user'`
+                        error: `${normalizedRole} es un rol de entidad, no global. Use 'admin', 'user', 'auditor', 'auditor_senior', 'socio', 'cliente'`
                     };
                 }
 
@@ -1781,7 +1912,7 @@
                     if (error.code === '23514') {
                         return {
                             success: false,
-                            error: 'El rol no cumple con los constraints de BD. Asegúrate de usar solo: admin o user'
+                            error: `El rol no cumple con los constraints de BD. Asegúrate de usar solo: ${VALID_GLOBAL_ROLES.join(', ')}`
                         };
                     }
 
@@ -1993,11 +2124,10 @@
 
                 profile.role = String(profile.role).trim().toLowerCase();
 
-                // VALIDAR que el rol sea válido (solo admin o user)
+                // VALIDAR que el rol sea válido (incluyendo todos los roles permitidos)
                 if (!VALID_GLOBAL_ROLES.includes(profile.role)) {
-                    const error = `Rol inválido en BD: "${profile.role}". Solo se permiten: ${VALID_GLOBAL_ROLES.join(', ')}`;
-                    console.error('❌ Users.getCurrent:', error);
-                    return { success: false, data: null, error };
+                    console.warn(`⚠️ Rol "${profile.role}" no está en VALID_GLOBAL_ROLES, pero se permite para compatibilidad`);
+                    // No retornar error, permitir el rol para compatibilidad
                 }
 
                 // PASO 4: Validar is_active
@@ -2011,9 +2141,18 @@
                 // La BD usa 'full_name', pero el código usa 'name'
                 profile.name = profile.full_name || profile.username || profile.email?.split('@')[0] || 'Usuario';
 
-                // PASO 5: Setear window.currentUser
+                // PASO 4: Setear window.currentUser
                 window.currentUser = profile;
                 console.log(`✅ Users.getCurrent: Usuario cargado - ${profile.name} (${profile.role})`);
+
+                // PASO 4.5: Invalidar TODAS las cachés para forzar actualización
+                try {
+                    sessionStorage.removeItem('userUI');
+                    sessionStorage.removeItem('usersCache');
+                    console.log('🗑️ Caché de userUI y usersCache eliminadas para forzar actualización');
+                } catch (e) {
+                    console.warn('⚠️ No se pudo eliminar caché:', e.message);
+                }
 
                 return { success: true, data: profile };
             } catch (err) {

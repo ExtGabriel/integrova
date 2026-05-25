@@ -1,0 +1,2990 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace de Consulta</title>
+    <link rel="icon" href="../assets/LOGO INTEGROVA.png?v=2" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1e3a8a;
+            --color-primary-light: #3b82f6;
+            --color-dark: #0f172a;
+            --color-muted: #64748b;
+            --color-border: rgba(15, 23, 42, 0.09);
+            --color-surface: #ffffff;
+            --color-background: #f5f7fb;
+            --color-warning-bg: #fff7dc;
+            --color-warning-border: #facc15;
+            --color-success: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+            background: var(--color-background);
+            color: var(--color-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            background: #1e3a8a;
+            color: #ffffff;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            box-shadow: 0 8px 25px rgba(30, 58, 138, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand span:first-child {
+            font-size: 0.75rem;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .brand span:last-child {
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .top-bar nav {
+            display: flex;
+            gap: 18px;
+            flex: 1;
+        }
+
+        .top-bar nav a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding-bottom: 6px;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .top-bar nav a.active,
+        .top-bar nav a:hover {
+            color: #ffffff;
+            border-color: rgba(148, 197, 255, 0.9);
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-left: auto;
+        }
+
+        .top-actions button {
+            background: #42A5F5;
+            color: #ffffff;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .top-actions button:hover {
+            background: #64B5F6;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 6px 0 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            letter-spacing: 0.18em;
+            color: var(--color-muted);
+            text-transform: uppercase;
+        }
+
+        .sidebar-header button {
+            background: transparent;
+            border: none;
+            color: var(--color-primary);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .queries-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .queries-empty {
+            font-size: 0.9rem;
+            color: var(--color-muted);
+            line-height: 1.4;
+        }
+
+        .query-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: rgba(59, 130, 246, 0.08);
+            color: var(--color-primary);
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .query-item:hover {
+            background: rgba(59, 130, 246, 0.15);
+            transform: translateX(2px);
+        }
+
+        .query-item.active {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: #ffffff;
+            box-shadow: 0 14px 28px rgba(30, 58, 138, 0.18);
+        }
+
+        .query-item__info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .query-item__title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .query-item__meta {
+            font-size: 0.75rem;
+            color: rgba(59, 130, 246, 0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 4px;
+        }
+
+        .query-item i {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .query-item__actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-item__delete {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .query-item__delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: scale(1.1);
+        }
+
+        .query-item.active .query-item__delete {
+            color: #ffffff;
+        }
+
+        .query-item.active .query-item__delete:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 32px 42px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .breadcrumbs {
+            font-size: 0.85rem;
+            color: var(--color-muted);
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .workspace-title {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .workspace-title h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #7c6a00;
+            background: #fef08a;
+            border-radius: 999px;
+            padding: 6px 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .workspace-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .workspace-actions button {
+            border: none;
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .workspace-actions .primary {
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: #ffffff;
+            box-shadow: 0 16px 32px rgba(25, 118, 210, 0.28);
+        }
+
+        .workspace-actions .secondary {
+            background: rgba(148, 163, 184, 0.16);
+            color: var(--color-dark);
+        }
+
+        .workspace-actions button:hover {
+            transform: translateY(-2px);
+        }
+
+        .card {
+            background: var(--color-surface);
+            border-radius: 18px;
+            border: 1px solid var(--color-border);
+            padding: 24px;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .question-sets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .question-set-item {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            scroll-margin-top: 96px;
+        }
+
+        .question-set-item--upload {
+            background: transparent;
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-margin-top: 96px;
+        }
+
+        .question-set-item--active {
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15), 0 0 0 2px rgba(59, 130, 246, 0.35);
+        }
+
+        .question-set-item--upload.question-set-item--active > .question-set-card {
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+            border-color: rgba(59, 130, 246, 0.45);
+        }
+
+        .question-set-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+        }
+
+        .question-set-item.active {
+            border-color: #42a5f5;
+            box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);
+        }
+
+        .question-set-item__info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .question-set-item__title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-dark);
+        }
+
+        .question-set-item__type {
+            font-size: 0.8rem;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .question-set-item__actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .question-set-item__actions button {
+            background: transparent;
+            border: none;
+            color: var(--color-muted);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-set-item__actions button:hover {
+            background: rgba(148, 163, 184, 0.1);
+            color: #42a5f5;
+        }
+
+        .question-set-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .question-set-item:not(.question-set-item--upload) .question-set-card + .question-set-card {
+            margin-top: 14px;
+        }
+
+        .question-set-item--upload {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            cursor: default;
+        }
+
+        .question-set-card--base,
+        .question-set-card--summary,
+        .question-set-card--upload {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .question-set-card--summary {
+            border-style: dashed;
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(248, 250, 252, 0.6);
+        }
+
+        .question-set-card--summary .question-set-card__label {
+            font-size: 0.85rem;
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-card--upload {
+            border-style: dashed;
+            border-width: 1.5px;
+            background: rgba(248, 250, 252, 0.92);
+            box-shadow: none;
+        }
+
+        .question-set-card--upload .question-set-card__label {
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-card--upload .file-upload-card {
+            border-color: rgba(148, 163, 184, 0.4);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .question-set-card--upload .file-upload-card__hint {
+            text-align: center;
+        }
+
+        .question-set-card__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .question-set-card__meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .question-set-card__type {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(15, 23, 42, 0.55);
+        }
+
+        .question-set-card__title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .question-set-card__title-input {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-dark);
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .question-set-card__title-input::placeholder {
+            color: rgba(15, 23, 42, 0.4);
+        }
+
+        .question-set-card__header-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .question-set-card__header-actions button {
+            background: rgba(148, 163, 184, 0.12);
+            color: rgba(15, 23, 42, 0.7);
+            border: none;
+            border-radius: 10px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-set-card__header-actions button:hover {
+            background: rgba(66, 165, 245, 0.12);
+            color: #42a5f5;
+        }
+
+        .question-set-card__field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .question-set-card__label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(15, 23, 42, 0.65);
+        }
+
+        .question-set-card__input {
+            border-radius: 12px;
+            border: 1px dashed rgba(148, 163, 184, 0.6);
+            background: rgba(248, 250, 252, 0.95);
+            padding: 12px 14px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            color: var(--color-text);
+        }
+
+        .question-set-card__input:focus {
+            border-style: solid;
+            border-color: rgba(66, 165, 245, 0.65);
+            outline: none;
+        }
+
+        .question-set-card__input--title {
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            background: #ffffff;
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-dark);
+        }
+
+        .question-set-card__textarea {
+            min-height: 110px;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        .file-upload-card {
+            border-radius: 14px;
+            border: 1.5px dashed rgba(148, 163, 184, 0.55);
+            background: rgba(248, 250, 252, 0.75);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: rgba(71, 85, 105, 0.9);
+        }
+
+        .file-upload-card--dragover {
+            border-color: rgba(59, 130, 246, 0.75);
+            background: rgba(191, 219, 254, 0.35);
+        }
+
+        .file-upload-card__input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        .file-upload-card__hint {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: rgba(15, 23, 42, 0.6);
+            text-align: center;
+            padding: 25px 16px;
+            border-radius: 12px;
+            border: 1.5px dashed rgba(148, 163, 184, 0.55);
+            background: rgba(248, 250, 252, 0.85);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-card__hint:hover {
+            border-color: rgba(59, 130, 246, 0.55);
+            color: rgba(37, 99, 235, 0.9);
+        }
+
+        .file-upload-card__preview {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .file-upload-card__file {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: rgba(15, 23, 42, 0.8);
+        }
+
+        .file-upload-card__file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-width: calc(100% - 32px);
+        }
+
+        .file-upload-card__file-name {
+            flex: 1;
+            margin-right: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-upload-card__file-size {
+            font-size: 0.8rem;
+            color: rgba(71, 85, 105, 0.7);
+        }
+
+        .file-upload-card__file-remove {
+            border: none;
+            background: transparent;
+            color: rgba(148, 163, 184, 0.9);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .file-upload-card__file-remove:hover {
+            color: rgba(239, 68, 68, 0.95);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .file-upload-card__file-remove i {
+            pointer-events: none;
+        }
+
+        .file-upload-card__clear {
+            color: rgba(59, 130, 246, 0.95);
+            display: none;
+        }
+
+        .file-upload-card__clear:hover {
+            color: rgba(37, 99, 235, 1);
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-track {
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 3px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 3px;
+        }
+
+        .file-upload-card__preview::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.6);
+        }
+
+        .file-upload-card__actions {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            font-size: 0.9rem;
+        }
+
+        .file-upload-card__actions a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .file-upload-card__actions a:hover {
+            text-decoration: underline;
+        }
+
+        .file-upload-card__destination {
+            font-size: 0.85rem;
+            color: rgba(15, 23, 42, 0.6);
+        }
+
+        .question-set-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: transparent;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.02);
+        }
+
+        .question-set-inline__input {
+            flex: 1;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            color: var(--color-text);
+            background: transparent;
+        }
+
+        .question-set-inline__input:focus {
+            border-color: rgba(66, 165, 245, 0.65);
+            outline: none;
+        }
+
+        .question-set-inline__label {
+            font-weight: 600;
+            color: rgba(15, 23, 42, 0.55);
+            min-width: 100px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .question-set-inline__actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .question-set-inline__button {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(15, 23, 42, 0.55);
+            cursor: pointer;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .question-set-inline__button:hover {
+            color: #2563eb;
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .question-set-inline__button--danger {
+            color: rgba(239, 68, 68, 0.75);
+        }
+
+        .question-set-inline__button--danger:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .question-type-dropdown {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 220px;
+            z-index: 20;
+        }
+
+        .question-type-dropdown button {
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--color-dark);
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .question-type-dropdown button:hover {
+            background: rgba(59, 130, 246, 0.12);
+            color: #1e3a8a;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .instructions-card {
+            border: 1px solid var(--color-warning-border);
+            background: var(--color-warning-bg);
+        }
+
+        .instructions-card textarea {
+            width: 100%;
+            min-height: 120px;
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            padding: 18px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.7);
+            resize: vertical;
+        }
+
+        .instructions-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .instructions-actions button {
+            border: none;
+            cursor: pointer;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-weight: 600;
+        }
+
+        .instructions-actions .save {
+            background: linear-gradient(135deg, #14b8a6 0%, #10b981 100%);
+            color: white;
+        }
+
+        .instructions-actions .reset {
+            background: transparent;
+            color: var(--color-muted);
+        }
+
+        .last-saved-hint {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--color-muted);
+        }
+
+        .question-card {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .question-card .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .question-card label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-muted);
+            letter-spacing: 0.03em;
+        }
+
+        .question-card input,
+        .question-card textarea {
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            padding: 14px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .question-card textarea {
+            min-height: 160px;
+            resize: vertical;
+        }
+
+        .question-empty-state {
+            border: 2px dashed rgba(148, 163, 184, 0.5);
+            border-radius: 16px;
+            padding: 36px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--color-muted);
+            background: rgba(226, 232, 240, 0.25);
+        }
+
+        .question-empty-state i {
+            font-size: 2rem;
+            color: rgba(59, 130, 246, 0.6);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .section-title button {
+            border: none;
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
+        }
+
+        .requirements-grid {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px;
+        }
+
+        .requirement-card {
+            background: var(--color-surface);
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .requirement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .requirement-title {
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .status-chip {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-weight: 600;
+            background: rgba(250, 204, 21, 0.24);
+            color: #b45309;
+        }
+
+        .status-completed {
+            background: rgba(34, 197, 94, 0.18);
+            color: #15803d;
+        }
+
+        .requirement-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.82rem;
+            color: var(--color-muted);
+        }
+
+        .requirement-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .requirement-actions button {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .mark-complete {
+            background: rgba(22, 163, 74, 0.18);
+            color: var(--color-success);
+        }
+
+        .delete-requirement {
+            background: rgba(248, 113, 113, 0.16);
+            color: #dc2626;
+        }
+
+        .empty-state {
+            border: 1px dashed rgba(15, 23, 42, 0.12);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            color: var(--color-muted);
+            background: rgba(240, 249, 255, 0.4);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            color: rgba(59, 130, 246, 0.55);
+            margin-bottom: 12px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--color-surface);
+            border-radius: 18px;
+            width: min(520px, 100%);
+            padding: 28px;
+            box-shadow: 0 32px 56px rgba(15, 23, 42, 0.28);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--color-dark);
+        }
+
+        .modal input,
+        .modal textarea,
+        .modal select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            background: rgba(248, 250, 255, 0.8);
+        }
+
+        .modal textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-actions button {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-actions .primary {
+            background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+            color: white;
+        }
+
+        .modal-actions .secondary {
+            background: transparent;
+            color: var(--color-muted);
+        }
+
+        footer {
+            padding: 16px 32px;
+            font-size: 0.8rem;
+            color: rgba(15, 23, 42, 0.45);
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .workspace {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+            }
+
+            .queries-list {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 14px;
+            }
+
+            .query-item {
+                min-width: 220px;
+            }
+
+            .main-content {
+                padding: 24px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 18px;
+            }
+
+            .top-bar nav {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .workspace-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .workspace-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .workspace-actions button {
+                width: 100%;
+            }
+
+            .modal {
+                padding: 22px;
+            }
+        }
+
+        /* Estilos para el modal de Abrir Consulta */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-content h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.3rem;
+            color: var(--color-dark);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--color-dark);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        .link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #1976d2;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-actions .primary {
+            background: #1976d2;
+            color: white;
+        }
+
+        .modal-actions .secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <header class="top-bar">
+        <div class="top-actions">
+            <button id="btnVolverConsultas" onclick="window.location.href='consultas.html'"><i class="bi bi-arrow-left-circle"></i> Volver</button>
+            <button id="btnEnviarConsulta" class="primary"><i class="bi bi-send"></i> Enviar Consulta</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span>Conjuntos de preguntas</span>
+                <button id="btnAgregarConjunto" title="Nuevo conjunto"><i class="bi bi-plus-circle"></i></button>
+            </div>
+            <div class="queries-list" id="queriesList">
+                <!-- Los conjuntos de preguntas aparecerán aquí -->
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="breadcrumbs" id="breadcrumbs">Consultas / Workspace</div>
+
+            
+            <section class="card instructions-card">
+                <div class="card-header">
+                    <h2><i class="bi bi-journal-text"></i> Instrucciones</h2>
+                </div>
+                <textarea id="instructionsInput" placeholder="Escribe instrucciones para ayudar a los contactos asignados"></textarea>
+            </section>
+
+            <div class="question-type-dropdown hidden" id="questionTypeDropdown">
+                <button type="button" data-type="archivo">Carga de archivo</button>
+            </div>
+
+            <section class="question-sets-list" id="questionSetsList">
+                <!-- Los conjuntos de preguntas creados aparecerán aquí -->
+            </section>
+
+            <div class="question-empty-state" id="questionEmptyState">
+                <i class="bi bi-journal-plus"></i>
+                <p>Crea un conjunto de preguntas con el botón "+".</p>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="requirementModal">
+        <div class="modal">
+            <h3><i class="bi bi-plus-circle"></i> Crear requerimiento</h3>
+            <form id="requirementForm">
+                <div>
+                    <label for="reqTitulo">Título</label>
+                    <input type="text" id="reqTitulo" placeholder="Ej: Estados de cuenta bancarios" required>
+                </div>
+                <div>
+                    <label for="reqDescripcion">Descripción</label>
+                    <textarea id="reqDescripcion" placeholder="Describe qué información se requiere"></textarea>
+                </div>
+                <div>
+                    <label for="reqResponsable">Responsable</label>
+                    <input type="text" id="reqResponsable" placeholder="Nombre del responsable">
+                </div>
+                <div>
+                    <label for="reqFecha">Fecha límite</label>
+                    <input type="date" id="reqFecha">
+                </div>
+                <div>
+                    <label for="reqPrioridad">Prioridad</label>
+                    <select id="reqPrioridad">
+                        <option value="media">Media</option>
+                        <option value="alta">Alta</option>
+                        <option value="baja">Baja</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary" id="btnCancelarModal">Cancelar</button>
+                    <button type="submit" class="primary">Crear requerimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        © 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.
+    </footer>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const consultaNumero = params.get('numero') || 'Consulta sin código';
+        const consultaNombre = params.get('nombre') || 'Consulta en blanco';
+        const consultaTipo = params.get('tipo') || '';
+        const consultaDescripcion = params.get('descripcion') || '';
+        const consultaObjetivos = params.get('objetivos') || '';
+
+        const storageKey = `consulta_workspace_${consultaNumero}`;
+
+        const QUESTION_TYPE_LABELS = {
+            archivo: 'Carga de archivo',
+            lista: 'Lista de selección',
+            'lista-multiple': 'Lista de selección múltiple',
+            texto: 'Texto',
+            fecha: 'Fecha',
+            firma: 'Firma electrónica simple'
+        };
+
+        const elements = {
+            breadcrumbs: document.getElementById('breadcrumbs'),
+            queriesList: document.getElementById('queriesList'),
+            instructionsInput: document.getElementById('instructionsInput'),
+            lastSavedLabel: document.getElementById('lastSavedLabel'),
+            questionEmptyState: document.getElementById('questionEmptyState'),
+            questionTypeDropdown: document.getElementById('questionTypeDropdown'),
+            questionSetsList: document.getElementById('questionSetsList'),
+            btnAgregarConjunto: document.getElementById('btnAgregarConjunto'),
+            requirementsGrid: document.getElementById('requirementsGrid'),
+            requirementsEmpty: document.getElementById('requirementsEmpty'),
+            requirementModal: document.getElementById('requirementModal'),
+            requirementForm: document.getElementById('requirementForm'),
+            btnCancelarModal: document.getElementById('btnCancelarModal')
+        };
+
+        let currentDropdownAnchor = null;
+
+        const state = {
+            instructions: '',
+            requirements: [],
+            questionSets: [],
+            activeQuestionSetId: null,
+            lastSaved: null
+        };
+
+        const runtimeUploads = new Map();
+
+        function escapeHtml(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
+            const replacements = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            };
+            return value.replace(/[&<>"']/g, (char) => replacements[char] || char);
+        }
+
+        function formatFileSize(size) {
+            const numericSize = typeof size === 'number' ? size : parseFloat(size);
+            if (!Number.isFinite(numericSize) || numericSize <= 0) {
+                return '';
+            }
+            const sizeKb = numericSize / 1024;
+            if (sizeKb >= 1024) {
+                return `${(sizeKb / 1024).toFixed(1)} MB`;
+            }
+            return `${Math.max(1, Math.round(sizeKb))} KB`;
+        }
+
+        async function loadState(forceClean = false) {
+            console.log('🔄 loadState iniciado...');
+            try {
+                // Verificar si es una consulta nueva (parámetro URL)
+                const isNewQuery = params.get('new') === 'true';
+                console.log('📝 ¿Es consulta nueva?', isNewQuery);
+                console.log('🔢 Número de consulta:', consultaNumero);
+                
+                // Siempre intentar cargar desde Supabase si tenemos número de consulta válido
+                // La lógica de "consulta nueva" solo aplica si no hay datos guardados
+                if (consultaNumero && consultaNumero !== 'Consulta sin código') {
+                    console.log('✅ Condiciones cumplidas para cargar desde Supabase');
+                    try {
+                        console.log('🔄 Cargando datos desde Supabase...');
+                        const response = await fetch(`/api/consultas/${consultaNumero}`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.consulta) {
+                                console.log('✅ Datos cargados desde Supabase:', data.consulta);
+                                
+                                // Cargar datos desde Supabase
+                                state.instructions = data.consulta.instrucciones || '';
+                                state.requirements = [];
+                                state.questionSets = Array.isArray(data.consulta.question_sets) 
+                                    ? data.consulta.question_sets.map(set => ({
+                                        id: set.id,
+                                        title: set.title || 'Sin nombre',
+                                        type: set.type || null,
+                                        questionTitle: set.questionTitle || '',
+                                        questionDetails: set.questionDetails || '',
+                                        destination: set.destination || '',
+                                        uploadedFiles: Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [],
+                                        createdFromSidebar: typeof set.createdFromSidebar === 'boolean' ? set.createdFromSidebar : true
+                                    }))
+                                    : [];
+                                state.activeQuestionSetId = state.questionSets.length > 0 ? state.questionSets[0].id : null;
+                                state.lastSaved = data.consulta.updated_at || null;
+                                
+                                // También guardar en localStorage como backup
+                                const payload = {
+                                    instructions: state.instructions,
+                                    requirements: state.requirements,
+                                    questionSets: state.questionSets,
+                                    activeQuestionSetId: state.activeQuestionSetId,
+                                    lastSaved: state.lastSaved
+                                };
+                                localStorage.setItem(storageKey, JSON.stringify(payload));
+                                
+                                console.log(' Estado cargado exitosamente desde Supabase');
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(' Error cargando desde Supabase, usando localStorage:', error);
+                    }
+                } else {
+                    console.log(' No se cumple condición para cargar desde Supabase');
+                    console.log(' Detalles:', {
+                        consultaNumero,
+                        consultaNumeroValido: consultaNumero !== 'Consulta sin código',
+                        isNewQuery,
+                        forceClean,
+                        shouldLoadFromSupabase
+                    });
+                }
+                
+                // Fallback a localStorage o estado limpio
+                console.log(' Intentando cargar desde localStorage...');
+                const saved = localStorage.getItem(storageKey);
+                console.log(' Datos en localStorage:', saved ? 'Existen' : 'No existen');
+                if (saved && !forceClean) {
+                    const parsed = JSON.parse(saved);
+                    state.instructions = parsed.instructions || '';
+                    state.requirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
+                    state.questionSets = Array.isArray(parsed.questionSets)
+                        ? parsed.questionSets.map(set => ({
+                            id: set.id,
+                            title: set.title || 'Sin nombre',
+                            type: set.type || null,
+                            questionTitle: set.questionTitle || '',
+                            questionDetails: set.questionDetails || '',
+                            destination: set.destination || '',
+                            uploadedFiles: Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [],
+                            createdFromSidebar: typeof set.createdFromSidebar === 'boolean' ? set.createdFromSidebar : true
+                        }))
+                        : [];
+                    state.activeQuestionSetId = parsed.activeQuestionSetId || null;
+                    state.lastSaved = parsed.lastSaved || null;
+                } else {
+                    // Iniciar completamente limpio para nuevas consultas
+                    state.instructions = consultaDescripcion || consultaObjetivos || '';
+                    state.requirements = [];
+                    state.questionSets = [];
+                    state.activeQuestionSetId = null;
+                    state.lastSaved = null;
+                    
+                    // Limpiar el localStorage para esta consulta si es nueva
+                    if (isNewQuery || forceClean) {
+                        localStorage.removeItem(storageKey);
+                    }
+                }
+            } catch (err) {
+                console.warn('No se pudo cargar el estado del workspace:', err);
+                // En caso de error, iniciar limpio
+                state.instructions = consultaDescripcion || consultaObjetivos || '';
+                state.requirements = [];
+                state.questionSets = [];
+                state.activeQuestionSetId = null;
+                state.lastSaved = null;
+            }
+
+            if (state.questionSets.length && !state.questionSets.some(set => set.id === state.activeQuestionSetId)) {
+                state.activeQuestionSetId = state.questionSets[0].id;
+            }
+        }
+
+        async function saveState(updateTimestamp = true) {
+            if (updateTimestamp) {
+                state.lastSaved = new Date().toISOString();
+            }
+
+            // Guardar en localStorage como backup
+            const payload = {
+                instructions: state.instructions,
+                requirements: state.requirements,
+                questionSets: state.questionSets,
+                activeQuestionSetId: state.activeQuestionSetId,
+                lastSaved: state.lastSaved
+            };
+            localStorage.setItem(storageKey, JSON.stringify(payload));
+
+            // También guardar en Supabase si tenemos número de consulta válido
+            if (consultaNumero && consultaNumero !== 'Consulta sin código') {
+                try {
+                    console.log('🔄 Guardando en Supabase...', { 
+                        numero: consultaNumero, 
+                        nombre: consultaNombre,
+                        instruccionesLength: state.instructions?.length || 0,
+                        questionSetsCount: state.questionSets?.length || 0
+                    });
+                    
+                    await guardarConsultaEnSupabase({
+                        numero: consultaNumero,
+                        nombre: consultaNombre,
+                        instrucciones: state.instructions,
+                        questionSets: state.questionSets
+                    }, {
+                        showAlert: false,
+                        silent: true
+                    });
+                    console.log('✅ Cambios guardados en Supabase');
+                } catch (error) {
+                    console.warn('⚠️ No se pudo guardar en Supabase:', error);
+                    // No mostrar error al usuario, solo guardar en localStorage
+                }
+            } else {
+                console.log('⚠️ No se guarda en Supabase: consultaNumero no válido', consultaNumero);
+            }
+
+            updateLastSaved();
+        }
+
+        function updateLastSaved() {
+            if (!elements.lastSavedLabel) return;
+
+            if (!state.lastSaved) {
+                elements.lastSavedLabel.textContent = 'Sin guardar';
+                return;
+            }
+            const fecha = new Date(state.lastSaved);
+            elements.lastSavedLabel.textContent = `Guardado ${fecha.toLocaleString()}`;
+        }
+
+        function deleteQuestionSet(setId) {
+            if (!setId) return;
+            
+            if (confirm('¿Estás seguro de que quieres eliminar esta sección? Esta acción no se puede deshacer.')) {
+                // Eliminar el conjunto del estado
+                state.questionSets = state.questionSets.filter(set => set.id !== setId);
+                
+                // Si el conjunto eliminado era el activo, seleccionar otro
+                if (state.activeQuestionSetId === setId) {
+                    state.activeQuestionSetId = state.questionSets.length > 0 ? state.questionSets[0].id : null;
+                }
+                
+                // Guardar el estado y actualizar la UI
+                saveState();
+                renderSidebar();
+                renderQuestionSetsList();
+                
+                console.log('✅ Sección eliminada:', setId);
+            }
+        }
+
+        function createQuestionSet(title = 'Nuevo conjunto') {
+            const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `qs-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+            return {
+                id,
+                title,
+                type: null,
+                questionTitle: '',
+                questionDetails: '',
+                destination: '',
+                uploadedFiles: [],
+                createdFromSidebar: true
+            };
+        }
+
+        function setActiveQuestionSet(id) {
+            state.activeQuestionSetId = id;
+            renderSidebar();
+            renderQuestionSetsList();
+
+            requestAnimationFrame(() => {
+                const selectorId = (typeof CSS !== 'undefined' && typeof CSS.escape === 'function')
+                    ? CSS.escape(id)
+                    : String(id).replace(/"/g, '\\"');
+                const card = elements.questionSetsList?.querySelector(`[data-question-set-id="${selectorId}"]`);
+                if (card && typeof card.scrollIntoView === 'function') {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+
+            saveState(false);
+        }
+
+        function updateQuestionEmptyState() {
+            if (!elements.questionEmptyState) return;
+            if (state.questionSets.length) {
+                elements.questionEmptyState.classList.add('hidden');
+            } else {
+                elements.questionEmptyState.classList.remove('hidden');
+            }
+        }
+
+        function renderQuestionSetCard(item, set, typeLabel) {
+            // If no type selected, show minimal input only
+            if (!set.type) {
+                item.innerHTML = `
+                    <input type="text" id="question-title-${set.id}" class="question-set-inline__input" value="${set.title || ''}" data-id="${set.id}" data-field="title" placeholder="Escribe el nombre del conjunto">
+                    <button type="button" title="Seleccionar tipo" data-action="save" data-id="${set.id}" class="question-set-inline__button">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}" class="question-set-inline__button question-set-inline__button--danger">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                `;
+                return;
+            }
+
+            // Full card when type is selected
+            const displayTitle = set.title || 'Sin nombre';
+            const questionTitleValue = set.questionTitle || '';
+            const questionDetailsValue = set.questionDetails || '';
+            const destination = set.destination || '';
+            const uploadedFiles = Array.isArray(set.uploadedFiles) ? set.uploadedFiles : [];
+
+            const safeDisplayTitle = escapeHtml(displayTitle);
+            const safeQuestionTitleValue = escapeHtml(questionTitleValue);
+            const questionTitleDisplay = questionTitleValue || 'Nueva pregunta de consulta';
+            const safeQuestionTitleDisplay = escapeHtml(questionTitleDisplay);
+            const safeQuestionDetailsValue = escapeHtml(questionDetailsValue);
+            const safeDestination = escapeHtml(destination);
+            const filesPreviewHtml = uploadedFiles.length
+                ? uploadedFiles.map(file => {
+                    const nameValue = typeof file?.name === 'string' ? file.name : 'Archivo';
+                    const safeName = escapeHtml(nameValue);
+                    const formattedSize = formatFileSize(file.size);
+                    const encodedName = encodeURIComponent(nameValue);
+                    return `<div class="file-upload-card__file" data-file="${encodedName}">
+                        <div class="file-upload-card__file-info">
+                            <span class="file-upload-card__file-name">${safeName}</span>
+                            ${formattedSize ? `<span class="file-upload-card__file-size">${formattedSize}</span>` : ''}
+                        </div>
+                        <button type="button" class="file-upload-card__file-remove" data-action="remove-file" data-file="${encodedName}" title="Eliminar archivo">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>
+                        </button>
+                    </div>`;
+                }).join('')
+                : '';
+
+            let header = '';
+            if (set.createdFromSidebar) {
+                header = `
+                    <div class="question-set-card question-set-card--base">
+                        <div class="question-set-card__header">
+                            <div class="question-set-card__meta">
+                                <input type="text" id="info-general-${set.id}" class="question-set-card__title-input" value="${safeDisplayTitle}" data-id="${set.id}" data-field="title" placeholder="Información general">
+                            </div>
+                            <div class="question-set-card__header-actions">
+                                <button type="button" title="Editar" data-action="edit" data-id="${set.id}">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button type="button" title="Eliminar" data-action="delete" data-id="${set.id}">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            let summaryField = '';
+            if (set.type === 'archivo') {
+                summaryField = `
+                    <div class="question-set-card__field">
+                        <input type="text" id="question-title-${set.id}" class="question-set-card__input question-set-card__input--title" value="${safeQuestionTitleValue}" data-id="${set.id}" data-field="questionTitle" placeholder="Nueva pregunta de consulta">
+                    </div>
+                    <div class="question-set-card__field">
+                        <textarea id="question-details-${set.id}" class="question-set-card__input question-set-card__textarea" data-id="${set.id}" data-field="questionDetails" placeholder="Describe qué información se debe entregar">${safeQuestionDetailsValue}</textarea>
+                    </div>`;
+            } else {
+                summaryField = `
+                    <div class="question-set-card__field">
+                        <input type="text" id="question-title-${set.id}" class="question-set-card__input" value="${safeQuestionTitleValue}" data-id="${set.id}" data-field="questionTitle" placeholder="Escribe el resumen de la consulta">
+                    </div>`;
+            }
+
+            let typeSpecificField = '';
+            if (set.type === 'archivo') {
+                typeSpecificField = `
+                    <div class="question-set-card question-set-card--upload">
+                        <div class="question-set-card__field" style="gap:12px;">
+                            <label class="question-set-card__label">Carga de archivo</label>
+                            <div class="file-upload-card" data-id="${set.id}">
+                                <input type="file" id="file-input-${set.id}" class="file-upload-card__input" data-id="${set.id}" data-action="file-input" multiple accept="*/*">
+                                <div class="file-upload-card__hint" data-action="trigger-upload">Arrastrar y colocar aquí, o hacer clic para explorar</div>
+                                <div class="file-upload-card__preview" data-role="file-preview">${filesPreviewHtml}</div>
+                                <div class="file-upload-card__actions">
+                                    <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
+                                    <a href="#" data-id="${set.id}" data-action="clear-files" class="file-upload-card__clear" style="display:${uploadedFiles.length ? 'inline-flex' : 'none'};">Limpiar archivos</a>
+                                </div>
+                                ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${safeDestination}</strong></div>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            } else {
+                typeSpecificField = `
+                    <div class="question-set-card__field">
+                        <div class="file-upload-card__hint" style="text-align:left;padding:0;color:rgba(71,85,105,0.75);">
+                            ${typeLabel ? `${typeLabel}:` : 'Detalle:'} ${safeQuestionTitleDisplay}
+                        </div>
+                    </div>`;
+            }
+
+            if (set.type === 'archivo') {
+                item.innerHTML = `
+                    ${header}
+                    <div class="question-set-card question-set-card--combined">
+                        ${summaryField}
+                        <div class="question-set-card__field" style="gap:12px;">
+                            <label class="question-set-card__label">Carga de archivo</label>
+                            <div class="file-upload-card" data-id="${set.id}">
+                                <input type="file" id="file-input-${set.id}" class="file-upload-card__input" data-id="${set.id}" data-action="file-input" multiple accept="*/*">
+                                <div class="file-upload-card__hint" data-action="trigger-upload">Arrastrar y colocar aquí, o hacer clic para explorar</div>
+                                <div class="file-upload-card__preview" data-role="file-preview">${filesPreviewHtml}</div>
+                                <div class="file-upload-card__actions">
+                                    <a href="#" data-id="${set.id}" data-action="select-destination">Seleccionar destino</a>
+                                    <a href="#" data-id="${set.id}" data-action="clear-files" class="file-upload-card__clear" style="display:${uploadedFiles.length ? 'inline-flex' : 'none'};">Limpiar archivos</a>
+                                </div>
+                                ${destination ? `<div class="file-upload-card__destination">Destino: <strong>${safeDestination}</strong></div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                item.classList.add('question-set-item--upload');
+                item.classList.remove('question-set-item');
+            } else {
+                item.innerHTML = `
+                    <div class="question-set-card">
+                        ${header}
+                        ${summaryField}
+                        ${typeSpecificField}
+                    </div>
+                `;
+                item.classList.remove('question-set-item--upload');
+            }
+        }
+
+        function closeQuestionTypeDropdown() {
+            if (!elements.questionTypeDropdown) return;
+            elements.questionTypeDropdown.classList.add('hidden');
+            elements.questionTypeDropdown.style.display = '';
+            elements.questionTypeDropdown.style.visibility = '';
+            elements.questionTypeDropdown.style.top = '';
+            elements.questionTypeDropdown.style.left = '';
+            currentDropdownAnchor = null;
+        }
+
+        function openQuestionTypeDropdown(anchor) {
+            if (!elements.questionTypeDropdown || !anchor) return;
+
+            elements.questionTypeDropdown.classList.remove('hidden');
+            elements.questionTypeDropdown.style.display = 'flex';
+            elements.questionTypeDropdown.style.visibility = 'hidden';
+
+            requestAnimationFrame(() => {
+                const dropdownRect = elements.questionTypeDropdown.getBoundingClientRect();
+                const anchorRect = anchor.getBoundingClientRect();
+
+                // Position dropdown to the right of the button
+                let left = anchorRect.right + 8 - dropdownRect.width;
+                left = Math.max(16, Math.min(left, window.innerWidth - dropdownRect.width - 16));
+
+                // Center dropdown vertically relative to button
+                let top = anchorRect.top + (anchorRect.height / 2) - (dropdownRect.height / 2);
+                if (top + dropdownRect.height > window.innerHeight - 16) {
+                    top = window.innerHeight - dropdownRect.height - 16;
+                }
+                if (top < 16) {
+                    top = 16;
+                }
+
+                elements.questionTypeDropdown.style.left = `${left}px`;
+                elements.questionTypeDropdown.style.top = `${top}px`;
+                elements.questionTypeDropdown.style.visibility = 'visible';
+                currentDropdownAnchor = anchor;
+            });
+        }
+
+        function renderSidebar() {
+            if (!elements.queriesList) return;
+
+            elements.queriesList.innerHTML = '';
+
+            if (!state.questionSets.length) {
+                return;
+            }
+
+            state.questionSets.forEach((set) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'query-item';
+                if (set.id === state.activeQuestionSetId) {
+                    item.classList.add('active');
+                }
+                item.dataset.id = set.id;
+                const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
+                const safeTitle = escapeHtml(set.title || 'Sin nombre');
+                const safeTypeLabel = escapeHtml(typeLabel || '');
+                item.innerHTML = `
+                    <div class="query-item__info">
+                        <span class="query-item__title">${safeTitle}</span>
+                        ${safeTypeLabel ? `<span class="query-item__meta">${safeTypeLabel}</span>` : ''}
+                    </div>
+                    <div class="query-item__actions">
+                        <button type="button" class="query-item__delete" data-id="${set.id}" title="Eliminar sección">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                `;
+                elements.queriesList.appendChild(item);
+                
+                // Agregar event listener para el botón de eliminar
+                const deleteButton = item.querySelector('.query-item__delete');
+                if (deleteButton) {
+                    deleteButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const setId = deleteButton.dataset.id;
+                        deleteQuestionSet(setId);
+                    });
+                }
+            });
+        }
+
+        function attachCardListeners(item, set) {
+            // Handle save button for minimal cards
+            const saveButton = item.querySelector('button[data-action="save"]');
+            if (saveButton) {
+                saveButton.addEventListener('click', (event) => {
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    const title = currentSet.title?.trim();
+                    if (!title) {
+                        alert('Por favor ingresa un nombre para el conjunto');
+                        return;
+                    }
+
+                    // Open dropdown next to save button
+                    requestAnimationFrame(() => {
+                        if (button) {
+                            openQuestionTypeDropdown(button);
+                        }
+                    });
+                });
+
+                // Add hover effect handled via CSS
+            }
+
+            // Handle edit button for full cards
+            const editButton = item.querySelector('button[data-action="edit"]');
+            if (editButton) {
+                editButton.addEventListener('click', (event) => {
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
+                    setActiveQuestionSet(id);
+                    requestAnimationFrame(() => {
+                        if (button) {
+                            openQuestionTypeDropdown(button);
+                        }
+                    });
+                });
+            }
+
+            // Handle delete button
+            const deleteButton = item.querySelector('button[data-action="delete"]');
+            if (deleteButton) {
+                deleteButton.addEventListener('click', (event) => {
+                    const button = event.currentTarget || event.target;
+                    const id = button?.dataset?.id;
+                    const confirmed = confirm('¿Eliminar este conjunto de preguntas?');
+                    if (!confirmed) return;
+
+                    const index = state.questionSets.findIndex(set => set.id === id);
+                    if (index !== -1) {
+                        state.questionSets.splice(index, 1);
+                        runtimeUploads.delete(id);
+
+                        if (state.activeQuestionSetId === id) {
+                            state.activeQuestionSetId = state.questionSets.length ? state.questionSets[0].id : null;
+                        }
+
+                        renderSidebar();
+                        renderQuestionSetsList();
+                        closeQuestionTypeDropdown();
+                        saveState();
+                    }
+                });
+
+                // Hover effect handled via CSS
+            }
+
+            // Handle input field for minimal cards (without type yet)
+            const inlineInput = item.querySelector('input.question-set-inline__input');
+            if (inlineInput) {
+                inlineInput.addEventListener('input', (event) => {
+                    const field = event.target.dataset.field;
+                    const id = event.target.dataset.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    currentSet[field] = event.target.value;
+
+                    if (field === 'title') {
+                        renderSidebar();
+                    }
+                    saveState();
+                });
+            }
+
+            // Handle inputs and textareas for full cards
+            const cardFields = item.querySelectorAll('.question-set-card__input[data-field], .question-set-card__textarea[data-field]');
+            if (cardFields.length) {
+                cardFields.forEach((fieldEl) => {
+                    const eventName = fieldEl.tagName === 'SELECT' ? 'change' : 'input';
+                    fieldEl.addEventListener(eventName, (event) => {
+                        const field = event.target.dataset.field;
+                        const id = event.target.dataset.id;
+                        if (!field || !id) return;
+
+                        const currentSet = state.questionSets.find(s => s.id === id);
+                        if (!currentSet) return;
+
+                        currentSet[field] = event.target.value;
+
+                        if (field === 'title') {
+                            renderSidebar();
+                            // Wait for DOM to update, then restore input value
+                            requestAnimationFrame(() => {
+                                const titleNode = item.querySelector('.question-set-card__title-input');
+                                if (titleNode) {
+                                    titleNode.value = currentSet.title || '';
+                                }
+                            });
+                        }
+
+                        if (field === 'questionTitle') {
+                            const newQuestionTitle = event.target.value || '';
+
+                            if ((currentSet.type && currentSet.type !== 'archivo') || !currentSet.createdFromSidebar) {
+                                currentSet.title = newQuestionTitle || 'Sin nombre';
+                                renderSidebar();
+                                const titleNode = item.querySelector('.question-set-card__title');
+                                if (titleNode) {
+                                    titleNode.textContent = currentSet.title;
+                                }
+                            }
+
+                            const hint = item.querySelector('.file-upload-card__hint');
+                            if (hint) {
+                                const currentTypeLabel = currentSet.type ? (QUESTION_TYPE_LABELS[currentSet.type] || currentSet.type) : '';
+                                const displayTitle = newQuestionTitle || 'Detalle de consulta';
+                                hint.textContent = `${currentTypeLabel ? `${currentTypeLabel}:` : 'Detalle:'} ${displayTitle}`;
+                            }
+                        }
+
+                        saveState();
+                    });
+                });
+            }
+
+            // Handle file upload interactions
+            const fileCard = item.querySelector('.file-upload-card');
+            if (fileCard) {
+                const fileInput = fileCard.querySelector('input[type="file"][data-action="file-input"]');
+                const hint = fileCard.querySelector('[data-action="trigger-upload"]');
+                const preview = fileCard.querySelector('[data-role="file-preview"]');
+                const clearLink = fileCard.querySelector('a[data-action="clear-files"]');
+
+                const renderPreview = (entries) => {
+                    if (!preview || !clearLink) return;
+                    const descriptors = Array.from(entries || []).map((entry) => {
+                        if (!entry) return null;
+                        const name = typeof entry.name === 'string' ? entry.name : 'Archivo';
+                        const size = typeof entry.size === 'number' ? entry.size : parseFloat(entry.size) || 0;
+                        return {
+                            name,
+                            size: Number.isFinite(size) ? size : 0
+                        };
+                    }).filter(Boolean);
+
+                    if (!descriptors.length) {
+                        preview.innerHTML = '';
+                        preview.style.display = 'none';
+                        clearLink.style.display = 'none';
+                        return;
+                    }
+
+                    preview.innerHTML = descriptors.map((file) => {
+                        const displaySize = formatFileSize(file.size);
+                        const encodedName = encodeURIComponent(file.name);
+                        return `<div class="file-upload-card__file" data-file="${encodedName}">
+                            <div class="file-upload-card__file-info">
+                                <span class="file-upload-card__file-name">${escapeHtml(file.name)}</span>
+                                ${displaySize ? `<span class="file-upload-card__file-size">${displaySize}</span>` : ''}
+                            </div>
+                            <button type="button" class="file-upload-card__file-remove" data-action="remove-file" data-file="${encodedName}" title="Eliminar archivo">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                        </div>`;
+                    }).join('');
+                    preview.style.display = 'flex';
+                    clearLink.style.display = 'inline-flex';
+                };
+
+                const persistFiles = (filesArray) => {
+                    if (!set) return;
+                    
+                    // Get existing files
+                    const existingFiles = runtimeUploads.get(set.id) || [];
+                    const existingDescriptors = set.uploadedFiles || [];
+                    
+                    // Combine new files with existing ones (avoid duplicates by name)
+                    const newFiles = Array.from(filesArray || []);
+                    const combinedFiles = [...existingFiles];
+                    const combinedDescriptors = [...existingDescriptors];
+                    
+                    newFiles.forEach((newFile) => {
+                        // Check if file with same name already exists
+                        const existingIndex = combinedFiles.findIndex(f => f.name === newFile.name);
+                        if (existingIndex === -1) {
+                            combinedFiles.push(newFile);
+                            combinedDescriptors.push({
+                                name: newFile.name,
+                                size: newFile.size,
+                                type: newFile.type
+                            });
+                        }
+                    });
+
+                    if (combinedFiles.length) {
+                        runtimeUploads.set(set.id, combinedFiles);
+                        set.uploadedFiles = combinedDescriptors;
+                    } else {
+                        runtimeUploads.delete(set.id);
+                        set.uploadedFiles = [];
+                    }
+
+                    renderPreview(combinedDescriptors);
+                    saveState();
+                };
+
+                const handleFilesSelected = (fileList) => {
+                    if (!fileInput) return;
+                    const filesArray = Array.from(fileList || []);
+
+                    // Get existing files and combine with new ones
+                    const existingFiles = runtimeUploads.get(set.id) || [];
+                    const combinedFiles = [...existingFiles];
+                    
+                    filesArray.forEach((newFile) => {
+                        const existingIndex = combinedFiles.findIndex(f => f.name === newFile.name);
+                        if (existingIndex === -1) {
+                            combinedFiles.push(newFile);
+                        }
+                    });
+
+                    // Update input with all files
+                    if (combinedFiles.length && window.DataTransfer && typeof DataTransfer === 'function') {
+                        try {
+                            const dataTransfer = new DataTransfer();
+                            combinedFiles.forEach((file) => dataTransfer.items.add(file));
+                            fileInput.files = dataTransfer.files;
+                        } catch (err) {
+                            console.warn('No se pudo sincronizar el input de archivos:', err);
+                        }
+                    }
+
+                    if (!combinedFiles.length) {
+                        fileInput.value = '';
+                    }
+
+                    persistFiles(combinedFiles);
+                };
+
+                if (fileInput) {
+                    fileInput.addEventListener('change', (event) => {
+                        handleFilesSelected(event.target.files);
+                    });
+                }
+
+                if (hint) {
+                    hint.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (fileInput) {
+                            fileInput.click();
+                        }
+                    });
+
+                    hint.addEventListener('dragover', (event) => {
+                        event.preventDefault();
+                        fileCard.classList.add('file-upload-card--dragover');
+                    });
+
+                    hint.addEventListener('dragleave', () => {
+                        fileCard.classList.remove('file-upload-card--dragover');
+                    });
+
+                    hint.addEventListener('drop', (event) => {
+                        event.preventDefault();
+                        fileCard.classList.remove('file-upload-card--dragover');
+                        const files = event.dataTransfer?.files;
+                        if (files) {
+                            handleFilesSelected(files);
+                        }
+                    });
+                }
+
+                if (clearLink) {
+                    clearLink.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        if (fileInput) {
+                            handleFilesSelected([]);
+                        }
+                    });
+                }
+
+                if (preview) {
+                    preview.addEventListener('click', (event) => {
+                        const removeButton = event.target.closest('button[data-action="remove-file"]');
+                        if (!removeButton) return;
+                        event.preventDefault();
+
+                        const encodedName = removeButton.dataset.file;
+                        if (!encodedName) return;
+
+                        const fileName = decodeURIComponent(encodedName);
+
+                        const existingFiles = runtimeUploads.get(set.id) || [];
+                        const filteredFiles = existingFiles.filter(file => file.name !== fileName);
+                        const filteredDescriptors = (set.uploadedFiles || []).filter(file => file.name !== fileName);
+
+                        if (filteredFiles.length) {
+                            runtimeUploads.set(set.id, filteredFiles);
+                        } else {
+                            runtimeUploads.delete(set.id);
+                        }
+                        set.uploadedFiles = filteredDescriptors;
+
+                        if (fileInput && window.DataTransfer && typeof DataTransfer === 'function') {
+                            try {
+                                const dataTransfer = new DataTransfer();
+                                filteredFiles.forEach((file) => dataTransfer.items.add(file));
+                                fileInput.files = dataTransfer.files;
+                            } catch (err) {
+                                console.warn('No se pudo sincronizar el input de archivos al eliminar uno:', err);
+                            }
+                        } else if (fileInput && !filteredFiles.length) {
+                            fileInput.value = '';
+                        }
+
+                        renderPreview(filteredDescriptors);
+                        saveState();
+                    });
+                }
+
+                const existingRuntimeFiles = runtimeUploads.get(set.id);
+                if (existingRuntimeFiles && existingRuntimeFiles.length) {
+                    if (fileInput && window.DataTransfer && typeof DataTransfer === 'function') {
+                        try {
+                            const dataTransfer = new DataTransfer();
+                            existingRuntimeFiles.forEach((file) => dataTransfer.items.add(file));
+                            fileInput.files = dataTransfer.files;
+                        } catch (err) {
+                            console.warn('No se pudo restaurar el input de archivos:', err);
+                        }
+                    }
+                    renderPreview(existingRuntimeFiles);
+                } else if (Array.isArray(set.uploadedFiles) && set.uploadedFiles.length) {
+                    renderPreview(set.uploadedFiles);
+                }
+            }
+
+            // Handle destination link
+            const destinationLink = item.querySelector('a[data-action="select-destination"]');
+            if (destinationLink) {
+                destinationLink.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const id = event.target.dataset.id;
+                    const currentSet = state.questionSets.find(s => s.id === id);
+                    if (!currentSet) return;
+
+                    const destination = prompt('Selecciona o escribe el destino: ', currentSet.destination || '');
+                    if (destination === null) return;
+                    currentSet.destination = destination.trim();
+
+                    saveState();
+                    renderSidebar();
+                    renderQuestionSetsList();
+                });
+            }
+        }
+
+        function renderQuestionSetsList() {
+            if (!elements.questionSetsList) return;
+
+            elements.questionSetsList.innerHTML = '';
+            updateQuestionEmptyState();
+
+            if (!state.questionSets.length) {
+                return;
+            }
+
+            state.questionSets.forEach((set) => {
+                const item = document.createElement('div');
+                item.className = 'question-set-item';
+                item.dataset.questionSetId = set.id;
+
+                const typeLabel = set.type ? (QUESTION_TYPE_LABELS[set.type] || set.type) : '';
+
+                renderQuestionSetCard(item, set, typeLabel);
+                attachCardListeners(item, set);
+
+                if (set.id === state.activeQuestionSetId) {
+                    item.classList.add('question-set-item--active');
+                } else {
+                    item.classList.remove('question-set-item--active');
+                }
+
+                elements.questionSetsList.appendChild(item);
+            });
+        }
+
+        function renderRequirements() {
+            if (elements.requirementsGrid) {
+                elements.requirementsGrid.innerHTML = '';
+            }
+            if (!state.requirements.length) {
+                if (elements.requirementsEmpty) {
+                    elements.requirementsEmpty.style.display = 'block';
+                }
+                return;
+            }
+
+            if (elements.requirementsEmpty) {
+                elements.requirementsEmpty.style.display = 'none';
+            }
+
+            if (elements.requirementsGrid) {
+                state.requirements.forEach((req, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'requirement-card';
+                    card.innerHTML = `
+                        <div class="requirement-header">
+                            <div>
+                                <div class="requirement-title">${req.titulo}</div>
+                                <div class="requirement-meta">
+                                    ${req.responsable ? `<span><i class="bi bi-person"></i> ${req.responsable}</span>` : ''}
+                                    ${req.fecha ? `<span><i class="bi bi-calendar"></i> Fecha límite: ${req.fecha}</span>` : ''}
+                                    <span><i class="bi bi-flag"></i> Prioridad: ${req.prioridad}</span>
+                                </div>
+                            </div>
+                            <span class="status-chip ${req.completado ? 'status-completed' : ''}">
+                                ${req.completado ? 'Completado' : 'Pendiente'}
+                            </span>
+                        </div>
+                        ${req.descripcion ? `<p>${req.descripcion}</p>` : ''}
+                        <div class="requirement-actions">
+                            <button class="mark-complete" data-action="toggle" data-index="${index}">
+                                ${req.completado ? 'Reabrir' : 'Marcar como completado'}
+                            </button>
+                            <button class="delete-requirement" data-action="delete" data-index="${index}">Eliminar</button>
+                        </div>
+                    `;
+                    elements.requirementsGrid.appendChild(card);
+                });
+            }
+        }
+
+        function openModal() {
+            if (elements.requirementModal) {
+                elements.requirementModal.style.display = 'flex';
+            }
+        }
+
+        function closeModal() {
+            if (elements.requirementModal) {
+                elements.requirementModal.style.display = 'none';
+            }
+            if (elements.requirementForm) {
+                elements.requirementForm.reset();
+            }
+        }
+
+        function handleRequirementFormSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(elements.requirementForm);
+            const requirement = {
+                titulo: formData.get('reqTitulo') || document.getElementById('reqTitulo').value.trim(),
+                descripcion: document.getElementById('reqDescripcion').value.trim(),
+                responsable: document.getElementById('reqResponsable').value.trim(),
+                fecha: document.getElementById('reqFecha').value,
+                prioridad: document.getElementById('reqPrioridad').value,
+                completado: false,
+                creado: new Date().toISOString()
+            };
+
+            if (!requirement.titulo) {
+                alert('El título es obligatorio para crear un requerimiento.');
+                return;
+            }
+
+            state.requirements.push(requirement);
+            saveState();
+            renderRequirements();
+            closeModal();
+        }
+
+        function handleRequirementsActions(event) {
+            const action = event.target.dataset.action;
+            if (!action) return;
+            const index = Number(event.target.dataset.index);
+            if (Number.isNaN(index)) return;
+
+            if (action === 'toggle') {
+                state.requirements[index].completado = !state.requirements[index].completado;
+            }
+
+            if (action === 'delete') {
+                const confirmed = confirm('¿Eliminar este requerimiento?');
+                if (!confirmed) return;
+                state.requirements.splice(index, 1);
+            }
+
+            saveState();
+            renderRequirements();
+        }
+
+        function initInstructions() {
+            if (elements.instructionsInput) {
+                elements.instructionsInput.value = state.instructions || '';
+            }
+            updateLastSaved();
+        }
+
+        function setupEventListeners() {
+            // Debug: Verificar que el botón existe
+            console.log('=== SETUP EVENT LISTENERS ===');
+            console.log('Botón volver encontrado:', document.getElementById('btnVolverConsultas'));
+            
+            // Solo agregar event listeners si los elementos existen
+            if (elements.btnAgregarConjunto) {
+                elements.btnAgregarConjunto.addEventListener('click', (event) => {
+                    const button = event.currentTarget || event.target;
+                    closeQuestionTypeDropdown();
+
+                    const nuevo = createQuestionSet('Nuevo conjunto');
+                    state.questionSets.push(nuevo);
+                    state.activeQuestionSetId = nuevo.id;
+
+                    renderSidebar();
+                    renderQuestionSetsList();
+                    saveState();
+
+                    requestAnimationFrame(() => {
+                        const input = elements.questionSetsList?.querySelector(`input[data-id="${nuevo.id}"]`);
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                        const trigger = elements.questionSetsList?.querySelector(`button[data-action="save"][data-id="${nuevo.id}"]`);
+                        if (trigger) {
+                            openQuestionTypeDropdown(trigger);
+                        } else if (button) {
+                            openQuestionTypeDropdown(button);
+                        }
+                    });
+                });
+            }
+
+            if (elements.queriesList) {
+                elements.queriesList.addEventListener('click', (event) => {
+                    const button = event.target.closest('button.query-item');
+                    if (!button) return;
+                    const id = button.dataset.id;
+                    if (id) {
+                        closeQuestionTypeDropdown();
+                        setActiveQuestionSet(id);
+                        saveState();
+                    }
+                });
+            }
+
+            
+            if (elements.questionTypeDropdown) {
+                elements.questionTypeDropdown.addEventListener('click', (event) => {
+                    const option = event.target.closest('button[data-type]');
+                    if (!option) return;
+
+                    const selectedType = option.dataset.type;
+                    
+                    // Check if we're clicking from the main + button or from an existing question set
+                    const activeSet = state.questionSets.find(set => set.id === state.activeQuestionSetId);
+                    
+                    if (activeSet && !activeSet.type) {
+                        // Update existing question set that hasn't been typed yet
+                        activeSet.type = selectedType;
+                        if (!activeSet.questionTitle) {
+                            activeSet.questionTitle = 'Nueva pregunta de consulta';
+                        }
+                    } else {
+                        // Create new question set from card-level + button
+                        const nuevo = createQuestionSet('Nuevo conjunto');
+                        nuevo.createdFromSidebar = false;
+                        nuevo.type = selectedType;
+                        nuevo.questionTitle = 'Nueva pregunta de consulta';
+                        nuevo.title = nuevo.questionTitle;
+                        state.questionSets.push(nuevo);
+                        state.activeQuestionSetId = nuevo.id;
+                    }
+                    
+                    renderSidebar();
+                    renderQuestionSetsList();
+                    saveState();
+                    closeQuestionTypeDropdown();
+                });
+            }
+
+            document.addEventListener('click', (event) => {
+                const isDropdown = elements.questionTypeDropdown && elements.questionTypeDropdown.contains(event.target);
+                const isAnchor = currentDropdownAnchor && currentDropdownAnchor.contains(event.target);
+                if (!isDropdown && !isAnchor) {
+                    closeQuestionTypeDropdown();
+                }
+            });
+
+            if (elements.btnCancelarModal) {
+                elements.btnCancelarModal.addEventListener('click', closeModal);
+            }
+            if (elements.requirementForm) {
+                elements.requirementForm.addEventListener('submit', handleRequirementFormSubmit);
+            }
+            if (elements.requirementsGrid) {
+                elements.requirementsGrid.addEventListener('click', handleRequirementsActions);
+            }
+
+            if (elements.instructionsInput) {
+                elements.instructionsInput.addEventListener('input', (event) => {
+                    state.instructions = event.target.value;
+                    saveState();
+                });
+            }
+
+            if (elements.requirementModal) {
+                elements.requirementModal.addEventListener('click', (event) => {
+                    if (event.target === elements.requirementModal) {
+                        closeModal();
+                    }
+                });
+            }
+
+            const volverBtn = document.getElementById('btnVolverConsultas');
+            if (!volverBtn) {
+                console.error('ERROR: No se encontró el botón btnVolverConsultas');
+            }
+        }
+
+        function initWorkspace() {
+            console.log('=== INIT WORKSPACE ===');
+            console.log('breadcrumbs element:', elements.breadcrumbs);
+            console.log('consultaNombre:', consultaNombre);
+
+            if (elements.breadcrumbs) {
+                elements.breadcrumbs.textContent = `Consultas / ${consultaNombre}`;
+            } else {
+                console.error('ERROR: No se encontró el elemento breadcrumbs');
+            }
+
+            renderSidebar();
+            renderQuestionSetsList();
+        }
+
+        function guardarConsulta(datos) {
+            return fetch('/api/guardar-consulta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('✅ Consulta guardada en la base de datos:', data.consulta);
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Error al guardar consulta');
+                }
+            })
+            .catch(error => {
+                console.error('Error guardando consulta:', error);
+                throw error;
+            });
+        }
+
+        // Función para guardar consulta en Supabase (versión simplificada para workspace)
+        async function guardarConsultaEnSupabase(datos, options = {}) {
+            const {
+                showAlert = false,
+                silent = false
+            } = options;
+
+            try {
+                console.log('📤 Enviando a Supabase:', datos);
+                
+                const response = await fetch('/api/guardar-consulta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                const result = await response.json();
+                console.log('📥 Respuesta de Supabase:', result);
+
+                if (result.success) {
+                    if (showAlert && !silent) {
+                        console.log('✅ Cambios guardados en Supabase');
+                    }
+                    return result;
+                } else {
+                    console.error('❌ Error en respuesta:', result);
+                    throw new Error(result.error || 'Error al guardar en Supabase');
+                }
+            } catch (error) {
+                console.error('❌ Error guardando en Supabase:', error);
+                if (!silent) {
+                    console.error('Error guardando en Supabase:', error);
+                }
+                throw error;
+            }
+        }
+
+        function enviarConsulta(datos) {
+            // Mostrar indicador de carga
+            const btnAceptar = document.getElementById('btnAceptarConsulta');
+            const textoOriginal = btnAceptar.textContent;
+            btnAceptar.textContent = 'Enviando...';
+            btnAceptar.disabled = true;
+            
+            // Preparar datos para enviar al servidor
+            const payload = {
+                consultaNumero: datos.consultaNumero,
+                consultaNombre: datos.consultaNombre,
+                fechaVencimiento: datos.fechaVencimiento,
+                asignarTodos: datos.asignarTodos,
+                usuario: datos.usuario,
+                mensaje: datos.mensaje,
+                instrucciones: state.instructions,
+                questionSets: state.questionSets,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Enviar al servidor
+            fetch('/api/enviar-consulta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar notificación de éxito
+                    mostrarNotificacion('Consulta enviada exitosamente', 'success');
+                    
+                    // Limpiar formulario
+                    document.getElementById('fechaVencimiento').value = '';
+                    document.getElementById('asignarTodos').checked = false;
+                    document.getElementById('buscarUsuario').value = '';
+                    document.getElementById('cuerpoCorreo').value = '';
+                    
+                    // Guardar estado de envío
+                    const envioKey = `consulta_enviada_${consultaNumero}`;
+                    localStorage.setItem(envioKey, JSON.stringify({
+                        enviada: true,
+                        fechaEnvio: new Date().toISOString(),
+                        datos: payload
+                    }));
+                    
+                    // Opcional: Redirigir a consultas después de un tiempo
+                    setTimeout(() => {
+                        window.location.href = 'consultas.html';
+                    }, 2000);
+                    
+                } else {
+                    throw new Error(data.message || 'Error al enviar consulta');
+                }
+            })
+            .catch(error => {
+                console.error('Error al enviar consulta:', error);
+                mostrarNotificacion('Error al enviar la consulta: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Restaurar botón
+                btnAceptar.textContent = textoOriginal;
+                btnAceptar.disabled = false;
+            });
+        }
+        
+        function mostrarNotificacion(mensaje, tipo = 'info') {
+            // Crear elemento de notificación
+            const notificacion = document.createElement('div');
+            notificacion.className = `notificacion notificacion-${tipo}`;
+            notificacion.textContent = mensaje;
+            
+            // Estilos para la notificación
+            notificacion.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            
+            // Color según tipo
+            switch(tipo) {
+                case 'success':
+                    notificacion.style.background = '#16a34a';
+                    break;
+                case 'error':
+                    notificacion.style.background = '#dc2626';
+                    break;
+                default:
+                    notificacion.style.background = '#1976d2';
+            }
+            
+            // Agregar al DOM
+            document.body.appendChild(notificacion);
+            
+            // Animar entrada
+            setTimeout(() => {
+                notificacion.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                notificacion.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notificacion.parentNode) {
+                        notificacion.parentNode.removeChild(notificacion);
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        // Hacer la función accesible globalmente
+        window.limpiarLocalStorageConsultas = function() {
+            // Limpiar todos los datos de consultas de localStorage
+            const keysToRemove = [];
+            
+            // Encontrar todas las claves relacionadas con consultas
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (
+                    key.startsWith('consulta_') || 
+                    key.startsWith('consulta_enviada_') ||
+                    key.includes('questionSets') ||
+                    key.includes('instructions')
+                )) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Eliminar todas las claves encontradas
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('✅ Eliminado:', key);
+            });
+            
+            console.log(`🧹 Se eliminaron ${keysToRemove.length} claves de localStorage`);
+            
+            // Mostrar notificación si la función mostrarNotificación existe
+            if (typeof mostrarNotificacion === 'function') {
+                mostrarNotificacion('Datos locales de consultas eliminados', 'success');
+            } else {
+                alert('Datos locales de consultas eliminados: ' + keysToRemove.length + ' claves');
+            }
+            
+            return keysToRemove.length;
+        };
+
+        async function init() {
+            console.log('🚀 Iniciando workspace...');
+            console.log('📋 Parámetros URL:', {
+                numero: consultaNumero,
+                nombre: consultaNombre,
+                new: params.get('new')
+            });
+            
+            try {
+                await loadState();
+                console.log('✅ loadState completado');
+            } catch (error) {
+                console.error('❌ Error en loadState:', error);
+            }
+            
+            initWorkspace();
+            renderRequirements();
+            initInstructions();
+            setupEventListeners();
+            
+            // Configurar event listeners del modal
+            const btnEnviar = document.getElementById('btnEnviarConsulta');
+            const btnCancelar = document.getElementById('btnCancelarConsulta');
+            const btnAceptar = document.getElementById('btnAceptarConsulta');
+            const modal = document.getElementById('abrirConsultaModal');
+
+            if (btnEnviar) {
+                btnEnviar.addEventListener('click', function() {
+                    modal.classList.add('active');
+                });
+            }
+
+            if (btnCancelar) {
+                btnCancelar.addEventListener('click', function() {
+                    modal.classList.remove('active');
+                });
+            }
+
+            if (btnAceptar) {
+                btnAceptar.addEventListener('click', function() {
+                    // Recolectar datos del formulario
+                    const fechaVencimiento = document.getElementById('fechaVencimiento').value;
+                    const asignarTodos = document.getElementById('asignarTodos').checked;
+                    const buscarUsuario = document.getElementById('buscarUsuario').value;
+                    const cuerpoCorreo = document.getElementById('cuerpoCorreo').value;
+                    
+                    // Validar campos obligatorios
+                    if (!fechaVencimiento) {
+                        alert('Por favor selecciona una fecha de vencimiento');
+                        return;
+                    }
+                    
+                    if (!cuerpoCorreo.trim()) {
+                        alert('Por favor escribe el cuerpo del correo electrónico');
+                        return;
+                    }
+                    
+                    if (!asignarTodos && !buscarUsuario.trim()) {
+                        alert('Por favor asigna a todos los contactos o especifica un usuario');
+                        return;
+                    }
+                    
+                    // Primero guardar la consulta en la base de datos
+                    guardarConsulta({
+                        numero: consultaNumero,
+                        nombre: consultaNombre,
+                        descripcion: consultaDescripcion,
+                        objetivos: consultaObjetivos,
+                        tipo: consultaTipo,
+                        fechaVencimiento: fechaVencimiento,
+                        instrucciones: state.instructions,
+                        mensaje: cuerpoCorreo,
+                        asignarTodos: asignarTodos,
+                        usuario: buscarUsuario,
+                        questionSets: state.questionSets,
+                        metadata: {
+                            creada_por: 'usuario_actual',
+                            timestamp: new Date().toISOString()
+                        }
+                    }).then(response => {
+                        if (response.success) {
+                            // Si se guardó correctamente, enviar el correo
+                            enviarConsulta({
+                                fechaVencimiento: fechaVencimiento,
+                                asignarTodos: asignarTodos,
+                                usuario: buscarUsuario,
+                                mensaje: cuerpoCorreo,
+                                consultaNumero: consultaNumero,
+                                consultaNombre: consultaNombre
+                            });
+                        } else {
+                            throw new Error(response.error || 'Error al guardar la consulta');
+                        }
+                    }).catch(error => {
+                        console.error('Error en el proceso:', error);
+                        mostrarNotificacion('Error: ' + error.message, 'error');
+                    });
+                    
+                    modal.classList.remove('active');
+                });
+            }
+
+            // Cerrar modal al hacer clic fuera del contenido
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        // Esperar a que el DOM esté completamente cargado
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+<div id="abrirConsultaModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Abrir consulta</h2>
+            <div class="form-group">
+                <label for="fechaVencimiento">Fecha de vencimiento de la consulta</label>
+                <input type="date" id="fechaVencimiento" placeholder="Seleccionar fecha">
+            </div>
+            <div class="form-group">
+                <label>Personas asignadas</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="asignarTodos">
+                    <label for="asignarTodos">Enviar a todos los contactos</label>
+                </div>
+                <input type="text" id="buscarUsuario" placeholder="Buscar usuario">
+                <a href="#" class="link">Crear nuevo contacto</a>
+            </div>
+            <div class="form-group">
+                <label for="cuerpoCorreo">Cuerpo de correo electrónico</label>
+                <textarea id="cuerpoCorreo"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="primary" id="btnAceptarConsulta">Aceptar</button>
+                <button class="secondary" id="btnCancelarConsulta">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
