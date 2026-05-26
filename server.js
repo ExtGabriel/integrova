@@ -222,6 +222,8 @@ const corsOptions = {
             'http://localhost:3001',      // Servidor local (mismo puerto)
             'http://localhost:5000',      // Desarrollo local alternativo
             'http://localhost:8080',      // Desarrollo local alternativo
+            'https://www.integrovagt.com', // Producción
+            'https://integrovagt.com',    // Producción sin www
             ...additionalFrontendOrigins  // Frontend en Vercel o dominios personalizados
         ];
 
