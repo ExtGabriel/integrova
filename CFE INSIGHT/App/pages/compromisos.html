@@ -1296,6 +1296,14 @@
                 });
             }
 
+            // Llenar formulario con datos del compromiso PRIMERO (antes de cargar entidades)
+            document.getElementById('editCommitmentId').value = commitment.id;
+            document.getElementById('editCommitmentName').value = commitment.name;
+            document.getElementById('editCommitmentDescription').value = commitment.description || '';
+            document.getElementById('editCommitmentStartDate').value = commitment.start_date;
+            document.getElementById('editCommitmentEndDate').value = commitment.end_date;
+            document.getElementById('editCommitmentStatus').value = commitment.status;
+
             // Cargar entidades para el select
             loadEntitiesForEditSelect();
             
@@ -1306,14 +1314,25 @@
             loadEditPreparersSelect();
             loadEditReviewersSelect();
 
-            // Llenar formulario con datos del compromiso
-            document.getElementById('editCommitmentId').value = commitment.id;
-            document.getElementById('editCommitmentName').value = commitment.name;
-            document.getElementById('editCommitmentDescription').value = commitment.description || '';
-            document.getElementById('editCommitmentStartDate').value = commitment.start_date;
-            document.getElementById('editCommitmentEndDate').value = commitment.end_date;
-            document.getElementById('editCommitmentStatus').value = commitment.status;
-            document.getElementById('editCommitmentEntity').value = commitment.entity_id;
+            // AHORA establecer la entidad (después de cargar las opciones)
+            const entitySelect = document.getElementById('editCommitmentEntity');
+            const rawEntityId = commitment.entity_id;
+            const normalizedEntityId = rawEntityId != null ? String(rawEntityId) : '';
+
+            if (
+                normalizedEntityId &&
+                !Array.from(entitySelect.options).some(option => option.value === normalizedEntityId)
+            ) {
+                const entityInfo = allEntities[rawEntityId] || commitment.entities || {};
+                const option = document.createElement('option');
+                option.value = normalizedEntityId;
+                option.textContent = `${
+                    entityInfo.name || entityInfo.entity_name || 'Entidad desconocida'
+                } (${entityInfo.id || entityInfo.code || normalizedEntityId})`;
+                entitySelect.appendChild(option);
+            }
+
+            entitySelect.value = normalizedEntityId;
             
             // Llenar campos opcionales (pueden ser undefined o null)
             document.getElementById('editCommitmentBudgetHours').value = commitment.budget_hours || '';
@@ -1333,8 +1352,10 @@
             Object.keys(allEntities).forEach(key => {
                 const entity = allEntities[key];
                 const option = document.createElement('option');
-                option.value = key;
-                option.textContent = `${entity.name} (${entity.id})`;
+                option.value = String(key);
+                option.textContent = `${
+                    entity.name || entity.entity_name || 'Entidad sin nombre'
+                } (${entity.id || entity.code || key})`;
                 select.appendChild(option);
             });
         }
@@ -1367,7 +1388,8 @@
             const startDate = document.getElementById('editCommitmentStartDate').value;
             const endDate = document.getElementById('editCommitmentEndDate').value;
             const status = document.getElementById('editCommitmentStatus').value;
-            const entityId = document.getElementById('editCommitmentEntity').value; // UUID como string
+            const entityRawValue = document.getElementById('editCommitmentEntity').value;
+            const entityId = /^\d+$/.test(entityRawValue) ? parseInt(entityRawValue, 10) : entityRawValue;
             
             // Obtener valores de campos opcionales
             const budgetHoursInput = document.getElementById('editCommitmentBudgetHours').value;
@@ -1395,7 +1417,8 @@
                 start_date: startDate,
                 end_date: endDate,
                 status: status,
-                entity_id: entityId
+                entity_id: entityId,
+                entity: entityId // Campo adicional por si la BD espera 'entity'
             };
 
             // Agregar campos opcionales si tienen valores
@@ -1419,7 +1442,7 @@
 
             try {
                 // Actualizar compromiso via servidor proxy
-                const response = await fetch(`${API_BASE}/api/commitments/${id}`, {
+                const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1540,7 +1563,7 @@
 
             try {
                 // Eliminar compromiso via servidor proxy
-                const response = await fetch(`${API_BASE}/api/commitments/${id}`, {
+                const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
