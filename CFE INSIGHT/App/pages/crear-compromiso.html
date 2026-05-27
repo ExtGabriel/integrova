@@ -578,10 +578,11 @@
                 const description = document.getElementById('commitmentDescription').value.trim();
                 const startDate = document.getElementById('commitmentStartDate').value;
                 const endDate = document.getElementById('commitmentEndDate').value;
-                const entityId = parseInt(document.getElementById('commitmentEntity').value, 10);
+                const entityRawValue = document.getElementById('commitmentEntity').value;
+                const entityId = /^\d+$/.test(entityRawValue) ? parseInt(entityRawValue, 10) : entityRawValue;
                 const workGroupId = document.getElementById('commitmentWorkGroup').value;
 
-                if (!name || !startDate || !endDate || !entityId) {
+                if (!name || !startDate || !endDate || !entityRawValue) {
                     alert('Por favor completa todos los campos requeridos.');
                     return;
                 }
@@ -597,6 +598,7 @@
                     start_date: startDate,
                     end_date: endDate,
                     entity_id: entityId,
+                    entity: entityId, // Campo adicional por si la BD espera 'entity'
                     status: 'pendiente'
                 };
 
@@ -604,10 +606,19 @@
                     payload.work_group_id = parseInt(workGroupId, 10);
                 }
 
-                // Simulación de guardado exitoso
+                // Guardar real usando la API
                 console.log('💾 Guardando compromiso:', payload);
-                alert('✓ Compromiso creado exitosamente.');
-                window.location.href = 'compromisos.html';
+                
+                const result = await API.Commitments.create(payload);
+                
+                if (result.success) {
+                    console.log('✅ Compromiso guardado exitosamente:', result.data);
+                    alert('✓ Compromiso creado exitosamente.');
+                    window.location.href = 'compromisos.html';
+                } else {
+                    console.error('❌ Error al guardar compromiso:', result.error);
+                    alert(`Error al guardar compromiso: ${result.error}`);
+                }
                 
             } catch (err) {
                 console.error('Error al guardar compromiso:', err);

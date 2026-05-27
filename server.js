@@ -800,7 +800,16 @@ app.post('/api/commitments', async (req, res) => {
     });
     
     try {
-        const insertData = { name, description, start_date, end_date, status, entity: entity_id };
+        const normalizedEntityId = entity_id ?? null;
+        const insertData = {
+            name,
+            description,
+            start_date,
+            end_date,
+            status,
+            entity_id: normalizedEntityId,
+            entity: normalizedEntityId
+        };
         
         // Agregar campos opcionales si existen
         if (budget_hours !== undefined && budget_hours !== null) insertData.budget_hours = budget_hours;
@@ -845,7 +854,16 @@ app.put('/api/commitments/:id', async (req, res) => {
     });
     
     try {
-        const updateData = { name, description, start_date, end_date, status, entity: entity_id };
+        const normalizedEntityId = entity_id ?? null;
+        const updateData = {
+            name,
+            description,
+            start_date,
+            end_date,
+            status,
+            entity_id: normalizedEntityId,
+            entity: normalizedEntityId
+        };
         
         // Agregar campos opcionales si existen
         if (budget_hours !== undefined && budget_hours !== null) {
