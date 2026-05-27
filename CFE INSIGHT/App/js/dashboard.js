@@ -861,8 +861,8 @@ async function generateRealNotifications() {
 
     try {
         // First, get existing notifications from database
-        const API_BASE = window.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const existingNotificationsResponse = await fetch(`${API_BASE}/api/notifications?user_id=${userId}`);
+        // Using relative URL for Vercel proxy
+        const existingNotificationsResponse = await fetch(`/api/notifications?user_id=${userId}`);
         let existingNotifications = [];
         
         if (existingNotificationsResponse.ok) {
