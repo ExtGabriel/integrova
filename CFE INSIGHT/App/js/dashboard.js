@@ -861,7 +861,8 @@ async function generateRealNotifications() {
 
     try {
         // First, get existing notifications from database
-        const existingNotificationsResponse = await fetch(`http://localhost:3001/api/notifications?user_id=${userId}`);
+        const API_BASE = window.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const existingNotificationsResponse = await fetch(`${API_BASE}/api/notifications?user_id=${userId}`);
         let existingNotifications = [];
         
         if (existingNotificationsResponse.ok) {
@@ -918,7 +919,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch('http://localhost:3001/api/notifications', {
+                        const createResponse = await fetch(`${API_BASE}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1003,7 +1004,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch('http://localhost:3001/api/notifications', {
+                        const createResponse = await fetch(`${API_BASE}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1146,7 +1147,7 @@ async function syncNotificationAsRead(notificationId) {
 
         console.log(`📡 Enviando PUT a /api/notifications/${notificationId}/read con user-id: ${userId}`);
 
-        const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}/read`, {
+        const response = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
