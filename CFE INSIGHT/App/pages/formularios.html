@@ -17,13 +17,13 @@
             background: white;
             border-radius: 12px;
             padding: 16px;
-            margin: 12px 0;
+            margin: 10px 0;
             border: 1px solid #e0e0e0;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
         }
 
         .document-item.uploaded-document:hover {
@@ -40,9 +40,9 @@
         }
 
         .document-item.uploaded-document .document-icon {
-            font-size: 2.2rem;
+            font-size: 2rem;
             margin-right: 16px;
-            min-width: 44px;
+            min-width: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -53,37 +53,37 @@
         }
 
         .document-item.uploaded-document .document-title {
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             color: #2c3e50;
-            font-size: 1.15rem;
+            font-size: 1rem;
             font-weight: 600;
         }
 
         .document-item.uploaded-document .document-filename {
-            margin: 0 0 4px 0;
+            margin: 0 0 3px 0;
             color: #495057;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-family: 'Courier New', monospace;
             background: #f8f9fa;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 1px 4px;
+            border-radius: 3px;
             display: inline-block;
         }
 
         .document-item.uploaded-document .document-meta {
             margin: 0;
             color: #6c757d;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
         }
 
         .document-item.uploaded-document .document-author {
-            margin: 4px 0 0 0;
+            margin: 3px 0 0 0;
             color: #495057;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-style: italic;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
         }
 
         .document-item.uploaded-document .document-author i {
@@ -92,8 +92,8 @@
 
         .document-actions {
             display: flex;
-            gap: 8px;
-            margin-left: 16px;
+            gap: 6px;
+            margin-left: 12px;
         }
 
         .btn-action {
@@ -9189,16 +9189,34 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Crear el HTML del documento
+                    // Crear el HTML del documento con datos completos
+                    const now = new Date();
                     const documentHTML = `
-                        <div class="document-item uploaded-document" id="${result.document.id}" data-id="${result.document.id}" data-type="upload" onclick="openUploadedDocument('${result.document.id}')" style="cursor: pointer;">
-                            <div class="document-icon" style="color: ${getFileIcon(file.name).color};">
-                                <i class="bi ${getFileIcon(file.name).class}"></i>
+                        <div class="document-item uploaded-document" id="${result.document.id}" data-id="${result.document.id}" data-type="upload">
+                            <div class="document-header" onclick="openUploadedDocument('${result.document.id}')" style="cursor: pointer;">
+                                <div class="document-icon" style="color: ${getFileIcon(file.name).color};">
+                                    <i class="bi ${getFileIcon(file.name).class}"></i>
+                                </div>
+                                <div class="document-info">
+                                    <h4 class="document-title">${file.name.replace(/\.[^/.]+$/, '')}</h4>
+                                    <p class="document-filename">${file.name}</p>
+                                    <p class="document-meta">${formatFileSize(file.size)} • ${formatDateTime(now.toISOString())}</p>
+                                    <p class="document-author" id="author-${result.document.id}">
+                                        <i class="bi bi-person-fill"></i> 
+                                        <span>${window.currentUser?.name || 'Usuario'}</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div class="document-info">
-                                <h4 class="document-title">${file.name.replace(/\.[^/.]+$/, '')}</h4>
-                                <p class="document-date">Archivo: ${file.name}</p>
-                                <p class="document-date">Tamaño: ${formatFileSize(file.size)}</p>
+                            <div class="document-actions">
+                                <button class="btn-action btn-edit" onclick="editUploadedDocument('${result.document.id}')" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn-action btn-download" onclick="downloadUploadedDocument('${result.document.id}')" title="Descargar">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <button class="btn-action btn-delete" onclick="deleteUploadedDocument('${result.document.id}')" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </div>
                     `;
@@ -24863,26 +24881,58 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return RISK_STORAGE_KEY_BASE;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
-                    await window.currentUserReady;
+        async function waitForCurrentUser(maxAttempts = 30, intervalMs = 150) {
+            if (window.currentUser?.id) {
+                return window.currentUser;
+            }
+
+            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                try {
+                    const resolvedUser = await window.currentUserReady;
+                    if (resolvedUser?.id) {
+                        return resolvedUser;
+                    }
+                } catch (err) {
+                    console.warn('⚠️ currentUserReady se rechazó:', err);
                 }
-            } catch (err) {
-                console.warn('No se pudo esperar a currentUserReady para riesgos:', err);
+            }
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                if (window.currentUser?.id) {
+                    return window.currentUser;
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+
+            console.warn('⚠️ No se pudo obtener currentUser después de esperar.');
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const currentUser = await waitForCurrentUser();
+            if (!currentUser?.id) {
+                console.warn('⚠️ Usuario no disponible; se omite la carga inicial de archivos.');
+                return;
             }
 
             riskItems = loadStoredRisks();
             renderRiskLists();
             
+            try {
+                await ensureUserCatalogLoaded();
+            } catch (error) {
+                console.warn('No se pudo precargar catálogo de usuarios:', error);
+            }
+            
             // Cargar archivos desde subdocumentos
-            await loadUploadedFilesFromDatabase();
+            await loadUploadedFilesFromDatabase(currentUser.id);
         });
         
         // Función para cargar archivos desde la base de datos
-        async function loadUploadedFilesFromDatabase() {
+        async function loadUploadedFilesFromDatabase(userIdOverride = null) {
             try {
-                if (!window.currentUser?.id) {
+                const effectiveUser = userIdOverride ? { id: userIdOverride } : await waitForCurrentUser();
+                if (!effectiveUser?.id) {
                     console.warn('Usuario no disponible para cargar archivos');
                     return;
                 }
@@ -24906,7 +24956,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 ];
                 
                 for (const mapping of sectionMappings) {
-                    await loadFilesForSection(mapping);
+                    await loadFilesForSection(mapping, effectiveUser.id);
                 }
                 
             } catch (error) {
@@ -24915,11 +24965,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para cargar archivos de una sección específica
-        async function loadFilesForSection({ section, categoria, subcategoria, contentId }) {
+        async function loadFilesForSection({ section, categoria, subcategoria, contentId }, userId) {
             try {
                 const response = await fetch(`/api/subdocuments/${categoria}/${subcategoria}`, {
                     headers: {
-                        'user-id': window.currentUser.id
+                        'user-id': userId
                     }
                 });
                 

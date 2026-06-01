@@ -8,7 +8,7 @@
 // Configuración global de la aplicación
 window.APP_CONFIG = {
     ENV: 'production',
-    DEBUG: false,
+    DEBUG: true,
     API_BASE_URL: window.location.origin,
 };
 

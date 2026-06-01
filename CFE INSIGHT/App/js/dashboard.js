@@ -5,10 +5,16 @@
 // Navigation function for dashboard buttons
 function navigateTo(page) {
     console.log('🔍 Navegando a:', page);
-    const restrictedForAuditor = ['Usuarios', 'Grupos', 'Entidades'];
+    const restrictedForAuditor = ['Usuarios'];
+    const allowedForAuditorSenior = ['Entidades', 'Grupos'];
 
-    // Bloquear navegación a opciones restringidas para rol auditor
-    if (window.currentUser?.role === 'auditor' && restrictedForAuditor.includes(page)) {
+    // Permitir acceso a Auditor Senior a Entidades y Grupos
+    if (window.currentUser?.role === 'auditor_senior' && allowedForAuditorSenior.includes(page)) {
+        console.log(`✅ Acceso permitido para Auditor Senior a: ${page}`);
+        // Continuar con la navegación normal
+    }
+    // Bloquear navegación a opciones restringidas para rol auditor básico
+    else if (window.currentUser?.role === 'auditor' && restrictedForAuditor.includes(page)) {
         console.warn(`🚫 Acceso denegado para auditor a: ${page}`);
         if (typeof showError === 'function') {
             showError('No tienes permiso para acceder a esta sección');
@@ -1848,7 +1854,7 @@ function applyDashboardRoleVisibility() {
     ];
 
     // Ocultar botones para roles que no deben verlos
-    if (role === 'auditor' || role === 'auditor_senior' || role === 'cliente') {
+    if (role === 'auditor' || role === 'cliente') {
         console.log(`🚫 Ocultando botones para rol: ${role}`);
         selectorsToHide.forEach(selector => {
             const el = document.querySelector(selector);
@@ -1857,6 +1863,36 @@ function applyDashboardRoleVisibility() {
                 console.log(`✅ Botón oculto: ${selector}`);
             } else {
                 console.warn(`⚠️ No se encontró botón: ${selector}`);
+            }
+        });
+    } else if (role === 'auditor_senior') {
+        console.log(`✅ Auditor Senior - Mostrando Entidades y Grupos, ocultando Usuarios`);
+        // Para Auditor Senior: mostrar Entidades y Grupos, ocultar solo Usuarios
+        const seniorSelectorsToHide = [
+            'a.action-btn[href="usuarios.html"]',
+            '#iaChatBtn'
+        ];
+        const seniorSelectorsToShow = [
+            'a.action-btn[href="grupos.html"]',
+            'a.action-btn[href="entidades.html"]',
+            'button.action-btn[onclick*="Entidades"]'
+        ];
+        
+        // Ocultar Usuarios
+        seniorSelectorsToHide.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = 'none';
+                console.log(`✅ Botón oculto para Auditor Senior: ${selector}`);
+            }
+        });
+        
+        // Mostrar Entidades y Grupos
+        seniorSelectorsToShow.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = '';
+                console.log(`✅ Botón mostrado para Auditor Senior: ${selector}`);
             }
         });
     } else {

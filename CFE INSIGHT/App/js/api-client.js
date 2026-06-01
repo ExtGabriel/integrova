@@ -2284,20 +2284,22 @@
             async getAll() {
                 try {
                     const client = await getSupabaseClient();
-                    if (!client) return { success: true, data: [] };
+                    if (!client) return { success: false, error: 'Supabase client no disponible', data: [] };
 
                     const { data, error } = await client.from(tableName).select('*');
 
                     if (error) {
+                        console.error(`❌ ${tableName}.getAll ERROR:`, error);
                         if (handleTableNotFound(error, tableName)) {
-                            return { success: true, data: [] };
+                            return { success: false, error: `Tabla "${tableName}" no existe`, data: [] };
                         }
-                        throw error;
+                        return { success: false, error: error.message, data: [] };
                     }
+                    console.log(`✅ ${tableName}.getAll SUCCESS:`, data?.length || 0, 'registros');
                     return { success: true, data: data || [] };
                 } catch (err) {
-                    console.warn(`⚠️ ${tableName}.getAll:`, err.message);
-                    return { success: true, data: [] };
+                    console.error(`❌ ${tableName}.getAll EXCEPTION:`, err);
+                    return { success: false, error: err.message, data: [] };
                 }
             },
 
@@ -2323,19 +2325,21 @@
             async create(record) {
                 try {
                     const client = await getSupabaseClient();
-                    if (!client) return { success: true, data: record };
+                    if (!client) return { success: false, error: 'Supabase client no disponible' };
 
                     const { data, error } = await client.from(tableName).insert([record]).select();
                     if (error) {
+                        console.error(`❌ ${tableName}.create ERROR:`, error);
                         if (handleTableNotFound(error, tableName)) {
-                            return { success: true, data: record };
+                            return { success: false, error: `Tabla "${tableName}" no existe` };
                         }
-                        throw error;
+                        return { success: false, error: error.message };
                     }
+                    console.log(`✅ ${tableName}.create SUCCESS:`, data?.[0]);
                     return { success: true, data: data?.[0] || record };
                 } catch (err) {
-                    console.warn(`⚠️ ${tableName}.create:`, err.message);
-                    return { success: true, data: record };
+                    console.error(`❌ ${tableName}.create EXCEPTION:`, err);
+                    return { success: false, error: err.message };
                 }
             },
 
@@ -2401,6 +2405,7 @@
         // Para tablas que podrían no existir aún
         Groups: createTableModule('groups'),
         Teams: createTableModule('teams'),
+        TeamMembers: createTableModule('team_members'),
         Permissions: createTableModule('permissions'),
         Roles: createTableModule('roles'),
         Logs: createTableModule('logs'),

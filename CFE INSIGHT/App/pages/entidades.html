@@ -1013,7 +1013,7 @@
             // Verificar si el usuario actual tiene permisos
             if (window.currentUser && window.currentUser.role) {
                 const userRole = window.currentUser.role.toLowerCase().trim();
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin', 'auditor_senior'];
 
                 if (adminRoles.includes(userRole)) {
                     btnAssignUser.style.display = 'inline-block';
@@ -1282,7 +1282,7 @@
                 const userRole = window.currentUser?.role;
                 const entityActions = document.getElementById('entityActions' + entityId);
                 if (entityActions) {
-                    if (userRole === 'administrador' || userRole === 'programador') {
+                    if (userRole === 'administrador' || userRole === 'programador' || userRole === 'auditor_senior') {
                         entityActions.style.display = 'block';
                     } else {
                         entityActions.style.display = 'none';
@@ -1759,14 +1759,14 @@
                 entityCard.onclick = (event) => showDetails(entityId, event);
 
                 let modifyButton = '';
-                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin' || window.currentUser?.role === 'auditor_senior') {
                     modifyButton = `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation(); modifyEntity('${data.id}')" style="margin-left: 10px;">
                         <i class="bi bi-pencil"></i></button>`;
                 }
 
                 // Crear botones de acción visibles en el header para admin/programador
                 let actionButtons = '';
-                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin') {
+                if (window.currentUser?.role === 'administrador' || window.currentUser?.role === 'programador' || window.currentUser?.role === 'admin' || window.currentUser?.role === 'auditor_senior') {
                     actionButtons = `
                         <div class="entity-header-actions">
                             <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); modifyEntity('${data.id}')" title="Modificar">
@@ -1986,7 +1986,7 @@
             if (createEntityBtn && window.currentUser) {
                 const userRole = window.currentUser.role?.toLowerCase().trim();
                 // Roles que permiten crear entidades (variantes posibles)
-                const adminRoles = ['administrador', 'programador', 'socio', 'admin'];
+                const adminRoles = ['administrador', 'programador', 'socio', 'admin', 'auditor_senior'];
 
                 console.log('🔐 Verificando permisos para crear entidades:', {
                     userRole: userRole,

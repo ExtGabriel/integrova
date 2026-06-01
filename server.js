@@ -6938,7 +6938,7 @@ app.get('/api/subdocuments/document/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('created_by', userId)
+            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -6980,7 +6980,7 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('created_by', userId)
+            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -7038,7 +7038,7 @@ app.put('/api/subdocuments/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('created_by', userId)
+            .eq('user_id', userId)
             .single();
             
         if (checkError || !existingDoc) {
@@ -7058,7 +7058,7 @@ app.put('/api/subdocuments/:documentId', async (req, res) => {
             .from('subdocumentos')
             .update(updateData)
             .eq('id', documentId)
-            .eq('created_by', userId)
+            .eq('user_id', userId)
             .select()
             .single();
             
@@ -7098,7 +7098,7 @@ app.delete('/api/subdocuments/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('created_by', userId)
+            .eq('user_id', userId)
             .single();
             
         if (checkError || !existingDoc) {
@@ -7110,7 +7110,7 @@ app.delete('/api/subdocuments/:documentId', async (req, res) => {
             .from('subdocumentos')
             .delete()
             .eq('id', documentId)
-            .eq('created_by', userId);
+            .eq('user_id', userId);
             
         if (error) {
             console.error('❌ Error al eliminar documento:', error);
