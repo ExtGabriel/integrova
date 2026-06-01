@@ -6803,6 +6803,78 @@ app.put('/api/subdocuments/update', async (req, res) => {
     }
 });
 
+// Subir archivo a subdocumentos
+app.post('/api/subdocuments/upload', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { 
+            categoria, 
+            subcategoria, 
+            titulo, 
+            fileName, 
+            fileSize, 
+            fileType, 
+            entityId, 
+            commitmentId,
+            fileData 
+        } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!categoria || !subcategoria || !titulo || !fileName) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+        }
+        
+        console.log(`📁 Subiendo archivo: ${fileName} en ${categoria}/${subcategoria}`);
+        
+        // Preparar metadata con información del archivo y contexto
+        const metadata = {
+            fileName,
+            fileSize,
+            fileType,
+            entityId: entityId || null,
+            commitmentId: commitmentId || null,
+            uploadDate: new Date().toISOString(),
+            fileData: fileData || null // Para archivos pequeños, guardar datos base64
+        };
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .insert([{
+                titulo,
+                contenido: null, // Los archivos no tienen contenido textual
+                tipo: 'archivo',
+                categoria,
+                subcategoria,
+                parent_folder_id: null,
+                metadata,
+                user_id: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error subiendo archivo:', error);
+            return res.status(500).json({ success: false, error: 'Error al subir el archivo' });
+        }
+        
+        console.log('✅ Archivo subido exitosamente');
+        res.json({
+            success: true,
+            message: 'Archivo subido exitosamente',
+            document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/upload:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
@@ -6823,6 +6895,14 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
             
+        // Log para depuración - verificar created_by
+        if (documents && documents.length > 0) {
+            console.log('🔍 Documentos encontrados con created_by:');
+            documents.forEach(doc => {
+                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}`);
+            });
+        }
+            
         if (error) {
             console.error('❌ Error obteniendo subdocumentos:', error);
             return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
@@ -6836,6 +6916,266 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/subdocuments:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener un subdocumento específico por ID
+app.get('/api/subdocuments/document/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('created_by', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        console.log(`✅ Documento ${documentId} encontrado`);
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/document:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Descargar archivo de subdocumento
+app.get('/api/subdocuments/download/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('created_by', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento para descarga:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        if (document.tipo !== 'archivo') {
+            return res.status(400).json({ success: false, error: 'El documento no es un archivo' });
+        }
+        
+        const metadata = parseMetadata(document.metadata);
+        if (!metadata || !metadata.fileContent) {
+            return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
+        }
+        
+        // Convertir base64 a buffer
+        const fileBuffer = Buffer.from(metadata.fileContent, 'base64');
+        
+        // Set headers para descarga
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${metadata.fileName || 'archivo'}"`);
+        res.setHeader('Content-Length', fileBuffer.length);
+        
+        console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
+        res.send(fileBuffer);
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/download:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Actualizar subdocumento por ID
+app.put('/api/subdocuments/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        const { titulo, contenido, metadata } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        // Verificar que el documento existe y pertenece al usuario
+        const { data: existingDoc, error: checkError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('created_by', userId)
+            .single();
+            
+        if (checkError || !existingDoc) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Preparar datos de actualización
+        const updateData = {
+            updated_at: new Date().toISOString()
+        };
+        
+        if (titulo !== undefined) updateData.titulo = titulo;
+        if (contenido !== undefined) updateData.contenido = contenido;
+        if (metadata !== undefined) updateData.metadata = typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .update(updateData)
+            .eq('id', documentId)
+            .eq('created_by', userId)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al actualizar documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al actualizar el documento' });
+        }
+        
+        console.log(`✅ Documento ${documentId} actualizado`);
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments PUT:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Eliminar subdocumento por ID
+app.delete('/api/subdocuments/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        // Verificar que el documento existe y pertenece al usuario
+        const { data: existingDoc, error: checkError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('created_by', userId)
+            .single();
+            
+        if (checkError || !existingDoc) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Eliminar el documento
+        const { error } = await supabase
+            .from('subdocumentos')
+            .delete()
+            .eq('id', documentId)
+            .eq('created_by', userId);
+            
+        if (error) {
+            console.error('❌ Error al eliminar documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el documento' });
+        }
+        
+        console.log(`✅ Documento ${documentId} eliminado`);
+        res.json({
+            success: true,
+            message: 'Documento eliminado correctamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments DELETE:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener información de usuario por ID
+app.get('/api/users/id/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Buscando usuario por ID: ${userId}`);
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'ID de usuario requerido' });
+        }
+        
+        // Intentar primero con la tabla users
+        console.log(`🌐 Consultando tabla 'users' para ID: ${userId}`);
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, email, full_name, nombre')
+            .eq('id', userId)
+            .single();
+            
+        console.log(`📋 Resultado de consulta users:`, { user, error });
+            
+        console.log(`📋 Resultado de consulta por ID:`, { user, error });
+            
+        if (error) {
+            console.error('❌ Error al obtener usuario:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el usuario' });
+        }
+        
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        
+        // Formatear nombre del usuario
+        const userName = user.full_name || user.nombre || user.email || 'Usuario desconocido';
+        
+        console.log(`✅ Usuario ${userId} encontrado: ${userName}`);
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                name: userName,
+                email: user.email
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/users:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
