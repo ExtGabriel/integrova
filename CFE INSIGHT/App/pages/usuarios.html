@@ -131,6 +131,105 @@
     </div>
   </div>
 
+  <!-- Modal para Editar Usuario -->
+  <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editUserModalLabel">
+            <i class="bi bi-pencil-square"></i> Editar Usuario
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editUserForm">
+            <div class="mb-3">
+              <label for="editUserName" class="form-label">Nombre Completo *</label>
+              <input type="text" class="form-control" id="editUserName" required>
+            </div>
+            <div class="mb-3">
+              <label for="editUserEmail" class="form-label">Correo Electrónico *</label>
+              <input type="email" class="form-control" id="editUserEmail" required>
+              <small class="text-muted">Se usa como usuario para login</small>
+            </div>
+            <div class="mb-3">
+              <label for="editUserRole" class="form-label">Rol *</label>
+              <select class="form-select" id="editUserRole" required>
+                <option value="">-- Seleccione un rol --</option>
+                <option value="admin">Administrador</option>
+                <option value="auditor">Auditor</option>
+                <option value="auditor_senior">Auditor Senior</option>
+                <option value="socio">Socio</option>
+                <option value="cliente">Cliente</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="editUserTeam" class="form-label">Equipo</label>
+              <input type="text" class="form-control" id="editUserTeam">
+            </div>
+            <div id="editUserError" class="alert alert-danger" style="display: none;">
+              <i class="bi bi-exclamation-triangle"></i>
+              <span id="editUserErrorMessage"></span>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="confirmEditUser()">
+            <i class="bi bi-check-lg"></i> Actualizar Usuario
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Restablecer Contraseña -->
+  <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resetPasswordModalLabel">
+            <i class="bi bi-key-fill"></i> Restablecer Contraseña
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>Seguridad:</strong> Las contraseñas están hasheadas y no pueden ser vistas. Solo puedes restablecerlas con una nueva contraseña.
+          </div>
+          
+          <div class="mb-3">
+            <strong id="resetUserInfo" class="text-primary"></strong>
+          </div>
+
+          <form id="resetPasswordForm">
+            <div class="mb-3">
+              <label for="resetPasswordNew" class="form-label">Nueva Contraseña *</label>
+              <input type="password" class="form-control" id="resetPasswordNew" required minlength="6">
+              <small class="text-muted">Mínimo 6 caracteres</small>
+            </div>
+            <div class="mb-3">
+              <label for="resetPasswordConfirm" class="form-label">Confirmar Contraseña *</label>
+              <input type="password" class="form-control" id="resetPasswordConfirm" required minlength="6">
+              <small class="text-muted">Repite la nueva contraseña</small>
+            </div>
+            <div id="resetPasswordError" class="alert alert-danger" style="display: none;">
+              <i class="bi bi-exclamation-triangle"></i>
+              <span id="resetPasswordErrorMessage"></span>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">
+            <i class="bi bi-key-fill"></i> Restablecer Contraseña
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ========================================
        SCRIPTS - ORDEN CRÍTICO PARA ESTABILIDAD
        ======================================== -->
@@ -140,6 +239,26 @@
 
   <!-- 2. Configuración global -->
   <script src="../js/config.js"></script>
+
+  <!-- 2.1 EmailJS SDK para notificaciones por correo -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script>
+    (function() {
+      const emailConfig = window.APP_CONFIG?.EMAILJS;
+      if (!emailjs || !emailConfig) {
+        console.warn('⚠️ EmailJS no inicializado: SDK o configuración no disponibles');
+        return;
+      }
+
+      if (!emailConfig.publicKey) {
+        console.warn('⚠️ EmailJS sin llave pública (window.APP_CONFIG.EMAILJS.publicKey). Se omite inicialización.');
+        return;
+      }
+
+      emailjs.init(emailConfig.publicKey);
+      console.log('✅ EmailJS inicializado correctamente');
+    })();
+  </script>
 
   <!-- 3. Configuración Supabase -->
   <script src="../js/config-supabase.js"></script>

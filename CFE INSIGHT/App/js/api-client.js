@@ -2163,6 +2163,317 @@
         },
 
         /**
+         * Actualizar información de un usuario (nombre, email, rol, equipo)
+         * @param {string} userId - ID del usuario a actualizar
+         * @param {object} userData - Datos a actualizar (name, email, role, team)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async update(userId, userData) {
+            try {
+                // Validación de entrada
+                if (!userId || !userData || typeof userData !== 'object') {
+                    return {
+                        success: false,
+                        error: 'userId y userData son requeridos'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden actualizar usuarios
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden actualizar usuarios' };
+                }
+
+                // Preparar datos para actualizar
+                const updateData = {};
+                
+                if (userData.name !== undefined) {
+                    updateData.full_name = userData.name;
+                }
+                
+                if (userData.email !== undefined) {
+                    updateData.email = userData.email;
+                }
+                
+                if (userData.role !== undefined) {
+                    const normalizedRole = userData.role.toLowerCase().trim();
+                    
+                    // Validar rol
+                    if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
+                        return {
+                            success: false,
+                            error: `Rol inválido: "${normalizedRole}". Solo se permiten roles globales: ${VALID_GLOBAL_ROLES.join(', ')}`
+                        };
+                    }
+                    
+                    updateData.role = normalizedRole;
+                }
+                
+                if (userData.team !== undefined) {
+                    // Obtener metadata existente y fusionar con el nuevo team
+                    const { data: currentUser } = await client
+                        .from('users')
+                        .select('raw_user_meta_data')
+                        .eq('id', userId)
+                        .single();
+                    
+                    const existingMetadata = currentUser?.raw_user_meta_data || {};
+                    updateData.raw_user_meta_data = {
+                        ...existingMetadata,
+                        team: userData.team
+                    };
+                }
+
+                // Si no hay datos para actualizar, retornar éxito
+                if (Object.keys(updateData).length === 0) {
+                    return { success: true, data: null, error: 'No hay datos para actualizar' };
+                }
+
+                console.log(`🔄 Actualizando usuario ${userId} con:`, updateData);
+
+                // Obtener token de autenticación
+                const { data: { session } } = await client.auth.getSession();
+                if (!session?.access_token) {
+                    return { success: false, error: 'No hay sesión activa' };
+                }
+
+                // Usar el endpoint correcto del servidor
+                const response = await fetch(`/api/usuarios/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    return { success: false, error: errorData.error || `Error ${response.status}` };
+                }
+
+                const data = await response.json();
+                console.log(`✅ Usuario ${userId} actualizado correctamente`);
+                return { success: true, data: data.data };
+            } catch (err) {
+                console.error('❌ Users.update excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Crear un nuevo usuario
+         * @param {object} userData - Datos del usuario (name, email, password, role, team)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async create(userData) {
+            try {
+                // Validación de entrada
+                if (!userData || typeof userData !== 'object') {
+                    return {
+                        success: false,
+                        error: 'userData es requerido y debe ser un objeto'
+                    };
+                }
+
+                const { name, email, password, role, team } = userData;
+
+                if (!name || !email || !password || !role) {
+                    return {
+                        success: false,
+                        error: 'name, email, password y role son requeridos'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden crear usuarios
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden crear usuarios' };
+                }
+
+                // Validar rol
+                const normalizedRole = role.toLowerCase().trim();
+                if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
+                    return {
+                        success: false,
+                        error: `Rol inválido: "${normalizedRole}". Solo se permiten roles globales: ${VALID_GLOBAL_ROLES.join(', ')}`
+                    };
+                }
+
+                console.log(`👤 Creando usuario: ${email} con rol ${normalizedRole}`);
+
+                // Paso 1: Crear usuario en Supabase Auth
+                const { data: authData, error: authError } = await client.auth.admin.createUser({
+                    email: email,
+                    password: password,
+                    email_confirm: true,
+                    user_metadata: {
+                        full_name: name,
+                        team: team || null
+                    }
+                });
+
+                if (authError) {
+                    console.error('❌ Error creando usuario en Auth:', authError);
+                    
+                    // Manejo de errores específicos
+                    if (authError.message?.includes('email_exists')) {
+                        return { success: false, error: 'email_exists' };
+                    }
+                    
+                    return { success: false, error: authError.message || 'Error al crear usuario en Auth' };
+                }
+
+                if (!authData.user) {
+                    return { success: false, error: 'No se pudo crear el usuario en Auth' };
+                }
+
+                // Paso 2: Crear registro en tabla users
+                const { data: dbData, error: dbError } = await client
+                    .from('users')
+                    .insert({
+                        id: authData.user.id,
+                        email: email,
+                        full_name: name,
+                        role: normalizedRole,
+                        is_active: true,
+                        raw_user_meta_data: {
+                            team: team || null
+                        }
+                    })
+                    .select()
+                    .single();
+
+                if (dbError) {
+                    console.error('❌ Error creando usuario en BD:', dbError);
+                    
+                    // Intentar eliminar el usuario de Auth si falló la creación en BD
+                    try {
+                        await client.auth.admin.deleteUser(authData.user.id);
+                        console.log('🗑️ Usuario eliminado de Auth debido a error en BD');
+                    } catch (deleteErr) {
+                        console.warn('⚠️ No se pudo eliminar usuario de Auth:', deleteErr.message);
+                    }
+                    
+                    return { success: false, error: dbError.message || 'Error al crear usuario en BD' };
+                }
+
+                console.log(`✅ Usuario ${email} creado correctamente`);
+                return { success: true, data: dbData };
+            } catch (err) {
+                console.error('❌ Users.create excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Restablecer contraseña de un usuario (solo admins)
+         * @param {string} userId - ID del usuario
+         * @param {string} newPassword - Nueva contraseña (mínimo 6 caracteres)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async resetPassword(userId, newPassword) {
+            try {
+                // Validación de entrada
+                if (!userId || !newPassword) {
+                    return {
+                        success: false,
+                        error: 'userId y newPassword son requeridos'
+                    };
+                }
+
+                if (newPassword.length < 6) {
+                    return {
+                        success: false,
+                        error: 'La contraseña debe tener al menos 6 caracteres'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden restablecer contraseñas
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden restablecer contraseñas' };
+                }
+
+                // Obtener token de autenticación
+                const { data: { session } } = await client.auth.getSession();
+                if (!session?.access_token) {
+                    return { success: false, error: 'No hay sesión activa' };
+                }
+
+                console.log(`🔐 Restableciendo contraseña para usuario ${userId}...`);
+
+                const response = await fetch(`/api/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ newPassword })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    return { success: false, error: errorData.error || `Error ${response.status}` };
+                }
+
+                const data = await response.json();
+                console.log(`✅ Contraseña restablecida para usuario ${userId}`);
+
+                return { success: true, data: data };
+
+            } catch (err) {
+                console.error('❌ Users.resetPassword excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
          * Obtener lista de usuarios según permisos del usuario actual
          * Usuarios con rol admin ven todos los usuarios
          * Usuarios con otros roles ven solo usuarios de su grupo

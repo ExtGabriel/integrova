@@ -27,6 +27,7 @@
 
     let allUsers = [];
     let visibleUsers = new Set();
+    let realPasswords = new Map(); // Almacenar contraseñas reales
     let currentUserProfile = null;
     let currentUserRole = null;
     let canChangeRoles = false;
@@ -173,6 +174,105 @@
         }
 
         return 'Error desconocido. Por favor, intenta de nuevo.';
+    }
+
+    /**
+     * Determinar si EmailJS está configurado correctamente
+     */
+    function isEmailJsConfigured() {
+        const cfg = window.APP_CONFIG?.EMAILJS;
+        return typeof emailjs !== 'undefined'
+            && cfg
+            && cfg.serviceId
+            && cfg.templateId
+            && cfg.publicKey; // Se inicializa en usuarios.html
+    }
+
+    /**
+     * Enviar correo de notificación usando EmailJS
+     * @param {object} params
+     * @param {string} params.email Destinatario
+     * @param {string} params.name Nombre destinatario
+     * @param {string} params.newPassword Nueva contraseña generada por el admin
+     */
+    async function sendResetPasswordEmail({ email, name, newPassword }) {
+        const cfg = window.APP_CONFIG?.EMAILJS;
+
+        if (!isEmailJsConfigured()) {
+            console.warn('⚠️ EmailJS no está configurado. Se omite envío de correo.');
+            return { success: false, error: 'EmailJS no configurado' };
+        }
+
+        try {
+            const adminName = window.currentUser?.user_metadata?.full_name || window.currentUser?.email || 'Administrador';
+
+            const templateParams = {
+                to_email: email,
+                to_name: name || email,
+                new_password: newPassword,
+                admin_name: adminName,
+                app_name: 'INTEGROVA',
+                reset_timestamp: new Date().toLocaleString(),
+            };
+
+            console.log('✉️ Enviando correo de restablecimiento con EmailJS...', templateParams);
+            console.log('📋 EmailJS Config:', {
+                serviceId: cfg.serviceId,
+                templateId: cfg.templateId,
+                publicKey: cfg.publicKey
+            });
+
+            const result = await emailjs.send(cfg.serviceId, cfg.templateId, templateParams);
+            console.log('📧 EmailJS Response:', result);
+
+            console.log(`📧 EmailJS: correo enviado correctamente a ${email}`);
+            return { success: true };
+        } catch (err) {
+            console.error('❌ EmailJS: error enviando correo de restablecimiento:', err);
+            return { success: false, error: err?.text || err?.message || 'Error desconocido' };
+        }
+    }
+
+    /**
+     * Enviar correo de bienvenida a nuevo usuario usando EmailJS
+     * @param {object} params
+     * @param {string} params.email Email del nuevo usuario
+     * @param {string} params.name Nombre del nuevo usuario
+     * @param {string} params.password Contraseña asignada
+     */
+    async function sendWelcomeEmail({ email, name, password }) {
+        const cfg = window.APP_CONFIG?.EMAILJS;
+
+        if (!isEmailJsConfigured()) {
+            console.warn('⚠️ EmailJS no está configurado. Se omite envío de correo de bienvenida.');
+            return { success: false, error: 'EmailJS no configurado' };
+        }
+
+        if (!cfg.welcomeTemplateId) {
+            console.warn('⚠️ Plantilla de bienvenida no configurada (welcomeTemplateId vacío). Se omite envío.');
+            return { success: false, error: 'Plantilla de bienvenida no configurada' };
+        }
+
+        try {
+            const templateParams = {
+                to_email: email,
+                to_name: name || email,
+                new_password: password,
+                login_url: cfg.loginUrl || 'http://localhost:3000/login',
+                app_name: 'INTEGROVA',
+                welcome_timestamp: new Date().toLocaleString(),
+            };
+
+            console.log('🎉 Enviando correo de bienvenida con EmailJS...', templateParams);
+
+            await emailjs.send(cfg.serviceId, cfg.welcomeTemplateId, templateParams);
+
+            console.log(`📧 EmailJS: correo de bienvenida enviado correctamente a ${email}`);
+            return { success: true };
+        } catch (err) {
+            console.error('❌ EmailJS: error enviando correo de bienvenida:', err);
+            return { success: false, error: err?.text || err?.message || 'Error desconocido' };
+        }
     }
 
     // ==========================================
@@ -484,10 +584,22 @@
             }
             row.appendChild(tdEstado);
 
-            // Contraseña
+            // Contraseña (mostrar enmascarada por defecto, real si está visible)
             const tdPassword = document.createElement('td');
-            tdPassword.textContent = user.password;
-            tdPassword.style.fontFamily = 'monospace';
+            const passwordElement = document.createElement('span');
+            passwordElement.className = 'password-display';
+            
+            // Si el usuario está en visibleUsers, mostrar contraseña real, si no, mostrar enmascarada
+            if (visibleUsers.has(user.id)) {
+                passwordElement.textContent = user.realPassword || user.password || 'No disponible';
+                passwordElement.title = 'Contraseña visible';
+            } else {
+                passwordElement.textContent = '••••••••';
+                passwordElement.title = 'Contraseña enmascarada - Click en el ojo para ver';
+            }
+            
+            passwordElement.style.fontFamily = 'monospace';
+            tdPassword.appendChild(passwordElement);
             row.appendChild(tdPassword);
 
             // Acciones
@@ -495,11 +607,18 @@
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'user-actions';
 
-            // Botón Edit (deshabilitado)
+            // Botón Edit
             const btnEdit = document.createElement('button');
             btnEdit.className = 'btn btn-sm btn-warning';
             btnEdit.innerHTML = '<i class="bi bi-pencil-fill"></i>';
-            disableWithTooltip(btnEdit, 'Edición no disponible');
+            btnEdit.title = 'Editar usuario';
+            
+            // Solo permitir editar si el usuario actual es admin
+            if (currentUserRole === 'admin') {
+                btnEdit.addEventListener('click', () => openEditModal(user.id));
+            } else {
+                disableWithTooltip(btnEdit, 'Solo administradores pueden editar usuarios');
+            }
             actionsDiv.appendChild(btnEdit);
 
             // Botón Delete (habilitado para admins)
@@ -518,15 +637,21 @@
             }
             actionsDiv.appendChild(btnDelete);
 
-            // Botón View (mostrar/ocultar datos sensibles)
-            const btnToggle = document.createElement('button');
-            btnToggle.className = 'btn btn-sm btn-info';
-            btnToggle.innerHTML = visibleUsers.has(user.id)
-                ? '<i class="bi bi-eye-slash-fill"></i>'
-                : '<i class="bi bi-eye-fill"></i>';
-            btnToggle.title = 'Ver/Ocultar datos sensibles';
-            btnToggle.addEventListener('click', () => toggleUserVisibility(user.id));
-            actionsDiv.appendChild(btnToggle);
+            // Botón Reset Password (solo para admins)
+            const btnReset = document.createElement('button');
+            btnReset.className = 'btn btn-sm btn-primary';
+            btnReset.innerHTML = '<i class="bi bi-key-fill"></i>';
+            btnReset.title = 'Restablecer contraseña';
+            
+            // Solo permitir restablecer si el usuario actual es admin y no es el mismo usuario
+            if (currentUserRole === 'admin' && user.id !== currentUserProfile?.id) {
+                btnReset.addEventListener('click', () => openResetPasswordModal(user.id, user.name || user.email));
+            } else {
+                disableWithTooltip(btnReset, user.id === currentUserProfile?.id ? 
+                    'No puedes restablecer tu propia contraseña' : 
+                    'Solo administradores pueden restablecer contraseñas');
+            }
+            actionsDiv.appendChild(btnReset);
 
             tdActions.appendChild(actionsDiv);
             row.appendChild(tdActions);
@@ -697,15 +822,201 @@
     }
 
     /**
-     * Mostrar/ocultar usuario en la lista
+     * Mostrar/ocultar contraseña del usuario
      */
-    function toggleUserVisibility(userId) {
+    async function toggleUserVisibility(userId) {
         if (visibleUsers.has(userId)) {
+            // Ocultar contraseña
             visibleUsers.delete(userId);
+            renderUsers();
         } else {
-            visibleUsers.add(userId);
+            // Mostrar contraseña - obtenerla del backend
+            try {
+                showLoading(true);
+                console.log(`🔓 Obteniendo contraseña real para usuario ${userId}...`);
+                
+                // Obtener el token de autenticación
+                const client = await getSupabaseClient();
+                if (!client) {
+                    throw new Error('Cliente Supabase no disponible');
+                }
+                
+                const { data: { session } } = await client.auth.getSession();
+                if (!session?.access_token) {
+                    throw new Error('No hay sesión activa');
+                }
+                
+                // Llamar al endpoint para obtener la contraseña real
+                const response = await fetch(`/api/users/${userId}/password`, {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.password) {
+                    // Almacenar contraseña real
+                    realPasswords.set(userId, data.password);
+                    
+                    // Agregar a usuarios visibles
+                    visibleUsers.add(userId);
+                    
+                    // Actualizar el usuario en allUsers con la contraseña real
+                    const userIndex = allUsers.findIndex(u => u.id === userId);
+                    if (userIndex !== -1) {
+                        allUsers[userIndex].realPassword = data.password;
+                    }
+                    
+                    renderUsers();
+                    showSuccessMsg('Contraseña visible temporalmente');
+                } else {
+                    throw new Error(data.error || 'No se pudo obtener la contraseña');
+                }
+            } catch (err) {
+                console.error('❌ Error obteniendo contraseña:', err);
+                showErrorMsg(`No se pudo obtener la contraseña: ${err.message}`);
+            } finally {
+                showLoading(false);
+            }
         }
-        renderUsers();
+    }
+
+    /**
+     * Abrir modal de restablecer contraseña
+     */
+    function openResetPasswordModal(userId, userName) {
+        // Verificar permisos
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('No tienes permisos para restablecer contraseñas');
+            return;
+        }
+
+        // Guardar ID del usuario que se está editando
+        window.currentResetUserId = userId;
+
+        // Mostrar información del usuario
+        const userInfo = document.getElementById('resetUserInfo');
+        if (userInfo) {
+            userInfo.textContent = `Restablecer contraseña para: ${userName}`;
+        }
+
+        // Limpiar formulario
+        const form = document.getElementById('resetPasswordForm');
+        if (form) {
+            form.reset();
+        }
+
+        // Ocultar mensaje de error
+        const errorSection = document.getElementById('resetPasswordError');
+        if (errorSection) {
+            errorSection.style.display = 'none';
+        }
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+        modal.show();
+    }
+
+    /**
+     * Confirmar y restablecer contraseña
+     */
+    async function confirmResetPassword() {
+        const userId = window.currentResetUserId;
+        if (!userId) {
+            showErrorMsg('No se ha seleccionado un usuario para restablecer contraseña');
+            return;
+        }
+
+        const form = document.getElementById('resetPasswordForm');
+        const errorSection = document.getElementById('resetPasswordError');
+        const errorMessage = document.getElementById('resetPasswordErrorMessage');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const newPassword = document.getElementById('resetPasswordNew').value;
+        const confirmPassword = document.getElementById('resetPasswordConfirm').value;
+
+        // Validación adicional
+        if (!newPassword || !confirmPassword) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Ambos campos de contraseña son requeridos';
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'La contraseña debe tener al menos 6 caracteres';
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Las contraseñas no coinciden';
+            return;
+        }
+
+        try {
+            showLoading(true);
+            errorSection.style.display = 'none';
+
+            // Verificar que la API esté disponible
+            if (!window.API || !window.API.Users) {
+                throw new Error('API.Users no está disponible');
+            }
+
+            const response = await API.Users.resetPassword(userId, newPassword);
+            console.log('✅ Respuesta de restablecimiento:', response);
+
+            if (!response.success) {
+                // Mostrar error
+                errorSection.style.display = 'block';
+                errorMessage.textContent = response.error || 'Error desconocido al restablecer contraseña';
+                return;
+            }
+
+            // Intentar enviar correo con EmailJS (si está configurado)
+            const targetUser = response.data?.user || response.user || null;
+            const emailResult = targetUser
+                ? await sendResetPasswordEmail({
+                    email: targetUser.email,
+                    name: targetUser.name,
+                    newPassword
+                })
+                : { success: false, error: 'Datos de usuario no disponibles para EmailJS' };
+
+            // Éxito: cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+            if (modal) modal.hide();
+
+            // Limpiar variable global
+            window.currentResetUserId = null;
+
+            // Mostrar mensaje de éxito
+            const baseMessage = response.data?.message || 'Contraseña restablecida correctamente';
+            const emailMessage = emailResult.success
+                ? 'Se envió un correo de notificación al usuario.'
+                : 'No se pudo enviar el correo automático (ver consola).';
+
+            showSuccessMsg(`${baseMessage} ${emailMessage}`.trim());
+
+        } catch (error) {
+            console.error('❌ Error restableciendo contraseña:', error);
+            errorSection.style.display = 'block';
+            errorMessage.textContent = error.message || 'Error desconocido al restablecer contraseña';
+        } finally {
+            showLoading(false);
+        }
     }
 
     /**
@@ -733,6 +1044,128 @@
         // Mostrar modal
         const modal = new bootstrap.Modal(document.getElementById('createUserModal'));
         modal.show();
+    }
+
+    /**
+     * Abrir modal de editar usuario
+     */
+    function openEditModal(userId) {
+        // Verificar permisos
+        if (!PermissionsHelper.isAdmin()) {
+            showErrorMsg('No tienes permisos para editar usuarios');
+            return;
+        }
+
+        // Buscar usuario
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) {
+            showErrorMsg('Usuario no encontrado');
+            return;
+        }
+
+        // Llenar formulario con datos del usuario
+        document.getElementById('editUserName').value = user.name || '';
+        document.getElementById('editUserEmail').value = user.email || '';
+        document.getElementById('editUserRole').value = user.role || '';
+        document.getElementById('editUserTeam').value = user.team || '';
+        
+        // Guardar ID del usuario que se está editando
+        window.currentEditingUserId = userId;
+
+        // Ocultar mensaje de error
+        const errorSection = document.getElementById('editUserError');
+        if (errorSection) {
+            errorSection.style.display = 'none';
+        }
+
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+        modal.show();
+    }
+
+    /**
+     * Confirmar y actualizar usuario
+     */
+    async function confirmEditUser() {
+        const userId = window.currentEditingUserId;
+        if (!userId) {
+            showErrorMsg('No se ha seleccionado un usuario para editar');
+            return;
+        }
+
+        const form = document.getElementById('editUserForm');
+        const errorSection = document.getElementById('editUserError');
+        const errorMessage = document.getElementById('editUserErrorMessage');
+
+        // Validar formulario
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const userData = {
+            name: document.getElementById('editUserName').value.trim(),
+            email: document.getElementById('editUserEmail').value.trim(),
+            role: document.getElementById('editUserRole').value,
+            team: document.getElementById('editUserTeam').value.trim() || null
+        };
+
+        console.log('🔍 Datos que se enviarán para actualizar usuario:', userData);
+
+        // Validación adicional
+        if (!userData.name || !userData.email || !userData.role) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Todos los campos marcados con * son requeridos';
+            return;
+        }
+
+        const normalizedRole = userData.role.toLowerCase();
+        if (!ALLOWED_GLOBAL_ROLES.includes(normalizedRole)) {
+            errorSection.style.display = 'block';
+            errorMessage.textContent = 'Rol inválido. Solo se permiten roles globales: admin, auditor, auditor_senior, socio, cliente';
+            return;
+        }
+        userData.role = normalizedRole;
+
+        try {
+            showLoading(true);
+            errorSection.style.display = 'none';
+
+            // Verificar que la API esté disponible
+            if (!window.API || !window.API.Users) {
+                throw new Error('API.Users no está disponible');
+            }
+
+            const response = await API.Users.update(userId, userData);
+            console.log('✅ Respuesta de actualización:', response);
+
+            if (!response.success) {
+                // Mostrar error
+                errorSection.style.display = 'block';
+                errorMessage.textContent = response.error || 'Error desconocido al actualizar usuario';
+                return;
+            }
+
+            // Éxito: cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+            if (modal) modal.hide();
+
+            // Limpiar variable global
+            window.currentEditingUserId = null;
+
+            // Recargar lista de usuarios
+            await loadUsers();
+
+            // Mostrar mensaje de éxito
+            showSuccessMsg(`Usuario ${userData.name} actualizado exitosamente`);
+
+        } catch (error) {
+            console.error('❌ Error actualizando usuario:', error);
+            errorSection.style.display = 'block';
+            errorMessage.textContent = error.message || 'Error desconocido al actualizar usuario';
+        } finally {
+            showLoading(false);
+        }
     }
 
     /**
@@ -810,8 +1243,20 @@
             // Recargar lista de usuarios
             await loadUsers();
 
-            // Mostrar mensaje de éxito
-            showSuccessMsg(`Usuario ${userData.name} creado exitosamente`);
+            // Intentar enviar correo de bienvenida (si está configurado)
+            const welcomeResult = await sendWelcomeEmail({
+                email: userData.email,
+                name: userData.name,
+                password: userData.password
+            });
+
+            // Mostrar mensaje de éxito con información del correo
+            const baseMessage = `Usuario ${userData.name} creado exitosamente`;
+            const emailMessage = welcomeResult.success
+                ? 'Se envió un correo de bienvenida al usuario.'
+                : 'No se pudo enviar el correo de bienvenida (ver consola).';
+
+            showSuccessMsg(`${baseMessage}. ${emailMessage}`.trim());
 
         } catch (error) {
             console.error('❌ Error creando usuario:', error);
@@ -927,6 +1372,10 @@
     // Exponer funciones globalmente para el HTML
     window.openAddModal = openAddModal;
     window.confirmCreateUser = confirmCreateUser;
+    window.openEditModal = openEditModal;
+    window.confirmEditUser = confirmEditUser;
+    window.openResetPasswordModal = openResetPasswordModal;
+    window.confirmResetPassword = confirmResetPassword;
 
     console.log('✅ usuarios.js: Módulo inicializado. Debug disponible en window.__usuariosDebug');
 

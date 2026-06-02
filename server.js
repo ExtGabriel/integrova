@@ -399,11 +399,13 @@ app.get('/api/users', async (req, res) => {
         if (error) throw error;
 
         // Mapear full_name a name para compatibilidad con el frontend
+        // Extraer team de raw_user_meta_data
         // Normalizar roles para consistencia
         const mappedData = data.map(user => ({
             ...user,
             name: user.full_name,
-            role: (user.role || '').trim().toLowerCase() // Normalizar rol
+            role: (user.role || '').trim().toLowerCase(), // Normalizar rol
+            team: user.raw_user_meta_data?.team || null // Extraer team de metadata
         }));
 
         console.log(`📋 Backend /api/users: ${mappedData.length} usuarios con roles normalizados`);
@@ -442,12 +444,13 @@ app.get('/api/users/:username', async (req, res) => {
 
 // Create a new user
 app.post('/api/users', async (req, res) => {
-    const { username, password, name, email, phone, role } = req.body;
+    const { username, name, email, phone, role } = req.body;
     console.log('📝 Intentando crear usuario:', { username, name, email, role });
     try {
+        // NOTA: Password no se guarda en la tabla users, solo en Supabase Auth
         const { data, error } = await supabase
             .from('users')
-            .insert([{ username, password, full_name: name, email, phone, role }])
+            .insert([{ username, full_name: name, email, phone, role }])
             .select();
 
         if (error) {
@@ -476,11 +479,12 @@ app.post('/api/users', async (req, res) => {
 // Update a user
 app.put('/api/users/:username', async (req, res) => {
     const username = req.params.username;
-    const { password, name, email, phone, role } = req.body;
+    const { name, email, phone, role } = req.body;
     try {
+        // NOTA: Password no se guarda en la tabla users, solo en Supabase Auth
         const { data, error } = await supabase
             .from('users')
-            .update({ password, full_name: name, email, phone, role })
+            .update({ full_name: name, email, phone, role })
             .eq('username', username)
             .select();
 
@@ -511,6 +515,166 @@ app.delete('/api/users/:username', async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ success: false, error: 'Failed to delete user' });
+    }
+});
+
+// Get user password by ID (security message)
+app.get('/api/users/:userId/password', async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        // Verificar que el solicitante sea administrador
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Token de autenticación requerido' });
+        }
+
+        const token = authHeader.substring(7);
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ success: false, error: 'Token inválido' });
+        }
+
+        // Obtener el rol del usuario desde la tabla users
+        const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !userProfile) {
+            return res.status(403).json({ success: false, error: 'No se pudo verificar el rol del usuario' });
+        }
+
+        // Solo administradores pueden solicitar información de contraseñas
+        if (userProfile.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Solo administradores pueden acceder a esta información' });
+        }
+
+        // Obtener información del usuario solicitado
+        const { data: targetUser, error: userError } = await supabase
+            .from('users')
+            .select('email, full_name')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !targetUser) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        
+        console.log(`🔒 Información de seguridad solicitada para usuario ${userId} por admin ${user.id}`);
+        
+        // Mensaje de seguridad - no retornar contraseñas reales
+        res.json({ 
+            success: true, 
+            securityMessage: '🔒 CONTRASEÑAS PROTEGIDAS',
+            password: '••••••••',
+            note: 'Por seguridad, las contraseñas están hasheadas y no pueden ser vistas. Usa el botón de restablecer contraseña para asignar una nueva.',
+            user: {
+                id: userId,
+                email: targetUser.email,
+                name: targetUser.full_name
+            },
+            securityInfo: {
+                hashing: 'bcrypt',
+                storage: 'Supabase Auth (seguro)',
+                access: 'Solo restablecimiento permitido',
+                recommendation: 'Usa restablecimiento de contraseña en lugar de recuperación'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo información de seguridad de usuario:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Reset user password (admin only)
+app.post('/api/users/:userId/reset-password', async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+    
+    try {
+        // Validar que se proporcionó una nueva contraseña
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'La contraseña debe tener al menos 6 caracteres' 
+            });
+        }
+        
+        // Verificar que el solicitante sea administrador
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Token de autenticación requerido' });
+        }
+
+        const token = authHeader.substring(7);
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ success: false, error: 'Token inválido' });
+        }
+
+        // Obtener el rol del usuario desde la tabla users
+        const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !userProfile) {
+            return res.status(403).json({ success: false, error: 'No se pudo verificar el rol del usuario' });
+        }
+
+        // Solo administradores pueden restablecer contraseñas
+        if (userProfile.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Solo administradores pueden restablecer contraseñas' });
+        }
+
+        // Obtener información del usuario objetivo
+        const { data: targetUser, error: userError } = await supabase
+            .from('users')
+            .select('email, full_name')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !targetUser) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+
+        // Restablecer contraseña en Supabase Auth
+        const { error: resetError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { password: newPassword }
+        );
+
+        if (resetError) {
+            console.error('❌ Error restableciendo contraseña:', resetError);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'No se pudo restablecer la contraseña' 
+            });
+        }
+        
+        console.log(`🔐 Contraseña restablecida para usuario ${userId} (${targetUser.email}) por admin ${user.id}`);
+        console.log('💡 Notificación por correo: manejada por EmailJS en el frontend');
+        
+        res.json({ 
+            success: true, 
+            message: `Contraseña restablecida correctamente para ${targetUser.full_name || targetUser.email}`,
+            user: {
+                id: userId,
+                email: targetUser.email,
+                name: targetUser.full_name
+            },
+            emailSent: false
+        });
+
+    } catch (error) {
+        console.error('Error restableciendo contraseña:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
 
@@ -1376,15 +1540,23 @@ app.post('/api/usuarios', async (req, res) => {
 app.put('/api/usuarios/:id', async (req, res) => {
     const { id } = req.params;
     const body = req.body || {};
-    const payload = {
-        username: body.username,
-        password: body.password,
-        full_name: body.full_name || body.name || body.nombre,
-        email: body.email || body.correo,
-        phone: body.phone || body.telefono,
-        role: body.role || body.rol,
-        groups: body.groups || body.grupos || []
-    };
+    
+    // Construir payload dinámicamente solo con los campos proporcionados
+    const payload = {};
+    
+    if (body.username !== undefined) payload.username = body.username;
+    if (body.full_name !== undefined) payload.full_name = body.full_name;
+    if (body.name !== undefined) payload.full_name = body.name;
+    if (body.nombre !== undefined) payload.full_name = body.nombre;
+    if (body.email !== undefined) payload.email = body.email;
+    if (body.correo !== undefined) payload.email = body.correo;
+    if (body.phone !== undefined) payload.phone = body.phone;
+    if (body.telefono !== undefined) payload.phone = body.telefono;
+    if (body.role !== undefined) payload.role = body.role;
+    if (body.rol !== undefined) payload.role = body.rol;
+    if (body.raw_user_meta_data !== undefined) payload.raw_user_meta_data = body.raw_user_meta_data;
+
+    console.log(`🔄 Actualizando usuario ${id} con payload:`, payload);
 
     try {
         const { data, error } = await supabase
@@ -1393,11 +1565,16 @@ app.put('/api/usuarios/:id', async (req, res) => {
             .eq('id', id)
             .select();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error en Supabase al actualizar usuario:', error);
+            throw error;
+        }
+        
         if (!data || !data.length) {
             return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
         }
 
+        console.log(`✅ Usuario ${id} actualizado correctamente:`, data[0]);
         res.json({ success: true, data: data[0] });
     } catch (error) {
         console.error('Error updating usuario:', error);
