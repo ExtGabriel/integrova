@@ -27,7 +27,6 @@
 
     let allUsers = [];
     let visibleUsers = new Set();
-    let realPasswords = new Map(); // Almacenar contraseñas reales
     let currentUserProfile = null;
     let currentUserRole = null;
     let canChangeRoles = false;
@@ -439,7 +438,6 @@
                             return metaTeam || 'Sin grupo';
                         })(),
                         active: u.is_active === true,  // ← Más seguro: solo true si es explícitamente true
-                        password: '••••••••',
                         created_at: u.created_at || null
                     };
                 } catch (err) {
@@ -584,24 +582,7 @@
             }
             row.appendChild(tdEstado);
 
-            // Contraseña (mostrar enmascarada por defecto, real si está visible)
-            const tdPassword = document.createElement('td');
-            const passwordElement = document.createElement('span');
-            passwordElement.className = 'password-display';
             
-            // Si el usuario está en visibleUsers, mostrar contraseña real, si no, mostrar enmascarada
-            if (visibleUsers.has(user.id)) {
-                passwordElement.textContent = user.realPassword || user.password || 'No disponible';
-                passwordElement.title = 'Contraseña visible';
-            } else {
-                passwordElement.textContent = '••••••••';
-                passwordElement.title = 'Contraseña enmascarada - Click en el ojo para ver';
-            }
-            
-            passwordElement.style.fontFamily = 'monospace';
-            tdPassword.appendChild(passwordElement);
-            row.appendChild(tdPassword);
-
             // Acciones
             const tdActions = document.createElement('td');
             const actionsDiv = document.createElement('div');
@@ -821,73 +802,7 @@
         }
     }
 
-    /**
-     * Mostrar/ocultar contraseña del usuario
-     */
-    async function toggleUserVisibility(userId) {
-        if (visibleUsers.has(userId)) {
-            // Ocultar contraseña
-            visibleUsers.delete(userId);
-            renderUsers();
-        } else {
-            // Mostrar contraseña - obtenerla del backend
-            try {
-                showLoading(true);
-                console.log(`🔓 Obteniendo contraseña real para usuario ${userId}...`);
-                
-                // Obtener el token de autenticación
-                const client = await getSupabaseClient();
-                if (!client) {
-                    throw new Error('Cliente Supabase no disponible');
-                }
-                
-                const { data: { session } } = await client.auth.getSession();
-                if (!session?.access_token) {
-                    throw new Error('No hay sesión activa');
-                }
-                
-                // Llamar al endpoint para obtener la contraseña real
-                const response = await fetch(`/api/users/${userId}/password`, {
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.success && data.password) {
-                    // Almacenar contraseña real
-                    realPasswords.set(userId, data.password);
-                    
-                    // Agregar a usuarios visibles
-                    visibleUsers.add(userId);
-                    
-                    // Actualizar el usuario en allUsers con la contraseña real
-                    const userIndex = allUsers.findIndex(u => u.id === userId);
-                    if (userIndex !== -1) {
-                        allUsers[userIndex].realPassword = data.password;
-                    }
-                    
-                    renderUsers();
-                    showSuccessMsg('Contraseña visible temporalmente');
-                } else {
-                    throw new Error(data.error || 'No se pudo obtener la contraseña');
-                }
-            } catch (err) {
-                console.error('❌ Error obteniendo contraseña:', err);
-                showErrorMsg(`No se pudo obtener la contraseña: ${err.message}`);
-            } finally {
-                showLoading(false);
-            }
-        }
-    }
-
+    
     /**
      * Abrir modal de restablecer contraseña
      */
