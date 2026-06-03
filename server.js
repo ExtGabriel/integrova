@@ -96,6 +96,21 @@ function normalizeBoolean(value) {
     return false;
 }
 
+function parseIdList(input) {
+    if (!input) return [];
+    if (Array.isArray(input)) {
+        return input
+            .map(item => (typeof item === 'object' && item?.id ? item.id : item))
+            .map(item => (item !== null && item !== undefined ? String(item).trim() : ''))
+            .filter(Boolean);
+    }
+
+    return String(input)
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+}
+
 // REGLA 14: Limitar longitud y sanitizar texto libre
 function sanitizeAndTruncate(text, maxLength = 1024) {
     if (!text) return null;
@@ -733,13 +748,17 @@ app.post('/api/entities', async (req, res) => {
         address = null,
         email = null,
         phone = null,
-        encargado = null,
-        responsible = null,
+        nit = null,
+        business_name = null,
+        organization_type = null,
+        project_type = null,
         is_group = false,
         relationship_type = 'none',
         parent_id = null,
         metadata = null,
-        created_by = null
+        created_by = null,
+        auditors = [],
+        clients = []
     } = body;
 
     const payload = {
@@ -751,9 +770,11 @@ app.post('/api/entities', async (req, res) => {
         address,
         email,
         phone,
-        encargado,
-        responsible: responsible || encargado || null,
-        is_group: typeof is_group === 'boolean' ? is_group : Boolean(is_group),
+        nit,
+        business_name,
+        organization_type,
+        project_type,
+        is_group: normalizeBoolean(is_group),
         relationship_type: relationship_type || 'none',
         parent_id: parent_id || null,
         metadata,
@@ -770,7 +791,10 @@ app.post('/api/entities', async (req, res) => {
             address,
             email,
             phone,
-            encargado: payload.encargado,
+            nit,
+            business_name,
+            organization_type,
+            project_type,
             es_grupo: payload.is_group,
             relationship_type: payload.relationship_type,
             parent_id: payload.parent_id
@@ -781,6 +805,9 @@ app.post('/api/entities', async (req, res) => {
         delete payload.created_by;
     }
 
+    const auditorIds = parseIdList(auditors);
+    const clientIds = parseIdList(clients);
+
     try {
         const { data, error } = await supabase
             .from('entities')
@@ -788,10 +815,36 @@ app.post('/api/entities', async (req, res) => {
             .select();
 
         if (error) throw error;
-        res.status(201).json({ success: true, data: data[0] });
+
+        const createdEntity = data?.[0];
+        if (!createdEntity) {
+            return res.status(500).json({ success: false, error: 'Entidad creada sin datos de retorno' });
+        }
+
+        const assignments = [
+            ...auditorIds.map(userId => ({ entity_id: createdEntity.id, user_id: userId, role: 'auditor' })),
+            ...clientIds.map(userId => ({ entity_id: createdEntity.id, user_id: userId, role: 'cliente' }))
+        ];
+
+        if (assignments.length) {
+            const { error: assignmentsError } = await supabase
+                .from('entity_users')
+                .insert(assignments);
+
+            if (assignmentsError) throw assignmentsError;
+        }
+
+        res.status(201).json({
+            success: true,
+            data: {
+                ...createdEntity,
+                assigned_auditors: auditorIds,
+                assigned_clients: clientIds
+            }
+        });
     } catch (error) {
         console.error('Error creating entity:', error);
-        res.status(500).json({ success: false, error: 'Failed to create entity' });
+        res.status(500).json({ success: false, error: 'Failed to create entity', details: error.message });
     }
 });
 
@@ -808,12 +861,16 @@ app.put('/api/entities/:id', async (req, res) => {
         address,
         email,
         phone,
-        encargado,
-        responsible,
+        nit,
+        business_name,
+        organization_type,
+        project_type,
         is_group,
         relationship_type,
         parent_id,
-        metadata
+        metadata,
+        auditors = [],
+        clients = []
     } = body;
 
     const updates = {};
@@ -825,13 +882,14 @@ app.put('/api/entities/:id', async (req, res) => {
     if (address !== undefined) updates.address = address;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
-    if (encargado !== undefined) updates.encargado = encargado;
-    if (responsible !== undefined || encargado !== undefined) {
-        updates.responsible = responsible !== undefined ? responsible : encargado;
-    }
-    if (is_group !== undefined) updates.is_group = is_group;
+    if (nit !== undefined) updates.nit = nit;
+    if (business_name !== undefined) updates.business_name = business_name;
+    if (organization_type !== undefined) updates.organization_type = organization_type;
+    if (project_type !== undefined) updates.project_type = project_type;
+    if (is_group !== undefined) updates.is_group = normalizeBoolean(is_group);
     if (relationship_type !== undefined) updates.relationship_type = relationship_type;
     if (parent_id !== undefined) updates.parent_id = parent_id;
+
     if (metadata !== undefined) {
         updates.metadata = metadata;
     } else {
@@ -840,12 +898,18 @@ app.put('/api/entities/:id', async (req, res) => {
             address: address ?? null,
             email: email ?? null,
             phone: phone ?? null,
-            encargado: (encargado ?? responsible) ?? null,
+            nit: nit ?? null,
+            business_name: business_name ?? null,
+            organization_type: organization_type ?? null,
+            project_type: project_type ?? null,
             es_grupo: is_group ?? null,
             relationship_type: relationship_type ?? null,
             parent_id: parent_id ?? null
         };
     }
+
+    const auditorIds = parseIdList(auditors);
+    const clientIds = parseIdList(clients);
 
     try {
         const { data, error } = await supabase
@@ -855,10 +919,45 @@ app.put('/api/entities/:id', async (req, res) => {
             .select();
 
         if (error) throw error;
-        res.json({ success: true, data: data[0] });
+
+        const updatedEntity = data?.[0];
+        if (!updatedEntity) {
+            return res.status(404).json({ success: false, error: 'Entity not found' });
+        }
+
+        // Eliminar asignaciones anteriores de auditores y clientes
+        const { error: deleteAssignmentsError } = await supabase
+            .from('entity_users')
+            .delete()
+            .eq('entity_id', id)
+            .in('role', ['auditor', 'cliente']);
+
+        if (deleteAssignmentsError) throw deleteAssignmentsError;
+
+        const assignments = [
+            ...auditorIds.map(userId => ({ entity_id: id, user_id: userId, role: 'auditor' })),
+            ...clientIds.map(userId => ({ entity_id: id, user_id: userId, role: 'cliente' }))
+        ];
+
+        if (assignments.length) {
+            const { error: insertAssignmentsError } = await supabase
+                .from('entity_users')
+                .insert(assignments);
+
+            if (insertAssignmentsError) throw insertAssignmentsError;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                ...updatedEntity,
+                assigned_auditors: auditorIds,
+                assigned_clients: clientIds
+            }
+        });
     } catch (error) {
         console.error('Error updating entity:', error);
-        res.status(500).json({ success: false, error: 'Failed to update entity' });
+        res.status(500).json({ success: false, error: 'Failed to update entity', details: error.message });
     }
 });
 

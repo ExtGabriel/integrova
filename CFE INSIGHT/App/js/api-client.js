@@ -434,7 +434,17 @@
 
         const payload = {};
 
-        const simpleFields = ['name', 'entity_id', 'entityId', 'description', 'status', 'country', 'address', 'email', 'phone', 'is_group', 'relationship_type', 'parent_id', 'parentId', 'metadata', 'responsible', 'created_by'];
+        const simpleFields = [
+            'name',
+            'entity_id', 'entityId',
+            'description',
+            'status',
+            'country', 'address', 'email', 'phone',
+            'is_group', 'relationship_type', 'parent_id', 'parentId',
+            'metadata', 'responsible', 'created_by',
+            'nit', 'organization_type', 'project_type', 'business_name',
+            'auditors', 'clients'
+        ];
         simpleFields.forEach(field => {
             if (Object.prototype.hasOwnProperty.call(raw, field)) {
                 const targetKey = field === 'entityId' ? 'entity_id' : field === 'parentId' ? 'parent_id' : field;
