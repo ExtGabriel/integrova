@@ -2519,6 +2519,17 @@
                     return allUsers;
                 }
 
+                // Auditor Senior ve usuarios no-admin
+                if (userRole === 'auditor_senior') {
+                    console.log('✅ User is auditor_senior, filtering out admin users');
+                    const filtered = (allUsers.data || []).filter(u => {
+                        const userRoleNormalized = String(u.role || '').trim().toLowerCase();
+                        return userRoleNormalized !== 'admin';
+                    });
+                    console.log(`🔍 Auditor Senior: ${filtered.length} usuarios (admins excluidos)`);
+                    return { success: true, data: filtered };
+                }
+
                 // Otros roles ven solo su grupo (si aplica)
                 const userGroup = window.currentUser.groups?.[0] || window.currentUser.group;
                 if (!userGroup) {

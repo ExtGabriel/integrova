@@ -1886,19 +1886,19 @@ function applyDashboardRoleVisibility() {
             }
         });
     } else if (role === 'auditor_senior') {
-        console.log(`✅ Auditor Senior - Mostrando Entidades y Grupos, ocultando Usuarios`);
-        // Para Auditor Senior: mostrar Entidades y Grupos, ocultar solo Usuarios
+        console.log(`✅ Auditor Senior - Mostrando Entidades, Grupos y Usuarios`);
+        // Para Auditor Senior: mostrar Entidades, Grupos y Usuarios
         const seniorSelectorsToHide = [
-            'a.action-btn[href="usuarios.html"]',
             '#iaChatBtn'
         ];
         const seniorSelectorsToShow = [
             'a.action-btn[href="grupos.html"]',
             'a.action-btn[href="entidades.html"]',
+            'a.action-btn[href="usuarios.html"]',
             'button.action-btn[onclick*="Entidades"]'
         ];
         
-        // Ocultar Usuarios
+        // Ocultar solo IA Chat
         seniorSelectorsToHide.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {
@@ -1907,7 +1907,7 @@ function applyDashboardRoleVisibility() {
             }
         });
         
-        // Mostrar Entidades y Grupos
+        // Mostrar Entidades, Grupos y Usuarios
         seniorSelectorsToShow.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {

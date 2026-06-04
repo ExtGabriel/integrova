@@ -208,11 +208,12 @@ function decryptData(encryptedData) {
 
 // Secure localStorage functions - ELIMINADOS: no más localStorage para datos
 function setSecureItem(key, data) {
-    console.error('setSecureItem is deprecated. Use database instead of localStorage.');
+    // Deprecated: Use database instead of localStorage
+    // Silently ignore to prevent console errors
 }
 
 function getSecureItem(key) {
-    console.error('getSecureItem is deprecated. Use database instead of localStorage.');
+    // Deprecated: Use database instead of localStorage
     return null;
 }
 

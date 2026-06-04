@@ -473,7 +473,31 @@
     }
 
     window.initializeActiveSessionsPage = function () {
-        console.log('✅ initializeActiveSessionsPage: listo');
+        console.log('✅ initializeActiveSessionsPage: iniciando');
+        
+        // Check role-based access control
+        const userRole = window.currentUser?.role;
+        if (!userRole || (userRole !== 'admin' && userRole !== 'auditor_senior')) {
+            console.warn(`🚫 Acceso denegado para rol: ${userRole}. Solo admin y auditor_senior pueden ver usuarios activos.`);
+            
+            // Show access denied message
+            document.body.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; font-family: system-ui;">
+                    <div style="text-align: center; padding: 2rem; border: 1px solid #e0e0e0; border-radius: 8px; background: #f9f9f9;">
+                        <i class="bi bi-shield-exclamation" style="font-size: 3rem; color: #dc3545; display: block; margin-bottom: 1rem;"></i>
+                        <h2 style="color: #dc3545; margin-bottom: 1rem;">Acceso Restringido</h2>
+                        <p style="color: #666; margin-bottom: 1.5rem;">No tienes permisos para ver esta página.</p>
+                        <p style="color: #666; margin-bottom: 1.5rem;">Solo los roles <strong>Administrador</strong> y <strong>Auditor Senior</strong> pueden acceder a la lista de usuarios activos.</p>
+                        <button onclick="window.location.href='dashboard.html'" style="padding: 0.5rem 1.5rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            Volver al Dashboard
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        console.log(`✅ Acceso permitido para rol: ${userRole}`);
         setupEventListeners();
         refreshSessions();
         startAutoRefresh();
