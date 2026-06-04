@@ -217,6 +217,26 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ============================================
+// UTILIDADES GENERALES
+// ============================================
+
+function parseIntWithDefault(value, defaultValue) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+function sanitizeString(input, maxLength = 255) {
+    if (!input || typeof input !== 'string') {
+        return null;
+    }
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return null;
+    }
+    return trimmed.substring(0, maxLength);
+}
+
+// ============================================
 // CONFIGURACIÓN DE CORREO ELECTRÓNICO (DESACTIVADA)
 // ============================================
 // Nota: El envío de correos está desactivado. Las notificaciones se manejan internamente.
@@ -1499,6 +1519,65 @@ app.post('/api/auth/login', (_req, res) => {
         success: false,
         error: 'Autenticación movida a Supabase Auth. Usa supabase.auth.signInWithPassword desde el frontend.'
     });
+});
+
+// ============================================
+// AUDIT LOGS SERVICE ENDPOINTS
+// ============================================
+
+app.get('/api/audit/logs', async (req, res) => {
+    try {
+        const sinceParam = sanitizeString(req.query.since);
+        const limitParam = parseIntWithDefault(req.query.limit, 200);
+
+        if (limitParam <= 0 || limitParam > 1000) {
+            return res.status(400).json({
+                success: false,
+                error: 'El parámetro "limit" debe estar entre 1 y 1000.'
+            });
+        }
+
+        const query = supabase
+            .from('audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limitParam);
+
+        if (sinceParam) {
+            const sinceDate = new Date(sinceParam);
+            if (Number.isNaN(sinceDate.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'El parámetro "since" no es una fecha válida ISO 8601.'
+                });
+            }
+            query.gte('created_at', sinceDate.toISOString());
+        } else {
+            const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+            query.gte('created_at', threeHoursAgo);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('❌ Error obteniendo audit logs:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'No se pudieron obtener los audit logs'
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: data || []
+        });
+    } catch (error) {
+        console.error('❌ Excepción en /api/audit/logs:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Error interno al obtener audit logs'
+        });
+    }
 });
 
 // ============================================

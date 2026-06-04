@@ -540,6 +540,26 @@ function setupEventListeners() {
         exportEntitiesBtn.addEventListener('click', () => exportData('entities'));
     }
 
+    // Active users widget -> detail page
+    const activeUsersWidget = document.querySelector('.widgets-row .dashboard-widget:nth-of-type(3)');
+    if (activeUsersWidget) {
+        activeUsersWidget.style.cursor = 'pointer';
+        activeUsersWidget.setAttribute('tabindex', '0');
+        activeUsersWidget.setAttribute('role', 'button');
+
+        const navigateToActiveSessions = () => {
+            window.location.href = 'usuarios-activos.html';
+        };
+
+        activeUsersWidget.addEventListener('click', navigateToActiveSessions);
+        activeUsersWidget.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                navigateToActiveSessions();
+            }
+        });
+    }
+
     // Close dropdowns when clicking outside
     document.addEventListener('click', function (e) {
         const notificationDropdown = document.getElementById('notificationDropdown');

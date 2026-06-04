@@ -2571,6 +2571,28 @@
     const AuditModule = {
         async getAll() {
             try {
+                // 1) Prefer backend endpoint (service role, sin RLS)
+                try {
+                    const queryParams = new URLSearchParams({ limit: '400' });
+                    console.log('📡 Audit.getAll: Intentando backend /api/audit/logs...');
+                    const response = await fetch(`/api/audit/logs?${queryParams.toString()}`);
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('✅ Backend /api/audit/logs OK:', result);
+                        if (result?.success && Array.isArray(result.data)) {
+                            return { success: true, data: result.data };
+                        }
+                        console.warn('⚠️ /api/audit/logs respondió sin éxito:', result);
+                    } else {
+                        console.warn('⚠️ /api/audit/logs respondió con error HTTP:', response.status);
+                    }
+                } catch (backendError) {
+                    console.warn('⚠️ No se pudo obtener audit logs desde backend:', backendError.message);
+                }
+
+                // 2) Fallback a Supabase directo (respetará RLS)
+                console.log('⚠️ Backend /api/audit/logs falló, usando fallback a Supabase');
                 const client = await getSupabaseClient();
                 if (!client) return { success: true, data: [] };
 
@@ -2582,6 +2604,7 @@
                     }
                     throw error;
                 }
+                console.log('✅ Fallback a Supabase directo OK:', data?.length || 0, 'registros');
                 return { success: true, data: data || [] };
             } catch (err) {
                 console.warn('⚠️ Audit.getAll:', err.message);
