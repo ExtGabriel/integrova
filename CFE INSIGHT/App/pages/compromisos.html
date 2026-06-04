@@ -845,6 +845,59 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="mb-3">
+                                                <label for="commitmentReviewYear" class="form-label">Año de revisión *</label>
+                                                <input
+                                                    type="number"
+                                                    class="form-control"
+                                                    id="commitmentReviewYear"
+                                                    placeholder="YYYY"
+                                                    min="2000"
+                                                    max="2100"
+                                                    required
+                                                >
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentCurrency" class="form-label">Moneda *</label>
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="commitmentCurrency"
+                                                    placeholder="Moneda"
+                                                    required
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentProjectType" class="form-label">Tipo de Proyecto *</label>
+                                                <select class="form-control" id="commitmentProjectType" required>
+                                                    <option value="">Selecciona un tipo</option>
+                                                    <option value="Individual">Individual</option>
+                                                    <option value="Consolidado">Consolidado</option>
+                                                    <option value="Combinado">Combinado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="commitmentReviewType" class="form-label">Tipo de Revisión *</label>
+                                                <select class="form-control" id="commitmentReviewType" required>
+                                                    <option value="">Selecciona un tipo</option>
+                                                    <option value="Única revisión">Única revisión</option>
+                                                    <option value="Preliminar y final">Preliminar y final</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
                                                 <label for="commitmentBudgetHours" class="form-label">Horas de presupuesto</label>
                                                 <input
                                                     type="number"
@@ -1044,11 +1097,21 @@
             const startDate = document.getElementById('commitmentStartDate').value;
             const endDate = document.getElementById('commitmentEndDate').value;
             const entityId = document.getElementById('commitmentEntity').value; // Keep as string (UUID)
+            const reviewYearValue = document.getElementById('commitmentReviewYear').value;
+            const currency = sanitizeInput(document.getElementById('commitmentCurrency').value.trim());
+            const projectType = document.getElementById('commitmentProjectType').value;
+            const reviewType = document.getElementById('commitmentReviewType').value;
             const budgetHoursInput = document.getElementById('commitmentBudgetHours').value;
             const budgetAmountInput = document.getElementById('commitmentBudgetAmount').value;
             const preparerId = document.getElementById('commitmentPreparer').value;
             const reviewerId = document.getElementById('commitmentReviewer').value;
             
+            const reviewYear = parseInt(reviewYearValue, 10);
+            if (Number.isNaN(reviewYear) || reviewYear < 2000 || reviewYear > 2100) {
+                alert('Ingresa un año de revisión válido entre 2000 y 2100.');
+                return;
+            }
+
             // Obtener nombres de usuario desde los datos cargados
             const preparer = preparerId ? getUserNameById(preparerId) : '';
             const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
@@ -1074,8 +1137,12 @@
                 description: description || '',
                 start_date: startDate,
                 end_date: endDate,
-                status: 'pendiente',
-                entity_id: entityId
+                status: 'activo',
+                entity_id: entityId,
+                review_year: reviewYear,
+                currency,
+                project_type: projectType,
+                review_type: reviewType
             };
 
             if (budgetHours !== null && !Number.isNaN(budgetHours)) {
@@ -1179,8 +1246,13 @@
                 return;
             }
 
-            // Crear modal dinámicamente si no existe
-            if (!document.getElementById('editCommitmentModal')) {
+            // Siempre recrear el modal para garantizar que los campos existan
+            const existingEditModal = document.getElementById('editCommitmentModal');
+            if (existingEditModal) {
+                existingEditModal.remove();
+            }
+
+            {
                 const modalHTML = `
                     <div class="modal fade" id="editCommitmentModal" tabindex="-1" aria-labelledby="editCommitmentModalLabel" aria-hidden="true">
                         <div class="modal-dialog modal-xl" style="max-width: 95vw;">
@@ -1221,6 +1293,57 @@
                                                 <div class="mb-3">
                                                     <label for="editCommitmentEndDate" class="form-label">Fecha de Fin *</label>
                                                     <input type="date" class="form-control" id="editCommitmentEndDate" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentReviewYear" class="form-label">Año de revisión *</label>
+                                                    <input
+                                                        type="number"
+                                                        class="form-control"
+                                                        id="editCommitmentReviewYear"
+                                                        placeholder="YYYY"
+                                                        min="2000"
+                                                        max="2100"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentCurrency" class="form-label">Moneda *</label>
+                                                    <input
+                                                        type="text"
+                                                        class="form-control"
+                                                        id="editCommitmentCurrency"
+                                                        placeholder="Moneda"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentProjectType" class="form-label">Tipo de Proyecto *</label>
+                                                    <select class="form-control" id="editCommitmentProjectType" required>
+                                                        <option value="">Selecciona un tipo</option>
+                                                        <option value="Individual">Individual</option>
+                                                        <option value="Consolidado">Consolidado</option>
+                                                        <option value="Combinado">Combinado</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="editCommitmentReviewType" class="form-label">Tipo de Revisión *</label>
+                                                    <select class="form-control" id="editCommitmentReviewType" required>
+                                                        <option value="">Selecciona un tipo</option>
+                                                        <option value="Única revisión">Única revisión</option>
+                                                        <option value="Preliminar y final">Preliminar y final</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -1303,6 +1426,10 @@
             document.getElementById('editCommitmentStartDate').value = commitment.start_date;
             document.getElementById('editCommitmentEndDate').value = commitment.end_date;
             document.getElementById('editCommitmentStatus').value = commitment.status;
+            document.getElementById('editCommitmentReviewYear').value = commitment.review_year || '';
+            document.getElementById('editCommitmentCurrency').value = commitment.currency || '';
+            document.getElementById('editCommitmentProjectType').value = commitment.project_type || '';
+            document.getElementById('editCommitmentReviewType').value = commitment.review_type || '';
 
             // Cargar entidades para el select
             loadEntitiesForEditSelect();
@@ -1390,13 +1517,23 @@
             const status = document.getElementById('editCommitmentStatus').value;
             const entityRawValue = document.getElementById('editCommitmentEntity').value;
             const entityId = /^\d+$/.test(entityRawValue) ? parseInt(entityRawValue, 10) : entityRawValue;
-            
+            const reviewYearValue = document.getElementById('editCommitmentReviewYear').value;
+            const currency = sanitizeInput(document.getElementById('editCommitmentCurrency').value.trim());
+            const projectType = document.getElementById('editCommitmentProjectType').value;
+            const reviewType = document.getElementById('editCommitmentReviewType').value;
+
             // Obtener valores de campos opcionales
             const budgetHoursInput = document.getElementById('editCommitmentBudgetHours').value;
             const budgetAmountInput = document.getElementById('editCommitmentBudgetAmount').value;
             const preparerId = document.getElementById('editCommitmentPreparer').value;
             const reviewerId = document.getElementById('editCommitmentReviewer').value;
             
+            const reviewYear = parseInt(reviewYearValue, 10);
+            if (Number.isNaN(reviewYear) || reviewYear < 2000 || reviewYear > 2100) {
+                alert('Ingresa un año de revisión válido entre 2000 y 2100.');
+                return;
+            }
+
             // Obtener nombres de usuario desde los datos cargados
             const preparer = preparerId ? getUserNameById(preparerId) : '';
             const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
@@ -1418,7 +1555,11 @@
                 end_date: endDate,
                 status: status,
                 entity_id: entityId,
-                entity: entityId // Campo adicional por si la BD espera 'entity'
+                entity: entityId, // Campo adicional por si la BD espera 'entity'
+                review_year: reviewYear,
+                currency,
+                project_type: projectType,
+                review_type: reviewType
             };
 
             // Agregar campos opcionales si tienen valores

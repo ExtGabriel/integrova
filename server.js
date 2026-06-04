@@ -1055,11 +1055,44 @@ app.get('/api/commitments/entity/:entityId', async (req, res) => {
 
 // Create a new commitment
 app.post('/api/commitments', async (req, res) => {
-    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id } = req.body;
+    const {
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer,
+        user_id
+    } = req.body;
     
     console.log('🔍 POST /api/commitments - Datos recibidos:', {
-        name, description, start_date, end_date, status, entity_id,
-        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer,
+        user_id
     });
     
     try {
@@ -1071,7 +1104,11 @@ app.post('/api/commitments', async (req, res) => {
             end_date,
             status,
             entity_id: normalizedEntityId,
-            entity: normalizedEntityId
+            entity: normalizedEntityId,
+            review_year,
+            currency,
+            project_type,
+            review_type
         };
         
         // Agregar campos opcionales si existen
@@ -1108,12 +1145,43 @@ app.post('/api/commitments', async (req, res) => {
 // Update a commitment
 app.put('/api/commitments/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer } = req.body;
+    const {
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer
+    } = req.body;
     
     console.log('🔍 PUT /api/commitments/:id - Datos recibidos:', {
         id,
-        name, description, start_date, end_date, status, entity_id,
-        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer
     });
     
     try {
@@ -1125,7 +1193,11 @@ app.put('/api/commitments/:id', async (req, res) => {
             end_date,
             status,
             entity_id: normalizedEntityId,
-            entity: normalizedEntityId
+            entity: normalizedEntityId,
+            review_year,
+            currency,
+            project_type,
+            review_type
         };
         
         // Agregar campos opcionales si existen
