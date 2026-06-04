@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrova - Usuarios con Sesión Activa</title>
+    <link rel="icon" href="../assets/LOGO INTEGROVA.png?v=2" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/usuarios-activos.css">
+</head>
+
+<body class="active-sessions-page">
+    <header class="header-dashboard">
+        <div class="header-left">
+            <h1 class="page-title">Usuarios con Sesión Activa</h1>
+            <div class="activity-chip">
+                <i class="bi bi-lightning-charge-fill"></i>
+                Monitor en tiempo real
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-btn" id="backToDashboardBtn" title="Volver al Dashboard">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="active-sessions-main">
+        <div class="active-sessions-content">
+            <section class="summary-card">
+                <div class="summary-info">
+                    <div class="summary-icon">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <div class="summary-text">
+                        <h2>Actividad de usuarios</h2>
+                        <p>Consulta quién está conectado actualmente y cuándo inició su sesión.</p>
+                    </div>
+                </div>
+                <div class="summary-metrics">
+                    <div class="metric-item">
+                        <span>Activos ahora</span>
+                        <strong id="activeSessionsCount">0</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>Usuarios totales</span>
+                        <strong id="totalUsersCount">0</strong>
+                    </div>
+                </div>
+                <div class="summary-actions">
+                    <button class="btn-refresh" id="refreshSessionsBtn">
+                        <i class="bi bi-arrow-repeat"></i>
+                        Actualizar
+                    </button>
+                    <div class="last-updated" id="lastUpdatedText">Datos sin actualizar</div>
+                </div>
+            </section>
+
+            <section class="sessions-card">
+                <div class="sessions-header">
+                    <div>
+                        <h3>Sesiones activas detectadas</h3>
+                        <p>Basado en los eventos de auditoría registrados en las últimas 2 horas.</p>
+                    </div>
+                    <div class="activity-chip" id="activeSessionsChip" style="display: none;"></div>
+                </div>
+                <div class="sessions-table-wrapper">
+                    <div id="sessionsTableState" class="loading-state" style="display: none;">
+                        <div class="loading-spinner-large"></div>
+                        <span>Cargando sesiones activas...</span>
+                    </div>
+                    <table class="sessions-table" id="sessionsTable">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Nombre</th>
+                                <th>Rol</th>
+                                <th>Última actividad</th>
+                                <th>Sesión</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody">
+                            <!-- Filas cargadas dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="footer-full">
+        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+    </div>
+
+    <!-- ========================================
+         SCRIPTS - ORDEN CRÍTICO PARA ESTABILIDAD
+         ======================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/config-supabase.js"></script>
+    <script src="../js/supabaseClient.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/api-client.js"></script>
+    <script src="../js/permissions-helpers.js"></script>
+    <script src="../js/auth-guard.js"></script>
+    <script src="../js/active-sessions.js"></script>
+    <script>
+        if (typeof window.protectPage === 'function') {
+            window.protectPage(() => {
+                if (typeof initializeActiveSessionsPage === 'function') {
+                    initializeActiveSessionsPage();
+                } else {
+                    console.error('❌ initializeActiveSessionsPage no está disponible');
+                }
+            });
+        } else if (typeof initializeActiveSessionsPage === 'function') {
+            console.warn('⚠️ protectPage no disponible, ejecutando initializeActiveSessionsPage directamente');
+            initializeActiveSessionsPage();
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

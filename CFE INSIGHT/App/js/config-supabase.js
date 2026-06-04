@@ -22,3 +22,7 @@ window.SUPABASE_CONFIG = {
     // Clave pública "anon" (segura para exponer en frontend)
     anonKey: 'sb_publishable_CFXd3_PcdLHy3FRmg_Bpbg_uSGjoD8z'
 };
+
+console.log('✅ config-supabase.js cargado');
+console.log('🔍 Supabase URL:', window.SUPABASE_CONFIG.url);
+console.log('🔍 Anon Key:', window.SUPABASE_CONFIG.anonKey ? 'Presente' : 'Faltante');

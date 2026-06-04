@@ -8,8 +8,19 @@
 // Configuración global de la aplicación
 window.APP_CONFIG = {
     ENV: 'production',
-    DEBUG: false,
+    DEBUG: true,
     API_BASE_URL: window.location.origin,
+    EMAILJS: {
+        /**
+         * 🔐 Configuración de EmailJS
+         * IDs proporcionados por el usuario desde https://dashboard.emailjs.com/
+         */
+        serviceId: 'service_bpky4pq',
+        templateId: 'template_t7jze9v', // Plantilla de restablecimiento de contraseña
+        welcomeTemplateId: 'template_munblu4', // Plantilla de bienvenida
+        publicKey: 'F9y4MfQXgCZr5Wi87',
+        loginUrl: 'https://integrovagt.com/login', // URL de login para nuevos usuarios
+    }
 };
 
 /**

@@ -12,6 +12,160 @@
     <link rel="stylesheet" href="/css/formularios.css">
     <link rel="stylesheet" href="/css/assessment.css">
     <style>
+        /* Estilos mejorados para archivos subidos */
+        .document-item.uploaded-document {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 10px 0;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .document-item.uploaded-document:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+            border-color: #007bff;
+        }
+
+        .document-header {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .document-item.uploaded-document .document-icon {
+            font-size: 2rem;
+            margin-right: 16px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .document-item.uploaded-document .document-info {
+            flex: 1;
+        }
+
+        .document-item.uploaded-document .document-title {
+            margin: 0 0 4px 0;
+            color: #2c3e50;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .document-item.uploaded-document .document-filename {
+            margin: 0 0 3px 0;
+            color: #495057;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 1px 4px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .document-item.uploaded-document .document-meta {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .document-item.uploaded-document .document-author {
+            margin: 3px 0 0 0;
+            color: #495057;
+            font-size: 0.75rem;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .document-item.uploaded-document .document-author i {
+            font-size: 0.75rem;
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 6px;
+            margin-left: 12px;
+        }
+
+        .btn-action {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .btn-action:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-edit {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-edit:hover {
+            background: #1976d2;
+            color: white;
+        }
+
+        .btn-download {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .btn-download:hover {
+            background: #2e7d32;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .btn-delete:hover {
+            background: #c62828;
+            color: white;
+        }
+
+        .btn-action::after {
+            content: attr(title);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 1000;
+        }
+
+        .btn-action:hover::after {
+            opacity: 1;
+        }
+
         /* Fix for column mapping modal buttons */
         #columnMappingModal .modal-footer {
             display: flex !important;
@@ -8976,7 +9130,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para manejar la carga directa de archivos
-        function handleDirectUpload(file, section) {
+        async function handleDirectUpload(file, section) {
             // Verificar si es un archivo Excel
             const isExcelFile = file.name.toLowerCase().endsWith('.xlsx') || 
                                file.name.toLowerCase().endsWith('.xls') || 
@@ -8997,66 +9151,122 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
             
-            // Para otros archivos, mantener el flujo original
-            // Generar un ID único para el documento
-            const documentId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            // Determinar el icono según el tipo de archivo
-            const fileIcon = getFileIcon(file.name);
-            
-            // Crear el HTML del documento
-            const documentHTML = `
-                <div class="document-item uploaded-document" id="${documentId}" data-id="${documentId}" data-type="upload" onclick="openUploadedDocument('${documentId}')" style="cursor: pointer;">
-                    <div class="document-icon" style="color: ${fileIcon.color};">
-                        <i class="bi ${fileIcon.class}"></i>
-                    </div>
-                    <div class="document-info">
-                        <h4 class="document-title">${file.name.replace(/\.[^/.]+$/, '')}</h4>
-                        <p class="document-date">Archivo: ${file.name}</p>
-                        <p class="document-date">Tamaño: ${formatFileSize(file.size)}</p>
-                    </div>
-                </div>
-            `;
-            
-            // Encontrar la sección correcta y agregar el documento
-            const sectionMap = {
-                'planificacion': 'planificacion-content',
-                'evaluacion': 'evaluacion-content',
-                'respuesta': 'respuesta-content',
-                'planes': 'planes-content',
-                'cierre': 'cierre-content'
-            };
-            
-            const contentId = sectionMap[section];
-            if (contentId) {
-                const contentElement = document.getElementById(contentId);
-                if (contentElement) {
-                    // Si no existe un contenedor de documentos, crearlo
-                    let documentsContainer = contentElement.querySelector('.documents-container');
-                    if (!documentsContainer) {
-                        documentsContainer = document.createElement('div');
-                        documentsContainer.className = 'documents-container';
-                        contentElement.appendChild(documentsContainer);
-                    }
-                    
-                    // Agregar el documento al contenedor
-                    documentsContainer.insertAdjacentHTML('beforeend', documentHTML);
-                    
-                    // Guardar información del documento en localStorage (simulación)
-                    const documentData = {
-                        id: documentId,
-                        name: file.name.replace(/\.[^/.]+$/, ''),
+            // Para otros archivos, usar el nuevo endpoint de subdocumentos
+            try {
+                // Convertir archivo a base64 para enviarlo
+                const fileData = await fileToBase64(file);
+                
+                // Determinar categoría y subcategoría según la sección
+                const sectionMapping = {
+                    'planificacion': { categoria: 'planificacion', subcategoria: 'general' },
+                    'evaluacion': { categoria: 'evaluacion-riesgo', subcategoria: 'general' },
+                    'respuesta': { categoria: 'respuesta', subcategoria: 'general' },
+                    'planes': { categoria: 'planes-accion', subcategoria: 'general' },
+                    'cierre': { categoria: 'cierre', subcategoria: 'general' }
+                };
+                
+                const mapping = sectionMapping[section] || { categoria: section, subcategoria: 'general' };
+                
+                // Enviar archivo al backend
+                const response = await fetch('/api/subdocuments/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': window.currentUser?.id || 'anonymous'
+                    },
+                    body: JSON.stringify({
+                        categoria: mapping.categoria,
+                        subcategoria: mapping.subcategoria,
+                        titulo: file.name.replace(/\.[^/.]+$/, ''),
                         fileName: file.name,
                         fileSize: file.size,
                         fileType: file.type,
-                        section: section,
-                        uploadDate: new Date().toISOString()
+                        entityId: fileContext.entity_id,
+                        commitmentId: fileContext.commitment_id,
+                        fileData: fileData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Crear el HTML del documento con datos completos
+                    const now = new Date();
+                    const documentHTML = `
+                        <div class="document-item uploaded-document" id="${result.document.id}" data-id="${result.document.id}" data-type="upload">
+                            <div class="document-header" onclick="openUploadedDocument('${result.document.id}')" style="cursor: pointer;">
+                                <div class="document-icon" style="color: ${getFileIcon(file.name).color};">
+                                    <i class="bi ${getFileIcon(file.name).class}"></i>
+                                </div>
+                                <div class="document-info">
+                                    <h4 class="document-title">${file.name.replace(/\.[^/.]+$/, '')}</h4>
+                                    <p class="document-filename">${file.name}</p>
+                                    <p class="document-meta">${formatFileSize(file.size)} • ${formatDateTime(now.toISOString())}</p>
+                                    <p class="document-author" id="author-${result.document.id}">
+                                        <i class="bi bi-person-fill"></i> 
+                                        <span>${window.currentUser?.name || 'Usuario'}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="document-actions">
+                                <button class="btn-action btn-edit" onclick="editUploadedDocument('${result.document.id}')" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn-action btn-download" onclick="downloadUploadedDocument('${result.document.id}')" title="Descargar">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <button class="btn-action btn-delete" onclick="deleteUploadedDocument('${result.document.id}')" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Encontrar la sección correcta y agregar el documento
+                    const sectionMap = {
+                        'planificacion': 'planificacion-content',
+                        'evaluacion': 'evaluacion-content',
+                        'respuesta': 'respuesta-content',
+                        'planes': 'planes-content',
+                        'cierre': 'cierre-content'
                     };
                     
-                    localStorage.setItem(documentId, JSON.stringify(documentData));
-                    showNotification('Archivo cargado exitosamente', 'success');
+                    const contentId = sectionMap[section];
+                    if (contentId) {
+                        const contentElement = document.getElementById(contentId);
+                        if (contentElement) {
+                            // Si no existe un contenedor de documentos, crearlo
+                            let documentsContainer = contentElement.querySelector('.documents-container');
+                            if (!documentsContainer) {
+                                documentsContainer = document.createElement('div');
+                                documentsContainer.className = 'documents-container';
+                                contentElement.appendChild(documentsContainer);
+                            }
+                            
+                            // Agregar el documento al contenedor
+                            documentsContainer.insertAdjacentHTML('beforeend', documentHTML);
+                            
+                            showNotification('Archivo guardado en la base de datos', 'success');
+                        }
+                    }
+                } else {
+                    showNotification('Error al guardar archivo: ' + result.error, 'error');
                 }
+                
+            } catch (error) {
+                console.error('Error subiendo archivo:', error);
+                showNotification('Error al subir archivo', 'error');
             }
+        }
+        
+        // Función auxiliar para convertir archivo a base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
         }
         
         // Función para iniciar el flujo de subida de Excel
@@ -24681,18 +24891,417 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return RISK_STORAGE_KEY_BASE;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
-                    await window.currentUserReady;
+        async function waitForCurrentUser(maxAttempts = 30, intervalMs = 150) {
+            if (window.currentUser?.id) {
+                return window.currentUser;
+            }
+
+            if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                try {
+                    const resolvedUser = await window.currentUserReady;
+                    if (resolvedUser?.id) {
+                        return resolvedUser;
+                    }
+                } catch (err) {
+                    console.warn('⚠️ currentUserReady se rechazó:', err);
                 }
-            } catch (err) {
-                console.warn('No se pudo esperar a currentUserReady para riesgos:', err);
+            }
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                if (window.currentUser?.id) {
+                    return window.currentUser;
+                }
+                await new Promise(resolve => setTimeout(resolve, intervalMs));
+            }
+
+            console.warn('⚠️ No se pudo obtener currentUser después de esperar.');
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const currentUser = await waitForCurrentUser();
+            if (!currentUser?.id) {
+                console.warn('⚠️ Usuario no disponible; se omite la carga inicial de archivos.');
+                return;
             }
 
             riskItems = loadStoredRisks();
             renderRiskLists();
+            
+            try {
+                await ensureUserCatalogLoaded();
+            } catch (error) {
+                console.warn('No se pudo precargar catálogo de usuarios:', error);
+            }
+            
+            // Cargar archivos desde subdocumentos
+            await loadUploadedFilesFromDatabase(currentUser.id);
         });
+        
+        // Función para cargar archivos desde la base de datos
+        async function loadUploadedFilesFromDatabase(userIdOverride = null) {
+            try {
+                const effectiveUser = userIdOverride ? { id: userIdOverride } : await waitForCurrentUser();
+                if (!effectiveUser?.id) {
+                    console.warn('Usuario no disponible para cargar archivos');
+                    return;
+                }
+                
+                console.log('📂 Cargando archivos desde subdocumentos...');
+                
+                // Mapeo de secciones a categorías/subcategorías (compatibilidad con existentes y nuevos)
+                const sectionMappings = [
+                    // Cargar desde ubicación nueva (general)
+                    { section: 'planificacion', categoria: 'planificacion', subcategoria: 'general', contentId: 'planificacion-content' },
+                    { section: 'evaluacion', categoria: 'evaluacion-riesgo', subcategoria: 'general', contentId: 'evaluacion-content' },
+                    { section: 'respuesta', categoria: 'respuesta', subcategoria: 'general', contentId: 'respuesta-content' },
+                    { section: 'planes', categoria: 'planes-accion', subcategoria: 'general', contentId: 'planes-content' },
+                    { section: 'cierre', categoria: 'cierre', subcategoria: 'general', contentId: 'cierre-content' },
+                    // Cargar desde ubicación legacy (para archivos existentes)
+                    { section: 'planificacion', categoria: 'planificacion', subcategoria: 'planificacion', contentId: 'planificacion-content' },
+                    { section: 'evaluacion', categoria: 'evaluacion-riesgo', subcategoria: 'evaluacion', contentId: 'evaluacion-content' },
+                    { section: 'respuesta', categoria: 'respuesta', subcategoria: 'respuesta', contentId: 'respuesta-content' },
+                    { section: 'planes', categoria: 'planes', subcategoria: 'planes', contentId: 'planes-content' },
+                    { section: 'cierre', categoria: 'cierre', subcategoria: 'cierre', contentId: 'cierre-content' }
+                ];
+                
+                for (const mapping of sectionMappings) {
+                    await loadFilesForSection(mapping, effectiveUser.id);
+                }
+                
+            } catch (error) {
+                console.error('Error cargando archivos desde base de datos:', error);
+            }
+        }
+        
+        // Función para cargar archivos de una sección específica
+        async function loadFilesForSection({ section, categoria, subcategoria, contentId }, userId) {
+            try {
+                const response = await fetch(`/api/subdocuments/${categoria}/${subcategoria}`, {
+                    headers: {
+                        'user-id': userId
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.warn(`No se pudieron cargar archivos de ${categoria}/${subcategoria}`);
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.success && result.documents && result.documents.length > 0) {
+                    const contentElement = document.getElementById(contentId);
+                    if (!contentElement) return;
+                    
+                    // Crear contenedor de documentos si no existe
+                    let documentsContainer = contentElement.querySelector('.documents-container');
+                    if (!documentsContainer) {
+                        documentsContainer = document.createElement('div');
+                        documentsContainer.className = 'documents-container';
+                        contentElement.appendChild(documentsContainer);
+                    }
+                    
+                    // Track IDs para evitar duplicados
+                    const existingIds = new Set();
+                    const existingDocs = documentsContainer.querySelectorAll('.uploaded-document');
+                    existingDocs.forEach(doc => existingIds.add(doc.id));
+                    
+                    // Agregar cada archivo (solo si no existe)
+                    result.documents.forEach(doc => {
+                        if (doc.tipo === 'archivo' && doc.metadata && doc.metadata.fileName && !existingIds.has(doc.id)) {
+                            const fileIcon = getFileIcon(doc.metadata.fileName);
+                            const documentHTML = `
+                                <div class="document-item uploaded-document" id="${doc.id}" data-id="${doc.id}" data-type="upload">
+                                    <div class="document-header" onclick="openUploadedDocument('${doc.id}')" style="cursor: pointer;">
+                                        <div class="document-icon" style="color: ${fileIcon.color};">
+                                            <i class="bi ${fileIcon.class}"></i>
+                                        </div>
+                                        <div class="document-info">
+                                            <h4 class="document-title">${doc.titulo}</h4>
+                                            <p class="document-filename">${doc.metadata.fileName}</p>
+                                            <p class="document-meta">${formatFileSize(doc.metadata.fileSize || 0)} • ${formatDateTime(doc.created_at)}</p>
+                                            <p class="document-author" id="author-${doc.id}">
+                                                <i class="bi bi-person-fill"></i> 
+                                                <span>Cargando autor...</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="document-actions">
+                                        <button class="btn-action btn-edit" onclick="editUploadedDocument('${doc.id}')" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn-action btn-download" onclick="downloadUploadedDocument('${doc.id}')" title="Descargar">
+                                            <i class="bi bi-download"></i>
+                                        </button>
+                                        <button class="btn-action btn-delete" onclick="deleteUploadedDocument('${doc.id}')" title="Eliminar">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            documentsContainer.insertAdjacentHTML('beforeend', documentHTML);
+                            existingIds.add(doc.id);
+                            
+                            // Obtener y mostrar el nombre del usuario que subió el archivo
+                            if (doc.user_id) {
+                                getUserName(doc.user_id).then(userName => {
+                                    const authorElement = document.getElementById(`author-${doc.id}`);
+                                    if (authorElement) {
+                                        authorElement.innerHTML = `<i class="bi bi-person-fill"></i> <span>${userName}</span>`;
+                                    }
+                                });
+                            } else {
+                                const authorElement = document.getElementById(`author-${doc.id}`);
+                                if (authorElement) {
+                                    authorElement.innerHTML = `<i class="bi bi-person-fill"></i> <span>Usuario desconocido</span>`;
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log(`✅ ${result.documents.length} archivos procesados en ${section}`);
+                }
+            } catch (error) {
+                console.error(`Error cargando archivos de ${section}:`, error);
+            }
+        }
+
+        // Funciones para acciones de archivos subidos
+        function editUploadedDocument(documentId) {
+            // Obtener información del documento
+            fetch(`/api/subdocuments/document/${documentId}`, {
+                headers: {
+                    'user-id': window.currentUser.id
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    const doc = result.document;
+                    const newTitle = prompt('Editar título del documento:', doc.titulo);
+                    if (newTitle && newTitle.trim() !== '') {
+                        updateDocumentTitle(documentId, newTitle.trim());
+                    }
+                } else {
+                    alert('No se pudo obtener la información del documento');
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener documento:', error);
+                alert('Error al obtener el documento');
+            });
+        }
+
+        function updateDocumentTitle(documentId, newTitle) {
+            fetch(`/api/subdocuments/${documentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': window.currentUser.id
+                },
+                body: JSON.stringify({
+                    titulo: newTitle
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Actualizar el título en el DOM
+                    const docElement = document.getElementById(documentId);
+                    if (docElement) {
+                        const titleElement = docElement.querySelector('.document-title');
+                        if (titleElement) {
+                            titleElement.textContent = newTitle;
+                        }
+                    }
+                    alert('Título actualizado correctamente');
+                } else {
+                    alert('No se pudo actualizar el título');
+                }
+            })
+            .catch(error => {
+                console.error('Error al actualizar título:', error);
+                alert('Error al actualizar el título');
+            });
+        }
+
+        function downloadUploadedDocument(documentId) {
+            fetch(`/api/subdocuments/download/${documentId}`, {
+                headers: {
+                    'user-id': window.currentUser.id
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('No se pudo descargar el archivo');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Obtener nombre del archivo del DOM o crear uno genérico
+                const docElement = document.getElementById(documentId);
+                const filenameElement = docElement?.querySelector('.document-filename');
+                const filename = filenameElement ? filenameElement.textContent.replace('Archivo: ', '') : `documento_${documentId}`;
+                
+                // Crear enlace de descarga
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                console.error('Error al descargar:', error);
+                alert('No se pudo descargar el archivo');
+            });
+        }
+
+        function deleteUploadedDocument(documentId) {
+            if (!confirm('¿Está seguro de que desea eliminar este archivo? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            fetch(`/api/subdocuments/${documentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'user-id': window.currentUser.id
+                }
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Eliminar el elemento del DOM con animación
+                    const docElement = document.getElementById(documentId);
+                    if (docElement) {
+                        docElement.style.transition = 'all 0.3s ease';
+                        docElement.style.opacity = '0';
+                        docElement.style.transform = 'translateX(20px)';
+                        
+                        setTimeout(() => {
+                            docElement.remove();
+                        }, 300);
+                    }
+                    alert('Archivo eliminado correctamente');
+                } else {
+                    alert('No se pudo eliminar el archivo');
+                }
+            })
+            .catch(error => {
+                console.error('Error al eliminar:', error);
+                alert('No se pudo eliminar el archivo');
+            });
+        }
+
+        // Función para formatear fecha y hora
+        function formatDateTime(dateString) {
+            if (!dateString) return 'Fecha desconocida';
+            
+            try {
+                const date = new Date(dateString);
+                
+                // Opciones de formato
+                const options = {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                };
+                
+                return date.toLocaleString('es-ES', options);
+            } catch (error) {
+                console.error('Error formateando fecha:', error);
+                return 'Fecha inválida';
+            }
+        }
+
+        async function ensureUserCatalogLoaded() {
+            if (!window.userCache) {
+                window.userCache = new Map();
+            }
+
+            if (!window.userCacheLoader) {
+                window.userCacheLoader = (async () => {
+                    const isDevelopment = !window.location.hostname.includes('production') && !window.location.hostname.includes('prod');
+                    
+                    try {
+                        const storedUser = localStorage.getItem('user');
+                        if (storedUser) {
+                            const currentUser = JSON.parse(storedUser);
+                            if (isDevelopment) console.log('👤 Usuario actual detectado:', currentUser);
+                            if (currentUser?.id) {
+                                const currentName = currentUser.full_name || currentUser.name || currentUser.email || currentUser.username || 'Usuario';
+                                window.userCache.set(currentUser.id, currentName);
+                                window.currentUserInfo = currentUser;
+                                if (isDevelopment) console.log(`✅ Usuario actual cacheado: ${currentUser.id} -> ${currentName}`);
+                            }
+                        }
+                    } catch (error) {
+                        if (isDevelopment) console.warn('⚠️ No se pudo leer el usuario actual desde localStorage:', error);
+                    }
+
+                    try {
+                        if (isDevelopment) console.log('🌐 Cargando catálogo completo de usuarios');
+                        const response = await fetch('/api/users');
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const data = await response.json();
+                        if (isDevelopment) console.log('📋 Respuesta de /api/users:', data);
+
+                        if (data.success && Array.isArray(data.data)) {
+                            data.data.forEach(user => {
+                                if (!user?.id) return;
+                                const userName = user.full_name || user.name || user.email || user.username || 'Usuario';
+                                window.userCache.set(user.id, userName);
+                                if (isDevelopment) console.log(`   ↳ ${user.id} => ${userName}`);
+                            });
+                            if (isDevelopment) console.log(`✅ Catálogo de usuarios cargado: ${window.userCache.size} registros`);
+                        } else {
+                            if (isDevelopment) console.warn('⚠️ No se pudo cargar el catálogo de usuarios. Respuesta inesperada.');
+                        }
+                    } catch (error) {
+                        if (isDevelopment) console.error('❌ Error cargando lista de usuarios:', error);
+                        // En producción, silenciosamente fallar a modo offline
+                        window.userCache.set('offline_mode', true);
+                    }
+                })();
+            }
+
+            try {
+                await window.userCacheLoader;
+            } catch (error) {
+                const isDevelopment = !window.location.hostname.includes('production') && !window.location.hostname.includes('prod');
+                if (isDevelopment) console.warn('⚠️ Falló la precarga de usuarios:', error);
+            }
+        }
+
+        // Catálogo de usuarios en memoria para resolver user_id -> nombre
+        async function getUserName(userId) {
+            if (!userId) {
+                return 'Usuario desconocido';
+            }
+
+            await ensureUserCatalogLoaded();
+
+            if (window.userCache.has(userId)) {
+                const resolvedName = window.userCache.get(userId);
+                return resolvedName;
+            }
+
+            // Fallback: intentar con el usuario actual si coincide
+            if (window.currentUserInfo?.id === userId) {
+                return window.currentUserInfo.full_name || window.currentUserInfo.name || window.currentUserInfo.email || 'Tú';
+            }
+
+            return 'Usuario desconocido';
+        }
+
+        // Lanzar precarga de usuarios inmediatamente al cargar la página
+        ensureUserCatalogLoaded();
+
 
         function loadStoredRisks() {
             try {

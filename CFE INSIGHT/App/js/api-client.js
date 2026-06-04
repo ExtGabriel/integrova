@@ -434,7 +434,17 @@
 
         const payload = {};
 
-        const simpleFields = ['name', 'entity_id', 'entityId', 'description', 'status', 'country', 'address', 'email', 'phone', 'is_group', 'relationship_type', 'parent_id', 'parentId', 'metadata', 'responsible', 'created_by'];
+        const simpleFields = [
+            'name',
+            'entity_id', 'entityId',
+            'description',
+            'status',
+            'country', 'address', 'email', 'phone',
+            'is_group', 'relationship_type', 'parent_id', 'parentId',
+            'metadata', 'responsible', 'created_by',
+            'nit', 'organization_type', 'project_type', 'business_name',
+            'auditors', 'clients'
+        ];
         simpleFields.forEach(field => {
             if (Object.prototype.hasOwnProperty.call(raw, field)) {
                 const targetKey = field === 'entityId' ? 'entity_id' : field === 'parentId' ? 'parent_id' : field;
@@ -2163,6 +2173,317 @@
         },
 
         /**
+         * Actualizar información de un usuario (nombre, email, rol, equipo)
+         * @param {string} userId - ID del usuario a actualizar
+         * @param {object} userData - Datos a actualizar (name, email, role, team)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async update(userId, userData) {
+            try {
+                // Validación de entrada
+                if (!userId || !userData || typeof userData !== 'object') {
+                    return {
+                        success: false,
+                        error: 'userId y userData son requeridos'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden actualizar usuarios
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden actualizar usuarios' };
+                }
+
+                // Preparar datos para actualizar
+                const updateData = {};
+                
+                if (userData.name !== undefined) {
+                    updateData.full_name = userData.name;
+                }
+                
+                if (userData.email !== undefined) {
+                    updateData.email = userData.email;
+                }
+                
+                if (userData.role !== undefined) {
+                    const normalizedRole = userData.role.toLowerCase().trim();
+                    
+                    // Validar rol
+                    if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
+                        return {
+                            success: false,
+                            error: `Rol inválido: "${normalizedRole}". Solo se permiten roles globales: ${VALID_GLOBAL_ROLES.join(', ')}`
+                        };
+                    }
+                    
+                    updateData.role = normalizedRole;
+                }
+                
+                if (userData.team !== undefined) {
+                    // Obtener metadata existente y fusionar con el nuevo team
+                    const { data: currentUser } = await client
+                        .from('users')
+                        .select('raw_user_meta_data')
+                        .eq('id', userId)
+                        .single();
+                    
+                    const existingMetadata = currentUser?.raw_user_meta_data || {};
+                    updateData.raw_user_meta_data = {
+                        ...existingMetadata,
+                        team: userData.team
+                    };
+                }
+
+                // Si no hay datos para actualizar, retornar éxito
+                if (Object.keys(updateData).length === 0) {
+                    return { success: true, data: null, error: 'No hay datos para actualizar' };
+                }
+
+                console.log(`🔄 Actualizando usuario ${userId} con:`, updateData);
+
+                // Obtener token de autenticación
+                const { data: { session } } = await client.auth.getSession();
+                if (!session?.access_token) {
+                    return { success: false, error: 'No hay sesión activa' };
+                }
+
+                // Usar el endpoint correcto del servidor
+                const response = await fetch(`/api/usuarios/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    return { success: false, error: errorData.error || `Error ${response.status}` };
+                }
+
+                const data = await response.json();
+                console.log(`✅ Usuario ${userId} actualizado correctamente`);
+                return { success: true, data: data.data };
+            } catch (err) {
+                console.error('❌ Users.update excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Crear un nuevo usuario
+         * @param {object} userData - Datos del usuario (name, email, password, role, team)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async create(userData) {
+            try {
+                // Validación de entrada
+                if (!userData || typeof userData !== 'object') {
+                    return {
+                        success: false,
+                        error: 'userData es requerido y debe ser un objeto'
+                    };
+                }
+
+                const { name, email, password, role, team } = userData;
+
+                if (!name || !email || !password || !role) {
+                    return {
+                        success: false,
+                        error: 'name, email, password y role son requeridos'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden crear usuarios
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden crear usuarios' };
+                }
+
+                // Validar rol
+                const normalizedRole = role.toLowerCase().trim();
+                if (!VALID_GLOBAL_ROLES.includes(normalizedRole)) {
+                    return {
+                        success: false,
+                        error: `Rol inválido: "${normalizedRole}". Solo se permiten roles globales: ${VALID_GLOBAL_ROLES.join(', ')}`
+                    };
+                }
+
+                console.log(`👤 Creando usuario: ${email} con rol ${normalizedRole}`);
+
+                // Paso 1: Crear usuario en Supabase Auth
+                const { data: authData, error: authError } = await client.auth.admin.createUser({
+                    email: email,
+                    password: password,
+                    email_confirm: true,
+                    user_metadata: {
+                        full_name: name,
+                        team: team || null
+                    }
+                });
+
+                if (authError) {
+                    console.error('❌ Error creando usuario en Auth:', authError);
+                    
+                    // Manejo de errores específicos
+                    if (authError.message?.includes('email_exists')) {
+                        return { success: false, error: 'email_exists' };
+                    }
+                    
+                    return { success: false, error: authError.message || 'Error al crear usuario en Auth' };
+                }
+
+                if (!authData.user) {
+                    return { success: false, error: 'No se pudo crear el usuario en Auth' };
+                }
+
+                // Paso 2: Crear registro en tabla users
+                const { data: dbData, error: dbError } = await client
+                    .from('users')
+                    .insert({
+                        id: authData.user.id,
+                        email: email,
+                        full_name: name,
+                        role: normalizedRole,
+                        is_active: true,
+                        raw_user_meta_data: {
+                            team: team || null
+                        }
+                    })
+                    .select()
+                    .single();
+
+                if (dbError) {
+                    console.error('❌ Error creando usuario en BD:', dbError);
+                    
+                    // Intentar eliminar el usuario de Auth si falló la creación en BD
+                    try {
+                        await client.auth.admin.deleteUser(authData.user.id);
+                        console.log('🗑️ Usuario eliminado de Auth debido a error en BD');
+                    } catch (deleteErr) {
+                        console.warn('⚠️ No se pudo eliminar usuario de Auth:', deleteErr.message);
+                    }
+                    
+                    return { success: false, error: dbError.message || 'Error al crear usuario en BD' };
+                }
+
+                console.log(`✅ Usuario ${email} creado correctamente`);
+                return { success: true, data: dbData };
+            } catch (err) {
+                console.error('❌ Users.create excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
+         * Restablecer contraseña de un usuario (solo admins)
+         * @param {string} userId - ID del usuario
+         * @param {string} newPassword - Nueva contraseña (mínimo 6 caracteres)
+         * @returns {Promise<{success: boolean, data: *, error: *}>}
+         */
+        async resetPassword(userId, newPassword) {
+            try {
+                // Validación de entrada
+                if (!userId || !newPassword) {
+                    return {
+                        success: false,
+                        error: 'userId y newPassword son requeridos'
+                    };
+                }
+
+                if (newPassword.length < 6) {
+                    return {
+                        success: false,
+                        error: 'La contraseña debe tener al menos 6 caracteres'
+                    };
+                }
+
+                const client = await getSupabaseClient();
+                if (!client) {
+                    return { success: false, error: 'Supabase no disponible' };
+                }
+
+                // Verificar permisos de administrador
+                if (window.currentUserReady) {
+                    await window.currentUserReady;
+                }
+
+                if (!window.currentUser || !window.currentUser.role) {
+                    return { success: false, error: 'Usuario no autenticado' };
+                }
+
+                const userRole = window.currentUser.role;
+
+                // Solo admins pueden restablecer contraseñas
+                if (userRole !== 'admin') {
+                    return { success: false, error: 'Solo administradores pueden restablecer contraseñas' };
+                }
+
+                // Obtener token de autenticación
+                const { data: { session } } = await client.auth.getSession();
+                if (!session?.access_token) {
+                    return { success: false, error: 'No hay sesión activa' };
+                }
+
+                console.log(`🔐 Restableciendo contraseña para usuario ${userId}...`);
+
+                const response = await fetch(`/api/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ newPassword })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    return { success: false, error: errorData.error || `Error ${response.status}` };
+                }
+
+                const data = await response.json();
+                console.log(`✅ Contraseña restablecida para usuario ${userId}`);
+
+                return { success: true, data: data };
+
+            } catch (err) {
+                console.error('❌ Users.resetPassword excepción:', err.message);
+                return { success: false, error: err.message };
+            }
+        },
+
+        /**
          * Obtener lista de usuarios según permisos del usuario actual
          * Usuarios con rol admin ven todos los usuarios
          * Usuarios con otros roles ven solo usuarios de su grupo
@@ -2250,6 +2571,28 @@
     const AuditModule = {
         async getAll() {
             try {
+                // 1) Prefer backend endpoint (service role, sin RLS)
+                try {
+                    const queryParams = new URLSearchParams({ limit: '400' });
+                    console.log('📡 Audit.getAll: Intentando backend /api/audit/logs...');
+                    const response = await fetch(`/api/audit/logs?${queryParams.toString()}`);
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('✅ Backend /api/audit/logs OK:', result);
+                        if (result?.success && Array.isArray(result.data)) {
+                            return { success: true, data: result.data };
+                        }
+                        console.warn('⚠️ /api/audit/logs respondió sin éxito:', result);
+                    } else {
+                        console.warn('⚠️ /api/audit/logs respondió con error HTTP:', response.status);
+                    }
+                } catch (backendError) {
+                    console.warn('⚠️ No se pudo obtener audit logs desde backend:', backendError.message);
+                }
+
+                // 2) Fallback a Supabase directo (respetará RLS)
+                console.log('⚠️ Backend /api/audit/logs falló, usando fallback a Supabase');
                 const client = await getSupabaseClient();
                 if (!client) return { success: true, data: [] };
 
@@ -2261,6 +2604,7 @@
                     }
                     throw error;
                 }
+                console.log('✅ Fallback a Supabase directo OK:', data?.length || 0, 'registros');
                 return { success: true, data: data || [] };
             } catch (err) {
                 console.warn('⚠️ Audit.getAll:', err.message);
@@ -2284,20 +2628,22 @@
             async getAll() {
                 try {
                     const client = await getSupabaseClient();
-                    if (!client) return { success: true, data: [] };
+                    if (!client) return { success: false, error: 'Supabase client no disponible', data: [] };
 
                     const { data, error } = await client.from(tableName).select('*');
 
                     if (error) {
+                        console.error(`❌ ${tableName}.getAll ERROR:`, error);
                         if (handleTableNotFound(error, tableName)) {
-                            return { success: true, data: [] };
+                            return { success: false, error: `Tabla "${tableName}" no existe`, data: [] };
                         }
-                        throw error;
+                        return { success: false, error: error.message, data: [] };
                     }
+                    console.log(`✅ ${tableName}.getAll SUCCESS:`, data?.length || 0, 'registros');
                     return { success: true, data: data || [] };
                 } catch (err) {
-                    console.warn(`⚠️ ${tableName}.getAll:`, err.message);
-                    return { success: true, data: [] };
+                    console.error(`❌ ${tableName}.getAll EXCEPTION:`, err);
+                    return { success: false, error: err.message, data: [] };
                 }
             },
 
@@ -2323,19 +2669,21 @@
             async create(record) {
                 try {
                     const client = await getSupabaseClient();
-                    if (!client) return { success: true, data: record };
+                    if (!client) return { success: false, error: 'Supabase client no disponible' };
 
                     const { data, error } = await client.from(tableName).insert([record]).select();
                     if (error) {
+                        console.error(`❌ ${tableName}.create ERROR:`, error);
                         if (handleTableNotFound(error, tableName)) {
-                            return { success: true, data: record };
+                            return { success: false, error: `Tabla "${tableName}" no existe` };
                         }
-                        throw error;
+                        return { success: false, error: error.message };
                     }
+                    console.log(`✅ ${tableName}.create SUCCESS:`, data?.[0]);
                     return { success: true, data: data?.[0] || record };
                 } catch (err) {
-                    console.warn(`⚠️ ${tableName}.create:`, err.message);
-                    return { success: true, data: record };
+                    console.error(`❌ ${tableName}.create EXCEPTION:`, err);
+                    return { success: false, error: err.message };
                 }
             },
 
@@ -2401,6 +2749,7 @@
         // Para tablas que podrían no existir aún
         Groups: createTableModule('groups'),
         Teams: createTableModule('teams'),
+        TeamMembers: createTableModule('team_members'),
         Permissions: createTableModule('permissions'),
         Roles: createTableModule('roles'),
         Logs: createTableModule('logs'),

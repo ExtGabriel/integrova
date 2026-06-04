@@ -96,6 +96,21 @@ function normalizeBoolean(value) {
     return false;
 }
 
+function parseIdList(input) {
+    if (!input) return [];
+    if (Array.isArray(input)) {
+        return input
+            .map(item => (typeof item === 'object' && item?.id ? item.id : item))
+            .map(item => (item !== null && item !== undefined ? String(item).trim() : ''))
+            .filter(Boolean);
+    }
+
+    return String(input)
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+}
+
 // REGLA 14: Limitar longitud y sanitizar texto libre
 function sanitizeAndTruncate(text, maxLength = 1024) {
     if (!text) return null;
@@ -200,6 +215,26 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// ============================================
+// UTILIDADES GENERALES
+// ============================================
+
+function parseIntWithDefault(value, defaultValue) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+function sanitizeString(input, maxLength = 255) {
+    if (!input || typeof input !== 'string') {
+        return null;
+    }
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return null;
+    }
+    return trimmed.substring(0, maxLength);
+}
 
 // ============================================
 // CONFIGURACIÓN DE CORREO ELECTRÓNICO (DESACTIVADA)
@@ -401,11 +436,13 @@ app.get('/api/users', async (req, res) => {
         if (error) throw error;
 
         // Mapear full_name a name para compatibilidad con el frontend
+        // Extraer team de raw_user_meta_data
         // Normalizar roles para consistencia
         const mappedData = data.map(user => ({
             ...user,
             name: user.full_name,
-            role: (user.role || '').trim().toLowerCase() // Normalizar rol
+            role: (user.role || '').trim().toLowerCase(), // Normalizar rol
+            team: user.raw_user_meta_data?.team || null // Extraer team de metadata
         }));
 
         console.log(`📋 Backend /api/users: ${mappedData.length} usuarios con roles normalizados`);
@@ -444,12 +481,13 @@ app.get('/api/users/:username', async (req, res) => {
 
 // Create a new user
 app.post('/api/users', async (req, res) => {
-    const { username, password, name, email, phone, role } = req.body;
+    const { username, name, email, phone, role } = req.body;
     console.log('📝 Intentando crear usuario:', { username, name, email, role });
     try {
+        // NOTA: Password no se guarda en la tabla users, solo en Supabase Auth
         const { data, error } = await supabase
             .from('users')
-            .insert([{ username, password, full_name: name, email, phone, role }])
+            .insert([{ username, full_name: name, email, phone, role }])
             .select();
 
         if (error) {
@@ -478,11 +516,12 @@ app.post('/api/users', async (req, res) => {
 // Update a user
 app.put('/api/users/:username', async (req, res) => {
     const username = req.params.username;
-    const { password, name, email, phone, role } = req.body;
+    const { name, email, phone, role } = req.body;
     try {
+        // NOTA: Password no se guarda en la tabla users, solo en Supabase Auth
         const { data, error } = await supabase
             .from('users')
-            .update({ password, full_name: name, email, phone, role })
+            .update({ full_name: name, email, phone, role })
             .eq('username', username)
             .select();
 
@@ -513,6 +552,166 @@ app.delete('/api/users/:username', async (req, res) => {
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ success: false, error: 'Failed to delete user' });
+    }
+});
+
+// Get user password by ID (security message)
+app.get('/api/users/:userId/password', async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        // Verificar que el solicitante sea administrador
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Token de autenticación requerido' });
+        }
+
+        const token = authHeader.substring(7);
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ success: false, error: 'Token inválido' });
+        }
+
+        // Obtener el rol del usuario desde la tabla users
+        const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !userProfile) {
+            return res.status(403).json({ success: false, error: 'No se pudo verificar el rol del usuario' });
+        }
+
+        // Solo administradores pueden solicitar información de contraseñas
+        if (userProfile.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Solo administradores pueden acceder a esta información' });
+        }
+
+        // Obtener información del usuario solicitado
+        const { data: targetUser, error: userError } = await supabase
+            .from('users')
+            .select('email, full_name')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !targetUser) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        
+        console.log(`🔒 Información de seguridad solicitada para usuario ${userId} por admin ${user.id}`);
+        
+        // Mensaje de seguridad - no retornar contraseñas reales
+        res.json({ 
+            success: true, 
+            securityMessage: '🔒 CONTRASEÑAS PROTEGIDAS',
+            password: '••••••••',
+            note: 'Por seguridad, las contraseñas están hasheadas y no pueden ser vistas. Usa el botón de restablecer contraseña para asignar una nueva.',
+            user: {
+                id: userId,
+                email: targetUser.email,
+                name: targetUser.full_name
+            },
+            securityInfo: {
+                hashing: 'bcrypt',
+                storage: 'Supabase Auth (seguro)',
+                access: 'Solo restablecimiento permitido',
+                recommendation: 'Usa restablecimiento de contraseña en lugar de recuperación'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo información de seguridad de usuario:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Reset user password (admin only)
+app.post('/api/users/:userId/reset-password', async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+    
+    try {
+        // Validar que se proporcionó una nueva contraseña
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'La contraseña debe tener al menos 6 caracteres' 
+            });
+        }
+        
+        // Verificar que el solicitante sea administrador
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, error: 'Token de autenticación requerido' });
+        }
+
+        const token = authHeader.substring(7);
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !user) {
+            return res.status(401).json({ success: false, error: 'Token inválido' });
+        }
+
+        // Obtener el rol del usuario desde la tabla users
+        const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !userProfile) {
+            return res.status(403).json({ success: false, error: 'No se pudo verificar el rol del usuario' });
+        }
+
+        // Solo administradores pueden restablecer contraseñas
+        if (userProfile.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Solo administradores pueden restablecer contraseñas' });
+        }
+
+        // Obtener información del usuario objetivo
+        const { data: targetUser, error: userError } = await supabase
+            .from('users')
+            .select('email, full_name')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !targetUser) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+
+        // Restablecer contraseña en Supabase Auth
+        const { error: resetError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { password: newPassword }
+        );
+
+        if (resetError) {
+            console.error('❌ Error restableciendo contraseña:', resetError);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'No se pudo restablecer la contraseña' 
+            });
+        }
+        
+        console.log(`🔐 Contraseña restablecida para usuario ${userId} (${targetUser.email}) por admin ${user.id}`);
+        console.log('💡 Notificación por correo: manejada por EmailJS en el frontend');
+        
+        res.json({ 
+            success: true, 
+            message: `Contraseña restablecida correctamente para ${targetUser.full_name || targetUser.email}`,
+            user: {
+                id: userId,
+                email: targetUser.email,
+                name: targetUser.full_name
+            },
+            emailSent: false
+        });
+
+    } catch (error) {
+        console.error('Error restableciendo contraseña:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
 
@@ -571,13 +770,17 @@ app.post('/api/entities', async (req, res) => {
         address = null,
         email = null,
         phone = null,
-        encargado = null,
-        responsible = null,
+        nit = null,
+        business_name = null,
+        organization_type = null,
+        project_type = null,
         is_group = false,
         relationship_type = 'none',
         parent_id = null,
         metadata = null,
-        created_by = null
+        created_by = null,
+        auditors = [],
+        clients = []
     } = body;
 
     const payload = {
@@ -589,9 +792,11 @@ app.post('/api/entities', async (req, res) => {
         address,
         email,
         phone,
-        encargado,
-        responsible: responsible || encargado || null,
-        is_group: typeof is_group === 'boolean' ? is_group : Boolean(is_group),
+        nit,
+        business_name,
+        organization_type,
+        project_type,
+        is_group: normalizeBoolean(is_group),
         relationship_type: relationship_type || 'none',
         parent_id: parent_id || null,
         metadata,
@@ -608,7 +813,10 @@ app.post('/api/entities', async (req, res) => {
             address,
             email,
             phone,
-            encargado: payload.encargado,
+            nit,
+            business_name,
+            organization_type,
+            project_type,
             es_grupo: payload.is_group,
             relationship_type: payload.relationship_type,
             parent_id: payload.parent_id
@@ -619,6 +827,9 @@ app.post('/api/entities', async (req, res) => {
         delete payload.created_by;
     }
 
+    const auditorIds = parseIdList(auditors);
+    const clientIds = parseIdList(clients);
+
     try {
         const { data, error } = await supabase
             .from('entities')
@@ -626,10 +837,36 @@ app.post('/api/entities', async (req, res) => {
             .select();
 
         if (error) throw error;
-        res.status(201).json({ success: true, data: data[0] });
+
+        const createdEntity = data?.[0];
+        if (!createdEntity) {
+            return res.status(500).json({ success: false, error: 'Entidad creada sin datos de retorno' });
+        }
+
+        const assignments = [
+            ...auditorIds.map(userId => ({ entity_id: createdEntity.id, user_id: userId, role: 'auditor' })),
+            ...clientIds.map(userId => ({ entity_id: createdEntity.id, user_id: userId, role: 'cliente' }))
+        ];
+
+        if (assignments.length) {
+            const { error: assignmentsError } = await supabase
+                .from('entity_users')
+                .insert(assignments);
+
+            if (assignmentsError) throw assignmentsError;
+        }
+
+        res.status(201).json({
+            success: true,
+            data: {
+                ...createdEntity,
+                assigned_auditors: auditorIds,
+                assigned_clients: clientIds
+            }
+        });
     } catch (error) {
         console.error('Error creating entity:', error);
-        res.status(500).json({ success: false, error: 'Failed to create entity' });
+        res.status(500).json({ success: false, error: 'Failed to create entity', details: error.message });
     }
 });
 
@@ -646,12 +883,16 @@ app.put('/api/entities/:id', async (req, res) => {
         address,
         email,
         phone,
-        encargado,
-        responsible,
+        nit,
+        business_name,
+        organization_type,
+        project_type,
         is_group,
         relationship_type,
         parent_id,
-        metadata
+        metadata,
+        auditors = [],
+        clients = []
     } = body;
 
     const updates = {};
@@ -663,13 +904,14 @@ app.put('/api/entities/:id', async (req, res) => {
     if (address !== undefined) updates.address = address;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
-    if (encargado !== undefined) updates.encargado = encargado;
-    if (responsible !== undefined || encargado !== undefined) {
-        updates.responsible = responsible !== undefined ? responsible : encargado;
-    }
-    if (is_group !== undefined) updates.is_group = is_group;
+    if (nit !== undefined) updates.nit = nit;
+    if (business_name !== undefined) updates.business_name = business_name;
+    if (organization_type !== undefined) updates.organization_type = organization_type;
+    if (project_type !== undefined) updates.project_type = project_type;
+    if (is_group !== undefined) updates.is_group = normalizeBoolean(is_group);
     if (relationship_type !== undefined) updates.relationship_type = relationship_type;
     if (parent_id !== undefined) updates.parent_id = parent_id;
+
     if (metadata !== undefined) {
         updates.metadata = metadata;
     } else {
@@ -678,12 +920,18 @@ app.put('/api/entities/:id', async (req, res) => {
             address: address ?? null,
             email: email ?? null,
             phone: phone ?? null,
-            encargado: (encargado ?? responsible) ?? null,
+            nit: nit ?? null,
+            business_name: business_name ?? null,
+            organization_type: organization_type ?? null,
+            project_type: project_type ?? null,
             es_grupo: is_group ?? null,
             relationship_type: relationship_type ?? null,
             parent_id: parent_id ?? null
         };
     }
+
+    const auditorIds = parseIdList(auditors);
+    const clientIds = parseIdList(clients);
 
     try {
         const { data, error } = await supabase
@@ -693,10 +941,45 @@ app.put('/api/entities/:id', async (req, res) => {
             .select();
 
         if (error) throw error;
-        res.json({ success: true, data: data[0] });
+
+        const updatedEntity = data?.[0];
+        if (!updatedEntity) {
+            return res.status(404).json({ success: false, error: 'Entity not found' });
+        }
+
+        // Eliminar asignaciones anteriores de auditores y clientes
+        const { error: deleteAssignmentsError } = await supabase
+            .from('entity_users')
+            .delete()
+            .eq('entity_id', id)
+            .in('role', ['auditor', 'cliente']);
+
+        if (deleteAssignmentsError) throw deleteAssignmentsError;
+
+        const assignments = [
+            ...auditorIds.map(userId => ({ entity_id: id, user_id: userId, role: 'auditor' })),
+            ...clientIds.map(userId => ({ entity_id: id, user_id: userId, role: 'cliente' }))
+        ];
+
+        if (assignments.length) {
+            const { error: insertAssignmentsError } = await supabase
+                .from('entity_users')
+                .insert(assignments);
+
+            if (insertAssignmentsError) throw insertAssignmentsError;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                ...updatedEntity,
+                assigned_auditors: auditorIds,
+                assigned_clients: clientIds
+            }
+        });
     } catch (error) {
         console.error('Error updating entity:', error);
-        res.status(500).json({ success: false, error: 'Failed to update entity' });
+        res.status(500).json({ success: false, error: 'Failed to update entity', details: error.message });
     }
 });
 
@@ -794,11 +1077,44 @@ app.get('/api/commitments/entity/:entityId', async (req, res) => {
 
 // Create a new commitment
 app.post('/api/commitments', async (req, res) => {
-    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id } = req.body;
+    const {
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer,
+        user_id
+    } = req.body;
     
     console.log('🔍 POST /api/commitments - Datos recibidos:', {
-        name, description, start_date, end_date, status, entity_id,
-        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer, user_id
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer,
+        user_id
     });
     
     try {
@@ -810,7 +1126,11 @@ app.post('/api/commitments', async (req, res) => {
             end_date,
             status,
             entity_id: normalizedEntityId,
-            entity: normalizedEntityId
+            entity: normalizedEntityId,
+            review_year,
+            currency,
+            project_type,
+            review_type
         };
         
         // Agregar campos opcionales si existen
@@ -847,12 +1167,43 @@ app.post('/api/commitments', async (req, res) => {
 // Update a commitment
 app.put('/api/commitments/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, description, start_date, end_date, status, entity_id, budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer } = req.body;
+    const {
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer
+    } = req.body;
     
     console.log('🔍 PUT /api/commitments/:id - Datos recibidos:', {
         id,
-        name, description, start_date, end_date, status, entity_id,
-        budget_hours, budget_amount, preparer_id, preparer, reviewer_id, reviewer
+        name,
+        description,
+        start_date,
+        end_date,
+        status,
+        entity_id,
+        review_year,
+        currency,
+        project_type,
+        review_type,
+        budget_hours,
+        budget_amount,
+        preparer_id,
+        preparer,
+        reviewer_id,
+        reviewer
     });
     
     try {
@@ -864,7 +1215,11 @@ app.put('/api/commitments/:id', async (req, res) => {
             end_date,
             status,
             entity_id: normalizedEntityId,
-            entity: normalizedEntityId
+            entity: normalizedEntityId,
+            review_year,
+            currency,
+            project_type,
+            review_type
         };
         
         // Agregar campos opcionales si existen
@@ -1169,6 +1524,65 @@ app.post('/api/auth/login', (_req, res) => {
 });
 
 // ============================================
+// AUDIT LOGS SERVICE ENDPOINTS
+// ============================================
+
+app.get('/api/audit/logs', async (req, res) => {
+    try {
+        const sinceParam = sanitizeString(req.query.since);
+        const limitParam = parseIntWithDefault(req.query.limit, 200);
+
+        if (limitParam <= 0 || limitParam > 1000) {
+            return res.status(400).json({
+                success: false,
+                error: 'El parámetro "limit" debe estar entre 1 y 1000.'
+            });
+        }
+
+        const query = supabase
+            .from('audit_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limitParam);
+
+        if (sinceParam) {
+            const sinceDate = new Date(sinceParam);
+            if (Number.isNaN(sinceDate.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'El parámetro "since" no es una fecha válida ISO 8601.'
+                });
+            }
+            query.gte('created_at', sinceDate.toISOString());
+        } else {
+            const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+            query.gte('created_at', threeHoursAgo);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('❌ Error obteniendo audit logs:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'No se pudieron obtener los audit logs'
+            });
+        }
+
+        return res.json({
+            success: true,
+            data: data || []
+        });
+    } catch (error) {
+        console.error('❌ Excepción en /api/audit/logs:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Error interno al obtener audit logs'
+        });
+    }
+});
+
+// ============================================
 // AUDIT REVIEWS API ENDPOINTS
 // ============================================
 
@@ -1378,15 +1792,23 @@ app.post('/api/usuarios', async (req, res) => {
 app.put('/api/usuarios/:id', async (req, res) => {
     const { id } = req.params;
     const body = req.body || {};
-    const payload = {
-        username: body.username,
-        password: body.password,
-        full_name: body.full_name || body.name || body.nombre,
-        email: body.email || body.correo,
-        phone: body.phone || body.telefono,
-        role: body.role || body.rol,
-        groups: body.groups || body.grupos || []
-    };
+    
+    // Construir payload dinámicamente solo con los campos proporcionados
+    const payload = {};
+    
+    if (body.username !== undefined) payload.username = body.username;
+    if (body.full_name !== undefined) payload.full_name = body.full_name;
+    if (body.name !== undefined) payload.full_name = body.name;
+    if (body.nombre !== undefined) payload.full_name = body.nombre;
+    if (body.email !== undefined) payload.email = body.email;
+    if (body.correo !== undefined) payload.email = body.correo;
+    if (body.phone !== undefined) payload.phone = body.phone;
+    if (body.telefono !== undefined) payload.phone = body.telefono;
+    if (body.role !== undefined) payload.role = body.role;
+    if (body.rol !== undefined) payload.role = body.rol;
+    if (body.raw_user_meta_data !== undefined) payload.raw_user_meta_data = body.raw_user_meta_data;
+
+    console.log(`🔄 Actualizando usuario ${id} con payload:`, payload);
 
     try {
         const { data, error } = await supabase
@@ -1395,11 +1817,16 @@ app.put('/api/usuarios/:id', async (req, res) => {
             .eq('id', id)
             .select();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error en Supabase al actualizar usuario:', error);
+            throw error;
+        }
+        
         if (!data || !data.length) {
             return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
         }
 
+        console.log(`✅ Usuario ${id} actualizado correctamente:`, data[0]);
         res.json({ success: true, data: data[0] });
     } catch (error) {
         console.error('Error updating usuario:', error);
@@ -6805,6 +7232,78 @@ app.put('/api/subdocuments/update', async (req, res) => {
     }
 });
 
+// Subir archivo a subdocumentos
+app.post('/api/subdocuments/upload', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { 
+            categoria, 
+            subcategoria, 
+            titulo, 
+            fileName, 
+            fileSize, 
+            fileType, 
+            entityId, 
+            commitmentId,
+            fileData 
+        } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!categoria || !subcategoria || !titulo || !fileName) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+        }
+        
+        console.log(`📁 Subiendo archivo: ${fileName} en ${categoria}/${subcategoria}`);
+        
+        // Preparar metadata con información del archivo y contexto
+        const metadata = {
+            fileName,
+            fileSize,
+            fileType,
+            entityId: entityId || null,
+            commitmentId: commitmentId || null,
+            uploadDate: new Date().toISOString(),
+            fileData: fileData || null // Para archivos pequeños, guardar datos base64
+        };
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .insert([{
+                titulo,
+                contenido: null, // Los archivos no tienen contenido textual
+                tipo: 'archivo',
+                categoria,
+                subcategoria,
+                parent_folder_id: null,
+                metadata,
+                user_id: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error subiendo archivo:', error);
+            return res.status(500).json({ success: false, error: 'Error al subir el archivo' });
+        }
+        
+        console.log('✅ Archivo subido exitosamente');
+        res.json({
+            success: true,
+            message: 'Archivo subido exitosamente',
+            document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/upload:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
@@ -6825,6 +7324,14 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
             
+        // Log para depuración - verificar created_by
+        if (documents && documents.length > 0) {
+            console.log('🔍 Documentos encontrados con created_by:');
+            documents.forEach(doc => {
+                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}`);
+            });
+        }
+            
         if (error) {
             console.error('❌ Error obteniendo subdocumentos:', error);
             return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
@@ -6838,6 +7345,266 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/subdocuments:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener un subdocumento específico por ID
+app.get('/api/subdocuments/document/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        console.log(`✅ Documento ${documentId} encontrado`);
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/document:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Descargar archivo de subdocumento
+app.get('/api/subdocuments/download/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento para descarga:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        if (document.tipo !== 'archivo') {
+            return res.status(400).json({ success: false, error: 'El documento no es un archivo' });
+        }
+        
+        const metadata = parseMetadata(document.metadata);
+        if (!metadata || !metadata.fileContent) {
+            return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
+        }
+        
+        // Convertir base64 a buffer
+        const fileBuffer = Buffer.from(metadata.fileContent, 'base64');
+        
+        // Set headers para descarga
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${metadata.fileName || 'archivo'}"`);
+        res.setHeader('Content-Length', fileBuffer.length);
+        
+        console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
+        res.send(fileBuffer);
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/download:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Actualizar subdocumento por ID
+app.put('/api/subdocuments/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        const { titulo, contenido, metadata } = req.body;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        // Verificar que el documento existe y pertenece al usuario
+        const { data: existingDoc, error: checkError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (checkError || !existingDoc) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Preparar datos de actualización
+        const updateData = {
+            updated_at: new Date().toISOString()
+        };
+        
+        if (titulo !== undefined) updateData.titulo = titulo;
+        if (contenido !== undefined) updateData.contenido = contenido;
+        if (metadata !== undefined) updateData.metadata = typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .update(updateData)
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al actualizar documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al actualizar el documento' });
+        }
+        
+        console.log(`✅ Documento ${documentId} actualizado`);
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments PUT:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Eliminar subdocumento por ID
+app.delete('/api/subdocuments/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        // Verificar que el documento existe y pertenece al usuario
+        const { data: existingDoc, error: checkError } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (checkError || !existingDoc) {
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        // Eliminar el documento
+        const { error } = await supabase
+            .from('subdocumentos')
+            .delete()
+            .eq('id', documentId)
+            .eq('user_id', userId);
+            
+        if (error) {
+            console.error('❌ Error al eliminar documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el documento' });
+        }
+        
+        console.log(`✅ Documento ${documentId} eliminado`);
+        res.json({
+            success: true,
+            message: 'Documento eliminado correctamente'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments DELETE:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener información de usuario por ID
+app.get('/api/users/id/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Buscando usuario por ID: ${userId}`);
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'ID de usuario requerido' });
+        }
+        
+        // Intentar primero con la tabla users
+        console.log(`🌐 Consultando tabla 'users' para ID: ${userId}`);
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, email, full_name, nombre')
+            .eq('id', userId)
+            .single();
+            
+        console.log(`📋 Resultado de consulta users:`, { user, error });
+            
+        console.log(`📋 Resultado de consulta por ID:`, { user, error });
+            
+        if (error) {
+            console.error('❌ Error al obtener usuario:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el usuario' });
+        }
+        
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+        }
+        
+        // Formatear nombre del usuario
+        const userName = user.full_name || user.nombre || user.email || 'Usuario desconocido';
+        
+        console.log(`✅ Usuario ${userId} encontrado: ${userName}`);
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                name: userName,
+                email: user.email
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/users:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });

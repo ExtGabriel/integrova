@@ -414,6 +414,54 @@
                         </div>
                     </div>
 
+                    <!-- Detalles de Revisión -->
+                    <div class="section-group">
+                        <h3 class="section-title">
+                            <i class="bi bi-clipboard-check"></i>
+                            Detalles de Revisión
+                        </h3>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" id="commitmentReviewYear" placeholder="Año de revisión" min="2000" max="2100" required>
+                                    <label for="commitmentReviewYear">Año de revisión *</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="commitmentCurrency" placeholder="Moneda" required>
+                                    <label for="commitmentCurrency">Moneda *</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <select class="form-select" id="commitmentProjectType" required>
+                                        <option value="">Selecciona un tipo</option>
+                                        <option value="Individual">Individual</option>
+                                        <option value="Consolidado">Consolidado</option>
+                                        <option value="Combinado">Combinado</option>
+                                    </select>
+                                    <label for="commitmentProjectType">Tipo de Proyecto *</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <select class="form-select" id="commitmentReviewType" required>
+                                        <option value="">Selecciona un tipo</option>
+                                        <option value="Única revisión">Única revisión</option>
+                                        <option value="Preliminar y final">Preliminar y final</option>
+                                        <option value="Preliminares y final">Preliminares y final</option>
+                                    </select>
+                                    <label for="commitmentReviewType">Tipo de Revisión *</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Fechas -->
                     <div class="section-group">
                         <h3 class="section-title">
@@ -581,9 +629,20 @@
                 const entityRawValue = document.getElementById('commitmentEntity').value;
                 const entityId = /^\d+$/.test(entityRawValue) ? parseInt(entityRawValue, 10) : entityRawValue;
                 const workGroupId = document.getElementById('commitmentWorkGroup').value;
+                const reviewYearValue = document.getElementById('commitmentReviewYear').value;
+                const currency = document.getElementById('commitmentCurrency').value.trim();
+                const projectType = document.getElementById('commitmentProjectType').value;
+                const reviewType = document.getElementById('commitmentReviewType').value;
 
-                if (!name || !startDate || !endDate || !entityRawValue) {
+                if (!name || !startDate || !endDate || !entityRawValue || !reviewYearValue || !currency || !projectType || !reviewType) {
                     alert('Por favor completa todos los campos requeridos.');
+                    return;
+                }
+
+                const reviewYear = parseInt(reviewYearValue, 10);
+
+                if (Number.isNaN(reviewYear) || reviewYear < 2000 || reviewYear > 2100) {
+                    alert('Ingresa un año de revisión válido entre 2000 y 2100.');
                     return;
                 }
 
@@ -599,7 +658,11 @@
                     end_date: endDate,
                     entity_id: entityId,
                     entity: entityId, // Campo adicional por si la BD espera 'entity'
-                    status: 'pendiente'
+                    status: 'pendiente',
+                    review_year: reviewYear,
+                    currency,
+                    project_type: projectType,
+                    review_type: reviewType
                 };
 
                 if (workGroupId && workGroupId !== '') {
