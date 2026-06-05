@@ -377,64 +377,29 @@
 
     <div class="main-container">
         <div class="formularios-container">
-            <!-- Contenedor para Entidad Padre y Entidad Hijo lado a lado -->
-            <div class="entidades-row">
-                <!-- Sección de Entidad Padre -->
+            <!-- Contenedor para selección de entidad -->
+            <div class="entity-selection-container">
                 <div class="form-section entidad-block">
                     <div class="section-header">
-                        <h3><i class="bi bi-building"></i> Entidad Padre</h3>
+                        <h3><i class="bi bi-building"></i> Entidad</h3>
                     </div>
-
+                    
                     <div class="form-group">
-                        <label for="entidadPadre">Seleccionar Entidad Padre</label>
-                        <input type="hidden" id="entidadPadre" name="entidadPadre" value="">
+                        <label for="entidad">Seleccionar Entidad</label>
+                        <input type="hidden" id="entidad" name="entidad" value="">
                         <div class="entity-select-container">
-                            <div class="custom-select" id="entidadPadreSelect">
-                                <div class="select-selected" id="entidadPadreSelected">Entidad padre...</div>
+                            <div class="custom-select" id="entidadSelect">
+                                <div class="select-selected" id="entidadSelected">Seleccionar entidad...</div>
                                 <i class="bi bi-chevron-down custom-arrow"></i>
-                                <div class="select-items" id="entidadPadreItems">
-                                    <div data-value="">Entidad padre...</div>
-                                    <div data-value="entidad1">Dirección General</div>
-                                    <div data-value="entidad2">Subdirección Administrativa</div>
-                                    <div data-value="entidad3">Subdirección Técnica</div>
-                                    <div data-value="entidad4">Subdirección Financiera</div>
+                                <div class="select-items" id="entidadItems">
+                                    <div data-value="">Seleccionar entidad...</div>
+                                    <!-- Se cargarán dinámicamente -->
                                 </div>
                             </div>
                             <div class="search-input">
                                 <i class="bi bi-search"></i>
-                                <input id="entidadPadreSearch" type="text" placeholder="Buscar..." onkeyup="handleEntitySearch('padre', event)">
-                                <button class="btn-clear-search" onclick="clearEntitySearch('padre')" title="Limpiar búsqueda">
-                                    <i class="bi bi-x"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección de Entidad Hijo -->
-                <div class="form-section entidad-block">
-                    <div class="section-header">
-                        <h3><i class="bi bi-diagram-3"></i> Entidad Hijo</h3>
-                    </div>
-                    <div class="form-group">
-                        <label for="entidadHijo">Seleccionar Entidad Hijo</label>
-                        <input type="hidden" id="entidadHijo" name="entidadHijo" value="">
-                        <div class="entity-select-container">
-                            <div class="custom-select" id="entidadHijoSelect">
-                                <div class="select-selected" id="entidadHijoSelected">Entidad hija...</div>
-                                <i class="bi bi-chevron-down custom-arrow"></i>
-                                <div class="select-items" id="entidadHijoItems">
-                                    <div data-value="">Entidad hija...</div>
-                                    <div data-value="hijo1">Departamento de Recursos Humanos</div>
-                                    <div data-value="hijo2">Departamento de TI</div>
-                                    <div data-value="hijo3">Departamento de Contabilidad</div>
-                                    <div data-value="hijo4">Departamento de Operaciones</div>
-                                </div>
-                            </div>
-                            <div class="search-input">
-                                <i class="bi bi-search"></i>
-                                <input id="entidadHijoSearch" type="text" placeholder="Buscar..." onkeyup="handleEntitySearch('hijo', event)">
-                                <button class="btn-clear-search" onclick="clearEntitySearch('hijo')" title="Limpiar búsqueda">
+                                <input id="entidadSearch" type="text" placeholder="Buscar..." onkeyup="handleEntitySearch(event)">
+                                <button class="btn-clear-search" onclick="clearEntitySearch()" title="Limpiar búsqueda">
                                     <i class="bi bi-x"></i>
                                 </button>
                             </div>
@@ -6062,14 +6027,10 @@
         // ==========================================
 
         // Variables globales para entidades
-        const ENTIDAD_PADRE_PLACEHOLDER = { value: '', text: 'Entidad padre...' };
-        const ENTIDAD_HIJO_PLACEHOLDER = { value: '', text: 'Entidad hija...' };
+        const ENTIDAD_PLACEHOLDER = { value: '', text: 'Seleccionar entidad...' };
 
-        let entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER];
-        let entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER];
-
+        let entidadesOriginales = [ENTIDAD_PLACEHOLDER];
         let entidadCatalogo = {};
-        let entidadHijosMap = {};
 
         const COMMITMENTS_CACHE_TTL = 60 * 1000;
         const commitmentDropdownState = {
@@ -6566,14 +6527,14 @@
             }
 
             if (!displayName && normalizedId) {
-                const fallback = entidadesHijoOriginales.find(opt => normalizeValue(opt.value) === normalizedId);
+                const fallback = entidadesOriginales.find(opt => normalizeValue(opt.value) === normalizedId);
                 if (fallback) {
                     displayName = normalizeValue(fallback.text);
                 }
             }
 
             if (!displayName && normalizedId && typeof getEntityLabelByValue === 'function') {
-                displayName = normalizeValue(getEntityLabelByValue('hijo', normalizedId));
+                displayName = normalizeValue(getEntityLabelByValue(normalizedId));
             }
 
             const cleanName = displayName.includes('(')
@@ -6953,15 +6914,13 @@
             return name || commercial || 'Entidad sin nombre';
         }
 
-        function getPlaceholderText(type) {
-            return type === 'padre'
-                ? (entidadesPadreOriginales[0]?.text || ENTIDAD_PADRE_PLACEHOLDER.text)
-                : (entidadesHijoOriginales[0]?.text || ENTIDAD_HIJO_PLACEHOLDER.text);
+        function getPlaceholderText() {
+            return entidadesOriginales[0]?.text || ENTIDAD_PLACEHOLDER.text;
         }
 
-        function getEntityLabelByValue(type, value) {
+        function getEntityLabelByValue(value) {
             if (!value) {
-                return getPlaceholderText(type);
+                return getPlaceholderText();
             }
 
             const registro = entidadCatalogo[value];
@@ -6969,7 +6928,7 @@
                 return registro.label;
             }
 
-            const lista = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+            const lista = entidadesOriginales;
             const opcion = lista.find(opt => opt.value === value);
             return opcion?.text || value;
         }
@@ -6979,89 +6938,53 @@
             // 📂 CARGAR SELECCIONES GUARDADAS AL INICIALIZAR
             loadEntitySelectionsFromStorage();
 
-            // Menú desplegable Entidad Padre
-            const padreSelect = document.getElementById('entidadPadreSelect');
-            const padreSelected = document.getElementById('entidadPadreSelected');
-            const padreItems = document.getElementById('entidadPadreItems');
-            const padreArrow = padreSelect.querySelector('.custom-arrow');
+            // Menú desplegable Entidad
+            const entitySelect = document.getElementById('entidadSelect');
+            const entitySelected = document.getElementById('entidadSelected');
+            const entityItems = document.getElementById('entidadItems');
+            const entityArrow = entitySelect.querySelector('.custom-arrow');
 
-            // Solo manejar apertura/cierre del menú principal, no selección
-            padreSelected.addEventListener('click', function () {
-                const isOpen = padreItems.classList.contains('show');
+            // Manejar apertura/cierre del menú
+            entitySelected.addEventListener('click', function () {
+                const isOpen = entityItems.classList.contains('show');
                 
-                // Cerrar ambos menús primero
-                document.getElementById('entidadPadreItems').classList.remove('show');
-                document.getElementById('entidadHijoItems').classList.remove('show');
-                document.querySelector('#entidadPadreSelect .custom-arrow').classList.remove('rotate');
-                document.querySelector('#entidadHijoSelect .custom-arrow').classList.remove('rotate');
+                // Cerrar menú primero
+                entityItems.classList.remove('show');
+                entityArrow.classList.remove('rotate');
                 
                 // Abrir este menú si estaba cerrado
                 if (!isOpen) {
-                    padreItems.classList.add('show');
-                    padreArrow.classList.add('rotate');
+                    entityItems.classList.add('show');
+                    entityArrow.classList.add('rotate');
                     
                     // Forzar scroll
                     setTimeout(() => {
-                        padreItems.style.overflowY = 'auto';
-                        padreItems.style.maxHeight = '250px';
-                        padreItems.offsetHeight;
+                        entityItems.style.overflowY = 'auto';
+                        entityItems.style.maxHeight = '250px';
+                        entityItems.offsetHeight;
                     }, 10);
                 }
             });
 
-            // Menú desplegable Entidad Hijo
-            const hijoSelect = document.getElementById('entidadHijoSelect');
-            const hijoSelected = document.getElementById('entidadHijoSelected');
-            const hijoItems = document.getElementById('entidadHijoItems');
-            const hijoArrow = hijoSelect.querySelector('.custom-arrow');
-
-            // Solo manejar apertura/cierre del menú principal, no selección
-            hijoSelected.addEventListener('click', function () {
-                const isOpen = hijoItems.classList.contains('show');
-                
-                // Cerrar ambos menús primero
-                document.getElementById('entidadPadreItems').classList.remove('show');
-                document.getElementById('entidadHijoItems').classList.remove('show');
-                document.querySelector('#entidadPadreSelect .custom-arrow').classList.remove('rotate');
-                document.querySelector('#entidadHijoSelect .custom-arrow').classList.remove('rotate');
-                
-                // Abrir este menú si estaba cerrado
-                if (!isOpen) {
-                    hijoItems.classList.add('show');
-                    hijoArrow.classList.add('rotate');
-                    
-                    // Forzar scroll
-                    setTimeout(() => {
-                        hijoItems.style.overflowY = 'auto';
-                        hijoItems.style.maxHeight = '250px';
-                        hijoItems.offsetHeight;
-                    }, 10);
-                }
-            });
-
-            // Cerrar menús al hacer clic fuera
+            // Cerrar menú al hacer clic fuera
             document.addEventListener('click', function (e) {
-                if (!padreSelect.contains(e.target)) {
-                    padreItems.classList.remove('show');
-                    padreArrow.classList.remove('rotate');
-                }
-                if (!hijoSelect.contains(e.target)) {
-                    hijoItems.classList.remove('show');
-                    hijoArrow.classList.remove('rotate');
+                if (!entitySelect.contains(e.target)) {
+                    entityItems.classList.remove('show');
+                    entityArrow.classList.remove('rotate');
                 }
             });
         }
 
         // Función para manejar búsqueda de entidades
-        function handleEntitySearch(type, event) {
+        function handleEntitySearch(event) {
             const searchValue = event.target.value.trim();
             const searchInput = event.target;
             const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
             
             // Abrir automáticamente el menú desplegable al buscar
-            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
-            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
-            const arrow = document.querySelector(`#entidad${type === 'padre' ? 'Padre' : 'Hijo'}Select .custom-arrow`);
+            const selected = document.getElementById('entidadSelected');
+            const items = document.getElementById('entidadItems');
+            const arrow = document.querySelector('#entidadSelect .custom-arrow');
             
             // Abrir menú si hay texto de búsqueda
             if (searchValue) {
@@ -7076,31 +6999,31 @@
             }
 
             // Realizar búsqueda
-            performEntitySearch(type, searchValue);
+            performEntitySearch(searchValue);
         }
 
         // Función para limpiar búsqueda
-        function clearEntitySearch(type) {
-            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
+        function clearEntitySearch() {
+            const searchInput = document.getElementById('entidadSearch');
             const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
-            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+            const items = document.getElementById('entidadItems');
 
             searchInput.value = '';
             clearBtn.classList.remove('visible');
 
             // Restaurar todas las opciones
-            restoreOriginalOptions(type);
+            restoreOriginalOptions();
         }
 
         // Función principal de búsqueda
-        function performEntitySearch(type, searchTerm) {
-            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
-            const originalOptions = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
+        function performEntitySearch(searchTerm) {
+            const items = document.getElementById('entidadItems');
+            const originalOptions = entidadesOriginales;
 
-            console.log(`Buscando "${searchTerm}" en ${type}, opciones disponibles:`, originalOptions.length);
+            console.log(`Buscando "${searchTerm}", opciones disponibles:`, originalOptions.length);
 
             if (!searchTerm) {
-                restoreOriginalOptions(type);
+                restoreOriginalOptions();
                 return;
             }
 
@@ -7114,7 +7037,7 @@
             // Actualizar opciones visibles con eventos onclick directos
             if (filteredOptions.length > 0) {
                 items.innerHTML = filteredOptions.map(option =>
-                    `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
+                    `<div data-value="${option.value}" onclick="selectOption('${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
                 ).join('');
             } else {
                 items.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No se encontraron resultados</div>';
@@ -7133,13 +7056,11 @@
         }
 
         // Función directa para seleccionar opción y cerrar menú
-        function applySelection(type, value, text, options = {}) {
-            const { skipAutoMatch = false } = options;
-            const target = type === 'padre' ? 'Padre' : 'Hijo';
+        function applySelection(value, text) {
             const normalizedValue = value ? String(value) : '';
-            const label = normalizedValue ? (text || getEntityLabelByValue(type, normalizedValue)) : getPlaceholderText(type);
+            const label = normalizedValue ? text : ENTIDAD_PLACEHOLDER.text;
 
-            const selected = document.getElementById(`entidad${target}Selected`);
+            const selected = document.getElementById('entidadSelected');
             if (selected) {
                 selected.textContent = label;
                 if (normalizedValue) {
@@ -7149,12 +7070,12 @@
                 }
             }
 
-            const hiddenInput = document.getElementById(`entidad${target}`);
+            const hiddenInput = document.getElementById('entidad');
             if (hiddenInput) {
                 hiddenInput.value = normalizedValue;
             }
 
-            const searchInput = document.getElementById(`entidad${target}Search`);
+            const searchInput = document.getElementById('entidadSearch');
             if (searchInput) {
                 searchInput.value = '';
                 const clearBtn = searchInput.parentElement?.querySelector('.btn-clear-search');
@@ -7164,12 +7085,8 @@
             }
 
             // ✅ Resetear selección de compromisos al cambiar de entidad
-            const selectedEntityForCommitment = type === 'hijo'
-                ? normalizedValue || (document.getElementById('entidadPadre')?.value || '')
-                : (document.getElementById('entidadHijo')?.value || normalizedValue);
-
-            if (selectedEntityForCommitment) {
-                commitmentDropdownState.currentEntityId = selectedEntityForCommitment;
+            if (normalizedValue) {
+                commitmentDropdownState.currentEntityId = normalizedValue;
                 commitmentDropdownState.selectedCommitmentId = null;
                 commitmentDropdownState.selectedCommitmentName = '';
                 // invalidar cache para forzar recarga con la nueva entidad
@@ -7194,40 +7111,12 @@
                 });
             }
 
-            if (!skipAutoMatch) {
-                if (type === 'padre') {
-                    const children = entidadHijosMap[normalizedValue] || [];
-                    const hiddenChild = document.getElementById('entidadHijo');
-                    const currentChildValue = hiddenChild ? hiddenChild.value : '';
-
-                    if (children.length > 0) {
-                        const alreadySelected = children.some(child => child.value === currentChildValue);
-                        if (!alreadySelected) {
-                            const firstChild = children[0];
-                            applySelection('hijo', firstChild.value, firstChild.text, { skipAutoMatch: true });
-                        }
-                    } else {
-                        applySelection('hijo', '', null, { skipAutoMatch: true });
-                    }
-                } else if (type === 'hijo') {
-                    const registro = entidadCatalogo[normalizedValue];
-                    const parentId = registro?.parentId;
-                    if (parentId) {
-                        const hiddenParent = document.getElementById('entidadPadre');
-                        const currentParentValue = hiddenParent ? hiddenParent.value : '';
-                        if (currentParentValue !== parentId) {
-                            const parentLabel = getEntityLabelByValue('padre', parentId);
-                            applySelection('padre', parentId, parentLabel, { skipAutoMatch: true });
-                        }
-                    }
-                }
-            }
+            // Eliminar lógica de auto-matching entre padre-hijo
+            // Ya no se necesita en el modelo simple de entidad única
 
             try {
-                // Usar entidad hijo si tiene valor, sino usar entidad padre
-                const childValue = document.getElementById('entidadHijo')?.value || '';
-                const parentValue = document.getElementById('entidadPadre')?.value || '';
-                const entityValue = childValue || parentValue;
+                // Usar valor de entidad única
+                const entityValue = document.getElementById('entidad')?.value || '';
                 
                 console.log('🎯 Actualizando dropdown de compromisos con entidad:', entityValue);
                 
@@ -7242,102 +7131,77 @@
             }
         }
 
-        function selectOption(type, value, text) {
-            applySelection(type, value, text);
-            saveEntitySelectionsToStorage();
-            closeAllDropdowns();
+        function selectOption(selectId, value, text) {
+            const selected = document.getElementById(selectId + 'Selected');
+            const hiddenInput = document.getElementById(selectId);
+            const searchInput = document.getElementById(selectId + 'Search');
+            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
+            const items = document.getElementById(selectId + 'Items');
+            const arrow = document.querySelector('#' + selectId + 'Select .custom-arrow');
+
+            // Actualizar el texto seleccionado
+            selected.textContent = text;
+            selected.classList.add('selected');
+            
+            // Actualizar valor oculto
+            if (hiddenInput) hiddenInput.value = value;
+
+            // Cerrar el menú desplegable
+            items.classList.remove('show');
+            arrow.classList.remove('rotate');
+
+            // Limpiar el campo de búsqueda
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+
+            // Restaurar todas las opciones originales
             setTimeout(() => {
-                restoreOriginalOptions(type);
+                restoreOriginalOptions();
             }, 100);
-            return false;
+
+            // Guardar en storage
+            saveEntitySelectionsToStorage();
+            
+            // Actualizar compromisos si es necesario
+            if (window.updateCommitmentDropdown) {
+                updateCommitmentDropdown(value);
+            }
         }
 
         // Función para cerrar todos los menús agresivamente
         function closeAllDropdowns() {
-            // Cerrar menú padre
-            const padreItems = document.getElementById('entidadPadreItems');
-            const padreArrow = document.querySelector('#entidadPadreSelect .custom-arrow');
-            if (padreItems) {
-                padreItems.classList.remove('show');
-                padreItems.style.removeProperty('display');
+            // Cerrar menú único
+            const items = document.getElementById('entidadItems');
+            const arrow = document.querySelector('#entidadSelect .custom-arrow');
+            if (items) {
+                items.classList.remove('show');
+                items.style.removeProperty('display');
             }
-            if (padreArrow) padreArrow.classList.remove('rotate');
-            
-            // Cerrar menú hijo
-            const hijoItems = document.getElementById('entidadHijoItems');
-            const hijoArrow = document.querySelector('#entidadHijoSelect .custom-arrow');
-            if (hijoItems) {
-                hijoItems.classList.remove('show');
-                hijoItems.style.removeProperty('display');
-            }
-            if (hijoArrow) hijoArrow.classList.remove('rotate');
-        }
-        function reassignClickEvents(type) {
-            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
-            const selected = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Selected`);
-            const selectItems = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
-            const arrow = document.querySelector(`#entidad${type === 'padre' ? 'Padre' : 'Hijo'}Select .custom-arrow`);
-            const searchInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Search`);
-            const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
-            const hiddenInput = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}`);
-
-            // Remover eventos anteriores
-            items.removeEventListener('click', handleOptionClick);
-            
-            function handleOptionClick(e) {
-                if (e.target && e.target.matches('div')) {
-                    const value = e.target.getAttribute('data-value');
-                    const text = e.target.textContent;
-
-                    // Actualizar el texto seleccionado
-                    selected.textContent = text;
-                    selected.classList.add('selected');
-                    
-                    // Actualizar valor oculto
-                    if (hiddenInput) hiddenInput.value = value;
-
-                    // Cerrar el menú desplegable
-                    selectItems.classList.remove('show');
-                    arrow.classList.remove('rotate');
-
-                    // Limpiar el campo de búsqueda
-                    searchInput.value = '';
-                    clearBtn.classList.remove('visible');
-
-                    // Restaurar todas las opciones originales
-                    setTimeout(() => {
-                        restoreOriginalOptions(type);
-                    }, 100);
-                }
-            }
-
-            // Agregar nuevo evento de clic
-            items.addEventListener('click', handleOptionClick);
+            if (arrow) arrow.classList.remove('rotate');
         }
 
         // Función para restaurar opciones originales
-        function restoreOriginalOptions(type) {
-            console.log(`restoreOriginalOptions called with type: ${type}`);
+        function restoreOriginalOptions() {
+            console.log('restoreOriginalOptions called');
             
-            const items = document.getElementById(`entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
-            console.log(`Found items element:`, items);
+            const items = document.getElementById('entidadItems');
+            console.log('Found items element:', items);
             
             if (!items) {
-                console.error(`Element not found: entidad${type === 'padre' ? 'Padre' : 'Hijo'}Items`);
+                console.error('Element not found: entidadItems');
                 return;
             }
             
-            const originalOptions = type === 'padre' ? entidadesPadreOriginales : entidadesHijoOriginales;
-            console.log(`Original options for ${type}:`, originalOptions);
+            console.log('Original options:', entidadesOriginales);
 
-            if (!originalOptions || originalOptions.length === 0) {
-                console.error(`No original options found for type: ${type}`);
+            if (!entidadesOriginales || entidadesOriginales.length === 0) {
+                console.error('No original options found');
                 items.innerHTML = '<div style="padding: 12px; color: #999;">No hay opciones disponibles</div>';
                 return;
             }
 
-            items.innerHTML = originalOptions.map(option =>
-                `<div data-value="${option.value}" onclick="selectOption('${type}', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
+            items.innerHTML = entidadesOriginales.map(option =>
+                `<div data-value="${option.value}" onclick="selectOption('entidad', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
             ).join('');
             
             console.log('Options rendered successfully');
@@ -7363,101 +7227,46 @@
 
                 const entidades = response.data;
 
-                entidadCatalogo = {};
-                entidadHijosMap = {};
-
-                const padres = [];
-                const hijas = [];
+                // Para modelo simple, solo necesitamos el array de entidades
+                entidadesOriginales = [];
 
                 entidades.forEach(entidad => {
                     const id = entidad?.id ? String(entidad.id) : null;
                     if (!id) return;
 
                     const label = formatEntityLabel(entidad);
-                    const relationship = (entidad.relationship_type || '').toLowerCase();
-                    const parentId = entidad.parent_id ? String(entidad.parent_id) : null;
-                    const isChild = Boolean(parentId) || relationship === 'child';
-                    const isParent = relationship === 'parent' || !parentId;
 
-                    entidadCatalogo[id] = {
-                        ...entidad,
-                        label,
-                        parentId,
-                        isParent,
-                        isChild
-                    };
-
-                    if (isParent) {
-                        padres.push({ value: id, text: label });
-                    }
-
-                    if (isChild) {
-                        hijas.push({ value: id, text: label, parentId });
-                        if (parentId) {
-                            if (!entidadHijosMap[parentId]) {
-                                entidadHijosMap[parentId] = [];
-                            }
-                            entidadHijosMap[parentId].push({ value: id, text: label });
-                        }
-                    }
+                    // Agregar al array de entidades para el dropdown simple
+                    entidadesOriginales.push({ value: id, text: label });
                 });
 
-                padres.sort((a, b) => a.text.localeCompare(b.text, 'es', { sensitivity: 'base' }));
-                hijas.sort((a, b) => a.text.localeCompare(b.text, 'es', { sensitivity: 'base' }));
+                // Ordenar alfabéticamente
+                entidadesOriginales.sort((a, b) => a.text.localeCompare(b.text, 'es', { sensitivity: 'base' }));
 
-                entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER, ...padres];
-                entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER, ...hijas];
-
-                restoreOriginalOptions('padre');
-                restoreOriginalOptions('hijo');
-
-                reassignClickEvents('padre');
-                reassignClickEvents('hijo');
+                // Restaurar opciones en el dropdown único
+                restoreOriginalOptions();
 
                 loadEntitySelectionsFromStorage(true);
 
             } catch (error) {
                 console.error('Error cargando entidades:', error);
 
-                const fallbackPadres = [
-                    { value: 'padre1', text: 'Dirección General' },
-                    { value: 'padre2', text: 'Subdirección Administrativa' },
-                    { value: 'padre3', text: 'Subdirección Técnica' },
-                    { value: 'padre4', text: 'Dirección de Finanzas' }
+                const fallbackEntidades = [
+                    { value: 'ent1', text: 'Dirección General' },
+                    { value: 'ent2', text: 'Subdirección Administrativa' },
+                    { value: 'ent3', text: 'Subdirección Técnica' },
+                    { value: 'ent4', text: 'Dirección de Finanzas' },
+                    { value: 'ent5', text: 'Departamento de Recursos Humanos' },
+                    { value: 'ent6', text: 'Departamento de TI' },
+                    { value: 'ent7', text: 'Departamento de Contabilidad' },
+                    { value: 'ent8', text: 'Departamento de Operaciones' }
                 ];
 
-                const fallbackHijas = [
-                    { value: 'hija1', text: 'Departamento de Recursos Humanos', parentId: 'padre1' },
-                    { value: 'hija2', text: 'Departamento de TI', parentId: 'padre2' },
-                    { value: 'hija3', text: 'Departamento de Contabilidad', parentId: 'padre3' },
-                    { value: 'hija4', text: 'Departamento de Operaciones', parentId: 'padre4' }
-                ];
+                entidadesOriginales = fallbackEntidades;
 
-                entidadesPadreOriginales = [ENTIDAD_PADRE_PLACEHOLDER, ...fallbackPadres];
-                entidadesHijoOriginales = [ENTIDAD_HIJO_PLACEHOLDER, ...fallbackHijas];
+                // Restaurar opciones en el dropdown único
+                restoreOriginalOptions();
 
-                entidadCatalogo = {};
-                entidadHijosMap = {};
-
-                entidadesPadreOriginales.forEach(option => {
-                    if (!option.value) return;
-                    entidadCatalogo[option.value] = { label: option.text, parentId: null, isParent: true };
-                });
-
-                entidadesHijoOriginales.forEach(option => {
-                    if (!option.value) return;
-                    entidadCatalogo[option.value] = { label: option.text, parentId: option.parentId || null, isChild: true };
-                    const parentId = option.parentId;
-                    if (parentId) {
-                        if (!entidadHijosMap[parentId]) {
-                            entidadHijosMap[parentId] = [];
-                        }
-                        entidadHijosMap[parentId].push({ value: option.value, text: option.text });
-                    }
-                });
-
-                restoreOriginalOptions('padre');
-                restoreOriginalOptions('hijo');
                 loadEntitySelectionsFromStorage(true);
             }
         }
@@ -7467,14 +7276,11 @@
             // Inicializar menús desplegables personalizados
             initializeCustomSelects();
 
-            restoreOriginalOptions('padre');
-            restoreOriginalOptions('hijo');
+            restoreOriginalOptions();
 
             try {
-                // Usar entidad hijo si tiene valor, sino usar entidad padre
-                const childValue = document.getElementById('entidadHijo')?.value || '';
-                const parentValue = document.getElementById('entidadPadre')?.value || '';
-                const entityValue = childValue || parentValue;
+                // Usar entidad única
+                const entityValue = document.getElementById('entidad')?.value || '';
                 
                 console.log('🚀 Inicializando dropdown de compromisos con entidad:', entityValue);
                 updateCommitmentDropdown(entityValue, { force: true }).catch(err => {
@@ -7620,14 +7426,11 @@
         // Función para guardar las selecciones actuales en localStorage
         function saveEntitySelectionsToStorage() {
             try {
-                const padreValue = document.getElementById('entidadPadre')?.value || '';
-                const hijaValue = document.getElementById('entidadHijo')?.value || '';
-                const padreLabel = padreValue ? getEntityLabelByValue('padre', padreValue) : getPlaceholderText('padre');
-                const hijaLabel = hijaValue ? getEntityLabelByValue('hijo', hijaValue) : getPlaceholderText('hijo');
+                const entidadValue = document.getElementById('entidad')?.value || '';
+                const entidadLabel = entidadValue ? getEntityLabelByValue(entidadValue) : getPlaceholderText();
 
                 const selections = {
-                    padre: { value: padreValue, text: padreLabel },
-                    hija: { value: hijaValue, text: hijaLabel },
+                    entidad: { value: entidadValue, text: entidadLabel },
                     timestamp: new Date().toISOString()
                 };
 
@@ -7650,13 +7453,9 @@
                 const selections = JSON.parse(saved);
                 console.log('📂 Cargando selecciones guardadas:', selections);
 
-                const padreValue = selections.padre?.value || '';
-                const padreText = reapply ? null : (selections.padre?.text || null);
-                applySelection('padre', padreValue, padreText, { skipAutoMatch: true });
-
-                const hijaValue = selections.hija?.value || '';
-                const hijaText = reapply ? null : (selections.hija?.text || null);
-                applySelection('hijo', hijaValue, hijaText, { skipAutoMatch: false });
+                const entidadValue = selections.entidad?.value || '';
+                const entidadText = reapply ? null : (selections.entidad?.text || null);
+                applySelection('simple', entidadValue, entidadText, { skipAutoMatch: false });
 
                 return true;
             } catch (error) {
@@ -7678,9 +7477,7 @@
         // Exponer utilidades de entidades en window para depuración
         window.initializeCustomSelects = initializeCustomSelects;
         window.restoreOriginalOptions = restoreOriginalOptions;
-        window.reassignClickEvents = reassignClickEvents;
-        window.entidadesPadreOriginales = entidadesPadreOriginales;
-        window.entidadesHijoOriginales = entidadesHijoOriginales;
+        window.entidadesOriginales = entidadesOriginales;
         window.saveEntitySelectionsToStorage = saveEntitySelectionsToStorage;
         window.loadEntitySelectionsFromStorage = loadEntitySelectionsFromStorage;
         window.clearEntitySelectionsFromStorage = clearEntitySelectionsFromStorage;
@@ -17170,18 +16967,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function mostrarFormularios() {
             const opcionesDiv = document.getElementById('opcionesFormularios');
             const menuBar = document.getElementById('menuBar');
-            const entidadPadre = document.getElementById('entidadPadre').value;
-            const entidadHijo = document.getElementById('entidadHijo').value;
+            const entidad = document.getElementById('entidad').value;
             
-            // Validar que se haya seleccionado al menos una entidad
-            if (!entidadPadre && !entidadHijo) {
-                alert('Por favor seleccione al menos una entidad (Padre o Hijo) antes de generar formularios.');
+            // Validar que se haya seleccionado una entidad
+            if (!entidad) {
+                alert('Por favor seleccione una entidad antes de generar formularios.');
                 return;
             }
             
-            // Determinar qué entidad se usará
-            const entidadActiva = entidadHijo || entidadPadre;
-            console.log('📋 Generando formularios para entidad:', entidadActiva);
+            console.log('📋 Generando formularios para entidad:', entidad);
             
             // Mostrar las opciones de formularios y la barra de menú con animación
             if (opcionesDiv.style.display === 'none') {
@@ -20019,31 +19813,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para cargar entidades desde la API
         async function cargarEntidades() {
             try {
-                // Cargar entidades padre
+                // Cargar entidades para el selector principal
                 const entidadesResponse = await API.Entities.getAll();
                 if (entidadesResponse.success && entidadesResponse.data) {
-                    const selectPadre = document.getElementById('entidadPadre');
-                    selectPadre.innerHTML = '<option value="">Seleccione una entidad padre...</option>';
+                    const entidadItems = document.getElementById('entidadItems');
+                    entidadItems.innerHTML = '<div data-value="">Seleccionar entidad...</div>';
                     
                     entidadesResponse.data.forEach(entidad => {
-                        const option = document.createElement('option');
-                        option.value = entidad.id;
+                        const option = document.createElement('div');
+                        option.setAttribute('data-value', entidad.id);
                         option.textContent = entidad.name;
-                        selectPadre.appendChild(option);
-                    });
-                }
-
-                // Cargar entidades hijas (si hay una tabla separada o las mismas)
-                const hijasResponse = await API.Entities.getAll();
-                if (hijasResponse.success && hijasResponse.data) {
-                    const selectHijo = document.getElementById('entidadHijo');
-                    selectHijo.innerHTML = '<option value="">Seleccione una entidad hija...</option>';
-                    
-                    hijasResponse.data.forEach(entidad => {
-                        const option = document.createElement('option');
-                        option.value = entidad.id;
-                        option.textContent = entidad.name;
-                        selectHijo.appendChild(option);
+                        entidadItems.appendChild(option);
                     });
                 }
 
