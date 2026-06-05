@@ -828,7 +828,89 @@
                     return { data: null, error: 'El ID de la entidad es requerido' };
                 }
 
-                // Primero eliminar compromisos asociados a la entidad
+                // Búsqueda exhaustiva de todas las form_responses relacionadas con la entidad
+                console.log('🔍 [Entities.delete] Buscando todas las form_responses relacionadas con la entidad:', entityId);
+                
+                // 1. Buscar respuestas con entity_id directo
+                const { data: directResponses, error: directError } = await client
+                    .from('form_responses')
+                    .select('id, entity_id, commitment_id')
+                    .eq('entity_id', entityId);
+                
+                if (directError) {
+                    console.warn('⚠️ [Entities.delete] Error buscando respuestas directas:', directError.message);
+                } else {
+                    console.log('📋 [Entities.delete] Respuestas directas encontradas:', directResponses?.length || 0, directResponses);
+                }
+                
+                // 2. Buscar compromisos asociados
+                const { data: entityCommitments, error: commitmentsFetchError } = await client
+                    .from('commitments')
+                    .select('id')
+                    .eq('entity_id', entityId);
+
+                if (commitmentsFetchError) {
+                    console.error('❌ [Entities.delete] Error obteniendo compromisos:', commitmentsFetchError.message);
+                    return { data: null, error: 'Error obteniendo compromisos asociados: ' + commitmentsFetchError.message };
+                }
+
+                console.log('📋 [Entities.delete] Compromisos encontrados:', entityCommitments?.length || 0);
+
+                // 3. Buscar respuestas con commitment_id de esos compromisos
+                let commitmentResponses = [];
+                if (entityCommitments && entityCommitments.length > 0) {
+                    const commitmentIds = entityCommitments.map(c => c.id);
+                    const { data: respData, error: respError } = await client
+                        .from('form_responses')
+                        .select('id, entity_id, commitment_id')
+                        .in('commitment_id', commitmentIds);
+                    
+                    if (respError) {
+                        console.warn('⚠️ [Entities.delete] Error buscando respuestas por compromisos:', respError.message);
+                    } else {
+                        commitmentResponses = respData || [];
+                        console.log('📋 [Entities.delete] Respuestas por compromisos encontradas:', commitmentResponses.length, commitmentResponses);
+                    }
+                }
+
+                // 4. Eliminar todas las respuestas encontradas
+                const allResponses = [...(directResponses || []), ...commitmentResponses];
+                if (allResponses.length > 0) {
+                    console.log('🗑️ [Entities.delete] Eliminando todas las respuestas relacionadas:', allResponses.length);
+                    
+                    // Eliminar por entity_id
+                    if (directResponses && directResponses.length > 0) {
+                        const { error: directDeleteError } = await client
+                            .from('form_responses')
+                            .delete()
+                            .eq('entity_id', entityId);
+                        
+                        if (directDeleteError) {
+                            console.error('❌ [Entities.delete] Error eliminando respuestas directas:', directDeleteError.message);
+                            return { data: null, error: 'Error eliminando respuestas directas: ' + directDeleteError.message };
+                        }
+                        console.log('✅ [Entities.delete] Respuestas directas eliminadas:', directResponses.length);
+                    }
+                    
+                    // Eliminar por commitment_id
+                    if (commitmentResponses.length > 0) {
+                        const commitmentIds = commitmentResponses.map(r => r.commitment_id);
+                        const { error: commitmentDeleteError } = await client
+                            .from('form_responses')
+                            .delete()
+                            .in('commitment_id', commitmentIds);
+                        
+                        if (commitmentDeleteError) {
+                            console.error('❌ [Entities.delete] Error eliminando respuestas por compromisos:', commitmentDeleteError.message);
+                            return { data: null, error: 'Error eliminando respuestas por compromisos: ' + commitmentDeleteError.message };
+                        }
+                        console.log('✅ [Entities.delete] Respuestas por compromisos eliminadas:', commitmentResponses.length);
+                    }
+                } else {
+                    console.log('📋 [Entities.delete] No se encontraron respuestas relacionadas');
+                }
+
+                // Luego eliminar compromisos asociados a la entidad
                 console.log('🗑️ [Entities.delete] Eliminando compromisos asociados a la entidad:', entityId);
                 const { error: commitmentsError } = await client
                     .from('commitments')

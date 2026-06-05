@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/compromisos.css">
+    <link rel="stylesheet" href="../css/compromisos-details.css">
 
     <!-- CryptoJS for encryption -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -119,6 +120,61 @@
 
         let allEntities = {}; // Para almacenar entidades
 
+        function safeText(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDisplayDate(value, fallback = 'No definido') {
+            if (!value) return fallback;
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return fallback;
+            return date.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        function formatDisplayDateTime(value, fallback = 'No disponible') {
+            if (!value) return fallback;
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return fallback;
+            return date.toLocaleString('es-ES', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function normalizeReviewDates(reviewDates) {
+            if (!reviewDates) return [];
+            if (Array.isArray(reviewDates)) return reviewDates;
+            if (typeof reviewDates === 'string') {
+                try {
+                    const parsed = JSON.parse(reviewDates);
+                    if (Array.isArray(parsed)) return parsed;
+                } catch (parseError) {
+                    return reviewDates
+                        .split(',')
+                        .map(item => item.trim())
+                        .filter(Boolean);
+                }
+                return reviewDates
+                    .split(',')
+                    .map(item => item.trim())
+                    .filter(Boolean);
+            }
+            return [];
+        }
+
         // Función para cargar entidades desde la API
         async function loadEntitiesFromAPI() {
             try {
@@ -212,57 +268,193 @@
 
         // Función para Crear Card de Compromiso
         function createCommitmentCard(commitment) {
+            console.log('🎯 Creando tarjeta para compromiso:', commitment);
+            console.log('🏢 Entity ID del compromiso:', commitment.entity_id);
+            console.log('📋 Entidades disponibles en allEntities:', allEntities);
+            
             const statusClass = `status-${commitment.status}`;
-            const statusText = commitment.status.charAt(0).toUpperCase() + commitment.status.slice(1);
-            const title = commitment.name || commitment.description || 'Compromiso sin nombre';
+            const statusText = commitment.status ? commitment.status.charAt(0).toUpperCase() + commitment.status.slice(1) : 'Sin estado';
+            const title = safeText(commitment.name || commitment.description || 'Compromiso sin nombre');
 
-            const startDate = commitment.start_date ? new Date(commitment.start_date) : null;
-            const endDate = commitment.end_date ? new Date(commitment.end_date) : null;
-            const deadlineDate = commitment.deadline ? new Date(commitment.deadline) : null;
+            const datesLabel = (() => {
+                const start = formatDisplayDate(commitment.start_date, '');
+                const end = formatDisplayDate(commitment.end_date, '');
+                const deadline = formatDisplayDate(commitment.deadline, '');
 
-            const dates = (startDate && endDate)
-                ? `${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`
-                : (deadlineDate ? `Vence: ${deadlineDate.toLocaleDateString('es-ES')}` : '');
+                if (commitment.start_date && commitment.end_date) {
+                    return `${start} - ${end}`;
+                }
+
+                if (commitment.deadline) {
+                    return `Vence: ${deadline}`;
+                }
+
+                return 'Sin fechas programadas';
+            })();
 
             // Usar la entidad del objeto commitment si existe, sino buscar en allEntities
-            const entityName = commitment.entities ? commitment.entities.name :
-                (commitment.entity ? commitment.entity :
-                    (allEntities[commitment.entity_id] ? allEntities[commitment.entity_id].name : 'Entidad no encontrada'));
+            let entityNameRaw = 'Entidad no encontrada';
+            
+            // Intentar obtener el nombre de la entidad de diferentes formas
+            if (commitment.entities && commitment.entities.name) {
+                entityNameRaw = commitment.entities.name;
+            } else if (commitment.entity && typeof commitment.entity === 'string') {
+                // Si entity es un string (UUID), buscar en allEntities
+                const entityId = commitment.entity;
+                console.log('🔍 Entity es string, buscando:', entityId);
+                
+                if (allEntities[entityId] && allEntities[entityId].name) {
+                    entityNameRaw = allEntities[entityId].name;
+                } else {
+                    entityNameRaw = 'Entidad no encontrada';
+                }
+            } else if (commitment.entity_id && allEntities[commitment.entity_id]) {
+                entityNameRaw = allEntities[commitment.entity_id].name;
+            } else if (commitment.entity_id) {
+                // Si solo tenemos el ID, buscar en las entidades
+                console.log('🔍 Buscando entidad con ID:', commitment.entity_id);
+                console.log('📋 Entidades disponibles:', allEntities);
+                
+                // Convertir allEntities a array para buscar
+                const entitiesArray = Object.values(allEntities);
+                const entity = entitiesArray.find(e => e.id === commitment.entity_id);
+                
+                console.log('🎯 Entidad encontrada:', entity);
+                
+                if (entity && entity.name) {
+                    entityNameRaw = entity.name;
+                } else {
+                    entityNameRaw = 'Entidad no encontrada';
+                }
+            }
+            
+            console.log('📝 Nombre de entidad final:', entityNameRaw);
+            
+            const entityName = safeText(entityNameRaw);
 
             // Obtener información del creador
             let creatorInfo = '';
             if (commitment.user_id) {
-                // Si tenemos el user_id, intentar obtener el nombre completo del usuario
                 if (commitment.users && commitment.users.full_name) {
-                    // Si viene con relación de usuarios
-                    creatorInfo = `Creado por: ${commitment.users.full_name}`;
+                    creatorInfo = `Creado por: ${safeText(commitment.users.full_name)}`;
                 } else if (window.allUsers && window.allUsers[commitment.user_id]) {
-                    // Si tenemos usuarios cargados en memoria
                     const user = window.allUsers[commitment.user_id];
-                    creatorInfo = `Creado por: ${user.full_name || user.name || user.email || 'Usuario sin nombre'}`;
+                    creatorInfo = `Creado por: ${safeText(user.full_name || user.name || user.email || 'Usuario sin nombre')}`;
                 } else {
-                    // Si solo tenemos el ID
-                    creatorInfo = `ID: ${commitment.user_id}`;
+                    creatorInfo = `ID: ${safeText(commitment.user_id)}`;
                 }
             } else {
                 creatorInfo = 'Sin información de creador';
             }
 
+            const reviewDatesArray = normalizeReviewDates(commitment.review_dates);
+            const reviewDatesHTML = reviewDatesArray.length > 0
+                ? reviewDatesArray
+                    .map(date => `<span class="detail-chip">${safeText(formatDisplayDate(date, date))}</span>`)
+                    .join('')
+                : '<span class="detail-value muted">Sin fechas de revisión</span>';
+
+            const preparer = safeText(commitment.preparer_name || commitment.preparer || 'No asignado');
+            const reviewer = safeText(commitment.reviewer_name || commitment.reviewer || 'No asignado');
+            const reviewType = safeText(commitment.review_type || 'No especificado');
+            const budgetHours = commitment.budget_hours ? `${commitment.budget_hours} h` : 'No definido';
+            const budgetAmount = commitment.budget_amount ? `Q ${Number(commitment.budget_amount).toLocaleString('es-GT')}` : 'No definido';
+            const projectType = safeText(commitment.project_type || commitment.projectType || 'No definido');
+
+            const commitmentDescription = safeText(commitment.description || 'Sin descripción registrada.');
+
+            const detailHTML = `
+                <div class="commitment-details" id="details-${commitment.id}">
+                    <div class="detail-header">
+                        <div>
+                            <h4>${title}</h4>
+                            <p>${commitmentDescription}</p>
+                        </div>
+                        <span class="detail-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-row">
+                            <span class="detail-label">ID del Compromiso</span>
+                            <span class="detail-value mono">${safeText(commitment.id)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Entidad</span>
+                            <span class="detail-value">${entityName}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tipo de Revisión</span>
+                            <span class="detail-value">${reviewType}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Tipo de Proyecto</span>
+                            <span class="detail-value">${projectType}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Preparador</span>
+                            <span class="detail-value">${preparer}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Revisor</span>
+                            <span class="detail-value">${reviewer}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Inicio</span>
+                            <span class="detail-value">${formatDisplayDate(commitment.start_date, 'No definido')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fin</span>
+                            <span class="detail-value">${formatDisplayDate(commitment.end_date, 'No definido')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fecha Límite</span>
+                            <span class="detail-value">${formatDisplayDate(commitment.deadline, 'No definida')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fechas de Revisión</span>
+                            <div class="detail-chips">${reviewDatesHTML}</div>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Presupuesto Horas</span>
+                            <span class="detail-value">${safeText(budgetHours)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Presupuesto Monto</span>
+                            <span class="detail-value">${safeText(budgetAmount)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Creado</span>
+                            <span class="detail-value">${formatDisplayDateTime(commitment.created_at)}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Actualizado</span>
+                            <span class="detail-value">${formatDisplayDateTime(commitment.updated_at)}</span>
+                        </div>
+                    </div>
+                    <div class="detail-actions">
+                        <button class="detail-action-btn" onclick="editCommitment('${commitment.id}')"><i class="bi bi-pencil-square"></i> Editar</button>
+                        <button class="detail-action-btn delete" onclick="deleteCommitment('${commitment.id}')"><i class="bi bi-trash"></i> Eliminar</button>
+                    </div>
+                </div>
+            `;
+
             return `
-                <div class="commitment-card" data-status="${commitment.status}" data-entity="${entityName.toLowerCase()}">
-                    <div class="commitment-main">
-                        <h3>${title}</h3>
-                        <span class="commitment-entity">${entityName}</span>
-                        <span class="commitment-dates">${dates}</span>
-                        <span class="commitment-creator">${creatorInfo}</span>
-                        <span class="status-badge ${statusClass}">${statusText}</span>
+                <div class="commitment-card" data-status="${commitment.status}" data-entity="${entityName.toLowerCase()}" data-id="${commitment.id}">
+                    <div class="commitment-summary">
+                        <div class="commitment-main">
+                            <h3>${title}</h3>
+                            <span class="commitment-entity">${entityName}</span>
+                            <span class="commitment-dates">${safeText(datesLabel)}</span>
+                            <span class="commitment-creator">${creatorInfo}</span>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="card-actions">
+                            <a href="entidades.html?compromiso=${commitment.id}" class="action-btn btn-primary" title="Entidades"><i class="bi bi-building"></i></a>
+                            <button class="action-btn btn-info" data-view-id="${commitment.id}" onclick="console.log('Click en visualizar, ID:', '${commitment.id}'); toggleCommitmentDetails('${commitment.id}', this)" title="Visualizar"><i class="bi bi-eye"></i></button>
+                            <button class="action-btn btn-warning" onclick="console.log('Click en editar, ID:', '${commitment.id}'); editCommitment('${commitment.id}')" title="Modificar"><i class="bi bi-pencil-square"></i></button>
+                            <button class="action-btn btn-danger" onclick="console.log('Click en eliminar, ID:', '${commitment.id}'); deleteCommitment('${commitment.id}')" title="Eliminar"><i class="bi bi-trash"></i></button>
+                        </div>
                     </div>
-                    <div class="card-actions">
-                        <a href="entidades.html?compromiso=${commitment.id}" class="action-btn btn-primary" title="Entidades"><i class="bi bi-building"></i></a>
-                        <button class="action-btn btn-secondary" onclick="console.log('Click en ver detalles, ID:', '${commitment.id}'); viewDetails('${commitment.id}')" title="Ver Detalles"><i class="bi bi-eye"></i></button>
-                        <button class="action-btn btn-warning" onclick="console.log('Click en editar, ID:', '${commitment.id}'); editCommitment('${commitment.id}')" title="Modificar"><i class="bi bi-pencil-square"></i></button>
-                        <button class="action-btn btn-danger" onclick="console.log('Click en eliminar, ID:', '${commitment.id}'); deleteCommitment('${commitment.id}')" title="Eliminar"><i class="bi bi-trash"></i></button>
-                    </div>
+                    ${detailHTML}
                 </div>
             `;
         }
@@ -392,15 +584,128 @@
             document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
         }
 
-        // Función para Ver Detalles (Mock: Alert; en futuro, redirige a subpágina)
+        // Función para toggle de detalles del compromiso
+        function toggleCommitmentDetails(id, button) {
+            console.log('👁️ toggleCommitmentDetails called with ID:', id);
+            
+            const card = document.querySelector(`[data-id="${id}"]`);
+            const details = document.getElementById(`details-${id}`);
+            
+            if (!card || !details) {
+                console.error('❌ No se encontró la tarjeta o los detalles');
+                return;
+            }
+            
+            const isExpanded = card.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Ocultar detalles
+                card.classList.remove('expanded');
+                details.style.maxHeight = '0';
+                details.style.opacity = '0';
+                details.style.padding = '0 18px';
+                button.removeAttribute('data-expanded');
+                button.innerHTML = '<i class="bi bi-eye"></i>';
+                console.log('🔽 Detalles ocultos');
+            } else {
+                // Mostrar detalles
+                card.classList.add('expanded');
+                details.style.maxHeight = '720px';
+                details.style.opacity = '1';
+                details.style.padding = '18px';
+                button.setAttribute('data-expanded', 'true');
+                button.innerHTML = '<i class="bi bi-eye-slash"></i>';
+                console.log('🔼 Detalles mostrados');
+                
+                // Log the action
+                const commitment = allCommitments.find(c => c.id === id);
+                const currentUser = getCurrentSession();
+                if (currentUser && commitment) {
+                    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                    logAction(currentUser.name || currentUser.username, 'visualizo_compromiso', null, commitment.description || commitment.name, timestamp);
+                }
+            }
+        }
+
+        // Función para Visualizar Detalles del Compromiso (modal - legacy)
+        function viewCommitmentDetails(id) {
+            console.log('👁️ viewCommitmentDetails called with ID:', id);
+            const commitment = allCommitments.find(c => c.id === id);
+            console.log('📋 Found commitment:', commitment);
+            
+            if (!commitment) {
+                alert('No se encontró el compromiso');
+                return;
+            }
+
+            // Log the action
+            const currentUser = getCurrentSession();
+            if (currentUser) {
+                const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+                logAction(currentUser.name || currentUser.username, 'visualizo_compromiso', null, commitment.description || commitment.name, timestamp);
+            }
+
+            // Llenar el modal con los datos del compromiso
+            document.getElementById('viewDescription').textContent = commitment.description || 'Sin descripción';
+            document.getElementById('viewEntity').textContent = commitment.entity_name || 'Sin entidad';
+            document.getElementById('viewStatus').innerHTML = `<span class="status-badge status-${commitment.status}">${commitment.status}</span>`;
+            document.getElementById('viewReviewType').textContent = commitment.review_type || 'No especificado';
+            document.getElementById('viewCreator').textContent = commitment.creator_name || 'Desconocido';
+            
+            // Fechas
+            document.getElementById('viewDeadline').textContent = commitment.deadline ? new Date(commitment.deadline).toLocaleDateString('es-ES') : 'No especificada';
+            document.getElementById('viewCreatedAt').textContent = commitment.created_at ? new Date(commitment.created_at).toLocaleDateString('es-ES') : 'No disponible';
+            document.getElementById('viewUpdatedAt').textContent = commitment.updated_at ? new Date(commitment.updated_at).toLocaleDateString('es-ES') : 'No disponible';
+            
+            // Fechas de revisión
+            const reviewDatesContainer = document.getElementById('viewReviewDates');
+            if (commitment.review_dates && commitment.review_dates.length > 0) {
+                reviewDatesContainer.innerHTML = commitment.review_dates
+                    .map(date => `<span class="badge bg-info me-1">${new Date(date).toLocaleDateString('es-ES')}</span>`)
+                    .join('');
+            } else {
+                reviewDatesContainer.innerHTML = '<span class="text-muted">No hay fechas de revisión</span>';
+            }
+            
+            // Personal asignado
+            document.getElementById('viewPreparer').textContent = commitment.preparer || 'No asignado';
+            document.getElementById('viewReviewer').textContent = commitment.reviewer || 'No asignado';
+            
+            // IDs
+            document.getElementById('viewCommitmentId').textContent = commitment.id;
+            document.getElementById('viewEntityId').textContent = commitment.entity_id || 'No especificado';
+            
+            // Guardar el ID para la función de editar desde vista
+            window.currentViewCommitmentId = id;
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('viewCommitmentModal'));
+            modal.show();
+        }
+
+        // Función para editar desde la vista
+        function editFromView() {
+            if (window.currentViewCommitmentId) {
+                // Cerrar modal de vista
+                const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewCommitmentModal'));
+                viewModal.hide();
+                
+                // Abrir modal de edición
+                setTimeout(() => {
+                    editCommitment(window.currentViewCommitmentId);
+                }, 300);
+            }
+        }
+
+        // Función para Ver Detalles (legacy - redirige a subpágina)
         function viewDetails(id) {
             const commitment = allCommitments.find(c => c.id === id);
             if (commitment) {
                 // Log the action
-                const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
-                if (currentUser && currentUser.username) {
+                const currentUser = getCurrentSession();
+                if (currentUser) {
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                    logAction(currentUser.username, 'edito_compromiso', null, commitment.name, timestamp);
+                    logAction(currentUser.name || currentUser.username, 'edito_compromiso', null, commitment.description || commitment.name, timestamp);
                 }
 
                 window.location.href = `compromisos-detalles.html?id=${id}`;
@@ -543,23 +848,30 @@
 
         // Función para cargar entidades desde la API para el select
         function loadEntitiesForSelect() {
-            console.log('Cargando entidades para select, allEntities:', allEntities);
+            console.log('🏢 Cargando entidades para select, allEntities:', allEntities);
             
             const select = document.getElementById('commitmentEntity');
+            if (!select) {
+                console.error('❌ No se encontró el select commitmentEntity');
+                return;
+            }
+            
             select.innerHTML = '<option value="">Selecciona una entidad...</option>';
             
             // Usar las entidades cargadas desde la API (allEntities)
             if (Object.keys(allEntities).length > 0) {
+                console.log('✅ Encontradas', Object.keys(allEntities).length, 'entidades');
                 Object.keys(allEntities).forEach(key => {
                     const entity = allEntities[key];
                     const option = document.createElement('option');
                     option.value = key; // Usar el UUID real como value
                     option.textContent = `${entity.name} (${entity.id || entity.code || 'N/A'})`;
                     select.appendChild(option);
+                    console.log('📋 Agregada entidad:', option.textContent);
                 });
             } else {
                 // Si no hay entidades cargadas, mostrar mensaje y opcionalmente cargarlas
-                console.warn('No hay entidades cargadas, intentando cargar desde API...');
+                console.warn('⚠️ No hay entidades cargadas, intentando cargar desde API...');
                 loadEntitiesFromAPI().then(() => {
                     // Reintentar cargar el select después de cargar desde API
                     setTimeout(() => loadEntitiesForSelect(), 500);
@@ -571,13 +883,48 @@
         function filterEntities() {
             const searchTerm = document.getElementById('entitySearch').value.toLowerCase().trim();
             const select = document.getElementById('commitmentEntity');
-            const options = select.querySelectorAll('option');
-
-            options.forEach(option => {
+            
+            console.log('🔍 Buscando entidades:', searchTerm);
+            
+            // Guardar el valor seleccionado actual
+            const currentValue = select.value;
+            
+            // Guardar todas las opciones originales si no están guardadas
+            if (!select._originalOptions) {
+                select._originalOptions = Array.from(select.options);
+            }
+            
+            // Limpiar el select
+            select.innerHTML = '';
+            
+            // Agregar siempre el placeholder
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Selecciona una entidad...';
+            select.appendChild(placeholder);
+            
+            // Filtrar y agregar opciones que coinciden
+            let foundCount = 0;
+            select._originalOptions.forEach(option => {
                 if (option.value === '') return; // Skip placeholder
+                
                 const text = option.textContent.toLowerCase();
-                option.style.display = text.includes(searchTerm) ? 'block' : 'none';
+                const shouldShow = !searchTerm || text.includes(searchTerm);
+                
+                if (shouldShow) {
+                    const newOption = option.cloneNode(true);
+                    select.appendChild(newOption);
+                    foundCount++;
+                    console.log('✅ Mostrando:', option.textContent);
+                }
             });
+            
+            // Restaurar el valor seleccionado si aún existe
+            if (currentValue) {
+                select.value = currentValue;
+            }
+            
+            console.log('📋 Opciones encontradas:', foundCount);
         }
 
         // Función para cargar grupos de trabajo en el select
@@ -886,11 +1233,53 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="commitmentReviewType" class="form-label">Tipo de Revisión *</label>
-                                                <select class="form-control" id="commitmentReviewType" required>
+                                                <select class="form-control" id="commitmentReviewType" required onchange="updateReviewDatesContainer('create')">
                                                     <option value="">Selecciona un tipo</option>
                                                     <option value="Única revisión">Única revisión</option>
                                                     <option value="Preliminar y final">Preliminar y final</option>
+                                                    <option value="Preliminares y final">Preliminares y final</option>
                                                 </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Fechas de Revisión</label>
+                                                <div id="reviewDatesContainer">
+                                                    <!-- Contenido dinámico según tipo de revisión -->
+                                                    <div id="singleDateContainer" style="display: none;">
+                                                        <div id="singleDatesList">
+                                                            <div class="input-group mb-2">
+                                                                <input type="date" class="form-control single-date" placeholder="Fecha 1">
+                                                                <button type="button" class="btn btn-outline-secondary" onclick="addSingleDate()">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div id="doubleDateContainer" style="display: none;">
+                                                        <div id="doublePreliminaryDatesList">
+                                                            <div class="input-group mb-2">
+                                                                <input type="date" class="form-control double-preliminary-date" placeholder="Fecha 1">
+                                                                <button type="button" class="btn btn-outline-secondary" onclick="addDoublePreliminaryDate()">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div id="multipleDateContainer" style="display: none;">
+                                                        <div id="preliminaryDatesList">
+                                                            <div class="input-group mb-2">
+                                                                <input type="date" class="form-control preliminary-date" placeholder="Fecha 1">
+                                                                <button type="button" class="btn btn-outline-secondary" onclick="addPreliminaryDate()">
+                                                                    <i class="bi bi-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div id="noSelectionMessage" class="text-muted">
+                                                        <small>Seleccione un tipo de revisión para ver las opciones de fecha</small>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1034,7 +1423,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="button" class="btn btn-warning" onclick="saveEditedCommitment()">Guardar Cambios</button>
+                                <button type="button" class="btn btn-primary" onclick="saveEditedCommitment()">Guardar Cambios</button>
                             </div>
                         </div>
                     </div>
@@ -1062,7 +1451,8 @@
                         </div>
                     </div>
                 </div>
-            `;
+
+                            `;
 
             // Agregar modal al body
             document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -1131,6 +1521,9 @@
             console.log('🔍 window.currentUser:', window.currentUser);
             console.log('🔍 window.currentUserReady:', window.currentUserReady);
 
+            // Obtener fechas de revisión según el tipo seleccionado
+            const reviewDates = getReviewDates('create');
+
             // Crear nuevo compromiso
             const newCommitment = {
                 name: name,
@@ -1142,7 +1535,8 @@
                 review_year: reviewYear,
                 currency,
                 project_type: projectType,
-                review_type: reviewType
+                review_type: reviewType,
+                review_dates: reviewDates.length > 0 ? reviewDates : null
             };
 
             if (budgetHours !== null && !Number.isNaN(budgetHours)) {
@@ -1339,11 +1733,53 @@
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label for="editCommitmentReviewType" class="form-label">Tipo de Revisión *</label>
-                                                    <select class="form-control" id="editCommitmentReviewType" required>
+                                                    <select class="form-control" id="editCommitmentReviewType" required onchange="updateReviewDatesContainer('edit')">
                                                         <option value="">Selecciona un tipo</option>
                                                         <option value="Única revisión">Única revisión</option>
                                                         <option value="Preliminar y final">Preliminar y final</option>
+                                                        <option value="Preliminares y final">Preliminares y final</option>
                                                     </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Fechas de Revisión</label>
+                                                    <div id="editReviewDatesContainer">
+                                                        <!-- Contenido dinámico según tipo de revisión -->
+                                                        <div id="editSingleDateContainer" style="display: none;">
+                                                            <div id="editSingleDatesList">
+                                                                <div class="input-group mb-2">
+                                                                    <input type="date" class="form-control edit-single-date" placeholder="Fecha 1">
+                                                                    <button type="button" class="btn btn-outline-secondary" onclick="addEditSingleDate()">
+                                                                        <i class="bi bi-plus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div id="editDoubleDateContainer" style="display: none;">
+                                                            <div id="editDoublePreliminaryDatesList">
+                                                                <div class="input-group mb-2">
+                                                                    <input type="date" class="form-control edit-double-preliminary-date" placeholder="Fecha 1">
+                                                                    <button type="button" class="btn btn-outline-secondary" onclick="addEditDoublePreliminaryDate()">
+                                                                        <i class="bi bi-plus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div id="editMultipleDateContainer" style="display: none;">
+                                                            <div id="editPreliminaryDatesList">
+                                                                <div class="input-group mb-2">
+                                                                    <input type="date" class="form-control edit-preliminary-date" placeholder="Fecha 1">
+                                                                    <button type="button" class="btn btn-outline-secondary" onclick="addEditPreliminaryDate()">
+                                                                        <i class="bi bi-plus"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div id="editNoSelectionMessage" class="text-muted">
+                                                            <small>Seleccione un tipo de revisión para ver las opciones de fecha</small>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1405,7 +1841,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="button" class="btn btn-warning" onclick="saveEditedCommitment()">Guardar Cambios</button>
+                                    <button type="button" class="btn btn-primary" onclick="saveEditedCommitment()">Guardar Cambios</button>
                                 </div>
                             </div>
                         </div>
@@ -1430,6 +1866,12 @@
             document.getElementById('editCommitmentCurrency').value = commitment.currency || '';
             document.getElementById('editCommitmentProjectType').value = commitment.project_type || '';
             document.getElementById('editCommitmentReviewType').value = commitment.review_type || '';
+
+            // Actualizar contenedor de fechas según tipo de revisión y cargar fechas guardadas
+            updateReviewDatesContainer('edit');
+            if (commitment.review_dates && Array.isArray(commitment.review_dates)) {
+                loadReviewDates('edit', commitment.review_dates);
+            }
 
             // Cargar entidades para el select
             loadEntitiesForEditSelect();
@@ -1491,13 +1933,48 @@
         function filterEditEntities() {
             const searchTerm = document.getElementById('editEntitySearch').value.toLowerCase().trim();
             const select = document.getElementById('editCommitmentEntity');
-            const options = select.querySelectorAll('option');
-
-            options.forEach(option => {
+            
+            console.log('🔍 Buscando entidades (editar):', searchTerm);
+            
+            // Guardar el valor seleccionado actual
+            const currentValue = select.value;
+            
+            // Guardar todas las opciones originales si no están guardadas
+            if (!select._originalOptions) {
+                select._originalOptions = Array.from(select.options);
+            }
+            
+            // Limpiar el select
+            select.innerHTML = '';
+            
+            // Agregar siempre el placeholder
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Selecciona una entidad...';
+            select.appendChild(placeholder);
+            
+            // Filtrar y agregar opciones que coinciden
+            let foundCount = 0;
+            select._originalOptions.forEach(option => {
                 if (option.value === '') return; // Skip placeholder
+                
                 const text = option.textContent.toLowerCase();
-                option.style.display = text.includes(searchTerm) ? 'block' : 'none';
+                const shouldShow = !searchTerm || text.includes(searchTerm);
+                
+                if (shouldShow) {
+                    const newOption = option.cloneNode(true);
+                    select.appendChild(newOption);
+                    foundCount++;
+                    console.log('✅ Mostrando (editar):', option.textContent);
+                }
             });
+            
+            // Restaurar el valor seleccionado si aún existe
+            if (currentValue) {
+                select.value = currentValue;
+            }
+            
+            console.log('📋 Opciones encontradas (editar):', foundCount);
         }
 
         // Función para guardar cambios de compromiso editado
@@ -1547,6 +2024,9 @@
                 return;
             }
 
+            // Obtener fechas de revisión según el tipo seleccionado
+            const reviewDates = getReviewDates('edit');
+
             // Preparar datos actualizados
             const updatedCommitment = {
                 name: name,
@@ -1559,7 +2039,8 @@
                 review_year: reviewYear,
                 currency,
                 project_type: projectType,
-                review_type: reviewType
+                review_type: reviewType,
+                review_dates: reviewDates.length > 0 ? reviewDates : null
             };
 
             // Agregar campos opcionales si tienen valores
@@ -1703,7 +2184,6 @@
             const commitmentName = document.getElementById('deleteCommitmentName').textContent;
 
             try {
-                // Eliminar compromiso via servidor proxy
                 const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
                     method: 'DELETE',
                     headers: {
@@ -1711,10 +2191,25 @@
                     }
                 });
                 
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', response.headers);
+                
                 const result = await response.json();
+                console.log('📋 Response body:', result);
                 
                 if (!response.ok || !result.success) {
-                    throw new Error(result.error || `Error HTTP ${response.status}`);
+                    const errorMessage = result.error || `Error HTTP ${response.status}`;
+                    console.error('❌ Error del servidor:', errorMessage);
+                    
+                    // Si es 404, podría ser que ya se eliminó (timing issue)
+                    if (response.status === 404) {
+                        console.warn('⚠️ Posible timing issue - el compromiso podría haber sido eliminado');
+                        console.log('🔄 Refrescando página para verificar...');
+                        window.location.reload();
+                        return;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
 
                 // Log de acción (no bloquear si falla)
@@ -1731,10 +2226,9 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
                 modal.hide();
 
-                // Refrescar lista sin modal extra
-                initializeData().then(filteredCommitments => {
-                    loadCommitments(filteredCommitments);
-                });
+                // Refrescar página completa para asegurar datos actualizados
+                console.log('🔄 Refrescando página para actualizar datos...');
+                window.location.reload();
             } catch (error) {
                 console.error('Error deleting commitment:', error);
                 alert('Error al eliminar el compromiso: ' + (error.message || 'Intente nuevamente.'));
@@ -1756,6 +2250,264 @@
             } catch (error) {
                 console.error('Error en logout:', error);
                 window.location.href = 'login.html';
+            }
+        }
+
+        // ========================================
+        // FUNCIONES PARA GESTIÓN DINÁMICA DE FECHAS DE REVISIÓN
+        // ========================================
+
+        // Actualizar contenedor de fechas según tipo de revisión
+        function updateReviewDatesContainer(modalType) {
+            const reviewType = document.getElementById(modalType === 'create' ? 'commitmentReviewType' : 'editCommitmentReviewType').value;
+            
+            // Ocultar todos los contenedores
+            const containers = [
+                'singleDateContainer', 'doubleDateContainer', 'multipleDateContainer',
+                'editSingleDateContainer', 'editDoubleDateContainer', 'editMultipleDateContainer'
+            ];
+            containers.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = 'none';
+            });
+            
+            // Ocultar mensajes de no selección
+            const messages = ['noSelectionMessage', 'editNoSelectionMessage'];
+            messages.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = 'none';
+            });
+            
+            // Mostrar contenedor según tipo de revisión
+            if (modalType === 'create') {
+                switch(reviewType) {
+                    case 'Única revisión':
+                        document.getElementById('singleDateContainer').style.display = 'block';
+                        break;
+                    case 'Preliminar y final':
+                        document.getElementById('doubleDateContainer').style.display = 'block';
+                        break;
+                    case 'Preliminares y final':
+                        document.getElementById('multipleDateContainer').style.display = 'block';
+                        break;
+                    default:
+                        document.getElementById('noSelectionMessage').style.display = 'block';
+                        break;
+                }
+            } else {
+                switch(reviewType) {
+                    case 'Única revisión':
+                        document.getElementById('editSingleDateContainer').style.display = 'block';
+                        break;
+                    case 'Preliminar y final':
+                        document.getElementById('editDoubleDateContainer').style.display = 'block';
+                        break;
+                    case 'Preliminares y final':
+                        document.getElementById('editMultipleDateContainer').style.display = 'block';
+                        break;
+                    default:
+                        document.getElementById('editNoSelectionMessage').style.display = 'block';
+                        break;
+                }
+            }
+        }
+
+        // Agregar fecha preliminar adicional (modal crear)
+        function addPreliminaryDate() {
+            const container = document.getElementById('preliminaryDatesList');
+            const dateCount = container.querySelectorAll('.preliminary-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control preliminary-date" placeholder="Fecha preliminar ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Agregar fecha preliminar adicional (modal editar)
+        function addEditPreliminaryDate() {
+            const container = document.getElementById('editPreliminaryDatesList');
+            const dateCount = container.querySelectorAll('.edit-preliminary-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control edit-preliminary-date" placeholder="Fecha ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Agregar fecha preliminar adicional para "Preliminar y final" (modal crear)
+        function addDoublePreliminaryDate() {
+            const container = document.getElementById('doublePreliminaryDatesList');
+            const dateCount = container.querySelectorAll('.double-preliminary-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control double-preliminary-date" placeholder="Fecha ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Agregar fecha preliminar adicional para "Preliminar y final" (modal editar)
+        function addEditDoublePreliminaryDate() {
+            const container = document.getElementById('editDoublePreliminaryDatesList');
+            const dateCount = container.querySelectorAll('.edit-double-preliminary-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control edit-double-preliminary-date" placeholder="Fecha ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Agregar fecha adicional para "Única revisión" (modal crear)
+        function addSingleDate() {
+            const container = document.getElementById('singleDatesList');
+            const dateCount = container.querySelectorAll('.single-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control single-date" placeholder="Fecha ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Agregar fecha adicional para "Única revisión" (modal editar)
+        function addEditSingleDate() {
+            const container = document.getElementById('editSingleDatesList');
+            const dateCount = container.querySelectorAll('.edit-single-date').length + 1;
+            
+            const newDateGroup = document.createElement('div');
+            newDateGroup.className = 'input-group mb-2';
+            newDateGroup.innerHTML = `
+                <input type="date" class="form-control edit-single-date" placeholder="Fecha ${dateCount}">
+                <button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            
+            container.appendChild(newDateGroup);
+        }
+
+        // Remover fecha preliminar
+        function removePreliminaryDate(button) {
+            const dateGroup = button.closest('.input-group');
+            dateGroup.remove();
+        }
+
+        // Obtener fechas de revisión para guardar
+        function getReviewDates(modalType) {
+            const reviewType = document.getElementById(modalType === 'create' ? 'commitmentReviewType' : 'editCommitmentReviewType').value;
+            
+            switch(reviewType) {
+                case 'Única revisión':
+                    const singleDates = Array.from(document.querySelectorAll(modalType === 'create' ? '.single-date' : '.edit-single-date'))
+                        .map(input => input.value)
+                        .filter(date => date);
+                    return singleDates;
+                    
+                case 'Preliminar y final':
+                    const doublePreliminaryDates = Array.from(document.querySelectorAll(modalType === 'create' ? '.double-preliminary-date' : '.edit-double-preliminary-date'))
+                        .map(input => input.value)
+                        .filter(date => date);
+                    return doublePreliminaryDates;
+                    
+                case 'Preliminares y final':
+                    const preliminaryDates = Array.from(document.querySelectorAll(modalType === 'create' ? '.preliminary-date' : '.edit-preliminary-date'))
+                        .map(input => input.value)
+                        .filter(date => date);
+                    return preliminaryDates;
+                    
+                default:
+                    return [];
+            }
+        }
+
+        // Cargar fechas de revisión al editar
+        function loadReviewDates(modalType, dates) {
+            if (!dates || !Array.isArray(dates)) return;
+            
+            const reviewType = document.getElementById(modalType === 'create' ? 'commitmentReviewType' : 'editCommitmentReviewType').value;
+            
+            switch(reviewType) {
+                case 'Única revisión':
+                    if (dates.length > 0) {
+                        // Cargar todas las fechas como múltiples
+                        const container = document.getElementById(modalType === 'create' ? 'singleDatesList' : 'editSingleDatesList');
+                        container.innerHTML = '';
+                        
+                        dates.forEach((date, index) => {
+                            const dateGroup = document.createElement('div');
+                            dateGroup.className = 'input-group mb-2';
+                            dateGroup.innerHTML = `
+                                <input type="date" class="form-control ${modalType === 'create' ? 'single-date' : 'edit-single-date'}" value="${date}" placeholder="Fecha ${index + 1}">
+                                ${index > 0 ? `<button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)"><i class="bi bi-dash"></i></button>` : `<button type="button" class="btn btn-outline-secondary" onclick="${modalType === 'create' ? 'addSingleDate' : 'addEditSingleDate'}()"><i class="bi bi-plus"></i></button>`}
+                            `;
+                            container.appendChild(dateGroup);
+                        });
+                    }
+                    break;
+                    
+                case 'Preliminar y final':
+                    if (dates.length > 0) {
+                        // Cargar todas las fechas como múltiples
+                        const container = document.getElementById(modalType === 'create' ? 'doublePreliminaryDatesList' : 'editDoublePreliminaryDatesList');
+                        container.innerHTML = '';
+                        
+                        dates.forEach((date, index) => {
+                            const dateGroup = document.createElement('div');
+                            dateGroup.className = 'input-group mb-2';
+                            dateGroup.innerHTML = `
+                                <input type="date" class="form-control ${modalType === 'create' ? 'double-preliminary-date' : 'edit-double-preliminary-date'}" value="${date}" placeholder="Fecha ${index + 1}">
+                                ${index > 0 ? `<button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)"><i class="bi bi-dash"></i></button>` : `<button type="button" class="btn btn-outline-secondary" onclick="${modalType === 'create' ? 'addDoublePreliminaryDate' : 'addEditDoublePreliminaryDate'}()"><i class="bi bi-plus"></i></button>`}
+                            `;
+                            container.appendChild(dateGroup);
+                        });
+                    }
+                    break;
+                    
+                case 'Preliminares y final':
+                    if (dates.length > 0) {
+                        // Cargar todas las fechas como preliminares
+                        const container = document.getElementById(modalType === 'create' ? 'preliminaryDatesList' : 'editPreliminaryDatesList');
+                        container.innerHTML = '';
+                        
+                        dates.forEach((date, index) => {
+                            const dateGroup = document.createElement('div');
+                            dateGroup.className = 'input-group mb-2';
+                            dateGroup.innerHTML = `
+                                <input type="date" class="form-control ${modalType === 'create' ? 'preliminary-date' : 'edit-preliminary-date'}" value="${date}" placeholder="Fecha ${index + 1}">
+                                ${index > 0 ? `<button type="button" class="btn btn-outline-danger" onclick="removePreliminaryDate(this)"><i class="bi bi-dash"></i></button>` : `<button type="button" class="btn btn-outline-secondary" onclick="${modalType === 'create' ? 'addPreliminaryDate' : 'addEditPreliminaryDate'}()"><i class="bi bi-plus"></i></button>`}
+                            `;
+                            container.appendChild(dateGroup);
+                        });
+                    }
+                    break;
             }
         }
     </script>
@@ -1782,8 +2534,56 @@
     <!-- 6. API Client centralizado -->
     <script src="../js/api-client.js"></script>
 
-    <!-- 7. Auth Guard -->
-    <script src="../js/auth-guard.js"></script>
+    <!-- Modal de Visualización de Compromiso -->
+<div class="modal fade" id="viewCommitmentModal" tabindex="-1" aria-labelledby="viewCommitmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="viewCommitmentModalLabel">Detalles del Compromiso</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Información General</h6>
+                        <p><strong>Descripción:</strong> <span id="viewDescription"></span></p>
+                        <p><strong>Entidad:</strong> <span id="viewEntity"></span></p>
+                        <p><strong>Estado:</strong> <span id="viewStatus"></span></p>
+                        <p><strong>Tipo de Revisión:</strong> <span id="viewReviewType"></span></p>
+                        <p><strong>Creador:</strong> <span id="viewCreator"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Fechas y Plazos</h6>
+                        <p><strong>Fecha Límite:</strong> <span id="viewDeadline"></span></p>
+                        <p><strong>Fecha de Creación:</strong> <span id="viewCreatedAt"></span></p>
+                        <p><strong>Última Actualización:</strong> <span id="viewUpdatedAt"></span></p>
+                        <h6 class="text-muted mt-3">Fechas de Revisión</h6>
+                        <div id="viewReviewDates"></div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Personal Asignado</h6>
+                        <p><strong>Preparador:</strong> <span id="viewPreparer"></span></p>
+                        <p><strong>Revisor:</strong> <span id="viewReviewer"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Información Adicional</h6>
+                        <p><strong>ID del Compromiso:</strong> <span id="viewCommitmentId" class="text-muted small"></span></p>
+                        <p><strong>ID de Entidad:</strong> <span id="viewEntityId" class="text-muted small"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-warning" onclick="editFromView()">Editar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 7. Auth Guard -->
+<script src="../js/auth-guard.js"></script>
 </body>
 
 </html>

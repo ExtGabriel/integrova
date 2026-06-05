@@ -338,6 +338,126 @@
         .client-tag .remove-client:hover {
             color: #ffcccc;
         }
+
+        /* Estilos para el selector de socios */
+        .partner-selector {
+            position: relative;
+            overflow: visible;
+        }
+
+        .partner-select-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            height: calc(2.25rem + 2px);
+            padding: 0 1.1rem;
+            font-size: 1rem;
+            border-radius: var(--bs-border-radius);
+            border: 1px solid #9ec5fe;
+            background-color: #f8fbff;
+            color: #0d6efd;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .partner-select-btn i {
+            font-size: 1.05rem;
+        }
+
+        .partner-select-btn:hover,
+        .partner-select-btn:focus {
+            background-color: #e7f1ff;
+            border-color: #86b7fe;
+            color: #0a58ca;
+        }
+
+        .partner-list-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            max-height: 420px;
+            overflow-y: auto;
+            z-index: 2050;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .partner-list {
+            max-height: none;
+            padding: 8px;
+        }
+
+        .partner-item {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .partner-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .partner-item.selected {
+            background-color: #e3f2fd;
+        }
+
+        .partner-checkbox {
+            margin-right: 12px;
+        }
+
+        .partner-info {
+            flex: 1;
+        }
+
+        .partner-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .partner-role {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .selected-partners {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .partner-tag {
+            background-color: #007bff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .partner-tag .remove-partner {
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            line-height: 1;
+            padding: 0;
+            margin-left: 4px;
+        }
+
+        .partner-tag .remove-partner:hover {
+            color: #ffcccc;
+        }
     </style>
 </head>
 
@@ -397,16 +517,10 @@
                 <div class="modal-body">
                     <form id="createEntityForm">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label for="entityName" class="form-label">Nombre de la Entidad *</label>
-                                    <input type="text" class="form-control" id="entityName" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="entityCommercial" class="form-label">Nombre Comercial</label>
-                                    <input type="text" class="form-control" id="entityCommercial">
+                                    <label for="entityCommercial" class="form-label">Nombre Comercial *</label>
+                                    <input type="text" class="form-control" id="entityCommercial" required>
                                 </div>
                             </div>
                         </div>
@@ -460,7 +574,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="entityClients" class="form-label">Clientes</label>
+                                    <label for="entityClients" class="form-label">Contacto clientes</label>
                                     <div class="client-selector">
                                         <button type="button" class="btn btn-outline-primary w-100 client-select-btn" onclick="toggleClientDropdown('entity')">
                                             <i class="bi bi-person-badge-fill"></i> Seleccionar Clientes
@@ -473,22 +587,34 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="entityPartners" class="form-label">Socios</label>
+                                    <div class="partner-selector">
+                                        <button type="button" class="btn btn-outline-primary w-100 partner-select-btn" onclick="togglePartnerDropdown('entity')">
+                                            <i class="bi bi-people-fill"></i> Seleccionar Socios
+                                        </button>
+                                        <div id="entityPartnerDropdown" class="partner-list-dropdown" style="display: none;">
+                                            <div id="entityPartnerList" class="partner-list"></div>
+                                        </div>
+                                        <div id="entitySelectedPartners" class="selected-partners"></div>
+                                        <input type="hidden" id="entityPartners" name="entityPartners">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="entityOrganizationType" class="form-label">Tipo de Organización *</label>
                             <select class="form-control" id="entityOrganizationType" required>
                                 <option value="">-- Seleccione el tipo de organización --</option>
-                                <option value="empresa">Empresa</option>
-                                <option value="organizacion_gubernamental">Organización Gubernamental</option>
-                                <option value="ong">ONG</option>
+                                <option value="corporacion">Corporación</option>
+                                <option value="sociedad_anonima">Sociedad Anónima</option>
                                 <option value="fundacion">Fundación</option>
-                                <option value="asociacion">Asociación</option>
-                                <option value="cooperativa">Cooperativa</option>
                                 <option value="otro">Otro</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="entityProjectType" class="form-label">Tipo de Proyecto *</label>
+                            <label for="entityProjectType" class="form-label">Sector / Categoría del Proyecto *</label>
                             <select class="form-control" id="entityProjectType" required>
                                 <option value="">-- Seleccione el tipo de proyecto --</option>
                                 <option value="construccion">Construcción</option>
@@ -533,16 +659,10 @@
                     <form id="modifyEntityForm">
                         <input type="hidden" id="modifyEntityId">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label for="modifyEntityName" class="form-label">Nombre de la Entidad *</label>
-                                    <input type="text" class="form-control" id="modifyEntityName" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="modifyEntityCommercial" class="form-label">Nombre Comercial</label>
-                                    <input type="text" class="form-control" id="modifyEntityCommercial">
+                                    <label for="modifyEntityCommercial" class="form-label">Nombre Comercial *</label>
+                                    <input type="text" class="form-control" id="modifyEntityCommercial" required>
                                 </div>
                             </div>
                         </div>
@@ -596,7 +716,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="modifyEntityClients" class="form-label">Clientes</label>
+                                    <label for="modifyEntityClients" class="form-label">Contacto clientes</label>
                                     <div class="client-selector">
                                         <button type="button" class="btn btn-outline-primary w-100 client-select-btn" onclick="toggleClientDropdown('modifyEntity')">
                                             <i class="bi bi-person-badge-fill"></i> Seleccionar Clientes
@@ -609,22 +729,34 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="modifyEntityPartners" class="form-label">Socios</label>
+                                    <div class="partner-selector">
+                                        <button type="button" class="btn btn-outline-primary w-100 partner-select-btn" onclick="togglePartnerDropdown('modifyEntity')">
+                                            <i class="bi bi-people-fill"></i> Seleccionar Socios
+                                        </button>
+                                        <div id="modifyEntityPartnerDropdown" class="partner-list-dropdown" style="display: none;">
+                                            <div id="modifyEntityPartnerList" class="partner-list"></div>
+                                        </div>
+                                        <div id="modifyEntitySelectedPartners" class="selected-partners"></div>
+                                        <input type="hidden" id="modifyEntityPartners" name="modifyEntityPartners">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="modifyEntityOrganizationType" class="form-label">Tipo de Organización *</label>
                             <select class="form-control" id="modifyEntityOrganizationType" required>
                                 <option value="">-- Seleccione el tipo de organización --</option>
-                                <option value="empresa">Empresa</option>
-                                <option value="organizacion_gubernamental">Organización Gubernamental</option>
-                                <option value="ong">ONG</option>
+                                <option value="corporacion">Corporación</option>
+                                <option value="sociedad_anonima">Sociedad Anónima</option>
                                 <option value="fundacion">Fundación</option>
-                                <option value="asociacion">Asociación</option>
-                                <option value="cooperativa">Cooperativa</option>
                                 <option value="otro">Otro</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="modifyEntityProjectType" class="form-label">Tipo de Proyecto *</label>
+                            <label for="modifyEntityProjectType" class="form-label">Sector / Categoría del Proyecto *</label>
                             <select class="form-control" id="modifyEntityProjectType" required>
                                 <option value="">-- Seleccione el tipo de proyecto --</option>
                                 <option value="construccion">Construcción</option>
@@ -742,12 +874,9 @@
         let actionRecords = [];
 
         const ORGANIZATION_TYPE_LABELS = {
-            empresa: 'Empresa',
-            organizacion_gubernamental: 'Organización Gubernamental',
-            ong: 'ONG',
+            corporacion: 'Corporación',
+            sociedad_anonima: 'Sociedad Anónima',
             fundacion: 'Fundación',
-            asociacion: 'Asociación',
-            cooperativa: 'Cooperativa',
             otro: 'Otro'
         };
 
@@ -1140,6 +1269,11 @@
             selectedClients.entity = [];
             updateSelectedClientsDisplay('entity');
             updateClientHiddenInput('entity');
+            // Cargar socios disponibles
+            await loadAvailablePartners();
+            selectedPartners.entity = [];
+            updateSelectedPartnersDisplay('entity');
+            updatePartnerHiddenInput('entity');
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('createEntityModal'));
             modal.show();
@@ -1160,8 +1294,7 @@
 
             // Llenar formulario con datos existentes
             document.getElementById('modifyEntityId').value = data.id;
-            document.getElementById('modifyEntityName').value = data.name;
-            document.getElementById('modifyEntityCommercial').value = data.commercial || '';
+            document.getElementById('modifyEntityCommercial').value = data.name || data.commercial || '';
             document.getElementById('modifyEntityEnterprise').value = data.enterprise || '';
             document.getElementById('modifyEntityCountry').value = data.country;
             document.getElementById('modifyEntityAddress').value = data.address || '';
@@ -1182,9 +1315,10 @@
 
             // Grupo empresarial eliminado - ya no se utiliza
 
-            // Cargar auditores y clientes disponibles
+            // Cargar auditores, clientes y socios disponibles
             await loadAvailableAuditors();
             await loadAvailableClients();
+            await loadAvailablePartners();
 
             // Cargar selecciones guardadas desde entityAssignments
             const assignments = entityAssignments[data.id];
@@ -1204,7 +1338,7 @@
                 }));
                 updateSelectedClientsDisplay('modifyEntity');
                 updateClientHiddenInput('modifyEntity');
-            } else if ((data.auditors && data.auditors.length) || (data.clients && data.clients.length)) {
+            } else if ((data.auditors && data.auditors.length) || (data.clients && data.clients.length) || (data.partners && data.partners.length)) {
                 // Fallback: usar columnas jsonb de la entidad
                 selectedAuditors.modifyEntity = (data.auditors || []).map(a => {
                     const id = a.id || a.user_id || a;
@@ -1222,18 +1356,31 @@
                         name: found?.name || found?.full_name || 'Cliente'
                     };
                 });
+                selectedPartners.modifyEntity = (data.partners || []).map(p => {
+                    const id = p.id || p.user_id || p;
+                    const found = availablePartners.find(x => x.id === id);
+                    return {
+                        id,
+                        name: found?.name || found?.full_name || 'Socio'
+                    };
+                });
                 updateSelectedAuditorsDisplay('modifyEntity');
                 updateSelectedClientsDisplay('modifyEntity');
+                updateSelectedPartnersDisplay('modifyEntity');
                 updateHiddenInput('modifyEntity');
                 updateClientHiddenInput('modifyEntity');
+                updatePartnerHiddenInput('modifyEntity');
             } else {
                 // Resetear si no hay asignaciones
                 selectedAuditors.modifyEntity = [];
                 selectedClients.modifyEntity = [];
+                selectedPartners.modifyEntity = [];
                 updateSelectedAuditorsDisplay('modifyEntity');
                 updateSelectedClientsDisplay('modifyEntity');
+                updateSelectedPartnersDisplay('modifyEntity');
                 updateHiddenInput('modifyEntity');
                 updateClientHiddenInput('modifyEntity');
+                updatePartnerHiddenInput('modifyEntity');
             }
 
             // Mostrar modal
@@ -1330,7 +1477,12 @@
                     const id = idOrObj?.id || idOrObj?.user_id || idOrObj;
                     const inAuditors = availableAuditors.find(u => String(u.id) === String(id));
                     const inClients = availableClients.find(u => String(u.id) === String(id));
-                    return idOrObj?.name || idOrObj?.full_name || idOrObj?.username || idOrObj?.email || inAuditors?.name || inClients?.name || inAuditors?.full_name || inClients?.full_name || id;
+                    const inPartners = availablePartners.find(u => String(u.id) === String(id));
+                    const inAllUsers = allUsers.find(u => String(u.id) === String(id));
+                    return idOrObj?.name || idOrObj?.full_name || idOrObj?.username || idOrObj?.email || 
+                           inAuditors?.name || inClients?.name || inPartners?.name || inAllUsers?.name ||
+                           inAuditors?.full_name || inClients?.full_name || inPartners?.full_name || inAllUsers?.full_name ||
+                           inAllUsers?.email || id || 'Usuario desconocido';
                 };
 
                 // Auditores (entity_users primero, luego jsonb mapeando IDs a nombres si existen en listas)
@@ -1353,8 +1505,7 @@
 
                 document.getElementById('detailState' + entityId).textContent = data.state;
                 document.getElementById('detailDate' + entityId).textContent = data.date;
-                document.getElementById('detailEncargado' + entityId).textContent = data.encargado || 'No asignado'; // Nueva línea para encargado
-                document.getElementById('detailCreator' + entityId).textContent = data.creatorName || 'Desconocido'; // Creador
+                document.getElementById('detailCreator' + entityId).textContent = data.createdBy ? resolveName(data.createdBy) : 'Desconocido'; // Creador
 
                 // Determinar y mostrar tipo de grupo
                 let groupTypeText = 'Independiente';
@@ -1419,7 +1570,6 @@
             }
 
             // Obtener valores del formulario
-            const name = sanitizeInput(document.getElementById('entityName').value.trim());
             const commercial = sanitizeInput(document.getElementById('entityCommercial').value.trim());
             const businessName = sanitizeInput(document.getElementById('entityEnterprise').value.trim());
             const country = sanitizeInput(document.getElementById('entityCountry').value.trim());
@@ -1430,6 +1580,7 @@
             const projectType = sanitizeInput(document.getElementById('entityProjectType').value.trim());
             const auditorIds = selectedAuditors.entity.map(a => ({ id: a.id }));
             const clientIds = selectedClients.entity.map(c => ({ id: c.id }));
+            const partnerIds = selectedPartners.entity.map(p => ({ id: p.id }));
 
             // Grupo empresarial eliminado - ya no se utiliza
             const isGroup = false;
@@ -1462,7 +1613,7 @@
             // Crear nueva entidad con COLUMNAS EXPLÍCITAS + METADATA SINCRONIZADO
             const newEntity = {
                 // Columnas principales
-                name: name,
+                name: commercial,
                 entity_id: commercial || '',
                 description: businessName || '',
                 status: 'activa',
@@ -1480,6 +1631,7 @@
                 parent_id: parentId || null,
                 auditors: auditorIds,
                 clients: clientIds,
+                partners: partnerIds,
                 created_by: window.currentUser?.id || null,
 
                 // Metadata sincronizado con las columnas
@@ -1555,7 +1707,6 @@
             }
 
             // Obtener valores del formulario
-            const name = sanitizeInput(document.getElementById('modifyEntityName').value.trim());
             const commercial = sanitizeInput(document.getElementById('modifyEntityCommercial').value.trim());
             const businessName = sanitizeInput(document.getElementById('modifyEntityEnterprise').value.trim());
             const country = sanitizeInput(document.getElementById('modifyEntityCountry').value.trim());
@@ -1567,6 +1718,7 @@
             const projectType = sanitizeInput(document.getElementById('modifyEntityProjectType').value.trim());
             const auditorIds = selectedAuditors.modifyEntity.map(a => a.id);
             const clientIds = selectedClients.modifyEntity.map(c => c.id);
+            const partnerIds = selectedPartners.modifyEntity.map(p => p.id);
 
             // Grupo empresarial eliminado - ya no se utiliza
             const isGroup = false;
@@ -1609,7 +1761,7 @@
             // Crear objeto de actualización con COLUMNAS EXPLÍCITAS + METADATA SINCRONIZADO
             const updatedEntity = {
                 // Columnas principales
-                name: name,
+                name: commercial,
                 entity_id: commercial || '',
                 description: businessName || '',
 
@@ -1626,6 +1778,7 @@
                 parent_id: parentId || null,
                 auditors: auditorIds,
                 clients: clientIds,
+                partners: partnerIds,
                 created_by: window.currentUser?.id || null,
 
                 // Metadata sincronizado con las columnas
@@ -1902,7 +2055,7 @@
                             <span class="detail-value" id="detailOrganizationType${entityId}">-</span>
                         </div>
                         <div class="detail-row">
-                            <span class="detail-label">Tipo de Proyecto:</span>
+                            <span class="detail-label">Sector / Categoría del Proyecto:</span>
                             <span class="detail-value" id="detailProjectType${entityId}">-</span>
                         </div>
                         <div class="detail-row">
@@ -1921,12 +2074,7 @@
                             <span class="detail-label">Fecha de Registro:</span>
                             <span class="detail-value" id="detailDate${entityId}">-</span>
                         </div>
-                        <!-- Nueva fila para Encargado -->
-                        <div class="detail-row">
-                            <span class="detail-label">Encargado:</span>
-                            <span class="detail-value" id="detailEncargado${entityId}">-</span>
-                        </div>
-                        <!-- Nueva fila para Tipo de Grupo -->
+                                                <!-- Nueva fila para Tipo de Grupo -->
                         <div class="detail-row">
                             <span class="detail-label">Tipo de Entidad:</span>
                             <span class="detail-value" id="detailGroupType${entityId}">-</span>
@@ -2027,14 +2175,14 @@
 
             // Setup form validation for create entity
             setupFormValidation('createEntityForm', {
-                entityName: { required: true, requiredMessage: 'El nombre de la entidad es obligatorio.' },
+                entityCommercial: { required: true, requiredMessage: 'El nombre comercial es obligatorio.' },
                 entityCountry: { required: true, requiredMessage: 'El país es obligatorio.' },
                 entityState: { required: true, requiredMessage: 'El estado es obligatorio.' }
             });
 
             // Setup form validation for modify entity
             setupFormValidation('modifyEntityForm', {
-                modifyEntityName: { required: true, requiredMessage: 'El nombre de la entidad es obligatorio.' },
+                modifyEntityCommercial: { required: true, requiredMessage: 'El nombre comercial es obligatorio.' },
                 modifyEntityCountry: { required: true, requiredMessage: 'El país es obligatorio.' },
                 modifyEntityState: { required: true, requiredMessage: 'El estado es obligatorio.' }
             });
@@ -2056,6 +2204,14 @@
             entity: [],
             modifyEntity: []
         };
+
+        let availablePartners = [];
+        let selectedPartners = {
+            entity: [],
+            modifyEntity: []
+        };
+
+        let allUsers = [];
 
         // Cargar auditores disponibles
         async function loadAvailableAuditors() {
@@ -2250,6 +2406,52 @@
             }
         }
 
+        // Cargar socios disponibles (usuarios con rol 'socio')
+        async function loadAvailablePartners() {
+            try {
+                const response = await API.Users.getAll();
+                const users = response.data || response || [];
+                
+                // Filtrar solo usuarios con rol de socio
+                const allowedRoles = ['socio'];
+                
+                availablePartners = users.filter(user => {
+                    const userRole = (user.role || '').toLowerCase();
+                    return allowedRoles.some(role => userRole.includes(role));
+                }).map(user => ({
+                    id: user.id || user.user_id,
+                    name: user.name || user.full_name || user.username || 'Sin nombre',
+                    role: user.role || 'Sin rol'
+                }));
+
+                console.log('✅ Socios cargados:', availablePartners.length);
+                console.log('📋 Lista de socios:', availablePartners);
+            } catch (error) {
+                console.error('❌ Error cargando socios:', error);
+                availablePartners = [];
+            }
+        }
+
+        // Cargar todos los usuarios para resolver nombres de creadores
+        async function loadAllUsers() {
+            try {
+                const response = await API.Users.getAll();
+                const users = response.data || response || [];
+                
+                allUsers = users.map(user => ({
+                    id: user.id || user.user_id,
+                    name: user.name || user.full_name || user.username || 'Sin nombre',
+                    email: user.email || 'Sin email',
+                    role: user.role || 'Sin rol'
+                }));
+
+                console.log('✅ Todos los usuarios cargados:', allUsers.length);
+            } catch (error) {
+                console.error('❌ Error cargando todos los usuarios:', error);
+                allUsers = [];
+            }
+        }
+
         // Toggle del dropdown de clientes
         function toggleClientDropdown(prefix) {
             const dropdown = document.getElementById(prefix + 'ClientDropdown');
@@ -2376,10 +2578,132 @@
             updateClientHiddenInput(prefix);
         }
 
+        // ========================================
+        // SISTEMA DE SELECCIÓN DE SOCIOS CON CHECKBOXES
+        // ========================================
+
+        // Toggle del dropdown de socios
+        function togglePartnerDropdown(prefix) {
+            const dropdown = document.getElementById(prefix + 'PartnerDropdown');
+            const isVisible = dropdown.style.display !== 'none';
+            
+            if (isVisible) {
+                dropdown.style.display = 'none';
+            } else {
+                renderPartnerList(prefix);
+                dropdown.style.display = 'block';
+            }
+        }
+
+        // Renderizar lista de socios con checkboxes
+        function renderPartnerList(prefix) {
+            const listContainer = document.getElementById(prefix + 'PartnerList');
+            
+            if (availablePartners.length === 0) {
+                listContainer.innerHTML = '<div class="text-muted p-3">No hay socios disponibles</div>';
+                return;
+            }
+
+            listContainer.innerHTML = availablePartners.map(partner => {
+                const isSelected = selectedPartners[prefix].some(selected => selected.id === partner.id);
+                return `
+                    <div class="partner-item ${isSelected ? 'selected' : ''}" data-partner-id="${partner.id}" onclick="togglePartnerSelection('${prefix}', '${partner.id}')">
+                        <input type="checkbox" class="partner-checkbox" ${isSelected ? 'checked' : ''}>
+                        <div class="partner-info">
+                            <div class="partner-name">${partner.name}</div>
+                            <div class="partner-role">${partner.role}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log(`📋 Renderizando lista de socios para ${prefix}:`, selectedPartners[prefix]);
+        }
+
+        
+        // Toggle selección de socio
+        function togglePartnerSelection(prefix, partnerId) {
+            const partner = availablePartners.find(p => p.id === partnerId);
+            if (!partner) return;
+
+            const index = selectedPartners[prefix].findIndex(selected => selected.id === partnerId);
+            const isCurrentlySelected = index > -1;
+            
+            if (isCurrentlySelected) {
+                // Deseleccionar
+                selectedPartners[prefix].splice(index, 1);
+            } else {
+                // Seleccionar
+                selectedPartners[prefix].push(partner);
+            }
+
+            // Actualizar visualización
+            updateSelectedPartnersDisplay(prefix);
+            updatePartnerHiddenInput(prefix);
+            
+            // Re-renderizar lista para actualizar checkboxes
+            renderPartnerList(prefix);
+        }
+
+        // Remover socio de las etiquetas
+        function removePartner(prefix, partnerId) {
+            selectedPartners[prefix] = selectedPartners[prefix].filter(p => p.id !== partnerId);
+            updateSelectedPartnersDisplay(prefix);
+            updatePartnerHiddenInput(prefix);
+            
+            // Re-renderizar lista para actualizar checkboxes
+            renderPartnerList(prefix);
+        }
+
+        // Actualizar visualización de socios seleccionados
+        function updateSelectedPartnersDisplay(prefix) {
+            const container = document.getElementById(prefix + 'SelectedPartners');
+            
+            if (selectedPartners[prefix].length === 0) {
+                container.innerHTML = '<small class="text-muted">No hay socios seleccionados</small>';
+                return;
+            }
+
+            container.innerHTML = selectedPartners[prefix].map(partner => 
+                `<div class="partner-tag">
+                    ${partner.name}
+                    <button type="button" class="remove-partner" onclick="removePartner('${prefix}', '${partner.id}')">×</button>
+                </div>`
+            ).join('');
+            
+            // Agregar indicador de cantidad
+            const countBadge = `<small class="text-info">(${selectedPartners[prefix].length} socio${selectedPartners[prefix].length !== 1 ? 's' : ''} seleccionado${selectedPartners[prefix].length !== 1 ? 's' : ''})</small>`;
+            container.innerHTML += countBadge;
+        }
+
+        // Actualizar input hidden con los IDs de socios
+        function updatePartnerHiddenInput(prefix) {
+            const hiddenInput = document.getElementById(prefix === 'entity' ? 'entityPartners' : 'modifyEntityPartners');
+            const partnerIds = selectedPartners[prefix].map(p => p.id).join(', ');
+            hiddenInput.value = partnerIds;
+        }
+
+        // Cargar socios seleccionados al modificar entidad
+        function loadSelectedPartners(prefix, partnerIds) {
+            if (!partnerIds) {
+                selectedPartners[prefix] = [];
+                updateSelectedPartnersDisplay(prefix);
+                updatePartnerHiddenInput(prefix);
+                return;
+            }
+
+            const ids = partnerIds.split(', ').map(id => id.trim()).filter(id => id);
+            selectedPartners[prefix] = availablePartners.filter(partner => ids.includes(partner.id));
+            updateSelectedPartnersDisplay(prefix);
+            updatePartnerHiddenInput(prefix);
+        }
+
         // Inicializar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', () => {
             loadAvailableAuditors();
             loadAvailableClients();
+            loadAvailablePartners();
+            loadAllUsers();
         });
 
 

@@ -1260,16 +1260,41 @@ app.put('/api/commitments/:id', async (req, res) => {
 app.delete('/api/commitments/:id', async (req, res) => {
     const id = req.params.id;
     try {
+        // Primero eliminar respuestas de formulario asociadas (cascade delete manual)
+        console.log('🗑️ Eliminando respuestas de formulario asociadas al compromiso:', id);
+        const { error: formResponsesError } = await supabase
+            .from('form_responses')
+            .delete()
+            .eq('commitment_id', id);
+
+        if (formResponsesError) {
+            console.error('Error eliminando form_responses:', formResponsesError);
+            return res.status(500).json({ success: false, error: 'Error eliminando respuestas de formulario: ' + formResponsesError.message, details: formResponsesError });
+        }
+
+        console.log('✅ Respuestas de formulario eliminadas, eliminando compromiso...');
+
+        // Ahora eliminar el compromiso
         const { data, error } = await supabase
             .from('commitments')
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error deleting commitment:', error);
+            return res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', details: error });
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('Delete commitment: no rows affected', { id });
+            return res.status(404).json({ success: false, error: 'No se encontró el compromiso a eliminar.' });
+        }
+
+        console.log('✅ Compromiso eliminado exitosamente');
         res.json({ success: true, data: { message: 'Commitment deleted' } });
     } catch (error) {
-        console.error('Error deleting commitment:', error);
-        res.status(500).json({ success: false, error: 'Failed to delete commitment' });
+        console.error('Error deleting commitment (unexpected):', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', stack: error.stack });
     }
 });
 
