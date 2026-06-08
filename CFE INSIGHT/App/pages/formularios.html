@@ -1933,16 +1933,12 @@
                                 <div class="panel-header">
                                     <div class="left-header">
                                         <h3>Cuentas sin asignar <span class="remaining-count">(0 restantes)</span></h3>
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="bi bi-calendar"></i></span>
-                                            <select class="form-select date-selector">
-                                                <option value="31/12/2024">31/12/2024</option>
-                                            </select>
-                                        </div>
                                     </div>
                                     <div class="right-header">
-                                        <button class="btn btn-outline-secondary" id="selectAllAccountsBtn">Seleccionar todo</button>
-                                                                            </div>
+                                        <button class="btn btn-sm btn-success" onclick="autoAssignAccountsByLS()" title="Asignar automáticamente por LS">
+                                            <i class="bi bi-magic"></i> Auto-asignar por LS
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="search-bar-container">
                                     <i class="bi bi-search"></i>
@@ -1964,6 +1960,12 @@
                                 <div class="panel-header">
                                     <div class="left-header">
                                         <h3>Grupos</h3>
+                                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="addNewAccount()" title="Agregar nueva cuenta">
+                                            <i class="bi bi-plus-circle"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="editAccountGroups()" title="Editar grupos de cuentas">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                     </div>
                                     <div class="right-header">
                                         <div class="input-group">
@@ -1979,1091 +1981,226 @@
                                     <input type="text" class="form-control" id="groupsSearchInput" placeholder="Buscar..." oninput="searchAccounts('groups')">
                                 </div>
                                 <div class="financial-groups-list">
+                                    <!-- Activo -->
                                     <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group1')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group1-arrow"></i>
-                                            <span class="group-name">1 Activos no corrientes</span>
+                                        <div class="group-header" onclick="toggleGroup('bg1')">
+                                            <i class="bi bi-chevron-right dropdown-arrow" id="bg1-arrow"></i>
+                                            <span class="group-name">Activo</span>
                                             <span class="group-value">0,00</span>
                                         </div>
-                                        <div class="group-content" id="group1-content" style="display: none;">
-                                            <!-- 1.100 Propiedad, planta y equipo -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup1-1')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup1-1-arrow"></i>
-                                                    <span class="sub-group-name">1.100 Propiedad, planta y equipo</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup1-1-content" style="display: none;">
-                                                    <div class="account-item static-account" data-account-id="1.100.100" data-account-code="1.100.100" data-account-name="1.100.100 Propiedad, planta y equipo – Costo" data-account-value="0" data-account-prev-value="0">
-                                                        <span class="account-name">1.100.100 Propiedad, planta y equipo – Costo</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item static-account" data-account-id="1.100.910" data-account-code="1.100.910" data-account-name="1.100.910 Propiedad, planta y equipo – Depreciación acumulada y deterioro" data-account-value="0" data-account-prev-value="0">
-                                                        <span class="account-name">1.100.910 Propiedad, planta y equipo – Depreciación acumulada y deterioro</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
+                                        <div class="group-content" id="bg1-content" style="display: none;">
+                                            <div class="account-item static-account" data-account-id="110" data-account-code="110" data-account-name="110 - Inventarios" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">110 - Inventarios</span>
+                                                <span class="account-value">0,00</span>
                                             </div>
+                                            <div class="account-item static-account" data-account-id="115" data-account-code="115" data-account-name="115 - Activos mantenidos para la venta" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">115 - Activos mantenidos para la venta</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="120" data-account-code="120" data-account-name="120 - Inversiones en acciones" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">120 - Inversiones en acciones</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="130" data-account-code="130" data-account-name="130 - Clientes" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">130 - Clientes</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="135" data-account-code="135" data-account-name="135 - Otras cuentas por cobrar" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">135 - Otras cuentas por cobrar</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="136" data-account-code="136" data-account-name="136 - Impuestos por cobrar" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">136 - Impuestos por cobrar</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="137" data-account-code="137" data-account-name="137 - Anticipos a proveedores" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">137 - Anticipos a proveedores</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="140" data-account-code="140" data-account-name="140 - Caja y bancos" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">140 - Caja y bancos</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="150" data-account-code="150" data-account-name="150 - Inversiones a corto plazo" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">150 - Inversiones a corto plazo</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="160" data-account-code="160" data-account-name="160 - Propiedad, planta y equipo" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">160 - Propiedad, planta y equipo</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="165" data-account-code="165" data-account-name="165 - Activos intangibles" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">165 - Activos intangibles</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="170" data-account-code="170" data-account-name="170 - Construcciones en proceso" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">170 - Construcciones en proceso</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="175" data-account-code="175" data-account-name="175 - Propiedades de inversión" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">175 - Propiedades de inversión</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="180" data-account-code="180" data-account-name="180 - Cuentas por cobrar a empresas relacionadas" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">180 - Cuentas por cobrar a empresas relacionadas</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="190" data-account-code="190" data-account-name="190 - Otros activos" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">190 - Otros activos</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="195" data-account-code="195" data-account-name="195 - Impuesto Sobre la Renta Diferido Activo" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">195 - Impuesto Sobre la Renta Diferido Activo</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                            <!-- 1.150 Propiedad de inversión -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup1-2')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup1-2-arrow"></i>
-                                                    <span class="sub-group-name">1.150 Propiedad de inversión</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup1-2-content" style="display: none;">
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.150.100 Propiedad de inversión – Costo</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.150.910 Propiedad de inversión – Depreciación acumulada y deterioro</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
+                                    
+                                    <!-- Pasivo y Patrimonio -->
+                                    <div class="group-item">
+                                        <div class="group-header" onclick="toggleGroup('pasivo-patrimonio')">
+                                            <i class="bi bi-chevron-right dropdown-arrow" id="pasivo-patrimonio-arrow"></i>
+                                            <span class="group-name">Pasivo y Patrimonio</span>
+                                            <span class="group-value">0,00</span>
+                                        </div>
+                                        <div class="group-content" id="pasivo-patrimonio-content" style="display: none;">
+                                            <!-- Patrimonio -->
+                                            <div class="account-item static-account" data-account-id="200" data-account-code="200" data-account-name="200 - Patrimonio" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">200 - Patrimonio</span>
+                                                <span class="account-value">0,00</span>
                                             </div>
+                                            <div class="account-item static-account" data-account-id="201" data-account-code="201" data-account-name="201 - Capital autorizado, suscrito y pagado" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">201 - Capital autorizado, suscrito y pagado</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="202" data-account-code="202" data-account-name="202 - Reserva legal" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">202 - Reserva legal</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="203" data-account-code="203" data-account-name="203 - Aportes por capitalizar" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">203 - Aportes por capitalizar</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="204" data-account-code="204" data-account-name="204 - Resultados acumulados" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">204 - Resultados acumulados</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="205" data-account-code="205" data-account-name="205 - Superávit por revaluación" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">205 - Superávit por revaluación</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="206" data-account-code="206" data-account-name="206 - Efecto por conversión" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">206 - Efecto por conversión</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            
+                                            <!-- Pasivo -->
+                                            <div class="account-item static-account" data-account-id="300" data-account-code="300" data-account-name="300 - Provisión para indemnizaciones" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">300 - Provisión para indemnizaciones</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="310" data-account-code="310" data-account-name="310 - Prestaciones laborales" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">310 - Prestaciones laborales</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="325" data-account-code="325" data-account-name="325 - Impuesto Sobre la Renta Diferido Pasivo" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">325 - Impuesto Sobre la Renta Diferido Pasivo</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="330" data-account-code="330" data-account-name="330 - Otras cuentas por pagar" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">330 - Otras cuentas por pagar</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="335" data-account-code="335" data-account-name="335 - Impuestos por pagar" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">335 - Impuestos por pagar</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="336" data-account-code="336" data-account-name="336 - Anticipos de clientes" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">336 - Anticipos de clientes</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="400" data-account-code="400" data-account-name="400 - Préstamos bancarios" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">400 - Préstamos bancarios</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="425" data-account-code="425" data-account-name="425 - Proveedores" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">425 - Proveedores</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="426" data-account-code="426" data-account-name="426 - Acreedores" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">426 - Acreedores</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="430" data-account-code="430" data-account-name="430 - Cuentas por pagar empresas relacionadas" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">430 - Cuentas por pagar empresas relacionadas</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                            <div class="account-item static-account" data-account-id="440" data-account-code="440" data-account-name="440 - Arrendamientos financieros" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">440 - Arrendamientos financieros</span>
+                                                <span class="account-value">0,00</span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                            <!-- 1.250 Fondo de comercio -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup1-3')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup1-3-arrow"></i>
-                                                    <span class="sub-group-name">1.250 Fondo de comercio</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup1-3-content" style="display: none;">
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.250.100 Fondo de comercio</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.250.910 Fondo de comercio – Deterioro</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- 1.300 Activos intangibles -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup1-4')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup1-4-arrow"></i>
-                                                    <span class="sub-group-name">1.300 Activos intangibles</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup1-4-content" style="display: none;">
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.300.100 Activos intangibles</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.300.910 Activos intangibles – Amortización acumulada y deterioro</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <!-- Subcategorías adicionales dentro de 1.300 -->
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.200 Avance contra propiedades de inversión</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.350 Activos biológicos – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.400 Inversiones en subsidiarias</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.410 Inversiones en empresas asociadas</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.420 Inversiones en empresas conjuntas</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.450 Activos por impuestos diferidos</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.500 Arrendamientos financieros por cobrar – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.550 Inversiones disponibles para la venta – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.555 Inversiones – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.560 Inversiones mantenidas hasta el vencimiento – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.570 Instrumentos financieros derivados – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.580 Retenciones por cobrar – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.590 Activos contractuales – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.595 Costos contractuales – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.600 Deudores comerciales y otras cuentas por cobrar – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.610 Préstamos a partes relacionadas – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.700 Otros activos financieros – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.710 Beneficios a empleados</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">1.900 Otros activos – No corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <!-- Resultado -->
                                     <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group2')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group2-arrow"></i>
-                                            <span class="group-name">2 Activos corrientes</span>
+                                        <div class="group-header" onclick="toggleGroup('resultado')">
+                                            <i class="bi bi-chevron-right dropdown-arrow" id="resultado-arrow"></i>
+                                            <span class="group-name">Resultados</span>
                                             <span class="group-value">0,00</span>
                                         </div>
-                                        <div class="group-content" id="group2-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">2.100 Activos biológicos – Corriente</span>
+                                        <div class="group-content" id="resultado-content" style="display: none;">
+                                            <div class="account-item static-account" data-account-id="1500" data-account-code="1500" data-account-name="1500 - Ingresos" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1500 - Ingresos</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.150 Propiedades de desarrollo</span>
+                                            <div class="account-item static-account" data-account-id="1510" data-account-code="1510" data-account-name="1510 - Ingresos por venta de productos" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1510 - Ingresos por venta de productos</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.200 Inventarios</span>
+                                            <div class="account-item static-account" data-account-id="1520" data-account-code="1520" data-account-name="1520 - Ingresos por servicios" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1520 - Ingresos por servicios</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.250 Retenciones por cobrar – Corriente</span>
+                                            <div class="account-item static-account" data-account-id="1530" data-account-code="1530" data-account-name="1530 - Efecto en el valor razonable" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1530 - Efecto en el valor razonable</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.300 Montos adeudados por clientes bajo contratos de construcción</span>
+                                            <div class="account-item static-account" data-account-id="1600" data-account-code="1600" data-account-name="1600 - Costo de ventas" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1600 - Costo de ventas</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.310 Activo por derecho a bienes devueltos</span>
+                                            <div class="account-item static-account" data-account-id="1700" data-account-code="1700" data-account-name="1700 - Gastos de operación" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1700 - Gastos de operación</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.320 Activos contractuales – Corriente</span>
+                                            <div class="account-item static-account" data-account-id="1710" data-account-code="1710" data-account-name="1710 - Gastos de administración" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1710 - Gastos de administración</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.330 Costos contractuales – Corriente</span>
+                                            <div class="account-item static-account" data-account-id="1720" data-account-code="1720" data-account-name="1720 - Gastos de venta" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1720 - Gastos de venta</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            
-                                            <!-- 2.350 Deudores comerciales y otras cuentas por cobrar – Corriente (expandable sub-group) -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup2-1')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup2-1-arrow"></i>
-                                                    <span class="sub-group-name">2.350 Deudores comerciales y otras cuentas por cobrar – Corriente</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup2-1-content" style="display: none;">
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.100 Cuentas por cobrar comerciales - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.100.100 Cuentas por cobrar comerciales - Costo corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.100.910 Estimación de pérdidas - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.150 Anticipos - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.200 Depósitos - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.250 Pagos anticipados - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">2.350.900 Otras cuentas por cobrar - Corriente</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="account-item">
-                                                <span class="account-name">2.360 Préstamos a partes relacionadas – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.450 Arrendamientos financieros por cobrar – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.500 Inversiones disponibles para la venta – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.505 Inversiones – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.510 Inversiones mantenidas hasta el vencimiento – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.520 Instrumentos financieros derivados – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.550 Activos financieros contabilizados a valor razonable con cambios en resultados</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.600 Otros activos – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.610 Otros activos financieros – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.650 Activos por impuestos – Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.700 Efectivo y saldos bancarios</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">2.970 Activos clasificados como mantenidos para la venta</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group3')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group3-arrow"></i>
-                                            <span class="group-name">3 Patrimonio y fondos de accionistas</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group3-content" style="display: none;">
-                                            <!-- 3.100 Capital y reservas (expandable sub-group) -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup3-1')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup3-1-arrow"></i>
-                                                    <span class="sub-group-name">3.100 Capital y reservas</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup3-1-content" style="display: none;">
-                                                    <!-- 3.100.550 Utilidades retenidas (nested expandable sub-group) -->
-                                                    <div class="sub-group-item">
-                                                        <div class="sub-group-header" onclick="toggleGroup('subgroup3-1-1')">
-                                                            <i class="bi bi-chevron-right dropdown-arrow" id="subgroup3-1-1-arrow"></i>
-                                                            <span class="sub-group-name">3.100.550 Utilidades retenidas</span>
-                                                            <span class="sub-group-value">0,00</span>
-                                                        </div>
-                                                        <div class="sub-group-content" id="subgroup3-1-1-content" style="display: none;">
-                                                            <div class="account-item">
-                                                                <span class="account-name">3.100.550.100 Utilidades retenidas</span>
-                                                                <span class="account-value">0,00</span>
-                                                            </div>
-                                                            <div class="account-item">
-                                                                <span class="account-name">3.100.550.150 Beneficio del período</span>
-                                                                <span class="account-value">0,00</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Other accounts within 3.100 Capital y reservas -->
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.100 Capital social</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.150 Prima de emisión</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.200 Reserva de revaluación de valores disponibles para la venta</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.250 Reserva de revaluación</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.300 Reserva de conversión de moneda extranjera</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.350 Reserva de cobertura</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.400 Reserva de instrumentos convertibles</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.450 Reserva de recompra de acciones</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.500 Reserva legal</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">3.100.970 Importes reconocidos directamente en el patrimonio neto relacionados con activos clasificados como mantenidos para la venta</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- 3.200 Interés minoritario -->
-                                            <div class="account-item">
-                                                <span class="account-name">3.200 Interés minoritario</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group4')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group4-arrow"></i>
-                                            <span class="group-name">4 Pasivos no corrientes</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group4-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">4.100 Préstamos - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.150 Acreedores comerciales y otras cuentas por pagar - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.170 Pasivos por arrendamientos - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.200 Retenciones por pagar - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.300 Préstamos de partes relacionadas - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.330 Instrumentos financieros derivados - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.350 Otros pasivos financieros - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.360 Subvenciones del gobierno - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.370 Provisión para indemnización por finiquito a empleados</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.380 Pasivos por impuestos diferidos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.390 Otras provisiones - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.400 Ingresos diferidos - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.450 Pasivos contractuales - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">4.500 Provisión para reembolsos - No corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group5')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group5-arrow"></i>
-                                            <span class="group-name">5 Pasivos corriente</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group5-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">5.100 Acreedores comerciales y otras cuentas por pagar - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.150 Montos adeudados a clientes bajo contratos de construcción</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.170 Pasivos por arrendamientos - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.200 Retenciones por pagar - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.220 Pasivos contractuales - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.230 Provisión para reembolsos - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.300 Debido a partes relacionadas - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.350 Instrumentos financieros derivados - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.400 Préstamos - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.450 Subvenciones del gobierno - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.460 Otros pasivos financieros - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.500 Pasivos por impuestos - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.550 Otras provisiones - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">5.600 Ingresos diferidos - Corriente</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group-patrimonio')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group-patrimonio-arrow"></i>
-                                            <span class="group-name">Patrimonio</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group-patrimonio-content" style="display: none;">
-                                            <!-- Capital social -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup-patrimonio-1')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup-patrimonio-1-arrow"></i>
-                                                    <span class="sub-group-name">Capital social</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup-patrimonio-1-content" style="display: none;">
-                                                    <div class="empty-state">
-                                                        <i class="fas fa-inbox"></i>
-                                                        <p>Arrastra aquí las cuentas de capital social</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Reservas y otros componentes -->
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup-patrimonio-2')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup-patrimonio-2-arrow"></i>
-                                                    <span class="sub-group-name">Reservas y otros componentes</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup-patrimonio-2-content" style="display: none;">
-                                                    <div class="empty-state">
-                                                        <i class="fas fa-inbox"></i>
-                                                        <p>Arrastra aquí las cuentas de reservas</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group6')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group6-arrow"></i>
-                                            <span class="group-name">6 Beneficio bruto</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group6-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">6.100 Ingresos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="sub-group-item">
-                                                <div class="sub-group-header" onclick="toggleGroup('subgroup6-500')">
-                                                    <i class="bi bi-chevron-right dropdown-arrow" id="subgroup6-500-arrow"></i>
-                                                    <span class="sub-group-name">6.500 Gastos directos</span>
-                                                    <span class="sub-group-value">0,00</span>
-                                                </div>
-                                                <div class="sub-group-content" id="subgroup6-500-content" style="display: none;">
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.100 Materias primas</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.150 Mercancías</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.200 Costos de empleados - Gastos directos</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.250 Prestación de servicios</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.300 Compras</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.350 Costo del proyecto</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.400 Cambios en inventarios de producto terminado y en proceso</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.450 Impuesto municipal y turístico</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.500 Alquiler</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.550 Comida y bebidas</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.600 Contratos de construcción</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.650 Depreciación, amortización y deterioro</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.700 Gastos relacionados con el arrendamiento de activos de bajo valor</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.710 Gastos relacionados con arrendamientos de corto plazo</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.720 Pagos por arrendamiento variables</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                    <div class="account-item">
-                                                        <span class="account-name">6.500.900 Otros gastos</span>
-                                                        <span class="account-value">0,00</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group7')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group7-arrow"></i>
-                                            <span class="group-name">7 Otros ingresos y gastos operativos</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group7-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">7.100 Ingresos por inversiones</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.150 Ingresos por dividendos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.200 Ganancia/Pérdida en la disposición de propiedades de inversión</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.250 Aumento/Disminución en el valor razonable de las propiedades para inversión</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.300 Ganancia/Pérdida en activos financieros a valor razonable con cambios en resultados (VRR)</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.310 Ganancia/Pérdida neta de la baja en cuentas de activos financieros medidos al costo amortizado</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.320 Ganancia/Pérdida neta en la reclasificación de activos financieros de costo amortizado a VRR</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.330 Pérdidas por deterioro de activos financieros</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.335 Depreciación de activos por derecho de uso</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.340 Ganancia/Pérdida neta en la reclasificación de activos financieros de VRCORI a VRR</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.350 Otros ingresos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.400 Otras ganancias y pérdidas</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.500 Gastos de venta y distribución</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.550 Gastos generales y administrativos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">7.900 Otros gastos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group9')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group9-arrow"></i>
-                                            <span class="group-name">9 Otros ingresos y gastos</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group9-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">9.100 Ingresos financieros</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.150 Costo financiero</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.200 Participación en los resultados de empresas asociadas y negocios conjuntos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.250 Ganancia reconocida por disposición de intereses en firma asociada</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.450 Gasto por impuesto a las utilidades</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.550 Pérdida/Beneficio del año por operaciones discontinuadas, neto de impuestos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">9.600 Otro resultado integral, neto de impuestos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            
-                                            </div>
-                                    </div>
-                                    
-                                    <!-- Nuevas secciones fuera del grupo 9 -->
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group10')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group10-arrow"></i>
-                                            <span class="group-name">140.1 Efectivo</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group10-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">1 Efectivo</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group11')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group11-arrow"></i>
-                                            <span class="group-name">130.1 Clientes</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group11-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">2 Clientes</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group12')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group12-arrow"></i>
-                                            <span class="group-name">136.1 Créditos fiscales</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group12-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">3 Créditos fiscales</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group13')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group13-arrow"></i>
-                                            <span class="group-name">180.1 Cuentas por cobrar a compañías relacionadas</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group13-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">4 Cuentas por cobrar relacionadas</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group14')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group14-arrow"></i>
-                                            <span class="group-name">135.1 Otras cuentas por cobrar</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group14-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">5 Otras cuentas por cobrar</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group15')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group15-arrow"></i>
-                                            <span class="group-name">190.2 Otros activos</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group15-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">6 Otros activos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group16')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group16-arrow"></i>
-                                            <span class="group-name">10.1 Derechos publicitarios negociables</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group16-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">7 Derechos publicitarios negociables</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group17')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group17-arrow"></i>
-                                            <span class="group-name">160.1 Activos mantenidos para la venta</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group17-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">8 Activos disponibles para la venta</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group18')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group18-arrow"></i>
-                                            <span class="group-name">5.2 Propiedades de inversión</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group18-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">9 Propiedades de inversión</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group19')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group19-arrow"></i>
-                                            <span class="group-name">1.1 Propiedad y equipo</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group19-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">10 Propiedad y equipo</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group20')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group20-arrow"></i>
-                                            <span class="group-name">425.1 Cuentas por pagar</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group20-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">11 Cuentas por pagar</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group21')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group21-arrow"></i>
-                                            <span class="group-name">330.1 Otras cuentas por pagar</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group21-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">13 Otras cuentas por pagar</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group22')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group22-arrow"></i>
-                                            <span class="group-name">400.1 Préstamos bancarios</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group22-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">14 Préstamos bancarios</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">16 Préstamos bancario</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group23')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group23-arrow"></i>
-                                            <span class="group-name">430.1 Cuentas por pagar a compañías relacionadas</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group23-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">15 Cuentas por pagar a compañías relacionadas</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group24')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group24-arrow"></i>
-                                            <span class="group-name">325.2 ISR diferido</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group24-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">17 Impuesto sobre la renta diferido</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group25')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group25-arrow"></i>
-                                            <span class="group-name">1500.1 Ingresos por prestación de servicios</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group25-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">22 Ingresos por ventas de bienes y prestación de servicios</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group26')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group26-arrow"></i>
-                                            <span class="group-name">1600.5 Costo de ventas por prestación de servicios</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group26-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">23 Costo por venta de bienes y prestación de servicios</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group27')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group27-arrow"></i>
-                                            <span class="group-name">1600.7 Gastos de operación</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group27-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">24 Gastos de administración</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group28')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group28-arrow"></i>
-                                            <span class="group-name">1700.1 Otros productos y gastos</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group28-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">25 Financieros – netos</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group29')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group29-arrow"></i>
-                                            <span class="group-name">1800.1 Impuesto sobre la renta</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group29-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">26 Impuestos sobre la renta del año</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group30')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group30-arrow"></i>
-                                            <span class="group-name">1900.1 Intereses no controlantes</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group30-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">28 Interés no controlante</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group31')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group31-arrow"></i>
-                                            <span class="group-name">120.1 Inversiones en acciones</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group31-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">30 Inversiones en acciones</span>
-                                                <span class="account-value">0,00</span>
-                                            </div>
-                                            <div class="account-item">
-                                                <span class="account-name">436 Acreedores</span>
+                                            <div class="account-item static-account" data-account-id="1800" data-account-code="1800" data-account-name="1800 - Otros ingresos y gastos financieros" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1800 - Otros ingresos y gastos financieros</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">436.1 Acreedores corto plazo</span>
+                                            <div class="account-item static-account" data-account-id="1810" data-account-code="1810" data-account-name="1810 - Otros ingresos financieros" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1810 - Otros ingresos financieros</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                            <div class="account-item">
-                                                <span class="account-name">436.2 Acreedores largo plazo</span>
+                                            <div class="account-item static-account" data-account-id="1820" data-account-code="1820" data-account-name="1820 - Otros gastos financieros" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1820 - Otros gastos financieros</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group32')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group32-arrow"></i>
-                                            <span class="group-name">1500.2 Aumento al valor razonable</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group32-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">29 Aumento al valor razonable de propiedades de inversión</span>
+                                            <div class="account-item static-account" data-account-id="1900" data-account-code="1900" data-account-name="1900 - Impuesto Sobre la Renta" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1900 - Impuesto Sobre la Renta</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="group-item">
-                                        <div class="group-header" onclick="toggleGroup('group33')">
-                                            <i class="bi bi-chevron-right dropdown-arrow" id="group33-arrow"></i>
-                                            <span class="group-name">1700.2 Ganancia por compra a precio de ganga</span>
-                                            <span class="group-value">0,00</span>
-                                        </div>
-                                        <div class="group-content" id="group33-content" style="display: none;">
-                                            <div class="account-item">
-                                                <span class="account-name">31 Ganancia por compra a precio de ganga</span>
+                                            <div class="account-item static-account" data-account-id="1910" data-account-code="1910" data-account-name="1910 - Efecto por conversión" data-account-value="0" data-account-prev-value="0">
+                                                <span class="account-name">1910 - Efecto por conversión</span>
                                                 <span class="account-value">0,00</span>
                                             </div>
                                         </div>
@@ -3358,6 +2495,7 @@
                     <table class="mapping-table">
                         <thead>
                             <tr>
+                                <th>LS (Grupo)</th>
                                 <th>Número de cuenta</th>
                                 <th>Nombre de la cuenta</th>
                                 <th>Año actual</th>
@@ -3366,6 +2504,16 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td>
+                                    <select class="form-select" id="lsMapping">
+                                        <option value="">LS (Grupo) *</option>
+                                        <option value="A">Columna A</option>
+                                        <option value="B">Columna B</option>
+                                        <option value="C">Columna C</option>
+                                        <option value="D">Columna D</option>
+                                        <option value="E">Columna E</option>
+                                    </select>
+                                </td>
                                 <td>
                                     <select class="form-select" id="accountNumberMapping">
                                         <option value="">Importar como *</option>
@@ -3432,11 +2580,12 @@
                                     <th>Columna 2</th>
                                     <th>Columna 3</th>
                                     <th>Columna 4</th>
+                                    <th>Columna 5</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; color: #666;">Cargando vista previa del archivo Excel...</td>
+                                    <td colspan="6" style="text-align: center; color: #666;">Cargando vista previa del archivo Excel...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -3804,7 +2953,8 @@
                 'accountNumberMapping',
                 'accountNameMapping', 
                 'currentYearMapping',
-                'previousYearMapping'
+                'previousYearMapping',
+                'lsMapping'
             ];
             
             columnSelectors.forEach(selectorId => {
@@ -3895,8 +3045,8 @@
             const headerRow = previewHeader.querySelector('tr');
             if (headerRow && headers.length > 0) {
                 headerRow.innerHTML = '<th>#</th>';
-                // Agregar hasta 4 encabezados de columna
-                for (let i = 0; i < Math.min(4, headers.length); i++) {
+                // Agregar hasta 5 encabezados de columna
+                for (let i = 0; i < Math.min(5, headers.length); i++) {
                     const th = document.createElement('th');
                     const rawHeader = headers[i];
                     let headerText = formatExcelCell(rawHeader);
@@ -3905,6 +3055,13 @@
                         headerText = `Columna ${i + 1}`;
                     }
                     th.textContent = headerText;
+                    headerRow.appendChild(th);
+                }
+                // Si hay menos de 5 columnas, agregar columnas vacías hasta completar 5
+                const currentColumns = headerRow.children.length - 1; // -1 por la columna de número
+                for (let i = currentColumns; i < 5; i++) {
+                    const th = document.createElement('th');
+                    th.textContent = `Columna ${i + 1}`;
                     headerRow.appendChild(th);
                 }
             }
@@ -3919,7 +3076,7 @@
             const dataRows = sheetData.slice(dataStartIndex, dataStartIndex + 5);
             
             if (dataRows.length === 0) {
-                previewTable.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No hay datos para mostrar</td></tr>';
+                previewTable.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No hay datos para mostrar</td></tr>';
                 return;
             }
             
@@ -3931,8 +3088,8 @@
                 rowNumberCell.textContent = dataStartIndex + index + 1;
                 tr.appendChild(rowNumberCell);
                 
-                // Agregar las primeras 4 celdas de datos (o las que haya disponibles)
-                for (let i = 0; i < 4; i++) {
+                // Agregar las primeras 5 celdas de datos (o las que haya disponibles)
+                for (let i = 0; i < 5; i++) {
                     const cell = document.createElement('td');
                     const cellValue = formatExcelCell(row[i]);
                     cell.textContent = cellValue;
@@ -3969,7 +3126,8 @@
                     accountNumber: document.getElementById('accountNumberMapping').value,
                     accountName: document.getElementById('accountNameMapping').value,
                     currentYear: document.getElementById('currentYearMapping').value,
-                    previousYear: document.getElementById('previousYearMapping').value
+                    previousYear: document.getElementById('previousYearMapping').value,
+                    ls: document.getElementById('lsMapping').value
                 };
                 
                 console.log('📊 Mapping data:', mappingData);
@@ -17441,6 +16599,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const previousValue = a.previous_year_value ?? a.previousYearValue ?? 0;
                     const numericValue = parseAccountValue(currentValue);
                     const numericPreviousValue = parseAccountValue(previousValue);
+                    const lsValue = a.ls || a.LS || a.ls_value || '';
                     const datasetId = a.conjunto_id || a.datasetId || a.dataset_id || currentDatasetId || '';
                     
                     // Mejorar la visualización del nombre de cuenta
@@ -17463,6 +16622,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                              data-account-name="${accountName}"
                              data-account-value="${numericValue}"
                              data-account-prev-value="${numericPreviousValue}"
+                             data-account-ls="${lsValue}"
                              data-account-dataset-id="${datasetId}">
                             <span class="account-name">${displayName}</span>
                             <span class="account-value">${displayValue}</span>
@@ -17678,6 +16838,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             id: accountData?.id || accountKey,
             code: accountData?.code || '',
             name: accountData?.name || '',
+            ls: accountData?.ls || '',
             value: parseAccountValue(accountData?.value),
             prevValue: parseAccountValue(accountData?.prevValue),
             groupContentId: groupId,
@@ -17750,6 +16911,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         accountKey,
                         code: accountData?.code || '',
                         name: accountData?.name || '',
+                        ls: accountData?.ls || '',
                         value: parseAccountValue(accountData?.value),
                         prevValue: parseAccountValue(accountData?.prevValue)
                     }
@@ -17845,6 +17007,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 id: assignment.id || assignment.accountKey,
                 code: assignment.code || '',
                 name: assignment.name || '',
+                ls: assignment.ls || assignment.meta?.ls || '',
                 value: assignment.value,
                 prevValue: assignment.prevValue,
                 datasetId: assignment.datasetId
@@ -17967,6 +17130,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     id: this.dataset.accountId || accountCode,
                     code: accountCode,
                     name: accountName,
+                    ls: this.dataset.accountLs || '',
                     value: numericValue,
                     prevValue: numericPrevValue,
                     datasetId: this.dataset.accountDatasetId || currentDatasetId
@@ -18477,6 +17641,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             id: accountElement.dataset.accountId,
             code: accountElement.dataset.accountCode || '',
             name: accountElement.dataset.accountName || '',
+            ls: accountElement.dataset.accountLs || '',
             value: parseAccountValue(accountElement.dataset.accountValue),
             prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
             datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
@@ -18552,6 +17717,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 id: accountElement.dataset.accountId,
                 code: accountElement.dataset.accountCode,
                 name: accountElement.querySelector('.account-name')?.textContent || '',
+                ls: accountElement.dataset.accountLs || '',
                 value: parseAccountValue(accountElement.dataset.accountValue),
                 prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
                 datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
@@ -18617,6 +17783,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         div.dataset.accountId = accountData.id || accountData.code;
         div.dataset.accountCode = accountData.code || '';
         div.dataset.accountName = accountData.name || '';
+        div.dataset.accountLs = accountData.ls || '';
         div.dataset.accountDatasetId = accountData.datasetId || currentDatasetId || '';
         const numericValue = parseAccountValue(accountData.value);
         const numericPrevValue = parseAccountValue(accountData.prevValue);
@@ -18649,6 +17816,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             id: accountElement.dataset.accountId,
             code: accountElement.dataset.accountCode || '',
             name: accountElement.dataset.accountName || '',
+            ls: accountElement.dataset.accountLs || '',
             value: parseAccountValue(accountElement.dataset.accountValue),
             prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
             datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
@@ -18708,6 +17876,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         accountElement.dataset.accountCode = accountData.code;
         accountElement.dataset.accountName = accountData.name;
         accountElement.dataset.accountDatasetId = accountData.datasetId || currentDatasetId || '';
+        accountElement.dataset.accountLs = accountData.ls || '';
         const numericValue = parseAccountValue(accountData.value);
         const numericPrevValue = parseAccountValue(accountData.prevValue);
         accountElement.dataset.accountValue = numericValue;
@@ -18715,6 +17884,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         accountElement.innerHTML = `
             <span class="account-name">${accountData.code} ${accountData.name}</span>
+            <span class="account-ls">LS: ${accountData.ls || 'N/A'}</span>
             <span class="account-value">${formatCurrency(numericValue)}</span>
         `;
         
@@ -18735,6 +17905,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 id: this.dataset.accountId,
                 code: this.dataset.accountCode,
                 name: this.dataset.accountName,
+                ls: this.dataset.accountLs || '',
                 value: parseAccountValue(this.dataset.accountValue),
                 prevValue: parseAccountValue(this.dataset.accountPrevValue),
                 datasetId: this.dataset.accountDatasetId || currentDatasetId
@@ -18748,6 +17919,123 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Actualizar contador de restantes
         updateRemainingCount();
+    }
+    
+    // Función para asignar automáticamente cuentas basándose en LS
+    function autoAssignAccountsByLS() {
+        console.log('🚀 Iniciando asignación automática por LS...');
+        
+        // Mapeo de LS a grupos financieros según estructura del usuario
+        const lsToGroupMapping = {
+            // ACTIVO (bg1-content)
+            '110': 'bg1-content',  // Inventarios
+            '115': 'bg1-content',  // Activos mantenidos para la venta
+            '120': 'bg1-content',  // Inversiones en acciones
+            '130': 'bg1-content',  // Clientes
+            '135': 'bg1-content',  // Otras cuentas por cobrar
+            '136': 'bg1-content',  // Impuestos por cobrar
+            '137': 'bg1-content',  // Anticipos a proveedores
+            '140': 'bg1-content',  // Caja y bancos
+            '150': 'bg1-content',  // Inversiones a corto plazo
+            '160': 'bg1-content',  // Propiedad, planta y equipo
+            '165': 'bg1-content',  // Activos intangibles
+            '170': 'bg1-content',  // Construcciones en proceso
+            '175': 'bg1-content',  // Propiedades de inversión
+            '180': 'bg1-content',  // Cuentas por cobrar a empresas relacionadas
+            '190': 'bg1-content',  // Otros activos
+            '195': 'bg1-content',  // Impuesto Sobre la Renta Diferido Activo
+            
+            // PASIVO Y PATRIMONIO (bg2-content)
+            '200': 'bg2-content',  // Patrimonio
+            '201': 'bg2-content',  // Capital autorizado, suscrito y pagado
+            '202': 'bg2-content',  // Reserva legal
+            '203': 'bg2-content',  // Aportes por capitalizar
+            '204': 'bg2-content',  // Resultados acumulados
+            '205': 'bg2-content',  // Superávit por revaluación
+            '206': 'bg2-content',  // Efecto por conversión
+            '300': 'bg2-content',  // Provisión para indemnizaciones
+            '310': 'bg2-content',  // Prestaciones laborales
+            '325': 'bg2-content',  // Impuesto Sobre la Renta Diferido Pasivo
+            '330': 'bg2-content',  // Otras cuentas por pagar
+            '335': 'bg2-content',  // Impuestos por pagar
+            '336': 'bg2-content',  // Anticipos de clientes
+            '400': 'bg2-content',  // Préstamos bancarios
+            '425': 'bg2-content',  // Proveedores
+            '426': 'bg2-content',  // Acreedores
+            '430': 'bg2-content',  // Cuentas por pagar empresas relacionadas
+            '440': 'bg2-content',  // Arrendamientos financieros
+            
+            // INGRESOS (bg4-content)
+            '1500': 'bg4-content', // Ingresos
+            '1510': 'bg4-content', // Ingresos por venta de productos
+            '1520': 'bg4-content', // Ingresos por servicios
+            '1530': 'bg4-content', // Efecto en el valor razonable
+            '1810': 'bg4-content', // Otros ingresos financieros
+            
+            // COSTOS Y GASTOS (bg5-content)
+            '1600': 'bg5-content', // Costo de ventas
+            '1700': 'bg5-content', // Gastos de operación
+            '1710': 'bg5-content', // Gastos de administración
+            '1720': 'bg5-content', // Gastos de venta
+            '1800': 'bg5-content', // Otros ingresos y gastos financieros
+            '1820': 'bg5-content', // Otros gastos financieros
+            '1900': 'bg5-content', // Impuesto Sobre la Renta
+            '1910': 'bg5-content', // Efecto por conversión
+        };
+        
+        // Obtener todas las cuentas sin asignar
+        const unassignedAccounts = document.querySelectorAll('.unassigned-accounts-list .account-item');
+        let assignedCount = 0;
+        
+        if (unassignedAccounts.length === 0) {
+            showNotification('No hay cuentas sin asignar para procesar', 'warning');
+            return;
+        }
+        
+        console.log(`📊 Procesando ${unassignedAccounts.length} cuentas sin asignar...`);
+        
+        // Procesar cada cuenta
+        unassignedAccounts.forEach(accountElement => {
+            const accountData = {
+                element: accountElement,
+                id: accountElement.dataset.accountId,
+                code: accountElement.dataset.accountCode || '',
+                name: accountElement.dataset.accountName || '',
+                ls: accountElement.dataset.accountLs || '', // Campo LS agregado
+                value: parseAccountValue(accountElement.dataset.accountValue),
+                prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
+                datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
+            };
+            
+            // Usar directamente el valor LS para determinar el grupo
+            let targetGroup = null;
+            if (accountData.ls && lsToGroupMapping[accountData.ls]) {
+                targetGroup = lsToGroupMapping[accountData.ls];
+            }
+            
+            if (targetGroup) {
+                const groupContent = document.getElementById(targetGroup);
+                
+                if (groupContent) {
+                    console.log(`🎯 Asignando cuenta ${accountData.code} (LS: ${accountData.ls}) al grupo ${targetGroup}`);
+                    assignAccountToGroup(accountData, groupContent);
+                    assignedCount++;
+                } else {
+                    console.warn(`⚠️ No se encontró el grupo ${targetGroup} para LS ${accountData.ls}`);
+                }
+            } else {
+                console.log(`ℹ️ Cuenta ${accountData.code} sin LS mapeable (LS: ${accountData.ls})`);
+            }
+        });
+        
+        // Mostrar resultado
+        if (assignedCount > 0) {
+            showNotification(`✅ Se asignaron automáticamente ${assignedCount} cuentas basadas en LS`, 'success');
+        } else {
+            showNotification('No se encontraron cuentas con LS mapeable', 'info');
+        }
+        
+        console.log(`🏁 Asignación automática completada. ${assignedCount} cuentas asignadas.`);
     }
     
     function calculateGroupTotals(container) {
@@ -19312,6 +18600,323 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             }
         }
+
+        let isEditMode = false;
+        let originalGroupNames = new Map();
+
+        function editAccountGroups() {
+            const editButton = document.querySelector('[onclick="editAccountGroups()"]');
+            const groupNames = document.querySelectorAll('.group-name');
+            const subGroupNames = document.querySelectorAll('.sub-group-name');
+            const accountNames = document.querySelectorAll('.account-name');
+            
+            if (!isEditMode) {
+                // Entering edit mode
+                isEditMode = true;
+                editButton.innerHTML = '<i class="bi bi-check"></i>';
+                editButton.classList.remove('btn-outline-primary');
+                editButton.classList.add('btn-success');
+                editButton.title = 'Guardar cambios';
+                
+                // Store original names and make them editable
+                const allEditableElements = [...groupNames, ...subGroupNames, ...accountNames];
+                allEditableElements.forEach(element => {
+                    const currentName = element.textContent.trim();
+                    originalGroupNames.set(element, currentName);
+                    
+                    // Make content editable
+                    element.contentEditable = true;
+                    element.style.backgroundColor = '#f8f9fa';
+                    element.style.border = '1px solid #007bff';
+                    element.style.borderRadius = '4px';
+                    element.style.padding = '2px 4px';
+                    element.style.cursor = 'text';
+                    
+                    // Add focus and blur events
+                    element.addEventListener('focus', function() {
+                        this.select();
+                    });
+                    
+                    element.addEventListener('blur', function() {
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                    
+                    element.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.blur();
+                        }
+                    });
+                });
+                
+                showNotification('Modo de edición activado. Modifica los nombres de grupos y cuentas y presiona el botón verde para guardar.', 'info');
+                
+            } else {
+                // Exiting edit mode - save changes
+                isEditMode = false;
+                editButton.innerHTML = '<i class="bi bi-pencil"></i>';
+                editButton.classList.remove('btn-success');
+                editButton.classList.add('btn-outline-primary');
+                editButton.title = 'Editar grupos de cuentas';
+                
+                // Save changes and make names non-editable
+                const changes = [];
+                const allEditableElements = [...groupNames, ...subGroupNames, ...accountNames];
+                allEditableElements.forEach(element => {
+                    const newName = element.textContent.trim();
+                    const originalName = originalGroupNames.get(element);
+                    
+                    if (newName !== originalName) {
+                        changes.push({
+                            element: element,
+                            oldName: originalName,
+                            newName: newName,
+                            type: element.classList.contains('account-name') ? 'account' : 'group'
+                        });
+                    }
+                    
+                    // Make content non-editable
+                    element.contentEditable = false;
+                    element.style.backgroundColor = '';
+                    element.style.border = '';
+                    element.style.borderRadius = '';
+                    element.style.padding = '';
+                    element.style.cursor = '';
+                    
+                    // Remove event listeners
+                    element.removeEventListener('focus', null);
+                    element.removeEventListener('blur', null);
+                    element.removeEventListener('keydown', null);
+                });
+                
+                // Clear original names
+                originalGroupNames.clear();
+                
+                if (changes.length > 0) {
+                    const groupChanges = changes.filter(c => c.type === 'group').length;
+                    const accountChanges = changes.filter(c => c.type === 'account').length;
+                    let message = `Se guardaron ${changes.length} cambios`;
+                    if (groupChanges > 0 && accountChanges > 0) {
+                        message += ` (${groupChanges} grupos, ${accountChanges} cuentas)`;
+                    } else if (groupChanges > 0) {
+                        message += ' en nombres de grupos';
+                    } else if (accountChanges > 0) {
+                        message += ' en nombres de cuentas';
+                    }
+                    message += '.';
+                    
+                    showNotification(message, 'success');
+                    console.log('Cambios guardados:', changes);
+                    
+                    // Save to backend or localStorage
+                    saveGroupNamesToStorage();
+                    saveAccountNamesToStorage();
+                } else {
+                    showNotification('No se realizaron cambios.', 'info');
+                }
+            }
+        }
+
+        function saveGroupNamesToStorage() {
+            const groupNames = [];
+            document.querySelectorAll('.group-name, .sub-group-name').forEach(element => {
+                const groupId = element.closest('.group-item, .sub-group-item').querySelector('.group-header, .sub-group-header').onclick?.toString().match(/toggleGroup\('([^']+)'\)/);
+                if (groupId) {
+                    groupNames.push({
+                        id: groupId[1],
+                        name: element.textContent.trim()
+                    });
+                }
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('customGroupNames', JSON.stringify(groupNames));
+        }
+
+        function saveAccountNamesToStorage() {
+            const accountNames = [];
+            document.querySelectorAll('.account-name').forEach(element => {
+                const accountElement = element.closest('.account-item');
+                if (accountElement) {
+                    const accountId = accountElement.dataset.accountId || accountElement.id;
+                    if (accountId) {
+                        accountNames.push({
+                            id: accountId,
+                            name: element.textContent.trim()
+                        });
+                    }
+                }
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('customAccountNames', JSON.stringify(accountNames));
+        }
+
+        function addNewAccount() {
+            // Crear un modal para agregar nueva cuenta
+            const modalHtml = `
+                <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addAccountModalLabel">Agregar Nueva Cuenta</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="addAccountForm">
+                                    <div class="mb-3">
+                                        <label for="accountCode" class="form-label">Código de Cuenta</label>
+                                        <input type="text" class="form-control" id="accountCode" placeholder="Ej: 160" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="accountName" class="form-label">Nombre de Cuenta</label>
+                                        <input type="text" class="form-control" id="accountName" placeholder="Ej: Cuentas por cobrar comerciales" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="accountGroup" class="form-label">Grupo</label>
+                                        <select class="form-select" id="accountGroup" required>
+                                            <option value="">Seleccionar grupo...</option>
+                                            <option value="bg1">Activo</option>
+                                            <option value="pasivo-patrimonio">Pasivo y Patrimonio</option>
+                                            <option value="resultado">Resultados</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="accountValue" class="form-label">Valor Inicial</label>
+                                        <input type="number" class="form-control" id="accountValue" placeholder="0.00" step="0.01" value="0">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-success" onclick="saveNewAccount()">Guardar Cuenta</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar el modal al body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+            modal.show();
+            
+            // Eliminar el modal del DOM cuando se cierre
+            document.getElementById('addAccountModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+
+        function saveNewAccount() {
+            const code = document.getElementById('accountCode').value.trim();
+            const name = document.getElementById('accountName').value.trim();
+            const group = document.getElementById('accountGroup').value;
+            const value = parseFloat(document.getElementById('accountValue').value) || 0;
+            
+            if (!code || !name || !group) {
+                alert('Por favor complete todos los campos requeridos');
+                return;
+            }
+            
+            // Crear el nuevo elemento de cuenta
+            const newAccountHtml = `
+                <div class="account-item assigned-account" data-account-id="${code}" data-account-code="${code}" data-account-name="${code} - ${name}" data-account-value="${value}" data-account-prev-value="0">
+                    <span class="account-name">${code} - ${name}</span>
+                    <span class="account-value">${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <button class="btn btn-sm btn-outline-danger remove-account-btn" onclick="removeAccount('${code}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Agregar la cuenta al grupo seleccionado
+            const groupContent = document.getElementById(`${group}-content`);
+            if (groupContent) {
+                groupContent.insertAdjacentHTML('beforeend', newAccountHtml);
+                
+                // Actualizar el contador del grupo
+                updateGroupCount(group);
+                
+                // Cerrar el modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
+                modal.hide();
+                
+                // Mostrar mensaje de éxito
+                showNotification('Cuenta agregada exitosamente', 'success');
+            } else {
+                alert('No se pudo encontrar el grupo seleccionado');
+            }
+        }
+
+        function removeAccount(accountId) {
+            if (confirm('¿Está seguro de que desea eliminar esta cuenta?')) {
+                const accountElement = document.querySelector(`[data-account-id="${accountId}"]`);
+                if (accountElement) {
+                    const group = accountElement.closest('.group-content').id.replace('-content', '');
+                    accountElement.remove();
+                    updateGroupCount(group);
+                    showNotification('Cuenta eliminada exitosamente', 'info');
+                }
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notificationHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', notificationHtml);
+            
+            // Auto-eliminar después de 3 segundos
+            setTimeout(() => {
+                const alert = document.querySelector('.alert');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 3000);
+        }
+
+        function loadGroupNamesFromStorage() {
+            // Clear old group names to ensure correct display
+            localStorage.removeItem('customGroupNames');
+            
+            // Load group names
+            const savedGroupNames = localStorage.getItem('customGroupNames');
+            if (savedGroupNames) {
+                try {
+                    const groupNames = JSON.parse(savedGroupNames);
+                    groupNames.forEach(item => {
+                        const element = document.querySelector(`[onclick="toggleGroup('${item.id}')"] .group-name, [onclick="toggleGroup('${item.id}')"] .sub-group-name`);
+                        if (element) {
+                            element.textContent = item.name;
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Error loading custom group names:', error);
+                }
+            }
+            
+            // Load account names
+            const savedAccountNames = localStorage.getItem('customAccountNames');
+            if (savedAccountNames) {
+                try {
+                    const accountNames = JSON.parse(savedAccountNames);
+                    accountNames.forEach(item => {
+                        const element = document.querySelector(`[data-account-id="${item.id}"] .account-name, #${item.id} .account-name`);
+                        if (element) {
+                            element.textContent = item.name;
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Error loading custom account names:', error);
+                }
+            }
+        }
         
         function searchAccounts(type) {
             let searchInput, container;
@@ -19787,6 +19392,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         document.addEventListener('DOMContentLoaded', function () {
             const initFormularios = function () {
+                // Load custom group names
+                loadGroupNamesFromStorage();
+                
                 const userData = window.getUserUI();
                 if (!userData) {
                     window.location.href = 'login.html';

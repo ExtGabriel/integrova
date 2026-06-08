@@ -3018,6 +3018,10 @@ app.post('/api/excel/process-mapping', async (req, res) => {
                 debito_anterior: account.previousYearDebit || 0,
                 credito_anterior: account.previousYearCredit || 0,
                 clasificado: false,
+                meta: {
+                    ...(account.meta || {}),
+                    ls: account.ls ? account.ls.toString().trim() : ''
+                },
                 created_at: new Date().toISOString()
             }));
 
@@ -3422,6 +3426,57 @@ function mapColumns(headers) {
     return mapping;
 }
 
+function parseAccountMeta(meta) {
+    if (!meta) return {};
+    if (typeof meta === 'object') return meta;
+
+    if (typeof meta === 'string') {
+        try {
+            const parsed = JSON.parse(meta);
+            if (parsed && typeof parsed === 'object') {
+                return parsed;
+            }
+        } catch (error) {
+            console.warn('⚠️ No se pudo parsear meta JSON:', error?.message);
+        }
+    }
+
+    return {};
+}
+
+function extractLSValue(account = {}) {
+    if (!account) return '';
+
+    const candidates = [account.ls, account.ls_value, account.grupo_ls, account.grupo, account.LS];
+    for (const candidate of candidates) {
+        if (candidate != null && candidate !== '') {
+            const value = candidate.toString().trim();
+            if (value) return value;
+        }
+    }
+
+    // Revisar meta JSON (puede venir como objeto o string)
+    const meta = account.meta;
+    if (meta) {
+        if (typeof meta === 'string') {
+            try {
+                const parsed = JSON.parse(meta);
+                if (parsed && parsed.ls) {
+                    const value = parsed.ls.toString().trim();
+                    if (value) return value;
+                }
+            } catch (err) {
+                console.warn('⚠️ No se pudo parsear meta.ls como JSON:', err?.message);
+            }
+        } else if (typeof meta === 'object' && meta.ls) {
+            const value = meta.ls.toString().trim();
+            if (value) return value;
+        }
+    }
+
+    return '';
+}
+
 // Detectar mapeo de columnas para el endpoint de cuentas no asignadas
 function detectColumnMapping(headers) {
     const mapping = {
@@ -3430,7 +3485,8 @@ function detectColumnMapping(headers) {
         currentYear: -1,
         previousYear: -1,
         debit: -1,
-        credit: -1
+        credit: -1,
+        ls: -1
     };
 
     const numericHeaderIndexes = [];
@@ -3445,14 +3501,16 @@ function detectColumnMapping(headers) {
             numericHeaderIndexes.push(index);
         }
 
-        // Número de cuenta
-        if (h.includes('numero') || h.includes('número') || h.includes('num') || h.includes('no.') || h === 'account number') {
+        // Número de cuenta (detección exacta primero)
+        if (rawHeader === 'Numero' || rawHeader === 'numero' || h.includes('numero') || h.includes('número') || h.includes('num') || h.includes('no.') || h === 'account number' || 
+            h.includes('código') || h.includes('codigo') || h.includes('code') || h.includes('id') || h.includes('ref')) {
             mapping.accountNumber = index;
             return;
         }
 
-        // Nombre de cuenta
-        if (h.includes('nombre') || h.includes('descripción') || h.includes('descripcion') || h === 'account name' || h.includes('name')) {
+        // Nombre de cuenta (detección exacta primero)
+        if (rawHeader === 'Cuenta' || rawHeader === 'cuenta' || h.includes('nombre') || h.includes('descripción') || h.includes('descripcion') || h === 'account name' || h.includes('name') ||
+            h.includes('concept') || h.includes('rubro') || h.includes('concepto')) {
             mapping.accountName = index;
             return;
         }
@@ -3490,6 +3548,15 @@ function detectColumnMapping(headers) {
         // Créditos
         if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
             mapping.credit = index;
+            return;
+        }
+
+        // LS (Grupo) - detección exacta primero
+        if (rawHeader === 'LS' || rawHeader === 'ls' || /(\b|\s)ls(\b|\s|\()/i.test(rawHeader) || h.includes('grupo ls') || h.includes('ls (grupo') ||
+            h.includes('grupo') || h.includes('clasificación') || h.includes('clasificacion') || h.includes('categoria') ||
+            h.includes('categoría') || h.includes('tipo') || h === 'l.s.' || h === 'l.s') {
+            mapping.ls = index;
+            return;
         }
     });
 
@@ -4417,6 +4484,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             accountName: parseInt(mappingData.accountName) || 1,
             currentYear: parseInt(mappingData.currentYear) || 2,
             previousYear: parseInt(mappingData.previousYear) || 3,
+            ls: parseInt(mappingData.ls) || 4,
             currentYearDC: mappingData.currentYearDebitCredit || 'credit',
             previousYearDC: mappingData.previousYearDebitCredit || 'credit'
         };
@@ -4453,6 +4521,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             const accountName = row[mapping.accountName];
             const currentYearValue = row[mapping.currentYear] || 0;
             const previousYearValue = row[mapping.previousYear] || 0;
+            const lsValue = row[mapping.ls] || '';
             
             // Validar que tenga número de cuenta y nombre
             if (!accountNumber || !accountName) {
@@ -4482,6 +4551,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
                 name: accountName.toString().trim(),
                 currentYear: currentYearConverted, // Valor absoluto
                 previousYear: previousYearConverted, // Valor absoluto
+                ls: lsValue.toString().trim(), // Campo LS
                 // Guardar valores originales para referencia
                 currentYearOriginal: currentYearNum,
                 previousYearOriginal: previousYearNum
@@ -4598,6 +4668,7 @@ app.get('/api/accounts/unassigned', async (req, res) => {
                 const accountName = extractAccountName(row, mapping.accountName);
                 const currentYearValue = extractValue(row, mapping.currentYear);
                 const previousYearValue = extractValue(row, mapping.previousYear);
+                const lsValue = mapping.ls >= 0 ? row[mapping.ls] : '';
                 
                 if (!accountNumber && !accountName) return;
                 
@@ -4610,7 +4681,11 @@ app.get('/api/accounts/unassigned', async (req, res) => {
                     previous_year_value: previousYearValue,
                     debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
                     credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
-                    conjunto_id: conjunto.id
+                    conjunto_id: conjunto.id,
+                    ls: lsValue ? lsValue.toString().trim() : '',
+                    meta: {
+                        ls: lsValue ? lsValue.toString().trim() : ''
+                    }
                 });
             });
             
@@ -4634,7 +4709,9 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             previous_year_value: account.debito_anterior - account.credito_anterior,
             debit: account.debito_actual,
             credit: account.credito_actual,
-            conjunto_id: account.conjunto_id
+            conjunto_id: account.conjunto_id,
+            meta: parseAccountMeta(account.meta),
+            ls: extractLSValue(account)
         }));
 
         res.json({ 
