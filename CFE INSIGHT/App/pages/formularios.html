@@ -1960,20 +1960,14 @@
                                 <div class="panel-header">
                                     <div class="left-header">
                                         <h3>Grupos</h3>
+                                    </div>
+                                    <div class="right-header">
                                         <button class="btn btn-sm btn-outline-primary ms-2" onclick="addNewAccount()" title="Agregar nueva cuenta">
                                             <i class="bi bi-plus-circle"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-primary ms-2" onclick="editAccountGroups()" title="Editar grupos de cuentas">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                    </div>
-                                    <div class="right-header">
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-                                            <select class="form-select group-structure-selector">
-                                                <option value="financial-groups">Estructura de agrupación - Grupos financieros</option>
-                                            </select>
-                                        </div>
                                     </div>
                                 </div>
                                 <div class="search-bar-container">
@@ -16615,8 +16609,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     
                     const displayValue = currentValue != null ? formatCurrency(numericValue) : '';
                     
+                    // Mostrar en formato de columnas como Excel: LS | Código | Nombre | Valor
+                    const lsColumn = lsValue ? `<span class="account-ls-column">${lsValue}</span>` : '<span class="account-ls-column"></span>';
+                    const codeColumn = accountNumber ? `<span class="account-code-column">${accountNumber}</span>` : '<span class="account-code-column"></span>';
+                    
                     return `
-                        <div class="account-item" style="justify-content: space-between; cursor: pointer;" 
+                        <div class="account-item" style="cursor: pointer;" 
                              data-account-id="${a.id || a.code}" 
                              data-account-code="${accountNumber}"
                              data-account-name="${accountName}"
@@ -16624,8 +16622,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                              data-account-prev-value="${numericPreviousValue}"
                              data-account-ls="${lsValue}"
                              data-account-dataset-id="${datasetId}">
-                            <span class="account-name">${displayName}</span>
-                            <span class="account-value">${displayValue}</span>
+                            <div class="account-columns">
+                                ${lsColumn}
+                                ${codeColumn}
+                                <span class="account-name-column">${accountName}</span>
+                            </div>
+                            <span class="account-value-column">${displayValue}</span>
                         </div>
                     `;
                 })
@@ -17731,7 +17733,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function assignAccountToGroup(accountData, groupContent) {
-        console.log(' Asignando cuenta al grupo:', accountData.code, '→', groupContent.id);
+        console.log('🔥 ASIGNANDO cuenta al grupo:', accountData.code, '→', groupContent.id);
+        console.log('   LS de la cuenta:', accountData.ls);
+        console.log('   Código de la cuenta:', accountData.code);
+        console.log('   Nombre de la cuenta:', accountData.name);
+        
+        // DEBUG: Verificar qué grupo se está usando
+        console.log('   📋 Grupo de destino:', groupContent.id);
+        console.log('   🔍 Cuentas estáticas en este grupo:');
+        const staticAccountsInGroup = groupContent.querySelectorAll('.static-account');
+        staticAccountsInGroup.forEach(acc => {
+            console.log(`      - ID: ${acc.dataset.accountId}, Nombre: ${acc.dataset.accountName}`);
+        });
 
         // Si el grupo está vacío, remover el empty state
         const emptyState = groupContent.querySelector('.empty-state');
@@ -17921,67 +17934,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         updateRemainingCount();
     }
     
-    // Función para asignar automáticamente cuentas basándose en LS
+    function normalizeLSValue(rawLs) {
+        if (rawLs == null) return '';
+        const str = rawLs.toString().trim();
+        if (!str) return '';
+
+        // Intentar extraer sólo números; si no hay, usar el string original
+        const numericOnly = str.replace(/[^0-9]/g, '');
+        if (numericOnly) {
+            // Eliminar ceros a la izquierda para evitar "0140" vs "140"
+            return numericOnly.replace(/^0+(?=\d)/, '');
+        }
+
+        return str;
+    }
+
+    function buildLsToGroupMapping() {
+        const map = new Map();
+        const staticAccounts = document.querySelectorAll('.group-content .static-account, .sub-group-content .static-account');
+
+        staticAccounts.forEach(staticAccount => {
+            const lsRaw = staticAccount.dataset.accountId || staticAccount.dataset.accountCode || '';
+            const normalized = normalizeLSValue(lsRaw);
+            if (!normalized) return;
+
+            const group = staticAccount.closest('.group-content, .sub-group-content');
+            if (!group) return;
+
+            if (!map.has(normalized)) {
+                map.set(normalized, { group, staticAccount });
+            }
+        });
+
+        return map;
+    }
+
+    // Función para asignar automáticamente cuentas basándose en LS exacto
     function autoAssignAccountsByLS() {
-        console.log('🚀 Iniciando asignación automática por LS...');
-        
-        // Mapeo de LS a grupos financieros según estructura del usuario
-        const lsToGroupMapping = {
-            // ACTIVO (bg1-content)
-            '110': 'bg1-content',  // Inventarios
-            '115': 'bg1-content',  // Activos mantenidos para la venta
-            '120': 'bg1-content',  // Inversiones en acciones
-            '130': 'bg1-content',  // Clientes
-            '135': 'bg1-content',  // Otras cuentas por cobrar
-            '136': 'bg1-content',  // Impuestos por cobrar
-            '137': 'bg1-content',  // Anticipos a proveedores
-            '140': 'bg1-content',  // Caja y bancos
-            '150': 'bg1-content',  // Inversiones a corto plazo
-            '160': 'bg1-content',  // Propiedad, planta y equipo
-            '165': 'bg1-content',  // Activos intangibles
-            '170': 'bg1-content',  // Construcciones en proceso
-            '175': 'bg1-content',  // Propiedades de inversión
-            '180': 'bg1-content',  // Cuentas por cobrar a empresas relacionadas
-            '190': 'bg1-content',  // Otros activos
-            '195': 'bg1-content',  // Impuesto Sobre la Renta Diferido Activo
-            
-            // PASIVO Y PATRIMONIO (bg2-content)
-            '200': 'bg2-content',  // Patrimonio
-            '201': 'bg2-content',  // Capital autorizado, suscrito y pagado
-            '202': 'bg2-content',  // Reserva legal
-            '203': 'bg2-content',  // Aportes por capitalizar
-            '204': 'bg2-content',  // Resultados acumulados
-            '205': 'bg2-content',  // Superávit por revaluación
-            '206': 'bg2-content',  // Efecto por conversión
-            '300': 'bg2-content',  // Provisión para indemnizaciones
-            '310': 'bg2-content',  // Prestaciones laborales
-            '325': 'bg2-content',  // Impuesto Sobre la Renta Diferido Pasivo
-            '330': 'bg2-content',  // Otras cuentas por pagar
-            '335': 'bg2-content',  // Impuestos por pagar
-            '336': 'bg2-content',  // Anticipos de clientes
-            '400': 'bg2-content',  // Préstamos bancarios
-            '425': 'bg2-content',  // Proveedores
-            '426': 'bg2-content',  // Acreedores
-            '430': 'bg2-content',  // Cuentas por pagar empresas relacionadas
-            '440': 'bg2-content',  // Arrendamientos financieros
-            
-            // INGRESOS (bg4-content)
-            '1500': 'bg4-content', // Ingresos
-            '1510': 'bg4-content', // Ingresos por venta de productos
-            '1520': 'bg4-content', // Ingresos por servicios
-            '1530': 'bg4-content', // Efecto en el valor razonable
-            '1810': 'bg4-content', // Otros ingresos financieros
-            
-            // COSTOS Y GASTOS (bg5-content)
-            '1600': 'bg5-content', // Costo de ventas
-            '1700': 'bg5-content', // Gastos de operación
-            '1710': 'bg5-content', // Gastos de administración
-            '1720': 'bg5-content', // Gastos de venta
-            '1800': 'bg5-content', // Otros ingresos y gastos financieros
-            '1820': 'bg5-content', // Otros gastos financieros
-            '1900': 'bg5-content', // Impuesto Sobre la Renta
-            '1910': 'bg5-content', // Efecto por conversión
-        };
+        console.log('🚀 Iniciando asignación automática por LS exacto...');
         
         // Obtener todas las cuentas sin asignar
         const unassignedAccounts = document.querySelectorAll('.unassigned-accounts-list .account-item');
@@ -17994,45 +17984,65 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         console.log(`📊 Procesando ${unassignedAccounts.length} cuentas sin asignar...`);
         
+        const lsGroupMapping = buildLsToGroupMapping();
+        console.log('📚 Mapa LS → Grupo generado con', lsGroupMapping.size, 'entradas');
+        lsGroupMapping.forEach((value, key) => {
+            const groupId = value.group?.id || '(sin id)';
+            const staticName = value.staticAccount?.dataset?.accountName || '(sin nombre)';
+            console.log(`   • LS "${key}" → Grupo ${groupId} (${staticName})`);
+        });
+        
         // Procesar cada cuenta
-        unassignedAccounts.forEach(accountElement => {
+        unassignedAccounts.forEach((accountElement, index) => {
+            console.log(`\n📋 Procesando cuenta ${index + 1}:`);
+            console.log(`   Elemento:`, accountElement);
+            console.log(`   Datasets:`, accountElement.dataset);
+            
             const accountData = {
                 element: accountElement,
                 id: accountElement.dataset.accountId,
                 code: accountElement.dataset.accountCode || '',
                 name: accountElement.dataset.accountName || '',
-                ls: accountElement.dataset.accountLs || '', // Campo LS agregado
+                ls: accountElement.dataset.accountLs || '', // Campo LS
                 value: parseAccountValue(accountElement.dataset.accountValue),
                 prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
                 datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
             };
             
-            // Usar directamente el valor LS para determinar el grupo
+            const normalizedLs = normalizeLSValue(accountData.ls);
+            console.log(`   LS extraído: "${accountData.ls}" (normalizado: "${normalizedLs}")`);
+            console.log(`   Código: "${accountData.code}"`);
+            console.log(`   Nombre: "${accountData.name}"`);
+            
+            // Buscar el grupo que contiene una cuenta estática con el mismo LS
             let targetGroup = null;
-            if (accountData.ls && lsToGroupMapping[accountData.ls]) {
-                targetGroup = lsToGroupMapping[accountData.ls];
+            const mappingEntry = normalizedLs ? lsGroupMapping.get(normalizedLs) : null;
+            if (mappingEntry) {
+                targetGroup = mappingEntry.group;
+                const staticAccount = mappingEntry.staticAccount;
+                console.log(`🎯 ENCONTRADA cuenta estática con LS ${normalizedLs} en grupo ${targetGroup.id}`);
+                console.log(`   Cuenta estática: ID="${staticAccount.dataset.accountId}" Nombre="${staticAccount.dataset.accountName}"`);
+
+                appendExcelAccountToStaticAccount(accountData, staticAccount, targetGroup);
+                assignedCount++;
+            } else {
+                if (!normalizedLs) {
+                    console.log(`   ⚠️ LS vacío o nulo para cuenta ${accountData.code}`);
+                } else {
+                    console.log(`   ❌ NO se encontró cuenta estática con LS normalizado "${normalizedLs}"`);
+                }
             }
             
-            if (targetGroup) {
-                const groupContent = document.getElementById(targetGroup);
-                
-                if (groupContent) {
-                    console.log(`🎯 Asignando cuenta ${accountData.code} (LS: ${accountData.ls}) al grupo ${targetGroup}`);
-                    assignAccountToGroup(accountData, groupContent);
-                    assignedCount++;
-                } else {
-                    console.warn(`⚠️ No se encontró el grupo ${targetGroup} para LS ${accountData.ls}`);
-                }
-            } else {
-                console.log(`ℹ️ Cuenta ${accountData.code} sin LS mapeable (LS: ${accountData.ls})`);
+            if (!targetGroup) {
+                console.log(`ℹ️ Cuenta ${accountData.code} sin LS coincidente (LS: "${accountData.ls}")`);
             }
         });
         
         // Mostrar resultado
         if (assignedCount > 0) {
-            showNotification(`✅ Se asignaron automáticamente ${assignedCount} cuentas basadas en LS`, 'success');
+            showNotification(`✅ Se asignaron automáticamente ${assignedCount} cuentas basadas en LS exacto`, 'success');
         } else {
-            showNotification('No se encontraron cuentas con LS mapeable', 'info');
+            showNotification('No se encontraron cuentas con LS coincidente en los grupos', 'info');
         }
         
         console.log(`🏁 Asignación automática completada. ${assignedCount} cuentas asignadas.`);

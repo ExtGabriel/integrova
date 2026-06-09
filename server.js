@@ -3558,6 +3558,13 @@ function detectColumnMapping(headers) {
             mapping.ls = index;
             return;
         }
+        
+        // Si no se encuentra LS explícitamente, asumir que la primera columna es LS
+        // (ya que el usuario indica que LS es la primera columna con números como 130, 140)
+        if (mapping.ls < 0 && index === 0) {
+            mapping.ls = 0;
+            return;
+        }
     });
 
     if (mapping.accountName < 0 && mapping.accountNumber >= 0) {
@@ -3618,6 +3625,27 @@ function extractValue(row, colIndex) {
         return isNaN(value) ? 0 : value;
     }
     return 0;
+}
+
+// Extraer valor LS desde una fila de Excel como texto (para códigos como "130", "140")
+function extractLSValueFromRow(row, colIndex) {
+    if (colIndex >= 0 && row[colIndex]) {
+        let value = row[colIndex];
+        
+        // Si es un número, convertirlo a texto
+        if (typeof value === 'number') {
+            value = value.toString();
+        }
+        
+        // Limpiar espacios y caracteres extraños
+        value = value.toString().trim();
+        
+        // Eliminar caracteres no numéricos excepto puntos
+        value = value.replace(/[^\d.]/g, '');
+        
+        return value;
+    }
+    return '';
 }
 
 // Detectar tipo de archivo
@@ -4478,18 +4506,32 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         
         console.log('📋 Filas totales:', sheetData.length);
         
-        // Convertir mapeo de strings a números
+        const headers = sheetData[0] || [];
+        const detectedMapping = detectColumnMapping(headers) || {};
+
+        const parseIndex = (value) => {
+            const num = parseInt(value, 10);
+            return Number.isFinite(num) && num >= 0 ? num : -1;
+        };
+
+        // Convertir mapeo de strings a números con fallback a detección automática
         const mapping = {
-            accountNumber: parseInt(mappingData.accountNumber) || 0,
-            accountName: parseInt(mappingData.accountName) || 1,
-            currentYear: parseInt(mappingData.currentYear) || 2,
-            previousYear: parseInt(mappingData.previousYear) || 3,
-            ls: parseInt(mappingData.ls) || 4,
+            accountNumber: parseIndex(mappingData.accountNumber),
+            accountName: parseIndex(mappingData.accountName),
+            currentYear: parseIndex(mappingData.currentYear),
+            previousYear: parseIndex(mappingData.previousYear),
+            ls: parseIndex(mappingData.ls),
             currentYearDC: mappingData.currentYearDebitCredit || 'credit',
             previousYearDC: mappingData.previousYearDebitCredit || 'credit'
         };
+
+        if (mapping.accountNumber < 0) mapping.accountNumber = detectedMapping.accountNumber ?? 0;
+        if (mapping.accountName < 0) mapping.accountName = detectedMapping.accountName ?? 1;
+        if (mapping.currentYear < 0) mapping.currentYear = detectedMapping.currentYear ?? 2;
+        if (mapping.previousYear < 0) mapping.previousYear = detectedMapping.previousYear ?? 3;
+        if (mapping.ls < 0) mapping.ls = detectedMapping.ls ?? 0; // Por defecto, primera columna como LS
         
-        console.log('🗂️ Mapeo de columnas:', mapping);
+        console.log('🗂️ Mapeo de columnas (con fallback):', mapping);
         
         // Determinar si la primera fila es encabezado o datos reales
         const toCleanString = (value) => {
@@ -4510,6 +4552,11 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         // Extraer cuentas (solo omitir la primera fila cuando realmente es encabezado)
         const accounts = [];
         const dataRows = shouldSkipFirstRow ? sheetData.slice(1) : sheetData;
+
+        if (dataRows.length) {
+            const sampleLs = extractLSValueFromRow(dataRows[0], mapping.ls);
+            console.log('🔍 Primer LS detectado en dataRows[0]:', sampleLs);
+        }
         
         dataRows.forEach((row, index) => {
             // Validar que la fila tenga datos suficientes
@@ -4521,7 +4568,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             const accountName = row[mapping.accountName];
             const currentYearValue = row[mapping.currentYear] || 0;
             const previousYearValue = row[mapping.previousYear] || 0;
-            const lsValue = row[mapping.ls] || '';
+            const lsValue = extractLSValueFromRow(row, mapping.ls);
             
             // Validar que tenga número de cuenta y nombre
             if (!accountNumber || !accountName) {
@@ -4576,6 +4623,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             
             accounts.push(account);
         });
+        console.log('🧪 Ejemplo de LS extraídos (primeros 5):', accounts.slice(0, 5).map(a => a.ls));
         
         console.log('✅ Cuentas extraídas exitosamente:', accounts.length);
         return accounts;
@@ -4646,6 +4694,17 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         
         // Encontrar índices de columnas automáticamente
         const mapping = detectColumnMapping(headers);
+
+        // Construir lookup de LS por número de cuenta a partir del Excel crudo
+        const lsByAccount = new Map();
+        const dataRowsLookup = sheetData.slice(1);
+        dataRowsLookup.forEach(row => {
+            const acctNum = extractAccountNumber(row, mapping.accountNumber);
+            const lsVal = mapping.ls >= 0 ? extractLSValueFromRow(row, mapping.ls) : '';
+            if (acctNum && lsVal) {
+                lsByAccount.set(acctNum.toString().trim(), lsVal.toString().trim());
+            }
+        });
         
         // Obtener cuentas desde la base de datos con sus UUIDs reales
         console.log('Obteniendo cuentas desde cuentas_contables...');
@@ -4668,7 +4727,7 @@ app.get('/api/accounts/unassigned', async (req, res) => {
                 const accountName = extractAccountName(row, mapping.accountName);
                 const currentYearValue = extractValue(row, mapping.currentYear);
                 const previousYearValue = extractValue(row, mapping.previousYear);
-                const lsValue = mapping.ls >= 0 ? row[mapping.ls] : '';
+                const lsValue = mapping.ls >= 0 ? extractLSValueFromRow(row, mapping.ls) : '';
                 
                 if (!accountNumber && !accountName) return;
                 
@@ -4700,19 +4759,33 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         console.log(`Encontradas ${dbAccounts.length} cuentas en la base de datos`);
         
         // Transformar las cuentas de la base de datos al formato que espera el frontend
-        const accounts = dbAccounts.map(account => ({
-            id: account.id, // <- UUID real de la base de datos
-            code: account.numero_cuenta,
-            name: account.nombre_cuenta,
-            value: account.debito_actual - account.credito_actual,
-            current_year_value: account.debito_actual,
-            previous_year_value: account.debito_anterior - account.credito_anterior,
-            debit: account.debito_actual,
-            credit: account.credito_actual,
-            conjunto_id: account.conjunto_id,
-            meta: parseAccountMeta(account.meta),
-            ls: extractLSValue(account)
-        }));
+        const accounts = dbAccounts.map(account => {
+            const meta = parseAccountMeta(account.meta);
+            let lsVal = extractLSValue({ ...account, meta });
+            if (!lsVal) {
+                const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+                if (key && lsByAccount.has(key)) {
+                    lsVal = lsByAccount.get(key);
+                    meta.ls = lsVal; // persist in response meta for frontend
+                }
+            }
+
+            return {
+                id: account.id, // <- UUID real de la base de datos
+                code: account.numero_cuenta,
+                name: account.nombre_cuenta,
+                value: account.debito_actual - account.credito_actual,
+                current_year_value: account.debito_actual,
+                previous_year_value: account.debito_anterior - account.credito_anterior,
+                debit: account.debito_actual,
+                credit: account.credito_actual,
+                conjunto_id: account.conjunto_id,
+                meta,
+                ls: lsVal
+            };
+        });
+
+        console.log('🔎 Ejemplo LS devueltos (primeros 5):', accounts.slice(0, 5).map(a => a.ls));
 
         res.json({ 
             success: true, 
@@ -4845,6 +4918,146 @@ app.post('/api/assignments/save', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error guardando asignación' 
+        });
+    }
+});
+
+// Guardar nombres personalizados de grupos
+app.post('/api/group-names/save', async (req, res) => {
+    try {
+        const { datasetId, groupNames } = req.body;
+        const userId = req.headers['user-id'];
+        
+        console.log('Guardando nombres personalizados de grupos:', { datasetId, groupNames, userId });
+        
+        // Validar datos
+        if (!datasetId || !groupNames || !Array.isArray(groupNames)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Datos inválidos'
+            });
+        }
+        
+        // Obtener IDs reales
+        const realDatasetId = await getRealDatasetId(datasetId);
+        const realUserId = await getRealUserId(userId);
+        
+        if (!realDatasetId || !realUserId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dataset o usuario no válido'
+            });
+        }
+        
+        // Eliminar nombres anteriores del mismo dataset
+        await supabase
+            .from('account_assignments')
+            .delete()
+            .eq('dataset_id', realDatasetId)
+            .eq('user_id', realUserId)
+            .in('meta->>type', ['group_name', 'subgroup_name']);
+        
+        // Insertar nuevos nombres
+        const insertData = groupNames.map(groupName => ({
+            dataset_id: realDatasetId,
+            account_id: null,  // No aplica para nombres de grupos
+            group_content_id: groupName.id,
+            parent_account_id: groupName.parentId || null,
+            position: 0,
+            user_id: realUserId,
+            meta: {
+                type: groupName.parentId ? 'subgroup_name' : 'group_name',
+                custom_name: groupName.name,
+                original_name: groupName.originalName || ''
+            }
+        }));
+        
+        if (insertData.length > 0) {
+            const { data, error } = await supabase
+                .from('account_assignments')
+                .insert(insertData)
+                .select();
+            
+            if (error) {
+                console.error('Error guardando nombres de grupos:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            
+            console.log('Nombres de grupos guardados:', data);
+        }
+        
+        res.json({
+            success: true,
+            message: `${groupNames.length} nombres de grupos guardados exitosamente`
+        });
+        
+    } catch (error) {
+        console.error('Error guardando nombres de grupos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error guardando nombres de grupos'
+        });
+    }
+});
+
+// Obtener nombres personalizados de grupos
+app.get('/api/group-names/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        console.log('Obteniendo nombres personalizados de grupos:', { datasetId, userId });
+        
+        // Obtener IDs reales
+        const realDatasetId = await getRealDatasetId(datasetId);
+        const realUserId = await getRealUserId(userId);
+        
+        if (!realDatasetId || !realUserId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dataset o usuario no válido'
+            });
+        }
+        
+        // Obtener nombres personalizados
+        const { data, error } = await supabase
+            .from('account_assignments')
+            .select('*')
+            .eq('dataset_id', realDatasetId)
+            .eq('user_id', realUserId)
+            .in('meta->>type', ['group_name', 'subgroup_name']);
+        
+        if (error) {
+            console.error('Error obteniendo nombres de grupos:', error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+        
+        const groupNames = data.map(item => ({
+            id: item.group_content_id,
+            name: item.meta.custom_name,
+            originalName: item.meta.original_name,
+            type: item.meta.type,
+            parentId: item.parent_account_id
+        }));
+        
+        console.log('Nombres de grupos obtenidos:', groupNames);
+        
+        res.json({
+            success: true,
+            groupNames: groupNames
+        });
+        
+    } catch (error) {
+        console.error('Error obteniendo nombres de grupos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error obteniendo nombres de grupos'
         });
     }
 });
