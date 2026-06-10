@@ -3020,7 +3020,10 @@ app.post('/api/excel/process-mapping', async (req, res) => {
                 clasificado: false,
                 meta: {
                     ...(account.meta || {}),
-                    ls: account.ls ? account.ls.toString().trim() : ''
+                    ls: account.ls ? account.ls.toString().trim() : '',
+                    // Guardar los valores originales del Excel para usarlos luego
+                    currentYearOriginal: account.currentYearOriginal,
+                    previousYearOriginal: account.previousYearOriginal
                 },
                 created_at: new Date().toISOString()
             }));
@@ -3585,6 +3588,38 @@ function detectColumnMapping(headers) {
 
     if (mapping.credit < 0 && mapping.previousYear >= 0) {
         mapping.credit = mapping.previousYear;
+    }
+
+    // Fallback extra: cuando la primera columna es LS y no se detectaron
+    // correctamente número de cuenta / nombre / columnas de año, asumir
+    // estructura típica: [LS, Numero, Cuenta, Año actual, Año anterior]
+    if (Array.isArray(headers) && headers.length >= 3) {
+        const hasLsInFirstColumn = mapping.ls === 0;
+
+        if (hasLsInFirstColumn && mapping.accountNumber < 0) {
+            mapping.accountNumber = 1; // Columna "Numero"
+        }
+
+        if (mapping.accountName < 0 && mapping.accountNumber >= 0) {
+            const nameIndex = mapping.accountNumber + 1;
+            if (nameIndex < headers.length) {
+                mapping.accountName = nameIndex; // Columna "Cuenta"
+            }
+        }
+
+        // Si aún no se detectaron columnas de año, usar las que siguen al nombre
+        const baseIndex = mapping.accountName >= 0 ? mapping.accountName + 1 : 3;
+        if (mapping.currentYear < 0 && baseIndex < headers.length) {
+            mapping.currentYear = baseIndex;
+            mapping.debit = mapping.debit < 0 ? baseIndex : mapping.debit;
+        }
+
+        if (mapping.previousYear < 0 && baseIndex + 1 < headers.length) {
+            mapping.previousYear = baseIndex + 1;
+            if (mapping.credit < 0) {
+                mapping.credit = mapping.previousYear;
+            }
+        }
     }
 
     console.log('📍 Mapeo detectado:', mapping);
@@ -4689,22 +4724,17 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             });
         }
 
-        // Obtener encabezados
+        // Obtener encabezados (pueden ser realmente datos si la hoja se guardó sin fila de títulos)
         const headers = sheetData[0];
-        
+        const firstDataRow = sheetData[1] || [];
+        console.log('🔎 /api/accounts/unassigned - headers[0]:', headers);
+        console.log('🔎 /api/accounts/unassigned - first data row[1]:', firstDataRow);
+
         // Encontrar índices de columnas automáticamente
         const mapping = detectColumnMapping(headers);
 
-        // Construir lookup de LS por número de cuenta a partir del Excel crudo
-        const lsByAccount = new Map();
-        const dataRowsLookup = sheetData.slice(1);
-        dataRowsLookup.forEach(row => {
-            const acctNum = extractAccountNumber(row, mapping.accountNumber);
-            const lsVal = mapping.ls >= 0 ? extractLSValueFromRow(row, mapping.ls) : '';
-            if (acctNum && lsVal) {
-                lsByAccount.set(acctNum.toString().trim(), lsVal.toString().trim());
-            }
-        });
+        // Por ahora no dependemos del Excel para el monto; usaremos el saldo guardado
+        // en la tabla cuentas_contables (o, en su defecto, debito_actual - credito_actual).
         
         // Obtener cuentas desde la base de datos con sus UUIDs reales
         console.log('Obteniendo cuentas desde cuentas_contables...');
@@ -4761,22 +4791,49 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         // Transformar las cuentas de la base de datos al formato que espera el frontend
         const accounts = dbAccounts.map(account => {
             const meta = parseAccountMeta(account.meta);
+            const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+
             let lsVal = extractLSValue({ ...account, meta });
-            if (!lsVal) {
-                const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
-                if (key && lsByAccount.has(key)) {
-                    lsVal = lsByAccount.get(key);
-                    meta.ls = lsVal; // persist in response meta for frontend
-                }
+            if (!lsVal && meta && meta.ls) {
+                lsVal = meta.ls;
             }
+
+            // 1) Intentar usar los valores originales del Excel guardados en meta
+            // 2) Si no existen, usar saldo
+            // 3) Si tampoco hay saldo, usar débito - crédito como último recurso
+            const originalCurrent = typeof meta.currentYearOriginal === 'number' && !Number.isNaN(meta.currentYearOriginal)
+                ? meta.currentYearOriginal
+                : null;
+
+            const originalPrevious = typeof meta.previousYearOriginal === 'number' && !Number.isNaN(meta.previousYearOriginal)
+                ? meta.previousYearOriginal
+                : null;
+
+            const hasSaldo = typeof account.saldo === 'number' && !Number.isNaN(account.saldo);
+            const fallbackCurrent = hasSaldo
+                ? account.saldo
+                : (account.debito_actual - account.credito_actual);
+
+            const fallbackPrevious = (account.debito_anterior - account.credito_anterior);
+
+            const signedCurrentValue = originalCurrent !== null ? originalCurrent : fallbackCurrent;
+            const signedPreviousValue = originalPrevious !== null ? originalPrevious : fallbackPrevious;
+
+            // Debug logging para verificar los valores que se envían al frontend
+            console.log(`🔍 Debug cuenta ${account.numero_cuenta}:`);
+            console.log(`   currentYearOriginal (meta):`, meta.currentYearOriginal);
+            console.log(`   previousYearOriginal (meta):`, meta.previousYearOriginal);
+            console.log(`   Saldo (DB): ${account.saldo}`);
+            console.log(`   Debito actual: ${account.debito_actual}, Credito actual: ${account.credito_actual}`);
+            console.log(`   Valor final usado (current): ${signedCurrentValue}`);
 
             return {
                 id: account.id, // <- UUID real de la base de datos
                 code: account.numero_cuenta,
                 name: account.nombre_cuenta,
-                value: account.debito_actual - account.credito_actual,
-                current_year_value: account.debito_actual,
-                previous_year_value: account.debito_anterior - account.credito_anterior,
+                value: signedCurrentValue,
+                current_year_value: signedCurrentValue,
+                previous_year_value: signedPreviousValue,
                 debit: account.debito_actual,
                 credit: account.credito_actual,
                 conjunto_id: account.conjunto_id,
