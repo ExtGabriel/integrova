@@ -2849,12 +2849,16 @@ app.get('/api/excel/latest', async (req, res) => {
                 id: conjunto.id,
                 filename: conjunto.nombre,
                 status: 'processed',
-                sheets_data: conjunto.data?.sheets?.map(sheet => ({
-                    name: sheet.sheetName,
-                    data: sheet.data,
-                    rows: sheet.rows,
-                    columns: sheet.columns
-                })) || [],
+                sheets_data: conjunto.data?.sheets?.map(sheet => {
+                    // Combinar encabezados con datos para facilitar extracción de años
+                    const allData = [sheet.columns || [], ...sheet.data];
+                    return {
+                        name: sheet.sheetName,
+                        data: allData, // Incluir encabezados como primera fila
+                        rows: sheet.rows,
+                        columns: sheet.columns
+                    };
+                }) || [],
                 uploadedAt: conjunto.created_at,
                 totalSheets: conjunto.data?.totalSheets || 0
             };

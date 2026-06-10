@@ -1970,6 +1970,23 @@
                                         </button>
                                     </div>
                                 </div>
+                                
+                                <!-- Fila para mostrar años del Excel -->
+                                <div class="years-display-row" id="yearsDisplayRow">
+                                    <div class="years-container">
+                                        <div class="year-item">
+                                            <span class="year-label">Año Anterior:</span>
+                                            <span class="year-value" id="previousYearDisplay">Cargando...</span>
+                                        </div>
+                                        <div class="year-item">
+                                            <span class="year-label">Año Actual:</span>
+                                            <span class="year-value" id="currentYearDisplay">Cargando...</span>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-secondary ms-3" onclick="updateYearsDisplay()" title="Actualizar años">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="search-bar-container">
                                     <i class="bi bi-search"></i>
                                     <input type="text" class="form-control" id="groupsSearchInput" placeholder="Buscar..." oninput="searchAccounts('groups')">
@@ -2492,8 +2509,8 @@
                                 <th>LS (Grupo)</th>
                                 <th>Número de cuenta</th>
                                 <th>Nombre de la cuenta</th>
-                                <th>Año actual</th>
                                 <th>Año anterior</th>
+                                <th>Año actual</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2529,21 +2546,6 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <select class="form-select" id="currentYearMapping">
-                                        <option value="">Importar como</option>
-                                        <option value="A">Columna A</option>
-                                        <option value="B">Columna B</option>
-                                        <option value="C">Columna C</option>
-                                        <option value="D">Columna D</option>
-                                        <option value="E">Columna E</option>
-                                    </select>
-                                    <select class="form-select" id="currentYearDebitCredit">
-                                        <option value="">Débito y crédito</option>
-                                        <option value="debit">Débito</option>
-                                        <option value="credit">Crédito</option>
-                                    </select>
-                                </td>
-                                <td>
                                     <select class="form-select" id="previousYearMapping">
                                         <option value="">Importar como</option>
                                         <option value="A">Columna A</option>
@@ -2553,6 +2555,21 @@
                                         <option value="E">Columna E</option>
                                     </select>
                                     <select class="form-select" id="previousYearDebitCredit">
+                                        <option value="">Débito y crédito</option>
+                                        <option value="debit">Débito</option>
+                                        <option value="credit">Crédito</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select" id="currentYearMapping">
+                                        <option value="">Importar como</option>
+                                        <option value="A">Columna A</option>
+                                        <option value="B">Columna B</option>
+                                        <option value="C">Columna C</option>
+                                        <option value="D">Columna D</option>
+                                        <option value="E">Columna E</option>
+                                    </select>
+                                    <select class="form-select" id="currentYearDebitCredit">
                                         <option value="">Débito y crédito</option>
                                         <option value="debit">Débito</option>
                                         <option value="credit">Crédito</option>
@@ -2946,8 +2963,8 @@
             const columnSelectors = [
                 'accountNumberMapping',
                 'accountNameMapping', 
-                'currentYearMapping',
                 'previousYearMapping',
+                'currentYearMapping',
                 'lsMapping'
             ];
             
@@ -2973,15 +2990,15 @@
                             if (!headerText) {
                                 headerText = `Columna ${index + 1}`;
                             } else if (isNumericHeader) {
-                                if (selectorId === 'currentYearMapping') {
+                                if (selectorId === 'previousYearMapping') {
                                     if (index >= 2) {
-                                        headerText = 'Saldo año actual';
+                                        headerText = 'Saldo año anterior';
                                     } else {
                                         headerText = `Columna ${index + 1}`;
                                     }
-                                } else if (selectorId === 'previousYearMapping') {
+                                } else if (selectorId === 'currentYearMapping') {
                                     if (index >= 2) {
-                                        headerText = 'Saldo año anterior';
+                                        headerText = 'Saldo año actual';
                                     } else {
                                         headerText = `Columna ${index + 1}`;
                                     }
@@ -3533,6 +3550,28 @@
             }, { previous: 0, current: 0 });
         }
 
+        // Función para sumar valores originales del Excel de la última columna (año anterior)
+        function sumAssignedOriginalTotals(accounts) {
+            return accounts.reduce((acc, account) => {
+                const accountName = (account.dataset.accountName || '').toString().trim();
+                const accountNumber = (account.dataset.accountCode || '').toString().trim();
+                
+                // Obtener valores originales del Excel (con signos correctos)
+                const previousOriginalRaw = parseAccountValue(account.dataset.accountPrevOriginal || account.dataset.accountPrevValue);
+                const currentOriginalRaw = parseAccountValue(account.dataset.accountCurrentOriginal || account.dataset.accountValue);
+                
+                // Usar la última columna del Excel (que corresponde al año anterior)
+                // En el Excel actual: última columna = 2023 (año anterior)
+                const lastColumnValue = previousOriginalRaw; // previousOriginal es la última columna
+                
+                // Para libro mayor: usar valores originales del Excel SIN normalización
+                // para mantener los signos correctos del Excel
+                acc.previous += lastColumnValue || 0; // Saldo del periodo anterior = última columna Excel (sin normalizar)
+                acc.current += currentOriginalRaw || 0; // Para compatibilidad con la estructura existente
+                return acc;
+            }, { previous: 0, current: 0 });
+        }
+
         function sumLedgerTotals(accounts, ledgerMap) {
             return accounts.reduce((total, account) => {
                 const code = (account.dataset.accountCode || '').toString().trim();
@@ -3601,7 +3640,8 @@
                         const name = header ? header.textContent.trim() : 'Subgrupo';
                         const content = child.querySelector('.sub-group-content');
                         const assignedAccounts = content ? Array.from(content.querySelectorAll('.assigned-account')) : [];
-                        const { previous, current } = sumAssignedTotals(assignedAccounts);
+                        // Para libro mayor: usar valores originales del Excel para periodo anterior
+                        const { previous, current } = sumAssignedOriginalTotals(assignedAccounts);
                         const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
                         const rowId = nextRowId();
 
@@ -3627,14 +3667,14 @@
                     if (child.classList.contains('account-item') && child.classList.contains('static-account')) {
                         const accountCode = (child.dataset.accountCode || '').toString().trim();
                         const accountName = (child.dataset.accountName || '').toString().trim();
-                        const previousRaw = parseAccountValue(child.dataset.accountPrevValue);
+                        
+                        // Para libro mayor: usar valores originales del Excel para periodo anterior
+                        const previousRaw = parseAccountValue(child.dataset.accountPrevOriginal || child.dataset.accountPrevValue);
                         const currentRaw = parseAccountValue(child.dataset.accountValue);
-                        const { previous, current } = getNormalizedAccountBalances({
-                            accountName,
-                            accountNumber: accountCode,
-                            previous: previousRaw,
-                            current: currentRaw
-                        });
+                        
+                        // Para libro mayor: usar valores originales SIN normalización para mantener signos correctos
+                        const previous = previousRaw; // Valor original de última columna Excel (sin normalizar)
+                        const current = currentRaw;
                         const staticAccountId = child.dataset.accountId || '';
                         const scope = child.closest('.group-content, .sub-group-content');
                         const assignedAccounts = scope
@@ -3662,14 +3702,14 @@
                         assignedAccounts.forEach(account => {
                             const assignedCode = (account.dataset.accountCode || '').toString().trim();
                             const assignedName = (account.dataset.accountName || '').toString().trim();
-                            const assignedPrevRaw = parseAccountValue(account.dataset.accountPrevValue);
+                            
+                            // Para libro mayor: usar valores originales del Excel para periodo anterior
+                            const assignedPrevRaw = parseAccountValue(account.dataset.accountPrevOriginal || account.dataset.accountPrevValue);
                             const assignedCurrRaw = parseAccountValue(account.dataset.accountValue);
-                            const { previous: assignedPrev, current: assignedCurr } = getNormalizedAccountBalances({
-                                accountName: assignedName,
-                                accountNumber: assignedCode,
-                                previous: assignedPrevRaw,
-                                current: assignedCurrRaw
-                            });
+                            
+                            // Para libro mayor: usar valores originales SIN normalización para mantener signos correctos
+                            const assignedPrev = assignedPrevRaw; // Valor original de última columna Excel (sin normalizar)
+                            const assignedCurr = assignedCurrRaw;
                             const assignedLedger = ledgerAvailable
                                 ? sumLedgerTotals([account], ledgerMap)
                                 : 0;
@@ -3699,7 +3739,8 @@
                 const groupName = groupNameEl ? groupNameEl.textContent.trim() : 'Grupo';
                 const groupContent = group.querySelector('.group-content');
                 const assignedAccounts = groupContent ? Array.from(groupContent.querySelectorAll('.assigned-account')) : [];
-                const groupTotals = sumAssignedTotals(assignedAccounts);
+                // Para libro mayor: usar valores originales del Excel para periodo anterior
+                const groupTotals = sumAssignedOriginalTotals(assignedAccounts);
                 const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
                 const rowId = nextRowId();
                 const hasChildren = groupContent ? groupContent.children.length > 0 : false;
@@ -16531,6 +16572,214 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return accounts;
         }
 
+        async function updateYearsDisplay() {
+            try {
+                console.log('🔍 Buscando años en el Excel...');
+                const response = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                    headers: {
+                        'user-id': getCurrentUserId()
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('📊 Respuesta Excel:', result);
+                    
+                    if (result.success && result.data && result.data.sheets_data) {
+                        const sheetsData = result.data.sheets_data;
+                        console.log('📋 Hojas encontradas:', sheetsData.length);
+                        
+                        // Mostrar información de todas las hojas
+                        sheetsData.forEach((sheet, index) => {
+                            console.log(`📄 Hoja ${index}: "${sheet.name || 'Sin nombre'}" - ${sheet.data ? sheet.data.length : 0} filas`);
+                            if (sheet.data && sheet.data.length > 0) {
+                                console.log(`   Primera fila (encabezados):`, sheet.data[0]);
+                                console.log(`   Segunda fila (datos):`, sheet.data[1]);
+                                console.log(`   Última fila:`, sheet.data[sheet.data.length - 1]);
+                            }
+                        });
+                        
+                        const mainSheet = sheetsData.find(sheet => sheet.name && !sheet.name.toLowerCase().includes('libro')) 
+                                          || sheetsData[0];
+                        
+                        console.log('📄 Hoja principal seleccionada:', mainSheet?.name);
+                        
+                        if (mainSheet && mainSheet.data && mainSheet.data.length > 0) {
+                            // Buscar encabezados reales que contengan años
+                            let headers = mainSheet.data[0];
+                            console.log('🏷️ Primera fila (posibles encabezados):', headers);
+                            
+                            // Si la primera fila son números, buscar en otras filas
+                            const hasStringHeaders = headers.some(h => typeof h === 'string' && h.length > 0);
+                            if (!hasStringHeaders && mainSheet.data.length > 1) {
+                                // Revisar las primeras 10 filas buscando encabezados con fechas
+                                for (let i = 1; i < Math.min(10, mainSheet.data.length); i++) {
+                                    const row = mainSheet.data[i];
+                                    // Buscar específicamente fechas en formato 12/31/2024
+                                    const hasDateHeaders = row.some(cell => {
+                                        const cellStr = (cell || '').toString();
+                                        return /\d{1,2}\/\d{1,2}\/20\d{2}/.test(cellStr);
+                                    });
+                                    if (hasDateHeaders) {
+                                        headers = row;
+                                        console.log(`🏷️ Encabezados con fechas encontrados en fila ${i}:`, headers);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            console.log('🏷️ Encabezados finales a analizar:', headers);
+                            console.log('🏷️ Número de encabezados:', headers.length);
+                            
+                            // Buscar encabezados que podrían contener años
+                            const possibleYearHeaders = headers.filter((header, index) => {
+                                if (typeof header === 'string') {
+                                    const hasYear = /(20\d{2})/.test(header);
+                                    if (hasYear) {
+                                        console.log(`   🎯 Posible encabezado de año en posición ${index}: "${header}"`);
+                                    }
+                                    return hasYear;
+                                }
+                                return false;
+                            });
+                            
+                            console.log('🎯 Encabezados con posibles años:', possibleYearHeaders);
+                            
+                            const years = extractYearsFromHeaders(headers);
+                            console.log('📅 Años extraídos:', years);
+                            
+                            // Mostrar siempre los resultados
+                            document.getElementById('previousYearDisplay').textContent = years.previous || 'No detectado';
+                            document.getElementById('currentYearDisplay').textContent = years.current || 'No detectado';
+                            
+                            // Si no se detectaron años, mostrar mensaje más claro
+                            if (!years.previous && !years.current) {
+                                document.getElementById('previousYearDisplay').textContent = 'Sin datos';
+                                document.getElementById('currentYearDisplay').textContent = 'Sin datos';
+                                console.log('❌ No se pudieron extraer años de los encabezados');
+                            }
+                        } else {
+                            console.warn('⚠️ No se encontraron datos en la hoja principal');
+                            document.getElementById('previousYearDisplay').textContent = 'Sin datos';
+                            document.getElementById('currentYearDisplay').textContent = 'Sin datos';
+                        }
+                    } else {
+                        console.warn('⚠️ No se encontraron sheets_data en la respuesta');
+                        document.getElementById('previousYearDisplay').textContent = 'Sin datos';
+                        document.getElementById('currentYearDisplay').textContent = 'Sin datos';
+                    }
+                } else {
+                    console.warn('⚠️ Error en la respuesta del servidor:', response.status);
+                    document.getElementById('previousYearDisplay').textContent = 'Error';
+                    document.getElementById('currentYearDisplay').textContent = 'Error';
+                }
+            } catch (error) {
+                console.error('❌ Error obteniendo años del Excel:', error);
+                document.getElementById('previousYearDisplay').textContent = 'Error';
+                document.getElementById('currentYearDisplay').textContent = 'Error';
+            }
+        }
+        
+        // Función para convertir fecha serial de Excel a año
+        function convertExcelSerialToYear(serialDate) {
+            if (typeof serialDate !== 'number' || isNaN(serialDate)) {
+                return null;
+            }
+            
+            // Excel usa el sistema de fechas desde 1/1/1900 (con un bug conocido que trata 1900 como bisiesto)
+            // Ajustamos para el bug de Excel
+            const excelEpoch = new Date(1900, 0, 1); // 1 de enero de 1900
+            const daysOffset = serialDate - 2; // -2 para ajustar el bug de Excel y el día 0
+            
+            const date = new Date(excelEpoch.getTime() + (daysOffset * 24 * 60 * 60 * 1000));
+            return date.getFullYear();
+        }
+
+        function extractYearsFromHeaders(headers) {
+            const years = { previous: '', current: '' };
+            
+            // Buscar en las últimas 2 columnas
+            const lastTwoColumns = headers.slice(-2);
+            console.log('📅 Últimas 2 columnas:', lastTwoColumns);
+            
+            lastTwoColumns.forEach((header, index) => {
+                console.log(`   🔍 Analizando columna ${headers.length - 2 + index}: "${header}" (tipo: ${typeof header})`);
+                
+                let year = null;
+                
+                // Si es un número, podría ser una fecha serial de Excel
+                if (typeof header === 'number') {
+                    year = convertExcelSerialToYear(header);
+                    if (year) {
+                        console.log(`   🎯 Fecha serial Excel detectada: ${header} -> año ${year}`);
+                    }
+                } else {
+                    // Si es string, buscar años en el encabezado (ej: "2023", "2024", "12/31/2024")
+                    const headerStr = (header || '').toString();
+                    const dateMatch = headerStr.match(/\d{1,2}\/\d{1,2}\/(20\d{2})/);
+                    if (dateMatch) {
+                        year = dateMatch[1];
+                        console.log(`   🎯 Año encontrado en texto: "${headerStr}" -> ${year}`);
+                    }
+                }
+                
+                if (year) {
+                    // La primera de las últimas 2 columnas es el año actual
+                    // La segunda de las últimas 2 columnas es el año anterior
+                    if (index === 0) {
+                        years.current = year;
+                    } else {
+                        years.previous = year;
+                    }
+                } else {
+                    console.log(`   ❌ No se encontró año en columna ${headers.length - 2 + index}: "${header}"`);
+                }
+            });
+            
+            // Si no se encontraron años en las últimas 2 columnas, buscar en todas las columnas
+            if (!years.previous && !years.current) {
+                console.log('🔍 Buscando años en todas las columnas...');
+                headers.forEach((header, index) => {
+                    let year = null;
+                    
+                    // Si es un número, podría ser una fecha serial de Excel
+                    if (typeof header === 'number') {
+                        year = convertExcelSerialToYear(header);
+                        if (year) {
+                            console.log(`   🎯 Fecha serial Excel detectada en columna ${index}: ${header} -> año ${year}`);
+                        }
+                    } else {
+                        // Si es string, buscar años en el encabezado
+                        const headerStr = (header || '').toString();
+                        const dateMatch = headerStr.match(/\d{1,2}\/\d{1,2}\/(20\d{2})/);
+                        if (dateMatch) {
+                            year = dateMatch[1];
+                            console.log(`   🎯 Año encontrado en texto en columna ${index}: "${headerStr}" -> ${year}`);
+                        }
+                    }
+                    
+                    if (year) {
+                        if (!years.previous || year < years.previous) {
+                            years.previous = year;
+                        } else if (!years.current || year > years.current) {
+                            years.current = year;
+                        }
+                    }
+                });
+            }
+            
+            // Si solo se encontró un año, inferir el otro
+            if (years.current && !years.previous) {
+                years.previous = (parseInt(years.current) - 1).toString();
+                console.log(`   🔄 Año anterior inferido: ${years.previous}`);
+            } else if (years.previous && !years.current) {
+                years.current = (parseInt(years.previous) + 1).toString();
+                console.log(`   🔄 Año actual inferido: ${years.current}`);
+            }
+            
+            return years;
+        }
+
         function renderUnassignedAccounts(accounts) {
             const container = document.querySelector('.unassigned-accounts-list');
             const countEl = document.querySelector('.unassigned-accounts-panel .remaining-count');
@@ -18540,6 +18789,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Marcar como cargado exitosamente
                 dataLoadState.unassignedAccounts = true;
                 console.log('✅ Cuentas sin asignar marcadas como cargadas');
+                
+                // Actualizar display de años
+                console.log('🔄 Llamando a updateYearsDisplay()...');
+                updateYearsDisplay();
                 
             } catch (err) {
                 console.error('Error cargando cuentas:', err);

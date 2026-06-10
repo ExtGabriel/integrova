@@ -193,7 +193,7 @@
                 const detail = getDetailById(detailId);
                 if (!detail) return;
                 const value = parseFloat(target.value);
-                detail.amount = Number.isFinite(value) && value >= 0 ? value : 0;
+                detail.amount = Number.isFinite(value) ? value : 0;
             }
         });
 
@@ -296,6 +296,7 @@
                     // Guardar cambios y actualizar la lista
                     saveAjustes();
                     renderAjustes();
+                    broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
                     closeAjusteModal();
                     
                     notify(`Ajuste #${ajusteEliminado.numero} eliminado correctamente`, 'success');
@@ -413,6 +414,7 @@
                     
                     saveAjustes();
                     renderAjustes();
+                    broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
                     closeAjusteModal();
                     notify('Ajuste actualizado correctamente', 'success');
                 } else {
@@ -444,6 +446,7 @@
                 ajustes.push(newAjuste);
                 saveAjustes();
                 renderAjustes();
+                broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
                 closeAjusteModal();
                 notify('Ajuste creado correctamente', 'success');
             }
@@ -509,7 +512,7 @@
                             <div class="ajuste-detail-row__amounts">
                                 <div class="ajuste-detail-row__amount">
                                     <label for="detail-amount-${detail.id}">Cantidad</label>
-                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" min="0" step="0.01" value="${amountValue}" placeholder="0.00">
+                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" value="${amountValue}" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
