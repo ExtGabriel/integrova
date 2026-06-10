@@ -18797,9 +18797,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                     </div>
                                 </form>
                             </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="button" class="btn btn-success" onclick="saveNewAccount()">Guardar Cuenta</button>
+                            <div class="modal-footer d-flex justify-content-center align-items-center gap-0">
+                                <button type="button" class="btn btn-secondary" style="width: 100px; height: 38px; margin-right: 5px;" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-success" style="width: 100px; height: 38px;" onclick="saveNewAccount()">Guardar</button>
                             </div>
                         </div>
                     </div>
@@ -18832,10 +18832,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Crear el nuevo elemento de cuenta
             const newAccountHtml = `
-                <div class="account-item assigned-account" data-account-id="${code}" data-account-code="${code}" data-account-name="${code} - ${name}" data-account-value="${value}" data-account-prev-value="0">
+                <div class="account-item assigned-account" data-account-id="${code}" data-account-code="${code}" data-account-name="${code} - ${name}" data-account-value="${value}" data-account-prev-value="0" style="cursor: pointer;">
                     <span class="account-name">${code} - ${name}</span>
                     <span class="account-value">${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <button class="btn btn-sm btn-outline-danger remove-account-btn" onclick="removeAccount('${code}')">
+                    <button class="btn btn-sm btn-outline-danger remove-account-btn" onclick="event.stopPropagation(); removeAccount('${code}')">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -18846,12 +18846,100 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (groupContent) {
                 groupContent.insertAdjacentHTML('beforeend', newAccountHtml);
                 
+                // Obtener el nuevo elemento de cuenta y agregar event listener para asignación
+                const newAccountElement = groupContent.lastElementChild;
+                if (newAccountElement) {
+                    newAccountElement.addEventListener('click', function(e) {
+                        console.log('🖱️ Clic en nueva cuenta dinámica detectado');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Verificar si hay cuentas seleccionadas del Excel (lado izquierdo)
+                        if (!selectedAccount && selectedAccounts.length === 0) {
+                            console.log('🎯 Modo selección: esta cuenta puede ser seleccionada para asignación');
+                            
+                            // Remover selección anterior
+                            document.querySelectorAll('.unassigned-accounts-list .account-item').forEach(item => {
+                                item.classList.remove('selected');
+                            });
+                            selectedAccounts = [];
+                            
+                            // Seleccionar esta cuenta
+                            this.classList.add('selected');
+                            
+                            // Extraer datos de la cuenta
+                            const accountCode = this.dataset.accountCode;
+                            const accountName = this.dataset.accountName;
+                            const accountValue = this.dataset.accountValue;
+                            const accountPrevValue = this.dataset.accountPrevValue;
+                            
+                            const numericValue = parseAccountValue(accountValue);
+                            const numericPrevValue = parseAccountValue(accountPrevValue);
+                            
+                            // Configurar cuenta seleccionada
+                            selectedAccount = {
+                                id: this.dataset.accountId,
+                                code: accountCode,
+                                name: accountName,
+                                value: numericValue,
+                                prevValue: numericPrevValue,
+                                element: this
+                            };
+                            
+                            console.log('✅ Nueva cuenta seleccionada para asignación:', selectedAccount);
+                        } else {
+                            console.log('🎯 Modo recepción: esta cuenta recibirá asignaciones del Excel');
+                            
+                            // Obtener el grupo contenedor
+                            const parentGroupContent = this.closest('.group-content') || this.closest('.sub-group-content');
+                            if (!parentGroupContent) {
+                                console.error('❌ No se encontró el grupo contenedor');
+                                return;
+                            }
+                            
+                            // Si hay selección múltiple, asignar todas las cuentas
+                            if (selectedAccounts.length > 0) {
+                                let assignedCount = 0;
+                                selectedAccounts.forEach(accountData => {
+                                    console.log('🎯 Asignando cuenta del Excel debajo de nueva cuenta dinámica:', accountData.code, '→', this);
+                                    appendExcelAccountToStaticAccount(accountData, this, parentGroupContent);
+                                    assignedCount++;
+                                });
+                                
+                                // Limpiar selección múltiple después de asignar
+                                selectedAccounts = [];
+                                document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
+                                    item.classList.remove('selected');
+                                });
+                                
+                                showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta`, 'success');
+                            } else {
+                                // Asignación individual
+                                console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
+                                console.log('🎯 Asignando cuenta del Excel debajo de nueva cuenta dinámica:', selectedAccount.code, '→', this);
+                                appendExcelAccountToStaticAccount(selectedAccount, this, parentGroupContent);
+                            }
+                        }
+                    });
+                }
+                
                 // Actualizar el contador del grupo
-                updateGroupCount(group);
+                updateGroupCount(groupContent);
                 
                 // Cerrar el modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addAccountModal'));
-                modal.hide();
+                const modalElement = document.getElementById('addAccountModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Alternativa: forzar el cierre del modal
+                    modalElement.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
+                }
                 
                 // Mostrar mensaje de éxito
                 showNotification('Cuenta agregada exitosamente', 'success');
