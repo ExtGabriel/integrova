@@ -194,6 +194,10 @@
                 if (!detail) return;
                 const value = parseFloat(target.value);
                 detail.amount = Number.isFinite(value) ? value : 0;
+                
+                // Actualizar indicador de balance
+                const balance = calculateAdjustmentBalance();
+                updateBalanceIndicator(balance);
             }
         });
 
@@ -206,6 +210,10 @@
                 const detail = getDetailById(detailId);
                 if (!detail) return;
                 detail.nature = target.value === 'haber' ? 'haber' : 'debe';
+                
+                // Actualizar indicador de balance
+                const balance = calculateAdjustmentBalance();
+                updateBalanceIndicator(balance);
             }
         });
 
@@ -330,10 +338,27 @@
                 return;
             }
 
-            const hasEmptyAmount = detalleItems.some((item) => !Number.isFinite(item.amount) || item.amount < 0);
+            const hasEmptyAmount = detalleItems.some((item) => !Number.isFinite(item.amount));
             if (hasEmptyAmount) {
                 console.log('ERROR: Hay montos vacíos o inválidos');
                 notify('Completa el monto de cada línea con valores válidos antes de guardar.', 'warning');
+                return;
+            }
+
+            // Validación de doble partida
+            const balance = calculateAdjustmentBalance();
+            if (!balance.isBalanced) {
+                console.log('ERROR: Ajuste desbalanceado - Débitos != Créditos');
+                const excessType = balance.difference > 0 ? 'débitos' : 'créditos';
+                const excessAmount = formatCurrency(Math.abs(balance.difference));
+                notify(`Ajuste desbalanceado. Exceso de ${excessType}: ${excessAmount}. Los débitos deben ser iguales a los créditos.`, 'error');
+                return;
+            }
+
+            // Validación de partida doble (al menos un débito y un crédito)
+            if (!balance.hasDebit || !balance.hasCredit) {
+                console.log('ERROR: Partida doble requiere al menos un débito y un crédito');
+                notify('Una partida contable requiere al menos una línea en Débito y otra en Crédito.', 'warning');
                 return;
             }
 
@@ -480,12 +505,50 @@
             updateNotesNotificationBadge();
         }
 
+        function calculateAdjustmentBalance() {
+            let totalDebit = 0;
+            let totalCredit = 0;
+
+            detalleItems.forEach(detail => {
+                const rawAmount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                const nature = detail.nature === 'haber' ? 'haber' : 'debe';
+
+                if (nature === 'debe') {
+                    if (rawAmount >= 0) {
+                        totalDebit += rawAmount;
+                    } else {
+                        totalCredit += Math.abs(rawAmount);
+                    }
+                } else {
+                    if (rawAmount <= 0) {
+                        totalCredit += Math.abs(rawAmount);
+                    } else {
+                        totalDebit += rawAmount;
+                    }
+                }
+            });
+
+            const difference = totalDebit - totalCredit;
+            const isBalanced = Math.abs(difference) < 0.01; // Tolerancia de centavos
+
+            return {
+                totalDebit,
+                totalCredit,
+                difference,
+                isBalanced,
+                hasDebit: totalDebit > 0,
+                hasCredit: totalCredit > 0,
+                balanceStatus: isBalanced ? 'balanced' : (difference > 0 ? 'debit-excess' : 'credit-excess')
+            };
+        }
+
         function renderDetailItems() {
             if (!detailsList || !detailsEmptyState) return;
 
             if (!detalleItems.length) {
                 detailsList.innerHTML = '';
                 detailsEmptyState.style.display = 'block';
+                updateBalanceIndicator({ totalDebit: 0, totalCredit: 0, difference: 0, isBalanced: true });
                 return;
             }
 
@@ -493,6 +556,10 @@
 
             const rowsHtml = detalleItems.map((detail) => {
                 const amountValue = Number.isFinite(detail.amount) ? detail.amount.toFixed(2) : '0.00';
+                const natureValue = detail.nature === 'haber' ? 'haber' : 'debe';
+                const natureLabel = natureValue === 'haber' ? 'Crédito' : 'Débito';
+                const natureClass = natureValue === 'haber' ? 'nature-credit' : 'nature-debit';
+                
                 return `
                     <div class="ajuste-detail-row" data-detail-id="${detail.id}">
                         <div class="ajuste-detail-row__content">
@@ -510,9 +577,13 @@
                                 <span class="ajuste-detail-row__name">${detail.label}</span>
                             </div>
                             <div class="ajuste-detail-row__amounts">
+                                <div class="ajuste-detail-row__nature-display">
+                                    <label>Tipo</label>
+                                    <span class="nature-badge ${natureClass}">${natureLabel}</span>
+                                </div>
                                 <div class="ajuste-detail-row__amount">
                                     <label for="detail-amount-${detail.id}">Cantidad</label>
-                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" value="${amountValue}" placeholder="0.00">
+                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" min="-999999999.99" value="${amountValue}" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
@@ -521,7 +592,110 @@
             }).join('');
 
             detailsList.innerHTML = rowsHtml;
+            
+            // Actualizar indicador de balance
+            const balance = calculateAdjustmentBalance();
+            updateBalanceIndicator(balance);
         }
+
+        function updateBalanceIndicator(balance) {
+            // Buscar o crear el contenedor del indicador de balance
+            let balanceIndicator = document.getElementById('ajusteBalanceIndicator');
+            
+            if (!balanceIndicator) {
+                balanceIndicator = document.createElement('div');
+                balanceIndicator.id = 'ajusteBalanceIndicator';
+                balanceIndicator.style.cssText = `
+                    padding: 12px 16px;
+                    margin: 12px 0;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border: 1px solid;
+                    transition: all 0.3s ease;
+                `;
+                
+                // Insertar después del header de detalles
+                const detailsHeader = document.querySelector('.ajuste-details__header');
+                if (detailsHeader) {
+                    detailsHeader.parentNode.insertBefore(balanceIndicator, detailsHeader.nextSibling);
+                }
+            }
+
+            // Actualizar contenido y estilos según el balance
+            if (balance.isBalanced) {
+                balanceIndicator.style.backgroundColor = '#d4edda';
+                balanceIndicator.style.borderColor = '#28a745';
+                balanceIndicator.style.color = '#155724';
+                balanceIndicator.innerHTML = `
+                    <span>✅ Ajuste balanceado</span>
+                    <span>Débitos: ${formatCurrency(balance.totalDebit)} = Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                `;
+            } else {
+                balanceIndicator.style.backgroundColor = '#f8d7da';
+                balanceIndicator.style.borderColor = '#dc3545';
+                balanceIndicator.style.color = '#721c24';
+                
+                const excessType = balance.difference > 0 ? 'Débitos' : 'Créditos';
+                const excessAmount = formatCurrency(Math.abs(balance.difference));
+                
+                balanceIndicator.innerHTML = `
+                    <span>⚠️ Ajuste desbalanceado - Exceso de ${excessType}: ${excessAmount}</span>
+                    <span>Débitos: ${formatCurrency(balance.totalDebit)} | Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                `;
+            }
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN'
+            }).format(amount);
+        }
+
+        // Agregar estilos para los badges de naturaleza
+        const style = document.createElement('style');
+        style.textContent = `
+            .ajuste-detail-row__nature-display {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 80px;
+            }
+            
+            .ajuste-detail-row__nature-display label {
+                font-size: 12px;
+                color: #666;
+                font-weight: 500;
+            }
+            
+            .nature-badge {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            
+            .nature-debit {
+                background-color: #e3f2fd;
+                color: #1976d2;
+                border: 1px solid #bbdefb;
+            }
+            
+            .nature-credit {
+                background-color: #f3e5f5;
+                color: #7b1fa2;
+                border: 1px solid #e1bee7;
+            }
+        `;
+        document.head.appendChild(style);
 
 function updateNumeroField() {
             numeroField.value = computeNextNumber();
@@ -811,10 +985,17 @@ function updateNumeroField() {
                 if (descripcionTextarea) descripcionTextarea.value = ajuste.descripcion || '';
                 
                 // Cargar detalles
-                detalleItems = (ajuste.detalles || []).map(detail => ({
-                    ...detail,
-                    id: uniqueId('detail')
-                }));
+                detalleItems = (ajuste.detalles || []).map(detail => {
+                    // Mantener la naturaleza original si está definida, si no, detectar automáticamente
+                    const nature = detail.nature || getAccountNature(detail.name || detail.label || '', detail.code || '');
+                    
+                    return {
+                        ...detail,
+                        amount: Number.isFinite(detail.amount) ? detail.amount : 0,
+                        nature: nature === 'haber' ? 'haber' : 'debe',
+                        id: uniqueId('detail')
+                    };
+                });
                 
                 renderDetailItems();
                 // NO llamar a updateNumeroField() en modo edición para mantener el número original
@@ -1696,7 +1877,53 @@ function updateNumeroField() {
             return `Q${numericValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
+        function getAccountNature(accountName, accountCode = '') {
+            const name = (accountName || '').toLowerCase();
+            const code = (accountCode || '').toString();
+            
+            // Detectar por código de cuenta (más preciso)
+            if (code.startsWith('1')) {
+                return 'debe'; // Activos (1xx) van en débito
+            }
+            if (code.startsWith('2')) {
+                return 'haber'; // Pasivos (2xx) van en crédito
+            }
+            if (code.startsWith('3')) {
+                return 'haber'; // Patrimonio (3xx) van en crédito
+            }
+            if (code.startsWith('4')) {
+                return 'haber'; // Ingresos (4xx) van en crédito
+            }
+            if (code.startsWith('5')) {
+                return 'debe'; // Gastos (5xx) van en débito
+            }
+            
+            // Detectar por nombre de cuenta
+            const debitKeywords = [
+                'activo', 'caja', 'banco', 'cliente', 'cuentas por cobrar', 'inventario',
+                'propiedad', 'equipo', 'inversión', 'gasto', 'costo', 'pérdida'
+            ];
+            
+            const creditKeywords = [
+                'pasivo', 'proveedor', 'cuentas por pagar', 'préstamo', 'impuesto por pagar',
+                'patrimonio', 'capital', 'reserva', 'ingreso', 'venta', 'ganancia'
+            ];
+            
+            if (debitKeywords.some(keyword => name.includes(keyword))) {
+                return 'debe';
+            }
+            
+            if (creditKeywords.some(keyword => name.includes(keyword))) {
+                return 'haber';
+            }
+            
+            // Por defecto, si no se puede determinar, asumir débito
+            return 'debe';
+        }
+
         function createDetailFromItem(type, item) {
+            const nature = getAccountNature(item.name || item.label || '', item.code || '');
+            
             const detail = {
                 id: uniqueId('detail'),
                 type: type,
@@ -1706,8 +1933,8 @@ function updateNumeroField() {
                 meta: item.meta || (type === 'group' ? 'Agrupamiento' : 'Cuenta'),
                 groupLabel: item.groupLabel || '',
                 parentLabel: item.parentLabel || '',
-                amount: Number.isFinite(item.value) && item.value > 0 ? item.value : 0,
-                nature: 'debe', // Por defecto es debe
+                amount: Number.isFinite(item.value) ? item.value : 0,
+                nature: nature,
                 valueSource: item
             };
             

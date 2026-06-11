@@ -1,5 +1,5 @@
 const DATABASE_API_BASE_URL = (window.API_BASE_URL)
-    || (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL))
+    || (typeof window !== 'undefined' && window.location?.hostname === 'localhost' ? 'http://localhost:3001' : '')
     || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
     || '';
 

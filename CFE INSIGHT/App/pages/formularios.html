@@ -3186,6 +3186,13 @@
                 const datasetId = savedFiles[0].datasetId;
                 console.log('🆔 Dataset ID:', datasetId);
                 
+                // Establecer currentDatasetId globalmente
+                currentDatasetId = datasetId;
+                window.currentDatasetId = datasetId;
+                localStorage.setItem(getAssignmentsLastDatasetKey(), datasetId);
+                console.log('✅ currentDatasetId establecido desde nuevo dataset:', currentDatasetId);
+                console.log('🔍 window.currentDatasetId sincronizado:', window.currentDatasetId);
+                
                 // Ahora procesar el mapeo
                 const mappingResponse = await fetch(`${API_BASE_URL}/api/excel/process-mapping`, {
                     method: 'POST',
@@ -3346,13 +3353,7 @@
             return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        let cachedLedgerMap = new Map();
-        let cachedLedgerAvailable = false;
-        let cachedLedgerMeta = '';
-        let cachedTrialBalanceAccounts = [];
-        let cachedGruposFinancierosRows = [];
-        let cachedAssignments = [];
-        let cachedFinancialGroupStructure = null;
+        // Variables cache ya declaradas globalmente en líneas 17013-17020
 
         function getLocalAdjustmentsMapSafe() {
             try {
@@ -4423,6 +4424,22 @@
                 } catch (error) {
                     console.warn('Error guardando resultados de grupos financieros en base de datos:', error);
                 }
+            }
+        });
+
+        // Re-render la tabla de integridad del libro mayor cuando cambian los ajustes locales
+        document.addEventListener('localAdjustmentsUpdated', async () => {
+            // Solo actualizar si la sección está visible y tiene datos
+            const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
+            if (!ledgerIntegritySection || ledgerIntegritySection.style.display === 'none') return;
+            
+            try {
+                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
+                renderLedgerIntegrity(rows, meta);
+                console.log('✅ Integridad del libro mayor actualizada con ajustes');
+            } catch (error) {
+                console.warn('⚠️ Error actualizando integridad del libro mayor:', error);
             }
         });
 
@@ -16241,6 +16258,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // 2. Limpiar currentDatasetId y variables relacionadas
             currentDatasetId = null;
+            window.currentDatasetId = null;
             console.log('✅ currentDatasetId reiniciado');
 
             // 3. Limpiar caché en memoria
@@ -16791,10 +16809,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 : null;
             const normalizedDatasetId = normalizeDatasetId(datasetIdFromAccounts);
             const normalizedCurrentId = normalizeDatasetId(currentDatasetId);
+            
+            console.log('🔍 restoreAssignedAccounts análisis:', {
+                datasetIdFromAccounts,
+                normalizedDatasetId,
+                normalizedCurrentId,
+                currentDatasetId,
+                accountsLength: accounts?.length,
+                firstAccount: accounts?.[0]
+            });
+            
             if (normalizedDatasetId && normalizedDatasetId !== normalizedCurrentId) {
+                console.log('🔄 restoreAssignedAccounts llamando a handleDatasetChange');
                 handleDatasetChange(normalizedCurrentId, normalizedDatasetId);
             } else if (normalizedDatasetId) {
+                console.log('✅ restoreAssignedAccounts estableciendo currentDatasetId directamente');
                 currentDatasetId = normalizedDatasetId;
+                window.currentDatasetId = normalizedDatasetId;
                 try {
                     localStorage.setItem(getAssignmentsLastDatasetKey(), normalizedDatasetId);
                 } catch (error) {
@@ -16981,9 +17012,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
     const ASSIGNMENTS_STORAGE_PREFIX = 'assigned_accounts_v1';
     const ASSIGNMENTS_LAST_DATASET_KEY = 'assigned_accounts_last_dataset_v1';
-    let currentDatasetId = null;
+    
+    // Hacer currentDatasetId globalmente accesible
+    window.currentDatasetId = null;
+    let currentDatasetId = null; // Mantener para compatibilidad
     let cachedUnassignedAccounts = [];
     let cachedUnassignedDatasetId = '';
+    
+    // Variables cache globales para event listeners
+    let cachedAccounts = [];
+    let cachedAssignments = [];
+    let cachedFinancialGroupStructure = null;
+    let cachedGruposFinancierosRows = [];
+    let cachedTrialBalanceAccounts = [];
+    // Las siguientes variables se declaran más adelante en el código para evitar duplicación
+    // let cachedLedgerMap = new Map();
+    // let cachedLedgerAvailable = false;
+    // let cachedLedgerMeta = '';
 
     function normalizeDatasetId(datasetId) {
         return datasetId == null ? '' : datasetId.toString().trim();
@@ -17048,11 +17093,26 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function handleDatasetChange(previousDatasetId, newDatasetId, options = {}) {
+        console.log('🔄 handleDatasetChange llamado:', {
+            previousDatasetId,
+            newDatasetId,
+            options,
+            currentDatasetId: currentDatasetId
+        });
+        
         const prevId = normalizeDatasetId(previousDatasetId);
         const nextId = normalizeDatasetId(newDatasetId);
         if (!nextId) return;
         const forceReset = options?.forceReset === true;
         const shouldReset = forceReset || (prevId && prevId !== nextId);
+
+        console.log('🔍 handleDatasetChange análisis:', {
+            prevId,
+            nextId,
+            forceReset,
+            shouldReset,
+            condition: prevId && prevId !== nextId
+        });
 
         // Si es un reinicio forzado (nuevo archivo subido), limpiar completamente todo
         if (forceReset) {
@@ -17060,10 +17120,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             resetAllDataOnNewFile();
         } else if (shouldReset) {
             // Si es solo cambio de dataset, limpiar asignaciones pero no todo
+            console.log('🔄 handleDatasetChange ejecutando shouldReset');
             clearStoredAssignments(nextId);
         }
 
         currentDatasetId = nextId;
+        window.currentDatasetId = nextId;
+        console.log('🔄 handleDatasetChange estableció currentDatasetId a:', currentDatasetId);
         cachedAssignments = [];
         cachedFinancialGroupStructure = null;
         try {
@@ -18842,13 +18905,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 });
                 const latestResult = await latestResponse.json();
                 
+                console.log('🔍 Respuesta de /api/excel/latest:', latestResult);
+                console.log('🔍 latestResponse.ok:', latestResponse.ok);
+                console.log('🔍 latestResult.success:', latestResult.success);
+                console.log('🔍 latestResult.data:', latestResult.data);
+                
                 if (latestResponse.ok && latestResult.success && latestResult.data) {
                     currentDatasetId = latestResult.data.id;
+                    window.currentDatasetId = latestResult.data.id;
                     localStorage.setItem(getAssignmentsLastDatasetKey(), currentDatasetId);
                     console.log('✅ Dataset actual establecido:', currentDatasetId);
+                    console.log('🔍 Verificación - currentDatasetId después de asignar:', currentDatasetId);
+                    console.log('🔍 Verificación - window.currentDatasetId:', window.currentDatasetId);
                 } else {
                     console.warn('⚠️ No se encontró ningún dataset');
+                    console.warn('🔍 latestResponse.ok:', latestResponse.ok);
+                    console.warn('🔍 latestResult.success:', latestResult.success);
+                    console.warn('🔍 latestResult.data:', latestResult.data);
                     currentDatasetId = null;
+                    window.currentDatasetId = null;
                 }
 
                 // Cargar cuentas desde la base de datos
