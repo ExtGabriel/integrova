@@ -7,7 +7,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="../css/main.css" rel="stylesheet">
+    <link href="../css/formularios.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
     <style>
         :root {
             --sidebar-bg: #edf1f7;
@@ -703,8 +704,9 @@
 
     <div class="workspace-container">
         <div class="workspace-toolbar">
-            <div>
-                            </div>
+            <div id="worksheetTitleContainer">
+                
+            </div>
             <div class="toolbar-actions">
                 <button type="button" title="Historial"><i class="bi bi-arrow-counterclockwise"></i></button>
                 <button type="button" title="Imprimir"><i class="bi bi-printer"></i></button>
@@ -713,7 +715,7 @@
             </div>
         </div>
 
-        <div class="worksheet-layout">
+        <div class="worksheet-layout" id="worksheetLayout">
             <aside class="worksheet-sidebar">
                 <div class="sidebar-header">
                     <span>Áreas</span>
@@ -747,15 +749,312 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config-supabase.js"></script>
+    <script type="module" src="../js/database-api.js"></script>
     <script src="../js/auth-guard.js"></script>
+    <script>
+        // Debug function availability
+        console.log('getLatestFinancialGroupResults available:', typeof window.getLatestFinancialGroupResults);
+    </script>
     <script>
         let areas = [];
         let selectedAreaId = null;
         let areaCounter = 1;
+        let currentWorksheetDoc = null;
+
+        if (typeof window.getCurrentUserId !== 'function') {
+            window.getCurrentUserId = function() {
+                try {
+                    if (window.currentUser && window.currentUser.id) {
+                        return window.currentUser.id;
+                    }
+
+                    if (typeof window.getUserUI === 'function') {
+                        const user = window.getUserUI();
+                        if (user && user.id) {
+                            return user.id;
+                        }
+                    }
+
+                    const sessionUser = sessionStorage.getItem('currentUser');
+                    if (sessionUser) {
+                        const parsed = JSON.parse(sessionUser);
+                        return parsed.id || parsed.user_id || parsed.uid;
+                    }
+
+                    const localUser = localStorage.getItem('currentUser');
+                    if (localUser) {
+                        const parsed = JSON.parse(localUser);
+                        return parsed.id || parsed.user_id || parsed.uid;
+                    }
+
+                    console.warn('⚠️ No se pudo obtener el ID del usuario (hojas-trabajo)');
+                    return null;
+                } catch (error) {
+                    console.error('❌ Error obteniendo ID del usuario (hojas-trabajo):', error);
+                    return null;
+                }
+            };
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const raw = localStorage.getItem('currentWorksheetDocument');
+                if (raw) {
+                    currentWorksheetDoc = JSON.parse(raw);
+                }
+            } catch (err) {
+                console.warn('No se pudo leer currentWorksheetDocument:', err);
+            }
+
+            initializeWorksheetHeader();
+            initializeBGWorksheetIfNeeded();
             document.addEventListener('click', handleGlobalClick);
         });
+
+        function initializeWorksheetHeader() {
+            const titleContainer = document.getElementById('worksheetTitleContainer');
+            if (!titleContainer) return;
+
+            const defaultTitle = 'Hojas de trabajo';
+            let title = defaultTitle;
+
+            if (currentWorksheetDoc && currentWorksheetDoc.titulo) {
+                title = currentWorksheetDoc.titulo;
+            }
+
+            const bgType = currentWorksheetDoc?.metadata?.bgType;
+            let subtitle = '';
+            if (bgType === 'activo') subtitle = 'Balance general - Activo';
+            if (bgType === 'pasivo') subtitle = 'Balance general - Pasivo y patrimonio';
+            if (bgType === 'resultados') subtitle = 'Estado de resultados';
+
+            titleContainer.innerHTML = `
+                <h1>${title}</h1>
+                ${subtitle ? `<p style="margin:4px 0 0; color:#6b7280;">${subtitle}</p>` : ''}
+            `;
+        }
+
+        function getAssignmentsUserKeyForWorksheet() {
+            return window.getCurrentUserId ? (window.getCurrentUserId() || 'anon') : 'anon';
+        }
+
+        function getLastAssignmentsDatasetId() {
+            try {
+                const baseKey = 'assigned_accounts_last_dataset_v1';
+                const userKey = getAssignmentsUserKeyForWorksheet();
+                const fullKey = `${baseKey}_${userKey}`;
+                const value = localStorage.getItem(fullKey);
+                return value && value.toString().trim() ? value.toString().trim() : null;
+            } catch (error) {
+                console.warn('No se pudo leer último dataset de asignaciones:', error);
+                return null;
+            }
+        }
+
+        async function initializeBGWorksheetIfNeeded() {
+            const bgType = currentWorksheetDoc?.metadata?.bgType;
+            if (!bgType) {
+                return;
+            }
+
+            const sidebar = document.querySelector('.worksheet-sidebar');
+            if (sidebar) {
+                sidebar.style.display = 'none';
+            }
+
+            const layout = document.getElementById('worksheetLayout');
+            if (layout) {
+                layout.style.display = 'block';
+            }
+
+            const panel = document.getElementById('areaDetailPanel');
+            if (!panel) return;
+
+            const datasetId = getLastAssignmentsDatasetId();
+            console.log('BG Worksheet - Dataset ID:', datasetId);
+            console.log('BG Worksheet - getLatestFinancialGroupResults available:', typeof window.getLatestFinancialGroupResults);
+            
+            if (!datasetId) {
+                panel.innerHTML = `
+                    <div class="area-detail-empty">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <p>No se encontró un dataset activo. Por favor:</p>
+                        <ul style="text-align: left; margin: 10px 0;">
+                            <li>Sube un archivo Excel</li>
+                            <li>Asigna cuentas a grupos financieros</li>
+                            <li>Guarda los resultados de grupos financieros</li>
+                        </ul>
+                    </div>`;
+                return;
+            }
+            
+            if (typeof window.getLatestFinancialGroupResults !== 'function') {
+                panel.innerHTML = `
+                    <div class="area-detail-empty">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <p>Función de grupos financieros no disponible. Recarga la página e intenta nuevamente.</p>
+                    </div>`;
+                return;
+            }
+
+            try {
+                const { rows } = await window.getLatestFinancialGroupResults(datasetId);
+                console.log('BG Worksheet - Financial group results:', rows?.length || 0, 'rows');
+                
+                if (!Array.isArray(rows) || !rows.length) {
+                    panel.innerHTML = `
+                        <div class="area-detail-empty">
+                            <i class="bi bi-inbox"></i>
+                            <p>No hay resultados de grupos financieros guardados para este dataset.</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">Por favor:</p>
+                            <ul style="text-align: left; margin: 10px 0; font-size: 0.9em;">
+                                <li>Ve a la sección "Grupos Financieros"</li>
+                                <li>Asigna tus cuentas a los grupos correspondientes</li>
+                                <li>Haz clic en "Guardar resultados"</li>
+                            </ul>
+                        </div>`;
+                    return;
+                }
+
+                const filtered = filterRowsByBgType(rows, bgType);
+                console.log('BG Worksheet - Filtered rows for', bgType + ':', filtered.length, 'rows');
+                
+                if (!filtered.length) {
+                    panel.innerHTML = `
+                        <div class="area-detail-empty">
+                            <i class="bi bi-filter"></i>
+                            <p>No se encontraron cuentas para ${bgType} en los resultados guardados.</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">Verifica que hayas asignado cuentas a este tipo de grupo antes de guardar.</p>
+                        </div>`;
+                    return;
+                }
+
+                renderBGTable(panel, filtered, bgType);
+            } catch (error) {
+                console.error('Error cargando resultados de grupos financieros para BG:', error);
+                panel.innerHTML = `
+                    <div class="area-detail-empty">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <p>Ocurrió un error al cargar los datos de BG. Intente recalcular los grupos financieros.</p>
+                    </div>`;
+            }
+        }
+
+        function normalizeLabel(value) {
+            return (value || '').toString().trim().toLowerCase();
+        }
+
+        function filterRowsByBgType(rows, bgType) {
+            console.log('filterRowsByBgType called with:', { rowsCount: rows?.length || 0, bgType, sampleRows: rows?.slice(0, 2) });
+            
+            const normalizedRows = Array.isArray(rows) ? rows : [];
+            if (!normalizedRows.length) return [];
+
+            let targetNames = [];
+            if (bgType === 'activo') {
+                targetNames = ['activo'];
+            } else if (bgType === 'pasivo') {
+                targetNames = ['pasivo y patrimonio', 'pasivo'];
+            } else if (bgType === 'resultados') {
+                targetNames = ['resultados', 'estado de resultados'];
+            }
+
+            console.log('Target names for', bgType + ':', targetNames);
+
+            if (!targetNames.length) return [];
+
+            const isTargetRoot = (row) => {
+                if (row.level !== 0) return false;
+                const name = normalizeLabel(row.accountName);
+                return targetNames.some(t => name === t || name.includes(t));
+            };
+
+            const startIndex = normalizedRows.findIndex(isTargetRoot);
+            if (startIndex === -1) return [];
+
+            let endIndex = normalizedRows.length;
+            for (let i = startIndex + 1; i < normalizedRows.length; i++) {
+                const row = normalizedRows[i];
+                if (row.level === 0 && !isTargetRoot(row)) {
+                    endIndex = i;
+                    break;
+                }
+            }
+
+            return normalizedRows.slice(startIndex, endIndex);
+        }
+
+        function renderBGTable(panel, rows, bgType) {
+            console.log('renderBGTable called with:', { rowsCount: rows?.length || 0, bgType, rows: rows?.slice(0, 3) });
+            
+            const previousYear = 'Año anterior';
+            const currentYear = 'Año actual';
+
+            const headerHtml = `
+                <div class="dynamic-table-section" data-id="bg-section">
+                    <div class="dynamic-table-grid dynamic-table-header">
+                        ${renderHeaderCell('Descripción')}
+                        ${renderHeaderCell('Ref.')}
+                        ${renderHeaderCell(currentYear, 'Q')}
+                        ${renderHeaderCell(previousYear, 'Q')}
+                        ${renderHeaderCell('Variación', 'Q')}
+                        ${renderHeaderCell('Variación', '%')}
+                        ${renderHeaderCell('', '', 'actions')}
+                    </div>
+                    <div class="dynamic-table-body" id="bgTableBody"></div>
+                </div>`;
+
+            panel.innerHTML = headerHtml;
+
+            const body = document.getElementById('bgTableBody');
+            if (!body) return;
+
+            const buildRowHtml = (row) => {
+                const indent = (row.level || 0) * 16;
+                const description = row.accountName || '';
+                const reference = row.accountCode || '';
+                const current = Number(row.finalCurrent || 0);
+                const previous = Number(row.finalPrevious || 0);
+                const variationQ = current - previous;
+                const variationPercent = previous !== 0 ? (variationQ / Math.abs(previous)) * 100 : 0;
+
+                const formatNumber = (value) => {
+                    if (!Number.isFinite(value)) return '';
+                    return new Intl.NumberFormat('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+                };
+
+                const descStyle = ` style="margin-left:${indent}px;"`;
+
+                return `
+                    <div class="dynamic-table-grid dynamic-row">
+                        <div class="dynamic-cell dynamic-cell--description"${descStyle}>
+                            <input type="text" value="${escapeHtml(description)}" readonly>
+                        </div>
+                        <div class="dynamic-cell">
+                            <input type="text" class="dynamic-input--center" value="${escapeHtml(reference)}" readonly>
+                        </div>
+                        <div class="dynamic-cell">
+                            <input type="text" class="dynamic-input--number" value="${formatNumber(current)}" readonly>
+                        </div>
+                        <div class="dynamic-cell">
+                            <input type="text" class="dynamic-input--number" value="${formatNumber(previous)}" readonly>
+                        </div>
+                        <div class="dynamic-cell">
+                            <input type="text" class="dynamic-input--number" value="${formatNumber(variationQ)}" readonly>
+                        </div>
+                        <div class="dynamic-cell">
+                            <input type="text" class="dynamic-input--percent" value="${previous !== 0 ? formatNumber(variationPercent) : ''}" readonly>
+                        </div>
+                        <div class="dynamic-cell actions">
+                            <div class="dynamic-row-actions">
+                                <button type="button" class="more-actions" title="Más acciones"><i class="bi bi-three-dots"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+            };
+
+            body.innerHTML = rows.map(buildRowHtml).join('');
+        }
 
         function handleGlobalClick(event) {
             const areaMenu = document.getElementById('areaMenu');

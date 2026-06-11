@@ -707,20 +707,29 @@
         try {
             console.log('👁️ Iniciando vista de documento:', docId);
             
-            // Obtener datos del documento
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
             
-            // Si es una hoja de trabajo, redirigir a la página especializada
             if (docData.tipo === 'hoja-trabajo') {
                 console.log('🔄 Redirigiendo a página de hojas de trabajo...');
+                try {
+                    const payload = {
+                        id: docData.id,
+                        titulo: docData.titulo,
+                        tipo: docData.tipo,
+                        categoria: docData.categoria,
+                        subcategoria: docData.subcategoria,
+                        metadata: docData.metadata || {}
+                    };
+                    localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                } catch (storageError) {
+                    console.warn('No se pudo guardar currentWorksheetDocument en localStorage:', storageError);
+                }
                 window.location.href = 'hojas-trabajo.html';
                 return;
             }
             
-            // Para otros tipos de documentos, aquí podrías implementar la lógica de visualización
             console.log('📄 Visualizando documento de tipo:', docData.tipo);
-            // TODO: Implementar visualización para otros tipos de documentos
             
         } catch (error) {
             console.error('❌ Error al ver documento:', error);
@@ -733,18 +742,28 @@
         try {
             console.log('🔧 Iniciando edición de documento:', docId);
             
-            // Obtener datos del documento
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
             
-            // Si es una hoja de trabajo, redirigir a la página especializada
             if (docData.tipo === 'hoja-trabajo') {
                 console.log('🔄 Redirigiendo a página de hojas de trabajo para editar...');
+                try {
+                    const payload = {
+                        id: docData.id,
+                        titulo: docData.titulo,
+                        tipo: docData.tipo,
+                        categoria: docData.categoria,
+                        subcategoria: docData.subcategoria,
+                        metadata: docData.metadata || {}
+                    };
+                    localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                } catch (storageError) {
+                    console.warn('No se pudo guardar currentWorksheetDocument en localStorage (edición):', storageError);
+                }
                 window.location.href = 'hojas-trabajo.html';
                 return;
             }
             
-            // Abrir modal con los datos del documento
             openEditDocumentModal(docData);
             
         } catch (error) {

@@ -1975,12 +1975,12 @@
                                 <div class="years-display-row" id="yearsDisplayRow">
                                     <div class="years-container">
                                         <div class="year-item">
-                                            <span class="year-label">Año Anterior:</span>
-                                            <span class="year-value" id="previousYearDisplay">Cargando...</span>
-                                        </div>
-                                        <div class="year-item">
                                             <span class="year-label">Año Actual:</span>
                                             <span class="year-value" id="currentYearDisplay">Cargando...</span>
+                                        </div>
+                                        <div class="year-item">
+                                            <span class="year-label">Año Anterior:</span>
+                                            <span class="year-value" id="previousYearDisplay">Cargando...</span>
                                         </div>
                                         <button class="btn btn-sm btn-outline-secondary ms-3" onclick="updateYearsDisplay()" title="Actualizar años">
                                             <i class="bi bi-arrow-clockwise"></i>
@@ -2300,8 +2300,8 @@
                                             <th style="text-align:left; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Nombre de la cuenta</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Preliminar</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Ajustes</th>
-                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2024 Final del CyC</th>
-                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2023 PY-Final</th>
+                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2024 Final</th>
+                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2023 Final</th>
                                             <th style="text-align:center; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -2429,8 +2429,8 @@
                                         <th>Nombre</th>
                                         <th>Preliminar</th>
                                         <th>Ajustes</th>
-                                        <th>31/12/2024 Final del CyC</th>
-                                        <th>31/12/2023 PY-Final</th>
+                                        <th>31/12/2024 Final</th>
+                                        <th>31/12/2023 Final</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
@@ -3560,14 +3560,12 @@
                 const previousOriginalRaw = parseAccountValue(account.dataset.accountPrevOriginal || account.dataset.accountPrevValue);
                 const currentOriginalRaw = parseAccountValue(account.dataset.accountCurrentOriginal || account.dataset.accountValue);
                 
-                // Usar la última columna del Excel (que corresponde al año anterior)
-                // En el Excel actual: última columna = 2023 (año anterior)
-                const lastColumnValue = previousOriginalRaw; // previousOriginal es la última columna
-                
                 // Para libro mayor: usar valores originales del Excel SIN normalización
                 // para mantener los signos correctos del Excel
-                acc.previous += lastColumnValue || 0; // Saldo del periodo anterior = última columna Excel (sin normalizar)
-                acc.current += currentOriginalRaw || 0; // Para compatibilidad con la estructura existente
+                // Saldo del periodo anterior = penúltima columna (año anterior)
+                // Saldo del periodo actual = última columna (año actual)
+                acc.previous += currentOriginalRaw || 0; // Saldo del periodo anterior = penúltima columna Excel (sin normalizar)
+                acc.current += previousOriginalRaw || 0; // Saldo del periodo actual = última columna Excel (sin normalizar)
                 return acc;
             }, { previous: 0, current: 0 });
         }
@@ -4279,11 +4277,12 @@
                 .map(account => {
                     const code = account.code || account.account_number || '';
                     const name = account.name || account.account_name || '';
+                    // Swap: preliminary should show 2024 (previous year), finalPrevious should show 2023 (current year)
                     const preliminary = computeNetBalance(
                         account,
-                        ['debit', 'debito_actual', 'current_year_debit', 'currentYearDebit'],
-                        ['credit', 'credito_actual', 'current_year_credit', 'currentYearCredit'],
-                        ['value', 'saldo', 'current_year_value']
+                        ['previousYearDebit', 'previous_year_debit', 'debito_anterior'],
+                        ['previousYearCredit', 'previous_year_credit', 'credito_anterior'],
+                        ['previous_year_value', 'saldo_anterior']
                     );
 
                     const localAdj = (() => {
@@ -4308,9 +4307,9 @@
                     const finalCurrent = preliminary + adjustments;
                     const finalPrevious = computeNetBalance(
                         account,
-                        ['previousYearDebit', 'previous_year_debit', 'debito_anterior'],
-                        ['previousYearCredit', 'previous_year_credit', 'credito_anterior'],
-                        ['previous_year_value', 'saldo_anterior']
+                        ['debit', 'debito_actual', 'current_year_debit', 'currentYearDebit'],
+                        ['credit', 'credito_actual', 'current_year_credit', 'currentYearCredit'],
+                        ['value', 'saldo', 'current_year_value']
                     );
 
                     return {
@@ -4406,6 +4405,7 @@
                     console.log('Guardando resultados de grupos financieros en base de datos...');
                     const convertedRows = rows.map(row => ({
                         accountName: row.accountName || '',
+                        accountCode: row.accountCode || '',
                         preliminary: row.preliminary || 0,
                         adjustments: row.adjustments || 0,
                         finalCurrent: row.finalCurrent || 0,
@@ -4948,8 +4948,9 @@
             const normalizeNodeType = (type) => (type || '').toString().toLowerCase();
 
             const summarizeAssignment = (assignment) => {
-                const preliminary = parseAccountValue(assignment.value);
-                const finalPrevious = parseAccountValue(assignment.prevValue);
+                // Swap: preliminary should show 2024 (current year), finalPrevious should show 2023 (previous year)
+                const preliminary = parseAccountValue(assignment.prevValue); // 2024 values
+                const finalPrevious = parseAccountValue(assignment.value); // 2023 values
                 const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
                 const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
 
@@ -5014,12 +5015,12 @@
                 const hasExplicitValue = meta.value != null || node.staticValue != null || meta.currentValue != null || meta.preliminary != null || meta.accountValue != null;
 
                 const basePreliminary = hasExplicitValue
-                    ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
-                    : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
-
-                const basePrev = hasExplicitValue
                     ? parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0)
                     : (isLeafNode ? parseAccountValue(node.staticPrevValue ?? 0) : 0);
+
+                const basePrev = hasExplicitValue
+                    ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
+                    : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
 
                 const codeKey = (meta.accountCode || meta.code || node.accountCode || '').toString().trim();
                 const nameKey = (meta.accountName || meta.name || node.name || node.label || '').toString().trim();
@@ -16857,10 +16858,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                     
                     const displayValue = currentValue != null ? formatCurrency(numericValue) : '';
+                    const displayPreviousValue = previousValue != null ? formatCurrency(numericPreviousValue) : '';
                     
-                    // Mostrar en formato de columnas como Excel: LS | Código | Nombre | Valor
+                    // Mostrar en formato de columnas como Excel: LS | Código | Nombre | 2023 | 2024
                     const lsColumn = lsValue ? `<span class="account-ls-column">${lsValue}</span>` : '<span class="account-ls-column"></span>';
                     const codeColumn = accountNumber ? `<span class="account-code-column">${accountNumber}</span>` : '<span class="account-code-column"></span>';
+                    const prevValueColumn = `<span class="account-value-column prev-year">${displayPreviousValue}</span>`;
+                    const currValueColumn = `<span class="account-value-column curr-year">${displayValue}</span>`;
                     
                     return `
                         <div class="account-item" style="cursor: pointer;" 
@@ -16876,7 +16880,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 ${codeColumn}
                                 <span class="account-name-column">${accountName}</span>
                             </div>
-                            <span class="account-value-column">${displayValue}</span>
+                            <div class="account-values-container">
+                                ${prevValueColumn}
+                                ${currValueColumn}
+                            </div>
                         </div>
                     `;
                 })
@@ -17430,6 +17437,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     });
                     
                     showNotification(`${assignedCount} cuentas asignadas al grupo`, 'success');
+                    // Crear carpeta "General" automáticamente en Planes y Procedimientos
+                    createGeneralFolderIfNotExists();
                 } else {
                     // Asignación individual (comportamiento original)
                     assignAccountToGroup(selectedAccount, this);
@@ -17478,6 +17487,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     });
                     
                     showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta estática`, 'success');
+                    // Crear carpeta "General" automáticamente en Planes y Procedimientos
+                    createGeneralFolderIfNotExists();
                 } else {
                     // Asignación individual (comportamiento original)
                     console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
@@ -17488,6 +17499,99 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
         
         console.log(' Sistema de asignación por clic inicializado');
+    }
+
+    // Función para crear automáticamente la carpeta "General" en Planes y Procedimientos
+    // y generar dentro de ella las hojas de trabajo BG-1, BG-2 y BG-3
+    async function createGeneralFolderIfNotExists() {
+        try {
+            if (!window.subcategoriasManager) {
+                console.warn('subcategoriasManager no está disponible; no se puede crear la carpeta General');
+                return;
+            }
+
+            // Asegurar que el manager tenga userId
+            if (!window.subcategoriasManager.userId) {
+                await window.subcategoriasManager.init();
+            }
+
+            // Buscar carpeta "General" en la categoría/subcategoría planes/planes
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            let generalFolder = (subfolders || []).find(folder =>
+                (folder.nombre || '').trim().toLowerCase() === 'general'
+            );
+
+            // Si no existe, crearla
+            if (!generalFolder) {
+                console.log('Creando carpeta "General" automáticamente en Planes y Procedimientos...');
+                generalFolder = await window.subcategoriasManager.saveSubfolder(
+                    'planes',        // category
+                    'planes',        // subcategory/section
+                    'General',       // folderName
+                    'Carpeta general para documentos de auditoría', // description
+                    null             // parentFolderId
+                );
+
+                if (generalFolder) {
+                    console.log('Carpeta "General" creada exitosamente:', generalFolder);
+                    showNotification('📁 Carpeta "General" creada automáticamente en Planes y Procedimientos', 'success');
+                    // Agregar la carpeta a la UI sin borrar contenido estático
+                    appendCategoryRootFolder('planes', generalFolder);
+                } else {
+                    console.warn('No se pudo crear la carpeta "General"');
+                    return;
+                }
+            } else {
+                console.log('La carpeta "General" ya existe en Planes y Procedimientos:', generalFolder);
+            }
+
+            // Crear documentos BG dentro de la carpeta General si aún no existen
+            if (generalFolder && generalFolder.id) {
+                await createBGDocumentsIfNotExist(generalFolder.id);
+            }
+
+        } catch (error) {
+            console.error('Error creando carpeta "General" automáticamente:', error);
+        }
+    }
+
+    // Crear las hojas de trabajo BG-1 ACTIVO, BG-2 PASIVO y BG-3 ESTADO DE RESULTADOS
+    // dentro de la carpeta General si todavía no existen
+    async function createBGDocumentsIfNotExist(parentFolderId) {
+        try {
+            if (!window.subcategoriasManager || !parentFolderId) return;
+
+            if (!window.subcategoriasManager.userId) {
+                await window.subcategoriasManager.init();
+            }
+
+            const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
+            const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === parentFolderId);
+
+            const requiredDocs = [
+                { titulo: 'BG-1 ACTIVO', meta: { bgType: 'activo' } },
+                { titulo: 'BG-2 PASIVO', meta: { bgType: 'pasivo' } },
+                { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados' } }
+            ];
+
+            for (const cfg of requiredDocs) {
+                const exists = docsInFolder.some(doc => (doc.titulo || '').trim().toLowerCase() === cfg.titulo.toLowerCase());
+                if (exists) continue;
+
+                console.log('Creando documento automático en General:', cfg.titulo);
+                await window.subcategoriasManager.saveSubdocument(
+                    'planes',          // category
+                    'planes',          // subcategory
+                    'hoja-trabajo',    // tipo de documento
+                    cfg.titulo,
+                    '',                // contenido inicial
+                    cfg.meta || {},
+                    parentFolderId
+                );
+            }
+        } catch (error) {
+            console.error('Error creando documentos BG en carpeta General:', error);
+        }
     }
     
     // Función para sincronizar asignaciones con la base de datos
@@ -18290,6 +18394,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Mostrar resultado
         if (assignedCount > 0) {
             showNotification(`✅ Se asignaron automáticamente ${assignedCount} cuentas basadas en LS exacto`, 'success');
+            // Crear carpeta "General" automáticamente en Planes y Procedimientos
+            createGeneralFolderIfNotExists();
         } else {
             showNotification('No se encontraron cuentas con LS coincidente en los grupos', 'info');
         }

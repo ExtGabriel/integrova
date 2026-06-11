@@ -389,41 +389,6 @@ async function saveAccountAdjustments(datasetId, adjustmentsMap) {
     }
 }
 
-/**
- * Obtiene los grupos financieros almacenados para un dataset
- * @param {string} datasetId - ID del dataset
- * @returns {Promise<Array>} Lista de grupos financieros
- */
-async function getFinancialGroups(datasetId) {
-    const resolvedDatasetId = datasetId || currentDatasetId;
-
-    if (!resolvedDatasetId) {
-        console.warn('getFinancialGroups: datasetId requerido');
-        return [];
-    }
-
-    try {
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${resolvedDatasetId}`, {
-            method: 'GET',
-            headers: {
-                'user-id': getCurrentUserId()
-            }
-        });
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || 'Error obteniendo grupos financieros');
-        }
-
-        console.log('Financial groups loaded:', result.groups.length);
-        return result.groups;
-
-    } catch (error) {
-        console.error('Error in getFinancialGroups:', error);
-        return [];
-    }
-}
 
 /**
  * Obtiene el snapshot más reciente de resultados de grupos financieros
@@ -505,6 +470,11 @@ async function getFinancialGroupSnapshots(datasetId, limit = 5) {
         console.error('Error in getFinancialGroupSnapshots:', error);
         return [];
     }
+}
+
+// Make functions available globally
+if (typeof window !== 'undefined') {
+    window.getLatestFinancialGroupResults = getLatestFinancialGroupResults;
 }
 
 /**
