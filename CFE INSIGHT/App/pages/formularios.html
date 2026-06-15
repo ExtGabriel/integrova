@@ -2405,6 +2405,11 @@
                             <div class="left-header">
                                 <h3><i class="fas fa-folder-tree"></i> Grupos Financieros</h3>
                             </div>
+                            <div class="right-header">
+                                <button id="saveBGResultsBtn" class="btn btn-primary" onclick="saveBGResults()" style="margin-left: 10px;">
+                                    <i class="bi bi-cloud-upload"></i> Guardar resultados para BG
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Buscador de grupos financieros -->
@@ -4903,14 +4908,30 @@
 
         async function loadGruposFinancierosFromLatestExcel() {
             try {
-                initializeStaticAccounts();
-                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
-                cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
-                const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-                const rows = buildGruposFinancierosRows(cachedFinancialGroupStructure, cachedAssignments, ledgerMap, ledgerAvailable, localAdjustmentsMap);
-                cachedGruposFinancierosRows = rows;
-                renderGruposFinancieros(rows, meta);
+                console.log('📊 Cargando grupos financieros desde la base de datos...');
+                
+                // Cargar grupos financieros guardados en la base de datos
+                const financialGroups = await getFinancialGroups(currentDatasetId);
+                console.log('📊 Grupos financieros cargados:', financialGroups);
+                
+                if (financialGroups && financialGroups.length > 0) {
+                    // Si hay grupos financieros guardados, usarlos
+                    cachedGruposFinancierosRows = financialGroups;
+                    renderGruposFinancieros(financialGroups, '');
+                    console.log('✅ Grupos financieros cargados desde base de datos');
+                } else {
+                    // Si no hay grupos financieros guardados, construir desde el libro mayor
+                    console.log('📊 No hay grupos financieros guardados, construyendo desde libro mayor...');
+                    initializeStaticAccounts();
+                    const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                    cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
+                    cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
+                    const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                    const rows = buildGruposFinancierosRows(cachedFinancialGroupStructure, cachedAssignments, ledgerMap, ledgerAvailable, localAdjustmentsMap);
+                    cachedGruposFinancierosRows = rows;
+                    renderGruposFinancieros(rows, meta);
+                    console.log('✅ Grupos financieros construidos desde libro mayor');
+                }
                 
                 // Marcar como cargado exitosamente
                 dataLoadState.gruposFinancieros = true;
@@ -5163,6 +5184,92 @@
             });
 
             return rows;
+        }
+
+        // Función para guardar resultados de grupos financieros en formato para BG
+        async function saveBGResults() {
+            try {
+                if (!currentDatasetId) {
+                    alert('No hay un dataset activo. Por favor carga un archivo Excel primero.');
+                    return;
+                }
+
+                if (!cachedGruposFinancierosRows || cachedGruposFinancierosRows.length === 0) {
+                    alert('No hay datos de grupos financieros para guardar. Por favor asigna cuentas primero.');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveBGResultsBtn');
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                saveBtn.disabled = true;
+
+                // Transformar datos al formato que el servidor espera
+                const bgResults = cachedGruposFinancierosRows.map(row => ({
+                    accountName: row.accountName || '',
+                    accountCode: row.accountCode || '',
+                    preliminary: row.preliminary || 0,
+                    adjustments: row.adjustments || 0,
+                    finalCurrent: row.finalCurrent || 0,
+                    finalPrevious: row.finalPrevious || 0,
+                    level: row.level || 0,
+                    isParent: row.isParent || false,
+                    rowId: row.rowId || '',
+                    parentId: row.parentId || '',
+                    hasChildren: row.hasChildren || false,
+                    ledgerMissing: row.ledgerMissing || false
+                }));
+
+                // Debug: mostrar qué se va a enviar
+                console.log('📤 Enviando datos al servidor:', {
+                    datasetId: currentDatasetId,
+                    resultsCount: bgResults.length,
+                    sampleRow: bgResults[0],
+                    allRows: bgResults
+                });
+
+                // Guardar usando el sistema existente
+                const result = await window.saveFinancialGroupsResults(currentDatasetId, bgResults, 'completed');
+                
+                console.log('✅ Resultados para BG guardados:', result);
+                alert('Resultados guardados exitosamente. Ahora puedes verlos en las hojas de trabajo BG.');
+                
+            } catch (error) {
+                console.error('❌ Error guardando resultados para BG:', error);
+                alert('Error al guardar resultados: ' + error.message);
+            } finally {
+                const saveBtn = document.getElementById('saveBGResultsBtn');
+                saveBtn.innerHTML = '<i class="bi bi-cloud-upload"></i> Guardar resultados para BG';
+                saveBtn.disabled = false;
+            }
+        }
+
+        // Función auxiliar para determinar el tipo de BG para una cuenta
+        function getBGTypeForAccount(accountCode) {
+            if (!accountCode) return 'BG-1';
+            
+            const code = accountCode.toString();
+            if (code.startsWith('1') || code.startsWith('2') || code.startsWith('3')) {
+                return 'BG-1'; // Balance General
+            } else if (code.startsWith('4') || code.startsWith('5')) {
+                return 'BG-2'; // Estado de Resultados
+            } else {
+                return 'BG-3'; // Otros
+            }
+        }
+
+        // Función auxiliar para obtener el LS de una cuenta
+        function getLSForAccount(accountCode) {
+            if (!accountCode) return '';
+            
+            const code = accountCode.toString();
+            if (code.startsWith('100') || code.startsWith('110') || code.startsWith('120') || code.startsWith('130') || code.startsWith('140') || code.startsWith('150') || code.startsWith('160') || code.startsWith('170') || code.startsWith('180') || code.startsWith('190')) return '100';
+            if (code.startsWith('200') || code.startsWith('210') || code.startsWith('220') || code.startsWith('230') || code.startsWith('240') || code.startsWith('250')) return '200';
+            if (code.startsWith('300') || code.startsWith('310') || code.startsWith('320') || code.startsWith('330')) return '300';
+            if (code.startsWith('400') || code.startsWith('410') || code.startsWith('420') || code.startsWith('430')) return '400';
+            if (code.startsWith('500') || code.startsWith('510') || code.startsWith('520') || code.startsWith('530') || code.startsWith('540') || code.startsWith('550')) return '500';
+            
+            return code.substring(0, 3);
         }
 
         function renderGruposFinancieros(rows, meta) {
@@ -17130,6 +17237,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         console.log('🔄 handleDatasetChange estableció currentDatasetId a:', currentDatasetId);
         cachedAssignments = [];
         cachedFinancialGroupStructure = null;
+
+        // Gestionar carpetas "General" por dataset
+        try {
+            console.log('🔄 Gestionando carpetas General para dataset:', currentDatasetId);
+            manageGeneralFoldersForDataset(currentDatasetId, previousDatasetId);
+        } catch (error) {
+            console.warn('Error gestionando carpetas General:', error);
+        }
+
         try {
             localStorage.setItem(getAssignmentsLastDatasetKey(), nextId);
         } catch (error) {
@@ -17334,6 +17450,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const datasetId = normalizeDatasetId(currentDatasetId);
         if (!datasetId) return;
         
+        console.log('🔄 Iniciando restoreAssignedAccounts para dataset:', datasetId);
+        
         // Evitar restauración múltiple - limpiar primero
         const existingAssignments = document.querySelectorAll('.assigned-account');
         if (existingAssignments.length > 0) {
@@ -17348,36 +17466,73 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (window.getAccountAssignments) {
                 const dbAssignments = await window.getAccountAssignments(datasetId);
                 assignments = dbAssignments || [];
-                console.log('Cargadas', assignments.length, 'asignaciones desde base de datos');
+                console.log('✅ Cargadas', assignments.length, 'asignaciones desde base de datos');
+                console.log('📋 Muestra de asignaciones:', assignments.slice(0, 3));
             }
         } catch (error) {
-            console.warn('Error cargando desde BD, usando localStorage:', error);
+            console.warn('⚠️ Error cargando desde BD, usando localStorage:', error);
         }
         
         // Si no hay datos de BD, usar localStorage como fallback
         if (!assignments.length) {
             assignments = getStoredAssignments(datasetId) || [];
-            console.log('Cargadas', assignments.length, 'asignaciones desde localStorage');
+            console.log('📦 Cargadas', assignments.length, 'asignaciones desde localStorage');
         }
         
-        if (!assignments.length) return;
+        if (!assignments.length) {
+            console.log('❌ No hay asignaciones para restaurar');
+            return;
+        }
 
+        console.log('🔄 Procesando', assignments.length, 'asignaciones para restaurar en UI...');
+
+        let restoredCount = 0;
         assignments.forEach(assignment => {
+            console.log('🔍 Procesando assignment:', {
+                groupContentId: assignment.groupContentId,
+                accountId: assignment.accountId,
+                accountKey: assignment.accountKey,
+                name: assignment.name
+            });
+
             const groupContent = document.getElementById(assignment.groupContentId);
-            if (!groupContent) return;
+            if (!groupContent) {
+                console.warn('⚠️ No se encontró groupContent con ID:', assignment.groupContentId);
+                return;
+            }
 
-            const existing = groupContent.querySelector(`.assigned-account[data-account-id="${assignment.accountKey}"]`);
-            if (existing) return;
+            // Usar accountKey o accountId para verificar duplicados
+            const accountKey = assignment.accountKey || assignment.accountId;
+            const existing = groupContent.querySelector(`.assigned-account[data-account-id="${accountKey}"]`);
+            if (existing) {
+                console.log('⏭️ Assignment ya existe en UI, omitiendo:', accountKey);
+                return;
+            }
 
-            const accountData = {
-                id: assignment.id || assignment.accountKey,
+            // Obtener datos de la cuenta desde diferentes fuentes
+            let accountData = {
+                id: assignment.id || accountKey,
                 code: assignment.code || '',
                 name: assignment.name || '',
                 ls: assignment.ls || assignment.meta?.ls || '',
-                value: assignment.value,
-                prevValue: assignment.prevValue,
-                datasetId: assignment.datasetId
+                value: assignment.value || 0,
+                prevValue: assignment.prevValue || 0,
+                datasetId: assignment.datasetId || datasetId
             };
+
+            // Si no hay nombre/code, intentar obtener desde cuentas contables
+            if (!accountData.name && assignment.accountId) {
+                const accountInfo = getAccountFromLedger(assignment.accountId);
+                if (accountInfo) {
+                    accountData.name = accountInfo.name;
+                    accountData.code = accountInfo.code;
+                    accountData.ls = accountInfo.ls;
+                    accountData.value = accountInfo.value;
+                    accountData.prevValue = accountInfo.prevValue;
+                }
+            }
+
+            console.log('📝 Datos de cuenta a restaurar:', accountData);
 
             const emptyState = groupContent.querySelector('.empty-state');
             if (emptyState) emptyState.remove();
@@ -17402,12 +17557,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
 
             updateGroupCount(groupContent);
+            restoredCount++;
         });
+
+        console.log('✅ Se restauraron', restoredCount, 'asignaciones en la UI');
 
         updateRemainingCount();
         refreshLedgerIntegrityIfVisible();
         syncUnassignedAccountsWithAssignments(assignments);
         refreshGroupPanelTotals(assignments);
+        
+        // Actualizar grupos financieros si es necesario
+        if (typeof updateAllGroupCounts === 'function') {
+            updateAllGroupCounts();
+        }
     }
 
     function syncUnassignedAccountsWithAssignments(assignments = null) {
@@ -17734,58 +17897,159 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
     }
 
-    // Función para limpiar carpetas "General" cuando se elimina un dataset
-    async function cleanupGeneralFoldersForDeletedDataset(datasetId) {
+    // Función para gestionar carpetas "General" por dataset activo
+    async function manageGeneralFoldersForDataset(activeDatasetId, previousDatasetId = null) {
+        console.log('🔄 INICIO manageGeneralFoldersForDataset:', { activeDatasetId, previousDatasetId });
+        
         try {
             if (!window.subcategoriasManager) {
-                console.warn('subcategoriasManager no está disponible; no se pueden limpiar carpetas');
+                console.warn('❌ subcategoriasManager no disponible');
                 return;
             }
 
+            // Obtener todas las carpetas "General" existentes
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            const generalFolders = (subfolders || []).filter(folder => {
+                const folderName = (folder.nombre || '').trim().toLowerCase();
+                return folderName === 'general';
+            });
+
+            console.log('📁 Carpetas "General" encontradas:', generalFolders.length);
+
+            // Ocultar carpetas "General" de otros datasets
+            generalFolders.forEach(folder => {
+                const folderDataset = folder.metadata?.datasetId;
+                const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
+                
+                if (folderDataset !== activeDatasetId && folderElement) {
+                    console.log('🙈 Ocultando carpeta "General" de dataset anterior:', folderDataset);
+                    folderElement.style.display = 'none';
+                } else if (folderDataset === activeDatasetId && folderElement) {
+                    console.log('👁️ Mostrando carpeta "General" del dataset activo:', folderDataset);
+                    folderElement.style.display = 'block';
+                }
+            });
+
+            // Verificar si existe carpeta "General" para el dataset activo
+            const activeFolder = generalFolders.find(folder => 
+                folder.metadata?.datasetId === activeDatasetId
+            );
+
+            if (!activeFolder) {
+                console.log('🔨 No existe carpeta "General" para dataset activo, creándola...');
+                await createGeneralFolderIfNotExists();
+            } else {
+                console.log('✅ Carpeta "General" del dataset activo ya existe');
+            }
+
+        } catch (error) {
+            console.error('❌ Error en manageGeneralFoldersForDataset:', error);
+        }
+    }
+
+    // Función para limpiar carpetas "General" cuando se elimina un dataset
+    async function cleanupGeneralFoldersForDeletedDataset(datasetId) {
+        console.log('🔍 INICIO cleanupGeneralFoldersForDeletedDataset para datasetId:', datasetId);
+        
+        try {
+            if (!window.subcategoriasManager) {
+                console.error('❌ subcategoriasManager no está disponible; no se pueden limpiar carpetas');
+                return;
+            }
+
+            console.log('✅ subcategoriasManager disponible');
+
             // Asegurar que el manager tenga userId
             if (!window.subcategoriasManager.userId) {
+                console.log('🔄 Inicializando subcategoriasManager...');
                 await window.subcategoriasManager.init();
             }
 
+            console.log('🔍 Buscando carpetas "General" vinculadas al dataset:', datasetId);
+            
             // Buscar todas las carpetas "General" vinculadas al dataset eliminado
             const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            console.log('📁 Total de subcarpetas encontradas:', subfolders?.length || 0);
+            
+            if (subfolders) {
+                console.log('📋 Lista de subcarpetas:', subfolders.map(f => ({
+                    id: f.id,
+                    nombre: f.nombre,
+                    datasetId: f.meta?.datasetId
+                })));
+            }
+            
             const foldersToDelete = (subfolders || []).filter(folder => {
                 const folderName = (folder.nombre || '').trim().toLowerCase();
                 const folderDataset = folder.meta?.datasetId || '';
-                return folderName === 'general' && folderDataset === datasetId;
+                const shouldDelete = folderName === 'general' && 
+                                   (folderDataset === datasetId || folderDataset === '' || folderDataset === undefined);
+                
+                console.log('🔍 Analizando carpeta:', {
+                    id: folder.id,
+                    nombre: folder.nombre,
+                    folderName: folderName,
+                    folderDataset: folderDataset,
+                    targetDatasetId: datasetId,
+                    shouldDelete: shouldDelete,
+                    motivo: folderDataset === datasetId ? 'Dataset coincide' : 
+                           (folderDataset === '' || folderDataset === undefined) ? 'Carpeta huérfana sin datasetId' : 'No eliminar'
+                });
+                
+                return shouldDelete;
             });
+
+            console.log('🎯 Carpetas "General" a eliminar:', foldersToDelete.length);
 
             // Eliminar cada carpeta encontrada
             for (const folder of foldersToDelete) {
-                console.log('Eliminando carpeta "General" del dataset eliminado:', folder);
+                console.log('🗑️ Eliminando carpeta "General" del dataset eliminado:', folder);
                 
-                // Primero eliminar todos los documentos dentro de la carpeta
-                const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
-                const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === folder.id);
-                
-                for (const doc of docsInFolder) {
-                    await window.subcategoriasManager.deleteSubdocument('planes', 'planes', doc.id);
+                try {
+                    // Primero eliminar todos los documentos dentro de la carpeta
+                    console.log('📄 Buscando documentos dentro de la carpeta:', folder.id);
+                    const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
+                    console.log('📄 Total documentos encontrados:', documents?.length || 0);
+                    
+                    const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === folder.id);
+                    console.log('📄 Documentos a eliminar en esta carpeta:', docsInFolder.length);
+                    
+                    for (const doc of docsInFolder) {
+                        console.log('🗑️ Eliminando documento:', doc.id, doc.nombre);
+                        await window.subcategoriasManager.deleteSubdocument(doc.id, doc.nombre || 'Documento');
+                    }
+                    
+                    // Luego eliminar la carpeta
+                    console.log('🗑️ Eliminando carpeta:', folder.id);
+                    await window.subcategoriasManager.deleteSubfolder('planes', 'planes', folder.id);
+                    
+                    // Remover de la UI
+                    const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
+                    if (folderElement) {
+                        console.log('🖼️ Removiendo carpeta de la UI');
+                        folderElement.remove();
+                    } else {
+                        console.warn('⚠️ No se encontró elemento de la carpeta en la UI');
+                    }
+                    
+                    console.log('✅ Carpeta "General" eliminada exitosamente');
+                    
+                } catch (folderError) {
+                    console.error('❌ Error eliminando carpeta específica:', folder, folderError);
                 }
-                
-                // Luego eliminar la carpeta
-                await window.subcategoriasManager.deleteSubfolder('planes', 'planes', folder.id);
-                
-                // Remover de la UI
-                const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
-                if (folderElement) {
-                    folderElement.remove();
-                }
-                
-                console.log('Carpeta "General" eliminada exitosamente');
             }
 
             if (foldersToDelete.length > 0) {
                 showNotification(`🗑️ Se eliminaron ${foldersToDelete.length} carpetas "General" del dataset eliminado`, 'info');
+            } else {
+                console.log('ℹ️ No se encontraron carpetas "General" para eliminar del dataset:', datasetId);
             }
 
         } catch (error) {
-            console.error('Error limpiando carpetas "General":', error);
+            console.error('❌ Error general limpiando carpetas "General":', error);
         }
+        
+        console.log('🏁 FIN cleanupGeneralFoldersForDeletedDataset');
     }
 
     // Crear las hojas de trabajo BG-1 ACTIVO, BG-2 PASIVO y BG-3 ESTADO DE RESULTADOS
@@ -17803,7 +18067,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             const requiredDocs = [
                 { titulo: 'BG-1 ACTIVO', meta: { bgType: 'activo' } },
-                { titulo: 'BG-2 PASIVO', meta: { bgType: 'pasivo' } },
+                { titulo: 'BG-2 PASIVO Y PATRIMONIO', meta: { bgType: 'pasivo' } },
                 { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados' } }
             ];
 
@@ -17856,7 +18120,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     code: accountElement.dataset.accountCode || '',
                     name: accountElement.dataset.accountName || '',
                     ls: accountElement.dataset.accountLs || '',
-                    value: parseAccountValue(accountElement.dataset.accountValue) || 0
+                    value: parseAccountValue(accountElement.dataset.accountValue) || 0,
+                    previousYearValue: parseAccountValue(accountElement.dataset.previousYearValue) || 0
                 };
                 
                 const ls = accountData.ls || '';
@@ -17892,15 +18157,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const lsPrefix = ls.substring(0, 3);
                 const classification = lsClassification[lsPrefix] || 'activo';
                 
+                // Calcular total del año anterior para el grupo
+                const previousYearTotal = groupedAccounts[ls].accounts.reduce((sum, acc) => sum + (acc.previousYearValue || 0), 0);
+                
                 const groupData = {
                     ls: ls,
                     accounts: groupedAccounts[ls].accounts,
-                    total: groupedAccounts[ls].total
+                    total: groupedAccounts[ls].total,
+                    previousYearTotal: previousYearTotal
                 };
 
                 if (balanceData[classification]) {
                     balanceData[classification].groups.push(groupData);
                     balanceData[classification].total += groupData.total;
+                    balanceData[classification].previousYearTotal = (balanceData[classification].previousYearTotal || 0) + groupData.previousYearTotal;
                 }
             });
 
@@ -17909,11 +18179,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         } catch (error) {
             console.error('Error generando contenido de balances:', error);
             return {
-                activo: { groups: [], total: 0 },
-                pasivo: { groups: [], total: 0 },
-                patrimonio: { groups: [], total: 0 },
-                ingresos: { groups: [], total: 0 },
-                gastos: { groups: [], total: 0 }
+                activo: { groups: [], total: 0, previousYearTotal: 0 },
+                pasivo: { groups: [], total: 0, previousYearTotal: 0 },
+                patrimonio: { groups: [], total: 0, previousYearTotal: 0 },
+                ingresos: { groups: [], total: 0, previousYearTotal: 0 },
+                gastos: { groups: [], total: 0, previousYearTotal: 0 }
             };
         }
     }
@@ -17923,21 +18193,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         let content = `<h2>BALANCE GENERAL - ACTIVO</h2>`;
         content += `<h3>Fecha: ${new Date().toLocaleDateString()}</h3>`;
         content += `<table class="balance-table">`;
-        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<thead><tr><th>Descripción</th><th>Ref</th><th>Año Anterior</th><th>Año Actual</th><th>Variaciones</th><th>Variación %</th></tr></thead>`;
         content += `<tbody>`;
 
         activoData.groups.forEach(group => {
             group.accounts.forEach(account => {
+                const valorActual = account.value || 0;
+                const valorAnterior = account.previousYearValue || 0;
+                const variacion = valorActual - valorAnterior;
+                const variacionPorcentaje = valorAnterior !== 0 ? (variacion / valorAnterior) * 100 : 0;
+                
                 content += `<tr>`;
-                content += `<td>${account.code || ''}</td>`;
                 content += `<td>${account.name || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
 
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL ACTIVO</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL ACTIVO</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total - (activoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(activoData.previousYearTotal || 0) !== 0 ? ((activoData.total - (activoData.previousYearTotal || 0)) / (activoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
@@ -17951,47 +18229,67 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Pasivo
         content += `<h4>PASIVO</h4>`;
         content += `<table class="balance-table">`;
-        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<thead><tr><th>Descripción</th><th>Ref</th><th>Año Anterior</th><th>Año Actual</th><th>Variaciones</th><th>Variación %</th></tr></thead>`;
         content += `<tbody>`;
         
         pasivoData.groups.forEach(group => {
             group.accounts.forEach(account => {
+                const valorActual = account.value || 0;
+                const valorAnterior = account.previousYearValue || 0;
+                const variacion = valorActual - valorAnterior;
+                const variacionPorcentaje = valorAnterior !== 0 ? (variacion / valorAnterior) * 100 : 0;
+                
                 content += `<tr>`;
-                content += `<td>${account.code || ''}</td>`;
                 content += `<td>${account.name || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PASIVO</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total - (pasivoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(pasivoData.previousYearTotal || 0) !== 0 ? ((pasivoData.total - (pasivoData.previousYearTotal || 0)) / (pasivoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Patrimonio
         content += `<h4>PATRIMONIO</h4>`;
         content += `<table class="balance-table">`;
-        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<thead><tr><th>Descripción</th><th>Ref</th><th>Año Anterior</th><th>Año Actual</th><th>Variaciones</th><th>Variación %</th></tr></thead>`;
         content += `<tbody>`;
         
         patrimonioData.groups.forEach(group => {
             group.accounts.forEach(account => {
+                const valorActual = account.value || 0;
+                const valorAnterior = account.previousYearValue || 0;
+                const variacion = valorActual - valorAnterior;
+                const variacionPorcentaje = valorAnterior !== 0 ? (variacion / valorAnterior) * 100 : 0;
+                
                 content += `<tr>`;
-                content += `<td>${account.code || ''}</td>`;
                 content += `<td>${account.name || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total - (patrimonioData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(patrimonioData.previousYearTotal || 0) !== 0 ? ((patrimonioData.total - (patrimonioData.previousYearTotal || 0)) / (patrimonioData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Total Pasivo + Patrimonio
         const totalPasivoPatrimonio = pasivoData.total + patrimonioData.total;
+        const totalPasivoPatrimonioAnterior = (pasivoData.previousYearTotal || 0) + (patrimonioData.previousYearTotal || 0);
+        const variacionTotal = totalPasivoPatrimonio - totalPasivoPatrimonioAnterior;
+        const variacionTotalPorcentaje = totalPasivoPatrimonioAnterior !== 0 ? (variacionTotal / totalPasivoPatrimonioAnterior) * 100 : 0;
+        
         content += `<table class="balance-table">`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PASIVO + PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(totalPasivoPatrimonio)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO + PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(totalPasivoPatrimonio)}</strong></td><td class="total-amount"><strong>${formatCurrency(variacionTotal)}</strong></td><td class="total-amount"><strong>${variacionTotalPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
@@ -18005,47 +18303,67 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Ingresos
         content += `<h4>INGRESOS</h4>`;
         content += `<table class="balance-table">`;
-        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<thead><tr><th>Descripción</th><th>Ref</th><th>Año Anterior</th><th>Año Actual</th><th>Variaciones</th><th>Variación %</th></tr></thead>`;
         content += `<tbody>`;
         
         ingresosData.groups.forEach(group => {
             group.accounts.forEach(account => {
+                const valorActual = account.value || 0;
+                const valorAnterior = account.previousYearValue || 0;
+                const variacion = valorActual - valorAnterior;
+                const variacionPorcentaje = valorAnterior !== 0 ? (variacion / valorAnterior) * 100 : 0;
+                
                 content += `<tr>`;
-                content += `<td>${account.code || ''}</td>`;
                 content += `<td>${account.name || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL INGRESOS</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL INGRESOS</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total - (ingresosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(ingresosData.previousYearTotal || 0) !== 0 ? ((ingresosData.total - (ingresosData.previousYearTotal || 0)) / (ingresosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Gastos
         content += `<h4>GASTOS</h4>`;
         content += `<table class="balance-table">`;
-        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<thead><tr><th>Descripción</th><th>Ref</th><th>Año Anterior</th><th>Año Actual</th><th>Variaciones</th><th>Variación %</th></tr></thead>`;
         content += `<tbody>`;
         
         gastosData.groups.forEach(group => {
             group.accounts.forEach(account => {
+                const valorActual = account.value || 0;
+                const valorAnterior = account.previousYearValue || 0;
+                const variacion = valorActual - valorAnterior;
+                const variacionPorcentaje = valorAnterior !== 0 ? (variacion / valorAnterior) * 100 : 0;
+                
                 content += `<tr>`;
-                content += `<td>${account.code || ''}</td>`;
                 content += `<td>${account.name || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="2"><strong>TOTAL GASTOS</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL GASTOS</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total - (gastosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(gastosData.previousYearTotal || 0) !== 0 ? ((gastosData.total - (gastosData.previousYearTotal || 0)) / (gastosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Resultado del período
         const resultado = ingresosData.total - gastosData.total;
+        const resultadoAnterior = (ingresosData.previousYearTotal || 0) - (gastosData.previousYearTotal || 0);
+        const variacionResultado = resultado - resultadoAnterior;
+        const variacionResultadoPorcentaje = resultadoAnterior !== 0 ? (variacionResultado / resultadoAnterior) * 100 : 0;
+        
         content += `<table class="balance-table">`;
-        content += `<tfoot><tr><td colspan="2"><strong>RESULTADO DEL PERÍODO</strong></td><td class="total-amount ${resultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(resultado)}</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>RESULTADO DEL PERÍODO</strong></td><td class="total-amount ${resultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(resultado)}</strong></td><td class="total-amount ${variacionResultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(variacionResultado)}</strong></td><td class="total-amount ${variacionResultadoPorcentaje >= 0 ? 'positive' : 'negative'}"><strong>${variacionResultadoPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
@@ -19245,7 +19563,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 showNotification(`Archivo "${datasetName}" eliminado exitosamente`, 'success');
                 
                 // Limpiar carpetas "General" vinculadas a este dataset
+                console.log('🗑️ Iniciando limpieza de carpetas General para dataset eliminado:', datasetId);
                 await cleanupGeneralFoldersForDeletedDataset(datasetId);
+                console.log('✅ Limpieza de carpetas General completada');
                 
                 // Reiniciar completamente el sistema (similar a cuando se sube nuevo archivo)
                 resetAllDataOnNewFile();

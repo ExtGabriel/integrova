@@ -4233,15 +4233,15 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
             // Continuar aunque falle la eliminación de ajustes
         }
         
-        // 5. Eliminar grupos financieros relacionados
-        const { error: groupsError } = await supabase
-            .from('financial_groups')
+        // 5. Eliminar grupos financieros relacionados (snapshots y sus filas)
+        const { error: snapshotsError } = await supabase
+            .from('financial_group_snapshots')
             .delete()
             .eq('dataset_id', datasetId);
             
-        if (groupsError) {
-            console.error('Error eliminando grupos financieros:', groupsError);
-            // Continuar aunque falle la eliminación de grupos
+        if (snapshotsError) {
+            console.error('Error eliminando snapshots de grupos financieros:', snapshotsError);
+            // Continuar aunque falle la eliminación de snapshots
         }
         
         // 6. Eliminar validaciones de ledger relacionadas
@@ -5655,16 +5655,35 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
             }
         }));
 
+        // Crear un snapshot primero y luego insertar las filas
+        const { data: newSnapshot, error: newSnapshotError } = await supabase
+            .from('financial_group_snapshots')
+            .insert({
+                dataset_id: datasetId,
+                user_id: userId,
+                generated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+            
+        if (newSnapshotError) throw newSnapshotError;
+        
+        // Insertar filas con el snapshot_id
+        const rowsWithSnapshotId = rows.map(row => ({
+            ...row,
+            snapshot_id: newSnapshot.id
+        }));
+        
         const { data: insertedRows, error: rowsError } = await supabase
             .from('financial_group_rows')
-            .insert(rows)
+            .insert(rowsWithSnapshotId)
             .select();
 
         if (rowsError) throw rowsError;
 
         res.json({ 
             success: true, 
-            snapshot: snapshot,
+            snapshot: newSnapshot,
             rows: insertedRows || []
         });
 
@@ -5816,17 +5835,51 @@ app.post('/api/financial-groups/save', async (req, res) => {
         
         console.log('Guardando grupo financiero:', { datasetId, groupId, name, userId });
         
+        // Crear un snapshot para este grupo si no existe uno reciente
+        const { data: existingSnapshot, error: existingError } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .single();
+        
+        let targetSnapshot;
+        if (existingError || !existingSnapshot) {
+            // Crear nuevo snapshot
+            const { data: newSnapshot, error: newError } = await supabase
+                .from('financial_group_snapshots')
+                .insert({
+                    dataset_id: datasetId,
+                    user_id: userId,
+                    generated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+            
+            if (newError) throw newError;
+            targetSnapshot = newSnapshot;
+        } else {
+            targetSnapshot = existingSnapshot;
+        }
+        
+        // Insertar en financial_group_rows
         const { data, error } = await supabase
             .from('financial_group_rows')
             .insert({
-                dataset_id: datasetId,
-                group_id: groupId,
+                snapshot_id: targetSnapshot.id,
+                group_content_id: groupId,
+                parent_row_id: null,
                 name: name,
-                type: type || 'group',
-                parent_label: parentLabel || null,
-                value: value || 0,
-                meta: meta || null,
-                user_id: userId
+                level: 0,
+                is_group: type === 'group',
+                prelim: 0,
+                adjustments: 0,
+                current: value || 0,
+                previous: 0,
+                order_index: 0,
+                metadata: meta || {}
             })
             .select()
             .single();
@@ -5858,14 +5911,13 @@ app.post('/api/financial-groups/save', async (req, res) => {
 app.get('/api/financial-groups/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
         
+        // Ahora podemos consultar directamente por dataset_id
         const { data, error } = await supabase
             .from('financial_group_rows')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: true });
+            .order('order_index', { ascending: true });
         
         if (error) {
             console.error('Error obteniendo grupos financieros:', error);
@@ -5924,8 +5976,7 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
             .from('financial_group_rows')
             .select('*')
             .eq('snapshot_id', snapshot.id)
-            .order('order_index', { ascending: true })
-            .order('created_at', { ascending: true });
+            .order('order_index', { ascending: true });
 
         if (rowsError) {
             console.error('Error obteniendo filas del snapshot de grupos financieros:', rowsError);
@@ -6044,6 +6095,7 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
     try {
         const { code } = req.params;
         const userId = req.headers['user-id'];
+        const datasetId = req.headers['dataset-id'];
         
         if (!code || !userId) {
             return res.status(400).json({
@@ -6052,27 +6104,62 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
             });
         }
         
-        console.log('Getting account by code:', code, 'user:', userId);
+        console.log('Getting account by code:', code, 'user:', userId, 'dataset:', datasetId);
         
-        const { data, error } = await supabase
+        // Buscar en cuentas_contables como hace /api/accounts/unassigned
+        let query;
+        if (datasetId) {
+            // Si hay datasetId específico, buscar ese dataset
+            query = supabase
+                .from('conjuntos_datos')
+                .select('*')
+                .eq('id', datasetId)
+                .eq('user_id', userId);
+        } else {
+            // Si no hay datasetId, buscar el dataset activo
+            query = supabase
+                .from('conjuntos_datos')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('is_active', true)
+                .order('fecha_importacion', { ascending: false })
+                .limit(1);
+        }
+        
+        const { data: conjuntoData, error: conjuntoError } = await query;
+        
+        if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {
+            console.error('Error obteniendo datos del dataset:', conjuntoError);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No se encontraron datos del dataset' 
+            });
+        }
+
+        const conjunto = Array.isArray(conjuntoData) ? conjuntoData[0] : conjuntoData;
+        
+        // Obtener cuentas desde la base de datos con sus UUIDs reales (como /api/accounts/unassigned)
+        console.log('Obteniendo cuenta desde cuentas_contables...');
+        const { data: dbAccounts, error: dbError } = await supabase
             .from('cuentas_contables')
             .select('*')
+            .eq('conjunto_id', conjunto.id)
             .eq('code', code)
-            .eq('conjunto_id', userId) // O usar el dataset_id apropiado
             .single();
-        
-        if (error) {
-            console.error('Error getting account by code:', error);
+            
+        if (dbError || !dbAccounts) {
+            console.error('Cuenta no encontrada en cuentas_contables:', dbError);
             return res.status(404).json({ 
                 success: false, 
                 error: 'Cuenta no encontrada' 
             });
         }
         
-        console.log('Account found:', data);
+        console.log('Account found in cuentas_contables:', dbAccounts);
+        
         res.json({ 
             success: true, 
-            account: data 
+            data: dbAccounts 
         });
         
     } catch (error) {
@@ -6191,6 +6278,40 @@ app.post('/api/accounts/batch-save', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error guardando cuentas en lote' 
+        });
+    }
+});
+
+// Endpoint temporal para inspeccionar estructura de tabla
+app.get('/api/inspect-table/:tableName', async (req, res) => {
+    try {
+        const { tableName } = req.params;
+        
+        // Consultar información de columnas de la tabla
+        const { data, error } = await supabase
+            .from('information_schema.columns')
+            .select('column_name, data_type, is_nullable')
+            .eq('table_schema', 'public')
+            .eq('table_name', tableName)
+            .order('ordinal_position');
+        
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            tableName,
+            columns: data || []
+        });
+        
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
         });
     }
 });

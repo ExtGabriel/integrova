@@ -544,13 +544,11 @@
                     return;
                 }
 
-                const response = await fetch(buildApiUrl('/api/subdocuments/delete'), {
+                const response = await fetch(buildApiUrl(`/api/subdocuments/${documentId}`), {
                     method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
                         'user-id': this.userId
-                    },
-                    body: JSON.stringify({ documentId })
+                    }
                 });
 
                 const result = await parseJsonSafe(response);
