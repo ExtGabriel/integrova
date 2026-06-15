@@ -4908,46 +4908,118 @@ app.post('/api/assignments/save', async (req, res) => {
             console.log('Usando datasetId de prueba:', realDatasetId);
         }
 
-        // Primero buscar el UUID real de la cuenta si accountId no es UUID
-        let realAccountId = accountId;
+        // Función para validar y generar UUIDs
+        const generateUUID = () => {
+            // Generar un UUID v4 válido
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
         
-        // Detectar si es un ID de prueba o no es un UUID válido
-        const isTestAccount = accountId && (
-            accountId.toString().startsWith('excel-') || 
-            accountId.toString().startsWith('local-') || 
-            accountId.toString().startsWith('db-account-') || 
-            !accountId.includes('-')
-        );
-        
-        if (isTestAccount) {
-            // Si ya es UUID (contiene guiones), usarlo directamente
-            if (accountId.includes('-')) {
-                realAccountId = accountId;
-                console.log('AccountId ya es UUID válido:', realAccountId);
-            } else {
-                // Para IDs de prueba, generar UUID directamente sin buscar en BD
-                console.log('Generando UUID para ID de prueba:', accountId);
-                realAccountId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
-                console.log('UUID generado:', realAccountId);
+        const ensureUUID = (id) => {
+            if (!id) return generateUUID();
+            
+            // Si ya parece un UUID válido (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(id.toString())) {
+                return id.toString();
             }
+            
+            // Para IDs de prueba o no UUIDs, generar uno nuevo
+            console.log('Generando UUID para ID no válido:', id);
+            return generateUUID();
+        };
+        
+        // Asegurar que los IDs que deben ser UUIDs lo sean
+        let realAccountId = ensureUUID(accountId);
+        let realUserId = ensureUUID(userId);
+        // group_content_id y parent_account_id son texto, no UUIDs
+        let realGroupContentId = groupContentId || '';
+        let realParentAccountId = parentAccountId || null;
+        
+        console.log('IDs procesados:', {
+            original: { accountId, userId, groupContentId, parentAccountId },
+            uuids: { realAccountId, realUserId, realGroupContentId, realParentAccountId }
+        });
+
+        // Verificar si la cuenta existe en cuentas_contables, si no, crearla
+        const accountCode = meta?.code || accountId;
+        const accountName = meta?.name || `Cuenta ${accountCode}`;
+        
+        console.log('Verificando si la cuenta existe en cuentas_contables:', accountCode);
+        
+        // Buscar cuenta por código
+        const { data: existingAccount, error: searchError } = await supabase
+            .from('cuentas_contables')
+            .select('id, numero_cuenta, nombre_cuenta')
+            .eq('numero_cuenta', accountCode)
+            .single();
+            
+        if (searchError && searchError.code !== 'PGRST116') {
+            console.error('Error buscando cuenta:', searchError);
         }
         
-        // Asegurar que userId sea un UUID válido
-        let realUserId = userId;
-        if (!userId || !userId.includes('-')) {
-            realUserId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
-            console.log('UUID generado para user:', realUserId);
+        let finalAccountId = realAccountId;
+        
+        if (!existingAccount) {
+            console.log('Cuenta no encontrada, creando nueva cuenta en cuentas_contables...');
+            
+            // Crear la cuenta en cuentas_contables
+            const { data: newAccount, error: createError } = await supabase
+                .from('cuentas_contables')
+                .insert({
+                    id: realAccountId,
+                    conjunto_id: realDatasetId,
+                    numero_cuenta: accountCode,
+                    nombre_cuenta: accountName,
+                    debito_actual: meta?.value ? (meta.value > 0 ? meta.value : 0) : 0,
+                    credito_actual: meta?.value ? (meta.value < 0 ? Math.abs(meta.value) : 0) : 0,
+                    debito_anterior: meta?.prevValue ? (meta.prevValue > 0 ? meta.prevValue : 0) : 0,
+                    credito_anterior: meta?.prevValue ? (meta.prevValue < 0 ? Math.abs(meta.prevValue) : 0) : 0,
+                    grupo_financiero: 'General',
+                    fecha_clasificacion: new Date().toISOString(),
+                    clasificado: false,
+                    nivel_cuenta: 1,
+                    cuenta_padre_id: null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    entity_id: null,
+                    commitment_id: null,
+                    meta: meta || {}
+                })
+                .select()
+                .single();
+                
+            if (createError) {
+                console.error('Error creando cuenta:', createError);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: `Error creando cuenta: ${createError.message}` 
+                });
+            }
+            
+            console.log('Cuenta creada exitosamente:', newAccount);
+            finalAccountId = newAccount.id;
+        } else {
+            console.log('Cuenta existente encontrada:', existingAccount);
+            finalAccountId = existingAccount.id;
         }
         
         console.log('Intentando insertar en account_assignments...');
         const insertData = {
             dataset_id: realDatasetId,
-            account_id: realAccountId,
-            group_content_id: groupContentId,
-            parent_account_id: parentAccountId || null,
+            account_id: finalAccountId,
+            group_content_id: realGroupContentId,
+            parent_account_id: realParentAccountId,
             position: position || 0,
             user_id: realUserId,
-            meta: meta || {}
+            meta: meta || {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            entity_id: null,
+            commitment_id: null
         };
         
         console.log('Datos a insertar:', insertData);
@@ -4969,6 +5041,22 @@ app.post('/api/assignments/save', async (req, res) => {
         }
 
         console.log('Assignment saved successfully:', data);
+        
+        // Marcar la cuenta como clasificada en cuentas_contables
+        const { error: updateError } = await supabase
+            .from('cuentas_contables')
+            .update({ 
+                clasificado: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', finalAccountId);
+            
+        if (updateError) {
+            console.warn('Error marcando cuenta como clasificada:', updateError);
+        } else {
+            console.log('Cuenta marcada como clasificada exitosamente');
+        }
+        
         res.json({ 
             success: true, 
             assignment: data 

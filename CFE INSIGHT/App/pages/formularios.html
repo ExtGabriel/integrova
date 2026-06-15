@@ -17016,6 +17016,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Hacer currentDatasetId globalmente accesible
     window.currentDatasetId = null;
     let currentDatasetId = null; // Mantener para compatibilidad
+    let currentDatasetName = null; // Declarar variable global
     let cachedUnassignedAccounts = [];
     let cachedUnassignedDatasetId = '';
     
@@ -17147,10 +17148,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         if (!accountKey || !groupId || !datasetId) return;
 
         // Verificar si es una cuenta estática (solo guardar en localStorage, no en BD)
-        const isStaticAccount = !accountData?.id || accountData.id === accountData.code || 
-                               (typeof accountData.id === 'string' && !accountData.id.includes('-'));
+        // Las cuentas del Excel tienen datasetId válido pero IDs pueden no tener guiones
+        const hasValidDatasetId = accountData?.datasetId && accountData.datasetId !== '';
+        const isStaticAccount = (!accountData?.id || accountData.id === accountData.code || 
+                               (typeof accountData.id === 'string' && !accountData.id.includes('-'))) 
+                               && !hasValidDatasetId;
         
         console.log('🔍 Tipo de cuenta:', isStaticAccount ? 'ESTÁTICA (solo localStorage)' : 'DE EXCEL (guardar en BD)');
+        console.log('   - datasetId:', accountData?.datasetId);
+        console.log('   - hasValidDatasetId:', hasValidDatasetId);
 
         // Preparar datos para guardar
         const assignmentData = {
@@ -17220,34 +17226,41 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             };
             
-            // Obtener el accountId correcto (UUID desde cuentas_contables)
-            getAccountUuidFromCode(accountData?.code || accountKey).then(accountUuid => {
-                const assignmentData = {
-                    accountId: accountUuid || accountData?.code || accountKey,
-                    groupContentId: groupId,
-                    parentAccountId: parentAccountId || null,
-                    position: assignments.length - 1,
-                    datasetId: datasetId,
-                    meta: {
-                        accountKey,
-                        code: accountData?.code || '',
-                        name: accountData?.name || '',
-                        ls: accountData?.ls || '',
-                        value: parseAccountValue(accountData?.value),
-                        prevValue: parseAccountValue(accountData?.prevValue)
-                    }
-                };
-            
-                console.log(' - assignmentData:', assignmentData);
+            // Obtener el accountId correcto (UUID desde cuentas_contables) - no bloquear si falla
+            const proceedWithAssignment = async () => {
+                try {
+                    const accountUuid = await getAccountUuidFromCode(accountData?.code || accountKey).catch(() => null);
+                    const assignmentData = {
+                        accountId: accountUuid || accountData?.code || accountKey,
+                        groupContentId: groupId,
+                        parentAccountId: parentAccountId || null,
+                        position: assignments.length - 1,
+                        datasetId: datasetId,
+                        meta: {
+                            accountKey,
+                            code: accountData?.code || '',
+                            name: accountData?.name || '',
+                            ls: accountData?.ls || '',
+                            value: parseAccountValue(accountData?.value),
+                            prevValue: parseAccountValue(accountData?.prevValue)
+                        }
+                    };
                 
-                saveAccountAssignment(assignmentData).then(() => {
-                    console.log(' ✅ Asignación guardada en base de datos');
-                }).catch(error => {
-                    console.warn('❌ Database save failed, using localStorage only:', error);
-                });
-            }).catch(error => {
-                console.warn('❌ Error getting account UUID:', error);
-            });
+                    console.log(' - assignmentData:', assignmentData);
+                    
+                    try {
+                        await saveAccountAssignment(assignmentData);
+                        console.log(' ✅ Asignación guardada en base de datos');
+                    } catch (error) {
+                        console.warn('❌ Database save failed, using localStorage only:', error);
+                    }
+                } catch (error) {
+                    console.warn('❌ Error en proceso de asignación:', error);
+                }
+            };
+            
+            // Ejecutar la asignación sin bloquear
+            proceedWithAssignment();
         }).catch(error => {
             console.warn('❌ No se pudo cargar saveAccountAssignment:', error);
         });
@@ -17279,10 +17292,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function filterAssignedAccounts(accounts = [], datasetId = currentDatasetId) {
+        console.log('🔍 filterAssignedAccounts - Depuración:', {
+            datasetId,
+            accountsLength: accounts?.length || 0,
+            firstAccount: accounts?.[0]
+        });
+        
         const assignments = getStoredAssignments(datasetId);
-        if (!assignments.length) return accounts;
+        console.log('🔍 filterAssignedAccounts - Asignaciones encontradas:', {
+            assignmentsLength: assignments?.length || 0,
+            assignments: assignments
+        });
+        
+        if (!assignments.length) {
+            console.log('⚠️ No hay asignaciones guardadas, retornando todas las cuentas');
+            return accounts;
+        }
+        
         const assignedKeys = new Set(assignments.map(item => item.accountKey));
-        return accounts.filter(account => !assignedKeys.has(getAccountKey(account)));
+        console.log('🔍 filterAssignedAccounts - Keys de cuentas asignadas:', Array.from(assignedKeys));
+        
+        const filtered = accounts.filter(account => {
+            const accountKey = getAccountKey(account);
+            const isAssigned = assignedKeys.has(accountKey);
+            if (isAssigned) {
+                console.log('🔍 Cuenta asignada encontrada:', accountKey);
+            }
+            return !isAssigned;
+        });
+        
+        console.log('🔍 filterAssignedAccounts - Resultado:', {
+            originalCount: accounts.length,
+            filteredCount: filtered.length,
+            removedCount: accounts.length - filtered.length
+        });
+        
+        return filtered;
     }
 
     async function restoreAssignedAccounts() {
@@ -17567,9 +17612,133 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Función para crear automáticamente la carpeta "General" en Planes y Procedimientos
     // y generar dentro de ella las hojas de trabajo BG-1, BG-2 y BG-3
     async function createGeneralFolderIfNotExists() {
+        console.log('🚀 INICIO createGeneralFolderIfNotExists');
+        try {
+            console.log('🔍 Verificando subcategoriasManager...');
+            if (!window.subcategoriasManager) {
+                console.error('❌ subcategoriasManager no está disponible; no se puede crear la carpeta General');
+                return;
+            }
+            console.log('✅ subcategoriasManager disponible');
+
+            // Asegurar que el manager tenga userId
+            console.log('🔍 Verificando userId en subcategoriasManager...');
+            if (!window.subcategoriasManager.userId) {
+                console.log('📡 Inicializando subcategoriasManager...');
+                await window.subcategoriasManager.init();
+                console.log('✅ subcategoriasManager inicializado');
+            } else {
+                console.log('✅ userId ya disponible:', window.subcategoriasManager.userId);
+            }
+
+            // Verificar que haya un dataset actual
+            console.log('Verificando dataset actual:', {
+                currentDatasetId: currentDatasetId,
+                currentDatasetName: currentDatasetName,
+                typeofCurrentDatasetId: typeof currentDatasetId
+            });
+            
+            // Si no hay dataset actual, intentar obtenerlo del último Excel
+            if (!currentDatasetId) {
+                console.log('📡 Intentando obtener dataset actual desde el último Excel...');
+                try {
+                    const latestResponse = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                        headers: {
+                            'user-id': getCurrentUserId()
+                        }
+                    });
+                    const latestResult = await latestResponse.json();
+                    
+                    if (latestResponse.ok && latestResult.success && latestResult.data) {
+                        currentDatasetId = latestResult.data.id;
+                        window.currentDatasetId = latestResult.data.id;
+                        currentDatasetName = latestResult.data.original_filename || 'Dataset';
+                        console.log('✅ Dataset actual obtenido:', currentDatasetId);
+                    } else {
+                        console.warn('⚠️ No se encontró ningún dataset actual');
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Error obteniendo dataset actual:', error);
+                    return;
+                }
+            }
+
+            // Buscar carpeta "General" vinculada al dataset actual
+            console.log('🔍 Buscando carpeta "General" existente...');
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            console.log('📁 Subcarpetas obtenidas:', subfolders?.length || 0);
+            
+            let generalFolder = (subfolders || []).find(folder => {
+                const folderName = (folder.nombre || '').trim().toLowerCase();
+                const folderDataset = folder.meta?.datasetId || '';
+                console.log('🔍 Analizando carpeta:', {
+                    nombre: folder.nombre,
+                    folderName,
+                    folderDataset,
+                    currentDatasetId,
+                    coincide: folderName === 'general' && folderDataset === currentDatasetId
+                });
+                return folderName === 'general' && folderDataset === currentDatasetId;
+            });
+
+            console.log('📊 Resultado búsqueda carpeta General:', generalFolder ? 'ENCONTRADA' : 'NO ENCONTRADA');
+
+            // Si no existe, crearla vinculada al dataset
+            if (!generalFolder) {
+                console.log('🔨 Creando carpeta "General" automáticamente para dataset:', currentDatasetId);
+                const folderMeta = {
+                    datasetId: currentDatasetId,
+                    datasetName: currentDatasetName || 'Dataset actual',
+                    createdAt: new Date().toISOString(),
+                    type: 'balance_general_folder'
+                };
+                
+                console.log('📝 Llamando a saveSubfolder...');
+                generalFolder = await window.subcategoriasManager.saveSubfolder(
+                    'planes',        // category
+                    'planes',        // subcategory/section
+                    'General',       // folderName
+                    `Carpeta general para documentos de auditoría - ${currentDatasetName || 'Dataset actual'}`, // description
+                    null,            // parentFolderId
+                    folderMeta       // metadata con vinculación al dataset
+                );
+                console.log('📋 Resultado saveSubfolder:', generalFolder);
+
+                if (generalFolder) {
+                    console.log('✅ Carpeta "General" creada exitosamente vinculada al dataset:', generalFolder);
+                    showNotification('📁 Carpeta "General" creada automáticamente en Planes y Procedimientos', 'success');
+                    // Agregar la carpeta a la UI sin borrar contenido estático
+                    console.log('🔄 Agregando carpeta a la UI...');
+                    appendCategoryRootFolder('planes', generalFolder);
+                    console.log('✅ Carpeta agregada a la UI');
+                } else {
+                    console.error('❌ No se pudo crear la carpeta "General"');
+                    return;
+                }
+            } else {
+                console.log('✅ La carpeta "General" ya existe para este dataset:', generalFolder);
+            }
+
+            // Crear documentos BG dentro de la carpeta General si aún no existen
+            if (generalFolder && generalFolder.id) {
+                console.log('🔨 Creando documentos BG en carpeta:', generalFolder.id);
+                await createBGDocumentsIfNotExist(generalFolder.id);
+                console.log('✅ Documentos BG creados (o ya existían)');
+            } else {
+                console.error('❌ No se pueden crear BG - generalFolder o generalFolder.id no disponible:', { generalFolder });
+            }
+
+        } catch (error) {
+            console.error('Error creando carpeta "General" automáticamente:', error);
+        }
+    }
+
+    // Función para limpiar carpetas "General" cuando se elimina un dataset
+    async function cleanupGeneralFoldersForDeletedDataset(datasetId) {
         try {
             if (!window.subcategoriasManager) {
-                console.warn('subcategoriasManager no está disponible; no se puede crear la carpeta General');
+                console.warn('subcategoriasManager no está disponible; no se pueden limpiar carpetas');
                 return;
             }
 
@@ -17578,43 +17747,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 await window.subcategoriasManager.init();
             }
 
-            // Buscar carpeta "General" en la categoría/subcategoría planes/planes
+            // Buscar todas las carpetas "General" vinculadas al dataset eliminado
             const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
-            let generalFolder = (subfolders || []).find(folder =>
-                (folder.nombre || '').trim().toLowerCase() === 'general'
-            );
+            const foldersToDelete = (subfolders || []).filter(folder => {
+                const folderName = (folder.nombre || '').trim().toLowerCase();
+                const folderDataset = folder.meta?.datasetId || '';
+                return folderName === 'general' && folderDataset === datasetId;
+            });
 
-            // Si no existe, crearla
-            if (!generalFolder) {
-                console.log('Creando carpeta "General" automáticamente en Planes y Procedimientos...');
-                generalFolder = await window.subcategoriasManager.saveSubfolder(
-                    'planes',        // category
-                    'planes',        // subcategory/section
-                    'General',       // folderName
-                    'Carpeta general para documentos de auditoría', // description
-                    null             // parentFolderId
-                );
-
-                if (generalFolder) {
-                    console.log('Carpeta "General" creada exitosamente:', generalFolder);
-                    showNotification('📁 Carpeta "General" creada automáticamente en Planes y Procedimientos', 'success');
-                    // Agregar la carpeta a la UI sin borrar contenido estático
-                    appendCategoryRootFolder('planes', generalFolder);
-                } else {
-                    console.warn('No se pudo crear la carpeta "General"');
-                    return;
+            // Eliminar cada carpeta encontrada
+            for (const folder of foldersToDelete) {
+                console.log('Eliminando carpeta "General" del dataset eliminado:', folder);
+                
+                // Primero eliminar todos los documentos dentro de la carpeta
+                const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
+                const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === folder.id);
+                
+                for (const doc of docsInFolder) {
+                    await window.subcategoriasManager.deleteSubdocument('planes', 'planes', doc.id);
                 }
-            } else {
-                console.log('La carpeta "General" ya existe en Planes y Procedimientos:', generalFolder);
+                
+                // Luego eliminar la carpeta
+                await window.subcategoriasManager.deleteSubfolder('planes', 'planes', folder.id);
+                
+                // Remover de la UI
+                const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
+                if (folderElement) {
+                    folderElement.remove();
+                }
+                
+                console.log('Carpeta "General" eliminada exitosamente');
             }
 
-            // Crear documentos BG dentro de la carpeta General si aún no existen
-            if (generalFolder && generalFolder.id) {
-                await createBGDocumentsIfNotExist(generalFolder.id);
+            if (foldersToDelete.length > 0) {
+                showNotification(`🗑️ Se eliminaron ${foldersToDelete.length} carpetas "General" del dataset eliminado`, 'info');
             }
 
         } catch (error) {
-            console.error('Error creando carpeta "General" automáticamente:', error);
+            console.error('Error limpiando carpetas "General":', error);
         }
     }
 
@@ -17637,17 +17807,31 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados' } }
             ];
 
+            // Generar contenido de los balances con los datos actuales
+            const balanceContent = await generateBalanceContent();
+
             for (const cfg of requiredDocs) {
                 const exists = docsInFolder.some(doc => (doc.titulo || '').trim().toLowerCase() === cfg.titulo.toLowerCase());
                 if (exists) continue;
 
                 console.log('Creando documento automático en General:', cfg.titulo);
+                
+                // Generar contenido específico para cada tipo de BG
+                let content = '';
+                if (cfg.meta.bgType === 'activo') {
+                    content = generateBG1Content(balanceContent.activo);
+                } else if (cfg.meta.bgType === 'pasivo') {
+                    content = generateBG2Content(balanceContent.pasivo, balanceContent.patrimonio);
+                } else if (cfg.meta.bgType === 'resultados') {
+                    content = generateBG3Content(balanceContent.ingresos, balanceContent.gastos);
+                }
+
                 await window.subcategoriasManager.saveSubdocument(
                     'planes',          // category
                     'planes',          // subcategory
                     'hoja-trabajo',    // tipo de documento
                     cfg.titulo,
-                    '',                // contenido inicial
+                    content,           // contenido generado
                     cfg.meta || {},
                     parentFolderId
                 );
@@ -17655,6 +17839,224 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         } catch (error) {
             console.error('Error creando documentos BG en carpeta General:', error);
         }
+    }
+
+    // Generar contenido de balances a partir de las cuentas asignadas
+    async function generateBalanceContent() {
+        try {
+            // Obtener todas las cuentas asignadas directamente del DOM
+            const assignedAccounts = document.querySelectorAll('.assigned-account');
+            const accounts = [];
+            
+            // Agrupar cuentas por LS y calcular totales
+            const groupedAccounts = {};
+            
+            assignedAccounts.forEach(accountElement => {
+                const accountData = {
+                    code: accountElement.dataset.accountCode || '',
+                    name: accountElement.dataset.accountName || '',
+                    ls: accountElement.dataset.accountLs || '',
+                    value: parseAccountValue(accountElement.dataset.accountValue) || 0
+                };
+                
+                const ls = accountData.ls || '';
+                if (!groupedAccounts[ls]) {
+                    groupedAccounts[ls] = {
+                        accounts: [],
+                        total: 0
+                    };
+                }
+                groupedAccounts[ls].accounts.push(accountData);
+                groupedAccounts[ls].total += accountData.value;
+            });
+
+            // Clasificar cuentas por tipo basado en el LS
+            const balanceData = {
+                activo: { groups: [], total: 0 },
+                pasivo: { groups: [], total: 0 },
+                patrimonio: { groups: [], total: 0 },
+                ingresos: { groups: [], total: 0 },
+                gastos: { groups: [], total: 0 }
+            };
+
+            // Mapeo de LS a clasificación contable
+            const lsClassification = {
+                '100': 'activo', '110': 'activo', '120': 'activo', '130': 'activo', '140': 'activo', '150': 'activo',
+                '200': 'pasivo', '210': 'pasivo', '220': 'pasivo', '230': 'pasivo', '240': 'pasivo', '250': 'pasivo',
+                '300': 'patrimonio', '310': 'patrimonio', '320': 'patrimonio', '330': 'patrimonio',
+                '400': 'ingresos', '410': 'ingresos', '420': 'ingresos', '430': 'ingresos',
+                '500': 'gastos', '510': 'gastos', '520': 'gastos', '530': 'gastos', '540': 'gastos', '550': 'gastos'
+            };
+
+            Object.keys(groupedAccounts).forEach(ls => {
+                const lsPrefix = ls.substring(0, 3);
+                const classification = lsClassification[lsPrefix] || 'activo';
+                
+                const groupData = {
+                    ls: ls,
+                    accounts: groupedAccounts[ls].accounts,
+                    total: groupedAccounts[ls].total
+                };
+
+                if (balanceData[classification]) {
+                    balanceData[classification].groups.push(groupData);
+                    balanceData[classification].total += groupData.total;
+                }
+            });
+
+            return balanceData;
+
+        } catch (error) {
+            console.error('Error generando contenido de balances:', error);
+            return {
+                activo: { groups: [], total: 0 },
+                pasivo: { groups: [], total: 0 },
+                patrimonio: { groups: [], total: 0 },
+                ingresos: { groups: [], total: 0 },
+                gastos: { groups: [], total: 0 }
+            };
+        }
+    }
+
+    // Generar contenido para BG-1 ACTIVO
+    function generateBG1Content(activoData) {
+        let content = `<h2>BALANCE GENERAL - ACTIVO</h2>`;
+        content += `<h3>Fecha: ${new Date().toLocaleDateString()}</h3>`;
+        content += `<table class="balance-table">`;
+        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<tbody>`;
+
+        activoData.groups.forEach(group => {
+            group.accounts.forEach(account => {
+                content += `<tr>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td>${account.name || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `</tr>`;
+            });
+        });
+
+        content += `</tbody>`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL ACTIVO</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        return content;
+    }
+
+    // Generar contenido para BG-2 PASIVO
+    function generateBG2Content(pasivoData, patrimonioData) {
+        let content = `<h2>BALANCE GENERAL - PASIVO Y PATRIMONIO</h2>`;
+        content += `<h3>Fecha: ${new Date().toLocaleDateString()}</h3>`;
+        
+        // Pasivo
+        content += `<h4>PASIVO</h4>`;
+        content += `<table class="balance-table">`;
+        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<tbody>`;
+        
+        pasivoData.groups.forEach(group => {
+            group.accounts.forEach(account => {
+                content += `<tr>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td>${account.name || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `</tr>`;
+            });
+        });
+        
+        content += `</tbody>`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PASIVO</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        // Patrimonio
+        content += `<h4>PATRIMONIO</h4>`;
+        content += `<table class="balance-table">`;
+        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<tbody>`;
+        
+        patrimonioData.groups.forEach(group => {
+            group.accounts.forEach(account => {
+                content += `<tr>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td>${account.name || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `</tr>`;
+            });
+        });
+        
+        content += `</tbody>`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        // Total Pasivo + Patrimonio
+        const totalPasivoPatrimonio = pasivoData.total + patrimonioData.total;
+        content += `<table class="balance-table">`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL PASIVO + PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(totalPasivoPatrimonio)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        return content;
+    }
+
+    // Generar contenido para BG-3 ESTADO DE RESULTADOS
+    function generateBG3Content(ingresosData, gastosData) {
+        let content = `<h2>ESTADO DE RESULTADOS</h2>`;
+        content += `<h3>Fecha: ${new Date().toLocaleDateString()}</h3>`;
+        
+        // Ingresos
+        content += `<h4>INGRESOS</h4>`;
+        content += `<table class="balance-table">`;
+        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<tbody>`;
+        
+        ingresosData.groups.forEach(group => {
+            group.accounts.forEach(account => {
+                content += `<tr>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td>${account.name || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `</tr>`;
+            });
+        });
+        
+        content += `</tbody>`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL INGRESOS</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        // Gastos
+        content += `<h4>GASTOS</h4>`;
+        content += `<table class="balance-table">`;
+        content += `<thead><tr><th>Cuenta</th><th>Descripción</th><th>Valor</th></tr></thead>`;
+        content += `<tbody>`;
+        
+        gastosData.groups.forEach(group => {
+            group.accounts.forEach(account => {
+                content += `<tr>`;
+                content += `<td>${account.code || ''}</td>`;
+                content += `<td>${account.name || ''}</td>`;
+                content += `<td class="amount">${formatCurrency(account.value || 0)}</td>`;
+                content += `</tr>`;
+            });
+        });
+        
+        content += `</tbody>`;
+        content += `<tfoot><tr><td colspan="2"><strong>TOTAL GASTOS</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        // Resultado del período
+        const resultado = ingresosData.total - gastosData.total;
+        content += `<table class="balance-table">`;
+        content += `<tfoot><tr><td colspan="2"><strong>RESULTADO DEL PERÍODO</strong></td><td class="total-amount ${resultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(resultado)}</strong></td></tr></tfoot>`;
+        content += `</table>`;
+        
+        return content;
+    }
+
+    // Función auxiliar para formatear moneda
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('es-GT', {
+            style: 'currency',
+            currency: 'GTQ'
+        }).format(amount);
     }
     
     // Función para sincronizar asignaciones con la base de datos
@@ -18841,6 +19243,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
                 
                 showNotification(`Archivo "${datasetName}" eliminado exitosamente`, 'success');
+                
+                // Limpiar carpetas "General" vinculadas a este dataset
+                await cleanupGeneralFoldersForDeletedDataset(datasetId);
                 
                 // Reiniciar completamente el sistema (similar a cuando se sube nuevo archivo)
                 resetAllDataOnNewFile();
