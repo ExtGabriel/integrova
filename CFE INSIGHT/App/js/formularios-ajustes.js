@@ -201,19 +201,24 @@
             }
         });
 
-        detailsList?.addEventListener('change', (event) => {
+        // Event listener para cambios en montos (la naturaleza se calcula automáticamente)
+        detailsList?.addEventListener('input', (event) => {
             const target = event.target;
-            if (target.matches('[data-detail-field="nature"]')) {
+            if (target.matches('[data-detail-field="amount"]')) {
                 const row = target.closest('.ajuste-detail-row');
                 if (!row) return;
                 const detailId = row.dataset.detailId;
                 const detail = getDetailById(detailId);
                 if (!detail) return;
-                detail.nature = target.value === 'haber' ? 'haber' : 'debe';
+                const value = parseFloat(target.value);
+                detail.amount = Number.isFinite(value) ? value : 0;
                 
                 // Actualizar indicador de balance
                 const balance = calculateAdjustmentBalance();
                 updateBalanceIndicator(balance);
+                
+                // Actualizar visualización de la naturaleza basada en el nuevo signo
+                updateNatureDisplay(row, detail.amount);
             }
         });
 
@@ -510,22 +515,17 @@
             let totalCredit = 0;
 
             detalleItems.forEach(detail => {
-                const rawAmount = Number.isFinite(detail.amount) ? detail.amount : 0;
-                const nature = detail.nature === 'haber' ? 'haber' : 'debe';
-
-                if (nature === 'debe') {
-                    if (rawAmount >= 0) {
-                        totalDebit += rawAmount;
-                    } else {
-                        totalCredit += Math.abs(rawAmount);
-                    }
-                } else {
-                    if (rawAmount <= 0) {
-                        totalCredit += Math.abs(rawAmount);
-                    } else {
-                        totalDebit += rawAmount;
-                    }
+                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                
+                // Lógica contable simple: el signo indica naturaleza, no se necesita campo "nature"
+                if (amount > 0) {
+                    // Positivo = Débito
+                    totalDebit += amount;
+                } else if (amount < 0) {
+                    // Negativo = Crédito (usar valor absoluto para el total)
+                    totalCredit += Math.abs(amount);
                 }
+                // Cero no afecta los totales
             });
 
             const difference = totalDebit - totalCredit;
@@ -555,10 +555,21 @@
             detailsEmptyState.style.display = 'none';
 
             const rowsHtml = detalleItems.map((detail) => {
-                const amountValue = Number.isFinite(detail.amount) ? detail.amount.toFixed(2) : '0.00';
-                const natureValue = detail.nature === 'haber' ? 'haber' : 'debe';
-                const natureLabel = natureValue === 'haber' ? 'Crédito' : 'Débito';
-                const natureClass = natureValue === 'haber' ? 'nature-credit' : 'nature-debit';
+                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                const amountValue = amount.toFixed(2);
+                const code = (detail.code || '').trim();
+                
+                // Determinar lado de origen y efecto
+                const originSide = getAccountOriginSide(code);
+                const isSameSide = (originSide === 'DEBE' && amount > 0) || (originSide === 'HABER' && amount < 0);
+                const effect = isSameSide ? 'SUMA' : 'RESTA';
+                const effectClass = isSameSide ? 'effect-increase' : 'effect-decrease';
+                
+                // Determinar naturaleza para balance
+                const isDebit = amount > 0;
+                const isCredit = amount < 0;
+                const natureLabel = isDebit ? 'Débito' : (isCredit ? 'Crédito' : 'Sin efecto');
+                const natureClass = isDebit ? 'nature-debit' : (isCredit ? 'nature-credit' : 'nature-neutral');
                 
                 return `
                     <div class="ajuste-detail-row" data-detail-id="${detail.id}">
@@ -573,17 +584,23 @@
                                 </div>
                             </div>
                             <div class="ajuste-detail-row__info">
-                                <span class="ajuste-detail-row__code">${detail.code || ''}</span>
+                                <span class="ajuste-detail-row__code">${code}</span>
                                 <span class="ajuste-detail-row__name">${detail.label}</span>
+                                <span class="account-origin">Origen: ${originSide}</span>
                             </div>
                             <div class="ajuste-detail-row__amounts">
                                 <div class="ajuste-detail-row__nature-display">
-                                    <label>Tipo</label>
+                                    <label>Naturaleza contable</label>
                                     <span class="nature-badge ${natureClass}">${natureLabel}</span>
+                                </div>
+                                <div class="ajuste-detail-row__effect-display">
+                                    <label>Efecto en saldo</label>
+                                    <span class="effect-badge ${effectClass}">${effect}</span>
                                 </div>
                                 <div class="ajuste-detail-row__amount">
                                     <label for="detail-amount-${detail.id}">Cantidad</label>
-                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" min="-999999999.99" value="${amountValue}" placeholder="0.00">
+                                    <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="${amountValue}" placeholder="0.00">
+                                    <small class="amount-hint">Origen ${originSide}: ${originSide === 'DEBE' ? '+' : '-'} = SUMA, ${originSide === 'DEBE' ? '-' : '+'} = RESTA</small>
                                 </div>
                             </div>
                         </div>
@@ -596,6 +613,22 @@
             // Actualizar indicador de balance
             const balance = calculateAdjustmentBalance();
             updateBalanceIndicator(balance);
+        }
+
+        function updateNatureDisplay(row, amount) {
+            const natureBadge = row.querySelector('.nature-badge');
+            if (!natureBadge) return;
+            
+            // Determinar naturaleza basada en el signo
+            const isDebit = amount > 0;
+            const isCredit = amount < 0;
+            const natureLabel = isDebit ? 'Débito' : (isCredit ? 'Crédito' : 'Sin efecto');
+            
+            // Actualizar clases y texto
+            natureBadge.classList.remove('nature-debit', 'nature-credit', 'nature-neutral');
+            const natureClass = isDebit ? 'nature-debit' : (isCredit ? 'nature-credit' : 'nature-neutral');
+            natureBadge.classList.add(natureClass);
+            natureBadge.textContent = natureLabel;
         }
 
         function updateBalanceIndicator(balance) {
@@ -656,23 +689,26 @@
             }).format(amount);
         }
 
-        // Agregar estilos para los badges de naturaleza
+        // Agregar estilos para los badges de naturaleza y efectos
         const style = document.createElement('style');
         style.textContent = `
-            .ajuste-detail-row__nature-display {
+            .ajuste-detail-row__nature-display,
+            .ajuste-detail-row__effect-display {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
                 min-width: 80px;
             }
             
-            .ajuste-detail-row__nature-display label {
+            .ajuste-detail-row__nature-display label,
+            .ajuste-detail-row__effect-display label {
                 font-size: 12px;
                 color: #666;
                 font-weight: 500;
             }
             
-            .nature-badge {
+            .nature-badge,
+            .effect-badge {
                 display: inline-block;
                 padding: 4px 8px;
                 border-radius: 12px;
@@ -693,6 +729,50 @@
                 background-color: #f3e5f5;
                 color: #7b1fa2;
                 border: 1px solid #e1bee7;
+            }
+            
+            .nature-neutral {
+                background-color: #f5f5f5;
+                color: #666;
+                border: 1px solid #ddd;
+            }
+            
+            .effect-increase {
+                background-color: #e8f5e8;
+                color: #2e7d32;
+                border: 1px solid #c8e6c9;
+            }
+            
+            .effect-decrease {
+                background-color: #ffebee;
+                color: #c62828;
+                border: 1px solid #ffcdd2;
+            }
+            
+            .account-origin {
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 8px;
+                font-size: 10px;
+                font-weight: 600;
+                background-color: #f3e5f5;
+                color: #7b1fa2;
+                margin-left: 8px;
+            }
+            
+            .amount-hint {
+                display: block;
+                font-size: 11px;
+                color: #888;
+                margin-top: 2px;
+                font-style: italic;
+            }
+            
+            .ajuste-detail-row__info {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
             }
         `;
         document.head.appendChild(style);
@@ -1703,6 +1783,39 @@ function updateNumeroField() {
             }
         }
 
+        function getAccountOriginSide(code) {
+            // Determinar el lado de origen (DEBE o HABER) según el tipo de cuenta
+            const codeNum = parseInt(code);
+            
+            // Cuentas de ACTIVO (origen DEBE)
+            if (codeNum >= 100 && codeNum < 200) {
+                return 'DEBE'; // Activos: 100-199
+            }
+            
+            // Cuentas de PASIVO (origen HABER)
+            if (codeNum >= 300 && codeNum < 400) {
+                return 'HABER'; // Pasivos: 300-399
+            }
+            
+            // Cuentas de PATRIMONIO (origen HABER)
+            if (codeNum >= 200 && codeNum < 300) {
+                return 'HABER'; // Patrimonio: 200-299
+            }
+            
+            // Cuentas de INGRESOS (origen HABER)
+            if (codeNum >= 4000 && codeNum < 5000) {
+                return 'HABER'; // Ingresos: 4000-4999
+            }
+            
+            // Cuentas de GASTOS (origen DEBE)
+            if (codeNum >= 5000 && codeNum < 6000) {
+                return 'DEBE'; // Gastos: 5000-5999
+            }
+            
+            // Por defecto, asumir DEBE (activos/gastos)
+            return 'DEBE';
+        }
+
         function computeAdjustmentsMap() {
             const map = new Map();
 
@@ -1713,10 +1826,22 @@ function updateNumeroField() {
                     const code = (detail.code || '').trim();
                     if (!code) return;
 
-                    const rawAmount = Number.isFinite(detail.amount) ? detail.amount : 0;
-                    const signedAmount = detail.nature === 'haber' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
-
-                    map.set(code, (map.get(code) || 0) + signedAmount);
+                    const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                    const originSide = getAccountOriginSide(code);
+                    
+                    let effectiveAmount = 0;
+                    
+                    if (originSide === 'DEBE') {
+                        // Cuentas de Activo/Gastos (origen DEBE)
+                        // Positivo = mismo lado = suma, Negativo = lado contrario = resta
+                        effectiveAmount = amount;
+                    } else {
+                        // Cuentas de Pasivo/Patrimonio/Ingresos (origen HABER)
+                        // Negativo = mismo lado = suma, Positivo = lado contrario = resta
+                        effectiveAmount = -amount;
+                    }
+                    
+                    map.set(code, (map.get(code) || 0) + effectiveAmount);
                 });
             });
 
