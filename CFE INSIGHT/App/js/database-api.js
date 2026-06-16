@@ -484,9 +484,22 @@ if (typeof window !== 'undefined') {
  * @param {string} status - Estado del cálculo
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function saveFinancialGroupsResults(datasetId, results, status = 'completed') {
+async function saveFinancialGroupsResults(datasetId, results, status = 'completed', entityId, commitmentId) {
     try {
-        console.log('Saving financial groups results:', { datasetId, resultsCount: results.length });
+        console.log('Saving financial groups results:', { datasetId, resultsCount: results.length, entityId, commitmentId });
+        
+        const requestBody = {
+            datasetId,
+            results,
+            status,
+            entityId,
+            commitmentId
+        };
+        
+        const requestBodyString = JSON.stringify(requestBody);
+        console.log('🔍 DEBUG: Enviando request body:', requestBodyString);
+        console.log('🔍 DEBUG: Longitud del body:', requestBodyString.length);
+        console.log('🔍 DEBUG: Primeros 200 caracteres:', requestBodyString.substring(0, 200));
         
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/save`, {
             method: 'POST',
@@ -494,11 +507,7 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
                 'Content-Type': 'application/json',
                 'user-id': getCurrentUserId()
             },
-            body: JSON.stringify({
-                datasetId,
-                results,
-                status
-            })
+            body: requestBodyString
         });
 
         const result = await response.json();
@@ -853,14 +862,19 @@ async function loadAndSyncAssignments(datasetId) {
         const databaseAssignments = await getAccountAssignments(datasetId);
         
         // 2. Cargar desde localStorage
-        const localStorageAssignments = getStoredAssignments();
+        const localStorageAssignments = getStoredAssignments(datasetId);
         
         // 3. Sincronizar (priorizar base de datos)
         const mergedAssignments = mergeAssignments(databaseAssignments, localStorageAssignments);
         
         // 4. Actualizar localStorage con datos fusionados
-        if (mergedAssignments.length > 0) {
-            localStorage.setItem('storedAssignments', JSON.stringify(mergedAssignments));
+        if (datasetId) {
+            const userId = getCurrentUserId();
+            if (userId) {
+                const storageKey = `assigned_accounts_v1_${userId}_${datasetId}`;
+                localStorage.setItem(storageKey, JSON.stringify(mergedAssignments));
+                console.log('Assignments cached in localStorage with key:', storageKey);
+            }
         }
         
         console.log('Assignments synced:', {
@@ -875,7 +889,7 @@ async function loadAndSyncAssignments(datasetId) {
         console.error('Error in loadAndSyncAssignments:', error);
         
         // Si falla la base de datos, usar localStorage como fallback
-        const localStorageAssignments = getStoredAssignments();
+        const localStorageAssignments = getStoredAssignments(datasetId);
         console.warn('Database load failed, using localStorage fallback:', localStorageAssignments.length);
         
         return localStorageAssignments;

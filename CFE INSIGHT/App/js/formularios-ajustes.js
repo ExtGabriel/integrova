@@ -1746,15 +1746,18 @@ function updateNumeroField() {
                 const code = element.dataset.accountCode || '';
                 const name = element.dataset.accountName || element.textContent.trim() || '';
                 const value = parseNumber(element.dataset.accountValue || element.querySelector('.account-value')?.textContent || '0');
+                const datasetId = element.dataset.accountDatasetId || window.currentDatasetId || '';
+                const uniqueKey = `${code}-${datasetId}`;
 
-                if (code && name && !seen.has(code)) {
-                    seen.add(code);
+                if (code && name && !seen.has(uniqueKey)) {
+                    seen.add(uniqueKey);
                     accounts.push({
-                        id: `account-${code}`,
+                        id: `account-${uniqueKey}`,
                         code,
                         name,
                         value,
-                        type: 'account'
+                        type: 'account',
+                        datasetId
                     });
                 }
             });
@@ -1768,15 +1771,18 @@ function updateNumeroField() {
                         const code = cells[0].textContent.trim();
                         const name = cells[1].textContent.trim();
                         const preliminaryValue = parseNumber(cells[2].textContent || '0');
+                        const datasetId = window.currentDatasetId || '';
+                        const uniqueKey = `${code}-${datasetId}`;
 
-                        if (code && name && !seen.has(code) && code !== 'No hay cuentas disponibles') {
-                            seen.add(code);
+                        if (code && name && !seen.has(uniqueKey) && code !== 'No hay cuentas disponibles') {
+                            seen.add(uniqueKey);
                             accounts.push({
-                                id: `account-${code}`,
+                                id: `account-${uniqueKey}`,
                                 code,
                                 name,
                                 value: preliminaryValue,
-                                type: 'account'
+                                type: 'account',
+                                datasetId
                             });
                         }
                     }

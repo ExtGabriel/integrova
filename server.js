@@ -4792,8 +4792,19 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         
         console.log(`Encontradas ${dbAccounts.length} cuentas en la base de datos`);
         
+        // Deduplicar cuentas por número de cuenta para evitar duplicados
+        const uniqueAccounts = new Map();
+        dbAccounts.forEach(account => {
+            const accountNumber = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+            if (accountNumber && !uniqueAccounts.has(accountNumber)) {
+                uniqueAccounts.set(accountNumber, account);
+            }
+        });
+        
+        console.log(`Cuentas únicas después de deduplicación: ${uniqueAccounts.size}`);
+        
         // Transformar las cuentas de la base de datos al formato que espera el frontend
-        const accounts = dbAccounts.map(account => {
+        const accounts = Array.from(uniqueAccounts.values()).map(account => {
             const meta = parseAccountMeta(account.meta);
             const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
 
@@ -5217,6 +5228,25 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
         
+        console.log('🔍 DEBUG getAssignments:', { datasetId, userId });
+        
+        // Primero verificar si hay asignaciones para este usuario sin importar dataset
+        const { data: allAssignments, error: allError } = await supabase
+            .from('account_assignments')
+            .select(`
+                *,
+                cuentas_contables(id, numero_cuenta, nombre_cuenta),
+                users(id, email)
+            `)
+            .eq('user_id', userId);
+
+        console.log('🔍 DEBUG Todas las asignaciones del usuario:', {
+            totalCount: allAssignments?.length || 0,
+            datasetIds: [...new Set(allAssignments?.map(a => a.dataset_id) || [])],
+            firstAssignment: allAssignments?.[0]
+        });
+        
+        // Ahora filtrar por dataset_id específico
         const { data, error } = await supabase
             .from('account_assignments')
             .select(`
@@ -5225,7 +5255,16 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
                 users(id, email)
             `)
             .eq('dataset_id', datasetId)
+            .eq('user_id', userId)
             .order('position');
+
+        console.log('🔍 DEBUG Asignaciones filtradas:', {
+            datasetId,
+            filteredCount: data?.length || 0,
+            hasError: !!error,
+            error: error?.message,
+            firstFiltered: data?.[0]
+        });
 
         if (error) throw error;
 
@@ -5609,10 +5648,22 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 // Guardar resultados de grupos financieros
 app.post('/api/financial-groups-results/save', async (req, res) => {
     try {
-        const { datasetId, results, status } = req.body;
+        const { datasetId, results, status, entityId, commitmentId } = req.body;
         const userId = req.headers['user-id'];
         
+        console.log('🔍 DEBUG saveFinancialGroupsResults:', {
+            datasetId,
+            resultsCount: results?.length || 0,
+            status,
+            entityId,
+            commitmentId,
+            userId,
+            hasResults: !!results,
+            firstResult: results?.[0]
+        });
+        
         if (!userId || !datasetId || !results) {
+            console.log('❌ ERROR: Faltan datos requeridos:', { userId, datasetId, hasResults: !!results });
             return res.status(400).json({ 
                 success: false, 
                 error: 'Faltan datos requeridos' 
@@ -5625,66 +5676,66 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
             .insert({
                 dataset_id: datasetId,
                 user_id: userId,
-                status: status || 'completed',
+                generated_at: new Date().toISOString(),
                 meta: { 
                     totalRows: results.length,
-                    generatedAt: new Date().toISOString()
+                    generatedAt: new Date().toISOString(),
+                    status: status || 'completed',
+                    entityId: entityId || null,
+                    commitmentId: commitmentId || null
                 }
             })
-            .select()
+            .select('id, meta, generated_at')
             .single();
 
-        if (snapshotError) throw snapshotError;
+        if (snapshotError) {
+            console.error('❌ ERROR creando snapshot:', snapshotError);
+            throw snapshotError;
+        }
 
-        // Guardar cada fila de resultados
-        const rows = results.map(result => ({
-            snapshot_id: snapshot.id,
-            group_content_id: result.rowId || null,
-            parent_row_id: result.parentId || null,
-            name: result.accountName || '',
-            level: result.level || 0,
-            is_group: result.isParent || false,
-            prelim: result.preliminary || 0,
-            adjustments: result.adjustments || 0,
-            current: result.finalCurrent || 0,
-            previous: result.finalPrevious || 0,
-            order_index: 0,
-            metadata: {
+        console.log('✅ Snapshot creado exitosamente:', snapshot.id);
+
+        // Actualizar el snapshot para incluir los grupos financieros en el meta
+        const updatedMeta = {
+            ...snapshot.meta,
+            groups: results.map(result => ({
+                accountName: result.accountName || '',
+                accountCode: result.accountCode || '',
+                preliminary: result.preliminary || 0,
+                adjustments: result.adjustments || 0,
+                finalCurrent: result.finalCurrent || 0,
+                finalPrevious: result.finalPrevious || 0,
+                level: result.level || 0,
+                isParent: result.isParent || false,
+                rowId: result.rowId || '',
+                parentId: result.parentId || '',
                 hasChildren: result.hasChildren || false,
                 ledgerMissing: result.ledgerMissing || false
-            }
-        }));
+            }))
+        };
 
-        // Crear un snapshot primero y luego insertar las filas
-        const { data: newSnapshot, error: newSnapshotError } = await supabase
+        const { data: updatedSnapshot, error: updateError } = await supabase
             .from('financial_group_snapshots')
-            .insert({
-                dataset_id: datasetId,
-                user_id: userId,
-                generated_at: new Date().toISOString()
-            })
+            .update({ meta: updatedMeta })
+            .eq('id', snapshot.id)
             .select()
             .single();
-            
-        if (newSnapshotError) throw newSnapshotError;
-        
-        // Insertar filas con el snapshot_id
-        const rowsWithSnapshotId = rows.map(row => ({
-            ...row,
-            snapshot_id: newSnapshot.id
-        }));
-        
-        const { data: insertedRows, error: rowsError } = await supabase
-            .from('financial_group_rows')
-            .insert(rowsWithSnapshotId)
-            .select();
 
-        if (rowsError) throw rowsError;
+        if (updateError) {
+            console.error('❌ ERROR actualizando snapshot con grupos:', updateError);
+            throw updateError;
+        }
+
+        console.log('✅ Grupos financieros guardados en snapshot meta:', {
+            snapshotId: snapshot.id,
+            groupsCount: updatedMeta.groups.length,
+            firstGroup: updatedMeta.groups[0]
+        });
 
         res.json({ 
             success: true, 
-            snapshot: newSnapshot,
-            rows: insertedRows || []
+            snapshot: updatedSnapshot,
+            groupsCount: updatedMeta.groups.length
         });
 
     } catch (error) {
@@ -5907,29 +5958,39 @@ app.post('/api/financial-groups/save', async (req, res) => {
     }
 });
 
-// Obtener grupos financieros de un dataset
+// Obtener grupos financieros de un dataset (usando solo snapshots)
 app.get('/api/financial-groups/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
         
-        // Ahora podemos consultar directamente por dataset_id
-        const { data, error } = await supabase
-            .from('financial_group_rows')
+        console.log('🔍 DEBUG getFinancialGroups:', { datasetId, userId });
+        
+        // Obtener el snapshot más reciente para este dataset
+        const { data: snapshot, error: snapshotError } = await supabase
+            .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .order('order_index', { ascending: true });
-        
-        if (error) {
-            console.error('Error obteniendo grupos financieros:', error);
-            return res.status(500).json({ 
-                success: false, 
-                error: error.message 
+            .eq('user_id', userId)
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+        if (snapshotError || !snapshot) {
+            console.log('🔍 No se encontró snapshot para dataset:', datasetId);
+            return res.json({ 
+                success: true, 
+                groups: [] 
             });
         }
         
+        // Extraer los datos de grupos financieros desde el campo meta del snapshot
+        const groupsData = snapshot.meta?.groups || [];
+        
+        console.log('✅ Grupos financieros retornados desde snapshot meta:', groupsData.length);
         res.json({ 
             success: true, 
-            groups: data || [] 
+            groups: groupsData 
         });
         
     } catch (error) {

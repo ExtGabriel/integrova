@@ -4279,7 +4279,19 @@
 
         function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             console.log('DEBUG: buildTrialBalanceRows - accounts:', accounts.slice(0, 2));
-            const rows = (Array.isArray(accounts) ? accounts : [])
+            
+            // Deduplicar cuentas por número de cuenta para evitar duplicados en frontend
+            const uniqueAccounts = new Map();
+            (Array.isArray(accounts) ? accounts : []).forEach(account => {
+                const code = account.code || account.account_number || '';
+                if (code && !uniqueAccounts.has(code)) {
+                    uniqueAccounts.set(code, account);
+                }
+            });
+            
+            console.log(`Cuentas únicas después de deduplicación en frontend: ${uniqueAccounts.size}`);
+            
+            const rows = Array.from(uniqueAccounts.values())
                 .map(account => {
                     const code = account.code || account.account_number || '';
                     const name = account.name || account.account_name || '';
@@ -4424,7 +4436,9 @@
                         ledgerMissing: row.ledgerMissing || false
                     }));
                     
-                    const result = await saveFinancialGroupsResults(currentDatasetId, convertedRows, 'completed');
+                    const currentEntity = commitmentDropdownState.currentEntityId;
+                    const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                    const result = await saveFinancialGroupsResults(currentDatasetId, convertedRows, 'completed', currentEntity, currentCommitment);
                     console.log('Resultados de grupos financieros guardados:', result);
                 } catch (error) {
                     console.warn('Error guardando resultados de grupos financieros en base de datos:', error);
@@ -4601,6 +4615,39 @@
                 cachedGruposFinancierosRows = rows;
                 renderGruposFinancieros(rows, cachedLedgerMeta);
                 refreshGroupPanelTotals(normalized);
+                
+                // Guardar automáticamente los grupos financieros actualizados en la base de datos
+                if (window.saveFinancialGroupsResults && rows.length > 0) {
+                    try {
+                        console.log('💾 Guardando grupos financieros actualizados tras asignación...');
+                        const currentEntity = commitmentDropdownState.currentEntityId;
+                        const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                        const convertedRows = rows.map(row => ({
+                            accountName: row.accountName || '',
+                            accountCode: row.accountCode || '',
+                            preliminary: row.preliminary || 0,
+                            adjustments: row.adjustments || 0,
+                            finalCurrent: row.finalCurrent || 0,
+                            finalPrevious: row.finalPrevious || 0,
+                            level: row.level || 0,
+                            isParent: row.isParent || false,
+                            rowId: row.rowId || '',
+                            parentId: row.parentId || '',
+                            hasChildren: row.hasChildren || false,
+                            ledgerMissing: row.ledgerMissing || false
+                        }));
+                        
+                        window.saveFinancialGroupsResults(resolvedDatasetId, convertedRows, 'completed', currentEntity, currentCommitment)
+                            .then(result => {
+                                console.log('✅ Grupos financieros guardados automáticamente tras asignación:', result);
+                            })
+                            .catch(error => {
+                                console.warn('⚠️ Error guardando grupos financieros tras asignación:', error);
+                            });
+                    } catch (error) {
+                        console.warn('⚠️ Error en proceso de guardado automático de grupos financieros:', error);
+                    }
+                }
 
             } catch (error) {
                 console.warn('⚠️ Error refrescando grupos financieros tras actualizar asignaciones:', error);
@@ -4925,10 +4972,46 @@
                     initializeStaticAccounts();
                     const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
                     cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
+                    
+                    // Si no hay estructura guardada, usar la del DOM
+                    if (!cachedFinancialGroupStructure || !cachedFinancialGroupStructure.nodes) {
+                        console.log('📁 Estructura de grupos financieros usando fallback del DOM estático');
+                        cachedFinancialGroupStructure = buildFinancialGroupStructureFromDom();
+                    }
+                    
+                    // Forzar carga de asignaciones y asegurar que no esté vacía
+                    console.log('🔄 Cargando asignaciones para grupos financieros...');
                     cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
+                    
+                    // Si las asignaciones están vacías, intentar cargar desde localStorage
+                    if (!cachedAssignments || cachedAssignments.length === 0) {
+                        console.log('⚠️ Asignaciones vacías, intentando cargar desde localStorage...');
+                        const localStorageKey = 'assigned_accounts_v1_' + getCurrentUserId() + '_' + currentDatasetId;
+                        const localStorageData = localStorage.getItem(localStorageKey);
+                        if (localStorageData) {
+                            try {
+                                cachedAssignments = JSON.parse(localStorageData);
+                                console.log('✅ Asignaciones cargadas desde localStorage:', cachedAssignments.length);
+                            } catch (e) {
+                                console.error('❌ Error parseando localStorage:', e);
+                                cachedAssignments = [];
+                            }
+                        }
+                    }
+                    
                     const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
                     const rows = buildGruposFinancierosRows(cachedFinancialGroupStructure, cachedAssignments, ledgerMap, ledgerAvailable, localAdjustmentsMap);
+                    
+                    // Forzar asignación global
+                    window.cachedGruposFinancierosRows = rows;
                     cachedGruposFinancierosRows = rows;
+                    
+                    console.log('🔍 DEBUG: cachedGruposFinancierosRows guardado:', {
+                        count: rows.length,
+                        firstRow: rows[0],
+                        variableSet: !!window.cachedGruposFinancierosRows,
+                        assignmentsCount: cachedAssignments?.length || 0
+                    });
                     renderGruposFinancieros(rows, meta);
                     console.log('✅ Grupos financieros construidos desde libro mayor');
                 }
@@ -5229,7 +5312,9 @@
                 });
 
                 // Guardar usando el sistema existente
-                const result = await window.saveFinancialGroupsResults(currentDatasetId, bgResults, 'completed');
+                const currentEntity = commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                const result = await window.saveFinancialGroupsResults(currentDatasetId, bgResults, 'completed', currentEntity, currentCommitment);
                 
                 console.log('✅ Resultados para BG guardados:', result);
                 alert('Resultados guardados exitosamente. Ahora puedes verlos en las hojas de trabajo BG.');
@@ -17254,7 +17339,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function getAccountKey(accountData) {
-        return (accountData?.id || accountData?.code || accountData?.accountId || '').toString().trim();
+        const codeKey = (accountData?.code || accountData?.accountCode || accountData?.meta?.code || '').toString().trim();
+        if (codeKey) return codeKey;
+        const idKey = (accountData?.accountKey || accountData?.id || accountData?.accountId || '').toString().trim();
+        return idKey;
     }
 
     function persistAssignment(accountData, groupContent, parentAccountId = '') {
@@ -17425,14 +17513,40 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return accounts;
         }
         
-        const assignedKeys = new Set(assignments.map(item => item.accountKey));
+        const assignedKeys = new Set();
+        assignments.forEach(item => {
+            [
+                item.accountKey,
+                item.accountId,
+                item.id,
+                item.code,
+                item.accountCode,
+                item.meta?.accountKey,
+                item.meta?.code
+            ].forEach(value => {
+                if (value != null && value !== '') {
+                    assignedKeys.add(value.toString().trim());
+                }
+            });
+        });
         console.log('🔍 filterAssignedAccounts - Keys de cuentas asignadas:', Array.from(assignedKeys));
         
         const filtered = accounts.filter(account => {
-            const accountKey = getAccountKey(account);
-            const isAssigned = assignedKeys.has(accountKey);
+            const potentialKeys = [
+                getAccountKey(account),
+                account?.accountKey,
+                account?.id,
+                account?.accountId,
+                account?.code,
+                account?.accountCode,
+                account?.account_number
+            ]
+                .filter(value => value != null && value !== '')
+                .map(value => value.toString().trim());
+
+            const isAssigned = potentialKeys.some(key => assignedKeys.has(key));
             if (isAssigned) {
-                console.log('🔍 Cuenta asignada encontrada:', accountKey);
+                console.log('🔍 Cuenta asignada encontrada. Keys evaluadas:', potentialKeys);
             }
             return !isAssigned;
         });
