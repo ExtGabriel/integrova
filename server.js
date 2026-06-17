@@ -4684,10 +4684,34 @@ app.use((error, req, res, next) => {
     res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// Cache en memoria para cuentas (válido por 15 minutos)
+const accountsCache = new Map();
+
 // Endpoint para obtener cuentas no asignadas
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const cacheKey = `accounts_${userId}`;
+        const now = Date.now();
+        const cacheTimeout = 15 * 60 * 1000; // 15 minutos
+        
+        // Verificar cache en memoria primero
+        if (accountsCache.has(cacheKey)) {
+            const cached = accountsCache.get(cacheKey);
+            if (now - cached.timestamp < cacheTimeout) {
+                console.log('📦 Sirviendo cuentas desde cache en memoria (edad:', Math.round((now - cached.timestamp)/60000), 'minutos)');
+                return res.json({
+                    success: true,
+                    data: cached.data,
+                    cached: true
+                });
+            } else {
+                // Cache expirado, eliminar
+                accountsCache.delete(cacheKey);
+            }
+        }
+        
+        console.log('🌐 Generando cuentas desde base de datos (sin cache)');
         
         // Obtener el conjunto de datos activo del usuario actual
         const { data: conjuntoData, error: conjuntoError } = await supabase
@@ -4859,13 +4883,47 @@ app.get('/api/accounts/unassigned', async (req, res) => {
 
         console.log('🔎 Ejemplo LS devueltos (primeros 5):', accounts.slice(0, 5).map(a => a.ls));
 
+        // Guardar en cache en memoria
+        accountsCache.set(cacheKey, {
+            data: accounts,
+            timestamp: now
+        });
+        
+        console.log('💾 Cuentas guardadas en cache en memoria para usuario:', userId);
+
         res.json({ 
             success: true, 
-            data: accounts 
+            data: accounts,
+            cached: false
         });
         
     } catch (error) {
         console.error('Error en /api/accounts/unassigned:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para limpiar cache de cuentas (útil para desarrollo)
+app.post('/api/accounts/clear-cache', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const cacheKey = `accounts_${userId}`;
+        
+        if (accountsCache.has(cacheKey)) {
+            accountsCache.delete(cacheKey);
+            console.log('🗑️ Cache de cuentas eliminado para usuario:', userId);
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Cache eliminado exitosamente' 
+        });
+        
+    } catch (error) {
+        console.error('Error limpiando cache:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Error interno del servidor: ' + error.message 
@@ -5473,7 +5531,14 @@ app.get('/api/observations/:userId', async (req, res) => {
             .order('created_at', { ascending: false });
 
         if (entityId) {
-            query = query.eq('entity_id', entityId);
+            // Validar que entityId sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entityId)) {
+                query = query.eq('entity_id', entityId);
+            } else {
+                console.log('⚠️ entityId no es un UUID válido, omitiendo filtro:', entityId);
+                // Si no es un UUID válido, no aplicar el filtro y obtener todas las observaciones
+            }
         }
 
         // Diferenciar entre "no viene el parámetro" y "viene pero vacío" para permitir filtrar por nulos
@@ -8279,14 +8344,36 @@ app.post('/api/formularios/save', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_id, form_title, form_data' });
         }
         
+        // Validar que entity_id sea un UUID válido, si no, guardarlo como null
+        let validEntityId = null;
+        if (entity_id) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entity_id)) {
+                validEntityId = entity_id;
+            } else {
+                console.log('⚠️ entity_id no es un UUID válido en formulario, guardando como null:', entity_id);
+            }
+        }
+
+        // Validar que commitment_id sea un UUID válido, si no, guardarlo como null
+        let validCommitmentId = null;
+        if (commitment_id) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(commitment_id)) {
+                validCommitmentId = commitment_id;
+            } else {
+                console.log('⚠️ commitment_id no es un UUID válido en formulario, guardando como null:', commitment_id);
+            }
+        }
+
         const payload = {
             form_id,
             form_title,
             form_data: form_data,
             subdocument_id: subdocument_id || null,
             created_by: userId,
-            entity_id: entity_id || null,
-            commitment_id: commitment_id || null,
+            entity_id: validEntityId,
+            commitment_id: validCommitmentId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
@@ -8342,11 +8429,23 @@ app.post('/api/formularios/get', async (req, res) => {
         }
         
         if (entity_id) {
-            query = query.eq('entity_id', entity_id);
+            // Validar que entity_id sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            } else {
+                console.log('⚠️ entity_id no es un UUID válido en get formularios, omitiendo filtro:', entity_id);
+            }
         }
         
         if (commitment_id) {
-            query = query.eq('commitment_id', commitment_id);
+            // Validar que commitment_id sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            } else {
+                console.log('⚠️ commitment_id no es un UUID válido en get formularios, omitiendo filtro:', commitment_id);
+            }
         }
             
         if (subdocument_id) {
@@ -8408,6 +8507,44 @@ app.get('/api/formularios/list', async (req, res) => {
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/list:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint de prueba para verificar tabla entities
+app.get('/api/test-entities', async (req, res) => {
+    try {
+        console.log('🔍 Verificando tabla entities...');
+        
+        const { data, error } = await supabase
+            .from('entities')
+            .select('*')
+            .limit(5);
+            
+        if (error) {
+            console.error('❌ Error en tabla entities:', error);
+            return res.json({ 
+                success: false, 
+                error: error.message,
+                code: error.code,
+                details: error.details
+            });
+        }
+        
+        console.log('✅ Tabla entities funciona. Registros encontrados:', data?.length || 0);
+        
+        res.json({ 
+            success: true, 
+            message: 'Tabla entities funciona correctamente',
+            count: data?.length || 0,
+            sample: data
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint test-entities:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
 });
 

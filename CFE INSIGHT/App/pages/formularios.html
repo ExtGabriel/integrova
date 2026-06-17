@@ -4472,9 +4472,74 @@
 
         async function loadCuentasFromLatestExcel() {
             try {
+                const userId = getCurrentUserId();
+                const cacheKey = `cuentas_cache_${userId}`;
+                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
+                
+                // Intentar cargar desde cache primero (válido por 30 minutos)
+                try {
+                    const cachedDataRaw = localStorage.getItem(cacheKey);
+                    const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+                    
+                    if (cachedDataRaw && cachedTimestamp) {
+                        const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
+                        const thirtyMinutes = 30 * 60 * 1000; // 30 minutos en ms
+                        
+                        if (cacheAge < thirtyMinutes) {
+                            console.log('📦 Cargando cuentas desde cache local (edad:', Math.round(cacheAge/60000), 'minutos)');
+                            const parsedCache = JSON.parse(cachedDataRaw);
+                            const {
+                                accounts = [],
+                                ledgerMap: serializedLedgerMap = [],
+                                ledgerAvailable = false,
+                                meta = ''
+                            } = parsedCache || {};
+
+                            const restoredLedgerMap = Array.isArray(serializedLedgerMap)
+                                ? new Map(serializedLedgerMap)
+                                : new Map();
+
+                            cachedTrialBalanceAccounts = accounts;
+                            cachedLedgerMap = restoredLedgerMap;
+                            cachedLedgerAvailable = ledgerAvailable;
+                            cachedLedgerMeta = meta;
+
+                            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                            const rows = buildTrialBalanceRows(accounts, restoredLedgerMap, ledgerAvailable, localAdjustmentsMap);
+                            renderCuentasTable(rows, meta);
+                            
+                            dataLoadState.cuentas = true;
+                            console.log('✅ Cuentas cargadas desde cache');
+                            return;
+                        }
+                    }
+                } catch (cacheError) {
+                    console.warn('⚠️ Error leyendo cache:', cacheError);
+                }
+                
+                // Si no hay cache válido, cargar desde API
+                console.log('🌐 Cargando cuentas desde API (sin cache o cache expirado)');
+                
+                // Mostrar indicador de carga
+                const cuentasSection = document.getElementById('cuentasSection');
+                if (cuentasSection) {
+                    const loadingHtml = `
+                        <div class="text-center my-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando cuentas...</span>
+                            </div>
+                            <p class="mt-2">Cargando cuentas asignadas...</p>
+                        </div>
+                    `;
+                    const tableContainer = cuentasSection.querySelector('.table-responsive');
+                    if (tableContainer) {
+                        tableContainer.innerHTML = loadingHtml;
+                    }
+                }
+                
                 const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': userId
                     }
                 });
                 const result = await response.json();
@@ -4491,20 +4556,124 @@
                 const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 renderCuentasTable(rows, meta);
                 
+                // Guardar en cache para futuras cargas
+                try {
+                    const cacheData = {
+                        accounts,
+                        ledgerMap: Array.isArray(ledgerMap) ? ledgerMap : Array.from(ledgerMap instanceof Map ? ledgerMap.entries() : []),
+                        ledgerAvailable,
+                        meta,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    localStorage.setItem(cacheTimestampKey, Date.now().toString());
+                    console.log('💾 Cuentas guardadas en cache local');
+                } catch (saveError) {
+                    console.warn('⚠️ Error guardando cache:', saveError);
+                }
+                
                 // Marcar como cargado exitosamente
                 dataLoadState.cuentas = true;
-                console.log('✅ Cuentas marcadas como cargadas');
+                console.log('✅ Cuentas cargadas desde API y cacheadas');
                 
             } catch (err) {
                 console.error('Error cargando cuentas:', err);
+                
+                // Intentar usar cache antiguo como fallback
+                try {
+                    const userId = getCurrentUserId();
+                    const cacheKey = `cuentas_cache_${userId}`;
+                    const cachedData = localStorage.getItem(cacheKey);
+                    
+                    if (cachedData) {
+                        console.log('🔄 Usando cache antiguo como fallback...');
+                        const parsedCache = JSON.parse(cachedData);
+                        const {
+                            accounts = [],
+                            ledgerMap: serializedLedgerMap = [],
+                            ledgerAvailable = false,
+                            meta = ''
+                        } = parsedCache || {};
+
+                        const restoredLedgerMap = Array.isArray(serializedLedgerMap)
+                            ? new Map(serializedLedgerMap)
+                            : new Map();
+
+                        cachedTrialBalanceAccounts = accounts;
+                        cachedLedgerMap = restoredLedgerMap;
+                        cachedLedgerAvailable = ledgerAvailable;
+                        cachedLedgerMeta = meta;
+
+                        const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                        const rows = buildTrialBalanceRows(accounts, restoredLedgerMap, ledgerAvailable, localAdjustmentsMap);
+                        renderCuentasTable(rows, meta);
+                        
+                        dataLoadState.cuentas = true;
+                        console.log('✅ Cuentas cargadas desde cache fallback');
+                        return;
+                    }
+                } catch (fallbackError) {
+                    console.warn('⚠️ Error en fallback:', fallbackError);
+                }
+                
+                // Si todo falla, mostrar error
                 renderCuentasTable([], '');
-                alert(err?.message || 'Error cargando cuentas');
+                alert(err?.message || 'Error cargando cuentas. Por favor, recarga la página.');
+            }
+        }
+
+        // Función para limpiar cache de cuentas (útil para desarrollo o cuando se actualizan datos)
+        function clearCuentasCache() {
+            try {
+                const userId = getCurrentUserId();
+                const cacheKey = `cuentas_cache_${userId}`;
+                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
+                
+                localStorage.removeItem(cacheKey);
+                localStorage.removeItem(cacheTimestampKey);
+                console.log('🗑️ Cache de cuentas eliminado');
+            } catch (error) {
+                console.warn('⚠️ Error eliminando cache:', error);
+            }
+        }
+
+        // Función para verificar estado del cache
+        function getCuentasCacheStatus() {
+            try {
+                const userId = getCurrentUserId();
+                const cacheKey = `cuentas_cache_${userId}`;
+                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
+                
+                const cachedData = localStorage.getItem(cacheKey);
+                const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+                
+                if (!cachedData || !cachedTimestamp) {
+                    return { exists: false, age: null, valid: false };
+                }
+                
+                const cacheAge = Date.now() - parseInt(cachedTimestamp);
+                const thirtyMinutes = 30 * 60 * 1000;
+                const valid = cacheAge < thirtyMinutes;
+                
+                return {
+                    exists: true,
+                    age: Math.round(cacheAge / 60000), // minutos
+                    valid: valid,
+                    size: JSON.stringify(cachedData).length // bytes
+                };
+            } catch (error) {
+                return { exists: false, age: null, valid: false, error: error.message };
             }
         }
 
         // Re-render la tabla de cuentas cuando cambian los ajustes locales
-        document.addEventListener('localAdjustmentsUpdated', () => {
-            if (!cachedAccounts.length) return;
+        document.addEventListener('localAdjustmentsUpdated', async () => {
+            // Si no hay cuentas en caché, cargarlas primero
+            if (!cachedAccounts.length) {
+                console.log('🔄 Cargando cuentas para actualizar con ajustes...');
+                await loadCuentasFromLatestExcel();
+                return; // loadCuentasFromLatestExcel ya renderiza la tabla con los ajustes
+            }
 
             const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
             const rows = buildAccountRows(cachedAccounts, cachedLedgerMap, cachedLedgerAvailable, localAdjustmentsMap);
@@ -4690,6 +4859,7 @@
                 console.warn('⚠️ Error cargando asignaciones desde BD:', error);
             }
 
+            // Fallback a localStorage (priorizar)
             const fallback = getStoredAssignments(resolvedDatasetId) || [];
             console.log('📁 Asignaciones usando fallback localStorage:', fallback.length);
             return Array.isArray(fallback) ? fallback : [];
@@ -5070,41 +5240,131 @@
             return nodes.size ? { nodes, roots, source: 'dom' } : null;
         }
 
-        async function loadGruposFinancierosFromLatestExcel() {
+        let cachedFinancialGroupsMeta = '';
+        let cachedFinancialGroupsLoaded = false;
+
+        async function ensureCurrentDatasetContext() {
+            if (currentDatasetId) {
+                return currentDatasetId;
+            }
+
+            try {
+                const lastDataset = localStorage.getItem(getAssignmentsLastDatasetKey());
+                if (lastDataset) {
+                    currentDatasetId = lastDataset;
+                    window.currentDatasetId = lastDataset;
+                    console.log('🔁 currentDatasetId restaurado desde localStorage:', lastDataset);
+                    return lastDataset;
+                }
+            } catch (error) {
+                console.warn('⚠️ No se pudo restaurar el dataset desde localStorage:', error);
+            }
+
+            console.warn('⚠️ No hay dataset activo disponible. Carga un Excel o selecciona un dataset.');
+            return '';
+        }
+
+        async function loadGruposFinancierosFromLatestExcel({ forceReload = false } = {}) {
+            console.log('🔍 DIAGNÓSTICO: Iniciando carga de grupos financieros...');
+            console.log('🔍 currentDatasetId:', currentDatasetId);
+            console.log('🔍 window.currentDatasetId:', window.currentDatasetId);
+            
+            const resolvedDatasetId = await ensureCurrentDatasetContext();
+            console.log('🔍 resolvedDatasetId:', resolvedDatasetId);
+            
+            if (!resolvedDatasetId) {
+                console.log('❌ DIAGNÓSTICO: No hay dataset activo, abortando carga');
+                renderGruposFinancieros([], '');
+                return;
+            }
+
+            console.log('🔍 DIAGNÓSTICO: Estado de caché:', {
+                cachedFinancialGroupsLoaded,
+                forceReload,
+                cachedGruposFinancierosRowsLength: cachedGruposFinancierosRows?.length || 0,
+                isArray: Array.isArray(cachedGruposFinancierosRows)
+            });
+
+            if (cachedFinancialGroupsLoaded && !forceReload && Array.isArray(cachedGruposFinancierosRows) && cachedGruposFinancierosRows.length > 0) {
+                console.log('♻️ Reutilizando grupos financieros desde caché en memoria');
+                console.log('🔍 DIAGNÓSTICO: Usando caché - filas:', cachedGruposFinancierosRows.length);
+                renderGruposFinancieros(cachedGruposFinancierosRows, cachedFinancialGroupsMeta);
+                initializeGruposFinancierosToggles();
+                updateFinancialGroupCounts();
+                dataLoadState.gruposFinancieros = true;
+                return;
+            }
+
             try {
                 console.log('📊 Cargando grupos financieros desde la base de datos...');
+                console.log('🔍 DIAGNÓSTICO: Llamando a getFinancialGroups con datasetId:', resolvedDatasetId);
                 
                 // Cargar grupos financieros guardados en la base de datos
-                const financialGroups = await getFinancialGroups(currentDatasetId);
+                const financialGroups = await getFinancialGroups(resolvedDatasetId);
                 console.log('📊 Grupos financieros cargados:', financialGroups);
+                console.log('🔍 DIAGNÓSTICO: Resultados de BD:', {
+                    isArray: Array.isArray(financialGroups),
+                    length: financialGroups?.length || 0,
+                    firstItem: financialGroups?.[0]
+                });
                 
                 if (financialGroups && financialGroups.length > 0) {
                     // Si hay grupos financieros guardados, usarlos
                     cachedGruposFinancierosRows = financialGroups;
-                    renderGruposFinancieros(financialGroups, '');
+                    cachedFinancialGroupsMeta = 'BD';
+                    cachedFinancialGroupsLoaded = true;
+                    renderGruposFinancieros(financialGroups, cachedFinancialGroupsMeta);
+                    initializeGruposFinancierosToggles();
+                    updateFinancialGroupCounts();
                     console.log('✅ Grupos financieros cargados desde base de datos');
                 } else {
                     // Si no hay grupos financieros guardados, construir desde el libro mayor
                     console.log('📊 No hay grupos financieros guardados, construyendo desde libro mayor...');
+                    console.log('🔍 DIAGNÓSTICO: Iniciando construcción desde libro mayor...');
+                    
                     initializeStaticAccounts();
                     const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                    cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
+                    console.log('🔍 DIAGNÓSTICO: Ledger data:', {
+                        ledgerMapSize: ledgerMap?.size || 0,
+                        ledgerAvailable,
+                        meta
+                    });
+                    
+                    cachedFinancialGroupStructure = await loadFinancialGroupStructure(resolvedDatasetId);
+                    console.log('🔍 DIAGNÓSTICO: Estructura cargada:', {
+                        hasStructure: !!cachedFinancialGroupStructure,
+                        hasNodes: !!cachedFinancialGroupStructure?.nodes,
+                        nodesCount: cachedFinancialGroupStructure?.nodes?.size || 0
+                    });
                     
                     // Si no hay estructura guardada, usar la del DOM
                     if (!cachedFinancialGroupStructure || !cachedFinancialGroupStructure.nodes) {
                         console.log('📁 Estructura de grupos financieros usando fallback del DOM estático');
                         cachedFinancialGroupStructure = buildFinancialGroupStructureFromDom();
+                        console.log('🔍 DIAGNÓSTICO: Estructura fallback:', {
+                            hasStructure: !!cachedFinancialGroupStructure,
+                            hasNodes: !!cachedFinancialGroupStructure?.nodes,
+                            nodesCount: cachedFinancialGroupStructure?.nodes?.size || 0
+                        });
                     }
                     
                     // Forzar carga de asignaciones y asegurar que no esté vacía
                     console.log('🔄 Cargando asignaciones para grupos financieros...');
-                    cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
+                    cachedAssignments = await loadAssignmentsForDataset(resolvedDatasetId);
+                    console.log('🔍 DIAGNÓSTICO: Asignaciones cargadas:', {
+                        isArray: Array.isArray(cachedAssignments),
+                        length: cachedAssignments?.length || 0,
+                        firstAssignment: cachedAssignments?.[0]
+                    });
                     
                     // Si las asignaciones están vacías, intentar cargar desde localStorage
                     if (!cachedAssignments || cachedAssignments.length === 0) {
                         console.log('⚠️ Asignaciones vacías, intentando cargar desde localStorage...');
-                        const localStorageKey = 'assigned_accounts_v1_' + getCurrentUserId() + '_' + currentDatasetId;
+                        const localStorageKey = 'assigned_accounts_v1_' + getCurrentUserId() + '_' + resolvedDatasetId;
                         const localStorageData = localStorage.getItem(localStorageKey);
+                        console.log('🔍 DIAGNÓSTICO: localStorage key:', localStorageKey);
+                        console.log('🔍 DIAGNÓSTICO: localStorage data exists:', !!localStorageData);
+                        
                         if (localStorageData) {
                             try {
                                 cachedAssignments = JSON.parse(localStorageData);
@@ -5127,9 +5387,19 @@
                         count: rows.length,
                         firstRow: rows[0],
                         variableSet: !!window.cachedGruposFinancierosRows,
-                        assignmentsCount: cachedAssignments?.length || 0
+                        assignmentsCount: cachedAssignments?.length || 0,
+                        datasetId: resolvedDatasetId
                     });
+                    cachedFinancialGroupsMeta = meta;
+                    cachedFinancialGroupsLoaded = true;
+                    console.log('🔍 DIAGNÓSTICO FINAL - Antes de renderGruposFinancieros:');
+                    console.log('  rows length:', rows.length);
+                    console.log('  rows sample:', rows.slice(0, 3));
+                    console.log('  meta:', meta);
+                    
                     renderGruposFinancieros(rows, meta);
+                    initializeGruposFinancierosToggles();
+                    updateFinancialGroupCounts();
                     console.log('✅ Grupos financieros construidos desde libro mayor');
                 }
                 
@@ -5139,18 +5409,30 @@
                 
             } catch (err) {
                 console.error('Error cargando grupos financieros:', err);
+                cachedFinancialGroupsLoaded = false;
                 renderGruposFinancieros([], '');
                 alert(err?.message || 'Error cargando grupos financieros');
             }
         }
 
         function buildGruposFinancierosRows(structure, assignments, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
+            console.log('🔍 DIAGNÓSTICO AVANZADO - buildGruposFinancierosRows:');
+            console.log('  structure:', !!structure, structure?.nodes?.size || 0);
+            console.log('  assignments:', Array.isArray(assignments) ? assignments.length : 'not array');
+            console.log('  ledgerMap:', ledgerMap?.size || 0);
+            console.log('  ledgerAvailable:', ledgerAvailable);
+            
             const effectiveStructure = (structure && structure.nodes instanceof Map)
                 ? structure
                 : buildFinancialGroupStructureFromDom();
 
+            console.log('🔍 effectiveStructure:', !!effectiveStructure, effectiveStructure?.nodes?.size || 0);
+
             if (!effectiveStructure || !(effectiveStructure.nodes instanceof Map) || !effectiveStructure.nodes.size) {
-                console.warn('buildGruposFinancierosRows: estructura de grupos inválida');
+                console.error('❌ ERROR CRÍTICO: Estructura de grupos inválida - esto causa la sección vacía');
+                console.error('  effectiveStructure:', effectiveStructure);
+                console.error('  nodes type:', typeof effectiveStructure?.nodes);
+                console.error('  nodes size:', effectiveStructure?.nodes?.size);
                 return [];
             }
 
@@ -5158,26 +5440,49 @@
                 ? localAdjustmentsMap
                 : new Map(localAdjustmentsMap || []);
 
+            // Priorizar datos del libro mayor sobre asignaciones
+            console.log('🔍 buildGruposFinancierosRows: Usando libro mayor como fuente principal');
+            console.log('🔍 ledgerMap size:', ledgerMap?.size || 0);
+            console.log('🔍 ledgerAvailable:', ledgerAvailable);
+
+            // MOSTRAR DATOS DEL LEDGER PARA DEPURACIÓN
+            console.log('🔍 Datos del ledger disponibles:');
+            let ledgerSampleCount = 0;
+            for (const [key, value] of ledgerMap.entries()) {
+                if (ledgerSampleCount < 5) { // Mostrar solo primeros 5 para no saturar
+                    console.log(`  Ledger[${key}]:`, value);
+                    ledgerSampleCount++;
+                }
+            }
+            if (ledgerMap.size > 5) {
+                console.log(`  ... y ${ledgerMap.size - 5} entradas más`);
+            }
+
             const assignmentsArray = Array.isArray(assignments) ? assignments : [];
             const assignmentsByGroup = new Map();
             const assignmentsByParent = new Map();
 
-            assignmentsArray.forEach(assignment => {
-                const groupId = (assignment.groupContentId || '').toString().trim();
-                if (groupId) {
-                    if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
-                    assignmentsByGroup.get(groupId).push(assignment);
-                }
+            // Solo procesar asignaciones si hay ledger disponible para complementar
+            if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
+                assignmentsArray.forEach(assignment => {
+                    const groupId = (assignment.groupContentId || '').toString().trim();
+                    if (groupId) {
+                        if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
+                        assignmentsByGroup.get(groupId).push(assignment);
+                    }
 
-                const parentId = (assignment.parentAccountId || '').toString().trim();
-                if (parentId) {
-                    if (!assignmentsByParent.has(parentId)) assignmentsByParent.set(parentId, []);
-                    assignmentsByParent.get(parentId).push(assignment);
-                }
-            });
+                    const parentId = (assignment.parentAccountId || '').toString().trim();
+                    if (parentId) {
+                        if (!assignmentsByParent.has(parentId)) assignmentsByParent.set(parentId, []);
+                        assignmentsByParent.get(parentId).push(assignment);
+                    }
+                });
 
-            assignmentsByGroup.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
-            assignmentsByParent.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+                assignmentsByGroup.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+                assignmentsByParent.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+            } else {
+                console.log('🔍 Sin datos de ledger, ignorando asignaciones');
+            }
 
             const rows = [];
             let rowCounter = 0;
@@ -5186,21 +5491,49 @@
             const normalizeNodeType = (type) => (type || '').toString().toLowerCase();
 
             const summarizeAssignment = (assignment) => {
-                // Swap: preliminary should show 2024 (current year), finalPrevious should show 2023 (previous year)
-                const preliminary = parseAccountValue(assignment.prevValue); // 2024 values
-                const finalPrevious = parseAccountValue(assignment.value); // 2023 values
                 const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
                 const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
 
+                // PRIORIZAR LEDGER: Tomar valores del libro mayor si están disponibles
+                let preliminary = 0;
+                let finalPrevious = 0;
+                let adjustments = 0;
+
+                if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
+                    const ledgerEntry = getLedgerValueForAccount(ledgerMap, codeKey, nameKey);
+                    
+                    if (ledgerEntry !== null && ledgerEntry !== undefined) {
+                        if (typeof ledgerEntry === 'object' && ledgerEntry !== null) {
+                            // Valores del ledger por año
+                            preliminary = parseAccountValue(ledgerEntry.currentYear || ledgerEntry.preliminary || ledgerEntry.value2024 || 0);
+                            finalPrevious = parseAccountValue(ledgerEntry.previousYear || ledgerEntry.finalPrevious || ledgerEntry.value2023 || 0);
+                            console.log(`🔍 Assignment ledger values for ${codeKey}/${nameKey}:`, { preliminary, finalPrevious });
+                        } else {
+                            // Si es un ajuste del ledger
+                            adjustments = parseAccountValue(ledgerEntry);
+                            preliminary = parseAccountValue(assignment.prevValue || 0);
+                            finalPrevious = parseAccountValue(assignment.value || 0);
+                            console.log(`🔍 Assignment ledger adjustment for ${codeKey}/${nameKey}:`, adjustments);
+                        }
+                    } else {
+                        // Fallback a valores de asignación si no hay ledger
+                        preliminary = parseAccountValue(assignment.prevValue || 0);
+                        finalPrevious = parseAccountValue(assignment.value || 0);
+                        console.log(`🔍 Assignment no ledger data for ${codeKey}/${nameKey}, using assignment values:`, { preliminary, finalPrevious });
+                    }
+                } else {
+                    // Sin ledger, usar valores de asignación
+                    preliminary = parseAccountValue(assignment.prevValue || 0);
+                    finalPrevious = parseAccountValue(assignment.value || 0);
+                    console.log(`🔍 Assignment no ledger available for ${codeKey}/${nameKey}, using assignment values:`, { preliminary, finalPrevious });
+                }
+
+                // Aplicar ajustes locales
                 let localAdj = 0;
                 if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
                 else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
 
-                const ledgerAdj = ledgerAvailable
-                    ? getLedgerValueForAccount(ledgerMap, codeKey, nameKey || assignment.name)
-                    : 0;
-
-                const adjustments = ledgerAdj + localAdj;
+                adjustments += localAdj;
                 const finalCurrent = preliminary + adjustments;
 
                 return {
@@ -5246,37 +5579,129 @@
                 };
             };
 
+            // Nueva función para crear filas directamente desde el ledger
+            const createLedgerRow = (codeKey, nameKey, level, parentRowId, groupContentId = '') => {
+                let preliminary = 0;
+                let finalPrevious = 0;
+                let adjustments = 0;
+
+                if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
+                    const ledgerEntry = getLedgerValueForAccount(ledgerMap, codeKey, nameKey);
+                    
+                    if (ledgerEntry !== null && ledgerEntry !== undefined) {
+                        if (typeof ledgerEntry === 'object' && ledgerEntry !== null) {
+                            preliminary = parseAccountValue(ledgerEntry.currentYear || ledgerEntry.preliminary || ledgerEntry.value2024 || 0);
+                            finalPrevious = parseAccountValue(ledgerEntry.previousYear || ledgerEntry.finalPrevious || ledgerEntry.value2023 || 0);
+                        } else {
+                            adjustments = parseAccountValue(ledgerEntry);
+                        }
+                    }
+                }
+
+                // Aplicar ajustes locales
+                let localAdj = 0;
+                if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
+                else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
+
+                adjustments += localAdj;
+                const finalCurrent = preliminary + adjustments;
+
+                const row = {
+                    accountName: stripAccountPrefix(nameKey || codeKey || 'Cuenta'),
+                    accountId: codeKey,
+                    accountCode: codeKey,
+                    preliminary,
+                    adjustments,
+                    finalCurrent,
+                    finalPrevious,
+                    level,
+                    isParent: false,
+                    ledgerMissing: !ledgerAvailable,
+                    rowId: nextRowId(),
+                    parentId: parentRowId || '',
+                    hasChildren: false,
+                    groupContentId,
+                    nodeType: 'ledger'
+                };
+
+                return {
+                    row,
+                    totals: {
+                        preliminary,
+                        adjustments,
+                        finalPrevious
+                    }
+                };
+            };
+
             const computeNodeBaseAmounts = (node) => {
                 const meta = node.meta || {};
                 const nodeType = normalizeNodeType(node.type);
                 const isLeafNode = nodeType === 'staticaccount' || nodeType === 'account';
                 const hasExplicitValue = meta.value != null || node.staticValue != null || meta.currentValue != null || meta.preliminary != null || meta.accountValue != null;
 
-                const basePreliminary = hasExplicitValue
-                    ? parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0)
-                    : (isLeafNode ? parseAccountValue(node.staticPrevValue ?? 0) : 0);
-
-                const basePrev = hasExplicitValue
-                    ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
-                    : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
-
                 const codeKey = (meta.accountCode || meta.code || node.accountCode || '').toString().trim();
                 const nameKey = (meta.accountName || meta.name || node.name || node.label || '').toString().trim();
 
+                // PRIORIZAR LEDGER: Tomar valores directamente del libro mayor si están disponibles
+                let basePreliminary = 0;
+                let basePrev = 0;
                 let adjustments = 0;
                 let ledgerMissing = false;
 
-                if (isLeafNode || hasExplicitValue) {
-                    let localAdj = 0;
-                    if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
-                    else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
+                if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
+                    // Buscar valores en el ledger por código o nombre
+                    const ledgerEntry = getLedgerValueForAccount(ledgerMap, codeKey, nameKey);
+                    
+                    if (ledgerEntry !== null && ledgerEntry !== undefined) {
+                        // El ledger contiene los valores reales del libro mayor
+                        if (typeof ledgerEntry === 'object' && ledgerEntry !== null) {
+                            // Si el ledger entry es un objeto con valores separados por año
+                            basePreliminary = parseAccountValue(ledgerEntry.currentYear || ledgerEntry.preliminary || ledgerEntry.value2024 || 0);
+                            basePrev = parseAccountValue(ledgerEntry.previousYear || ledgerEntry.finalPrevious || ledgerEntry.value2023 || 0);
+                            console.log(`🔍 Ledger values for ${codeKey}/${nameKey}:`, { basePreliminary, basePrev });
+                        } else {
+                            // Si el ledger entry es un valor único (ajuste)
+                            adjustments = parseAccountValue(ledgerEntry);
+                            basePreliminary = parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0);
+                            basePrev = parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0);
+                            console.log(`🔍 Ledger adjustment for ${codeKey}/${nameKey}:`, adjustments);
+                        }
+                    } else {
+                        // Si no hay datos en ledger, usar valores estáticos como fallback
+                        basePreliminary = hasExplicitValue
+                            ? parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0)
+                            : (isLeafNode ? parseAccountValue(node.staticPrevValue ?? 0) : 0);
 
-                    const ledgerAdj = ledgerAvailable
-                        ? getLedgerValueForAccount(ledgerMap, codeKey, nameKey)
-                        : 0;
+                        basePrev = hasExplicitValue
+                            ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
+                            : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
+                        
+                        console.log(`🔍 No ledger data for ${codeKey}/${nameKey}, using static values:`, { basePreliminary, basePrev });
+                    }
+                } else {
+                    // Sin ledger disponible, usar valores estáticos
+                    basePreliminary = hasExplicitValue
+                        ? parseAccountValue(meta.prevValue ?? meta.previousValue ?? node.staticPrevValue ?? meta.accountPrevValue ?? 0)
+                        : (isLeafNode ? parseAccountValue(node.staticPrevValue ?? 0) : 0);
 
-                    adjustments = ledgerAdj + localAdj;
-                    ledgerMissing = !ledgerAvailable && !Number.isFinite(adjustments);
+                    basePrev = hasExplicitValue
+                        ? parseAccountValue(meta.value ?? node.staticValue ?? meta.currentValue ?? meta.preliminary ?? meta.accountValue ?? 0)
+                        : (isLeafNode ? parseAccountValue(node.staticValue ?? 0) : 0);
+                    
+                    ledgerMissing = !ledgerAvailable;
+                    console.log(`🔍 No ledger available for ${codeKey}/${nameKey}, using static values:`, { basePreliminary, basePrev });
+                }
+
+                // Aplicar ajustes locales si existen
+                if (codeKey && adjustmentMap.has(codeKey)) {
+                    const localAdj = adjustmentMap.get(codeKey) || 0;
+                    adjustments += localAdj;
+                    console.log(`🔍 Applied local adjustment for ${codeKey}:`, localAdj);
+                } else if (nameKey && adjustmentMap.has(nameKey)) {
+                    const localAdj = adjustmentMap.get(nameKey) || 0;
+                    adjustments += localAdj;
+                    console.log(`🔍 Applied local adjustment for ${nameKey}:`, localAdj);
                 }
 
                 return {
@@ -5348,6 +5773,41 @@
                     hasContent = true;
                 });
 
+                // AÑADIR CUENTAS DEL LEDGER QUE NO ESTÁN EN ASIGNACIONES
+                // Si hay datos del ledger disponibles, incluir todas las cuentas relevantes
+                if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
+                    const ledgerRows = [];
+                    
+                    // Iterar sobre todas las entradas del ledger
+                    for (const [ledgerKey, ledgerValue] of ledgerMap.entries()) {
+                        const keyStr = ledgerKey.toString();
+                        const entryName = typeof ledgerValue === 'object' && ledgerValue !== null 
+                            ? (ledgerValue.name || ledgerValue.accountName || keyStr)
+                            : keyStr;
+                        
+                        // Crear fila para cada entrada del ledger si no está ya incluida
+                        const ledgerRow = createLedgerRow(keyStr, entryName, level + 1, rowId, node.id);
+                        
+                        // Solo incluir si tiene valores no cero
+                        if (ledgerRow.totals.preliminary !== 0 || ledgerRow.totals.adjustments !== 0 || ledgerRow.totals.finalPrevious !== 0) {
+                            totals.preliminary += ledgerRow.totals.preliminary;
+                            totals.adjustments += ledgerRow.totals.adjustments;
+                            totals.finalPrevious += ledgerRow.totals.finalPrevious;
+                            ledgerRows.push(ledgerRow.row);
+                            hasContent = true;
+                            
+                            console.log(`🔍 Added ledger account ${keyStr}:`, {
+                                preliminary: ledgerRow.totals.preliminary,
+                                adjustments: ledgerRow.totals.adjustments,
+                                finalPrevious: ledgerRow.totals.finalPrevious
+                            });
+                        }
+                    }
+                    
+                    // Agregar filas del ledger al resultado
+                    directAssignmentRows.push(...ledgerRows);
+                }
+
                 const finalCurrent = totals.preliminary + totals.adjustments;
                 const hasChildren = childIds.length > 0 || childAssignmentRows.length > 0 || directAssignmentRows.length > 0;
 
@@ -5382,6 +5842,37 @@
                 const result = processNode(rootId, 0, '');
                 rows.push(...result.rows);
             });
+
+            // LOGGING FINAL: Mostrar resumen de totales generales
+            console.log('🔍 Resumen final de buildGruposFinancierosRows:');
+            console.log('  Total filas generadas:', rows.length);
+            
+            let totalPreliminary = 0;
+            let totalAdjustments = 0;
+            let totalFinalPrevious = 0;
+            
+            rows.forEach(row => {
+                totalPreliminary += row.preliminary || 0;
+                totalAdjustments += row.adjustments || 0;
+                totalFinalPrevious += row.finalPrevious || 0;
+            });
+            
+            console.log('  Totales generales:', {
+                preliminary: totalPreliminary,
+                adjustments: totalAdjustments,
+                finalPrevious: totalFinalPrevious,
+                finalCurrent: totalPreliminary + totalAdjustments
+            });
+            
+            // Mostrar algunas filas de ejemplo
+            const sampleRows = rows.slice(0, 3);
+            console.log('  Muestra de filas generadas:', sampleRows.map(row => ({
+                name: row.accountName,
+                preliminary: row.preliminary,
+                adjustments: row.adjustments,
+                finalPrevious: row.finalPrevious,
+                nodeType: row.nodeType
+            })));
 
             return rows;
         }
@@ -5531,6 +6022,15 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        function updateFinancialGroupCounts() {
+            try {
+                const containers = document.querySelectorAll('.financial-groups-list .group-content, .financial-groups-list .sub-group-content');
+                containers.forEach(container => updateGroupCount(container));
+            } catch (error) {
+                console.warn('⚠️ No se pudo actualizar el conteo de grupos financieros:', error);
+            }
         }
 
         // Aplicar tema guardado
@@ -6626,6 +7126,7 @@
                 }
 
                 // Forzar recarga inmediata del dropdown de compromisos
+                const selectedEntityForCommitment = document.getElementById('entidad')?.value || '';
                 updateCommitmentDropdown(selectedEntityForCommitment, { force: true }).catch(err => {
                     console.warn('⚠️ Error al recargar dropdown de compromisos:', err);
                 });
@@ -19436,10 +19937,47 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         totals.count = assignedAccounts.length;
 
-        directAssigned.forEach(account => {
-            totals.previous += parseAccountValue(account.dataset.accountPrevValue);
-            totals.current += parseAccountValue(account.dataset.accountValue);
-        });
+        // USAR LA MISMA LÓGICA QUE EL LIBRO MAYOR
+        // Si hay datos del ledger disponibles, usar sumLedgerTotals como fuente primaria
+        if (typeof cachedLedgerMap !== 'undefined' && cachedLedgerMap && cachedLedgerMap.size > 0) {
+            console.log('🔍 calculateGroupTotals usando ledgerMap para coincidir con libro mayor');
+            
+            // Para cuentas asignadas, usar valores del ledger si están disponibles
+            directAssigned.forEach(account => {
+                const code = (account.dataset.accountCode || '').toString().trim();
+                const name = (account.dataset.accountName || '').toString().trim();
+                
+                // Buscar en ledger primero (misma lógica que sumLedgerTotals)
+                let ledgerValue = 0;
+                if (code && cachedLedgerMap.has(code)) {
+                    ledgerValue = cachedLedgerMap.get(code) || 0;
+                } else if (name && cachedLedgerMap.has(name)) {
+                    ledgerValue = cachedLedgerMap.get(name) || 0;
+                }
+                
+                // Si hay valor en ledger, usarlo; si no, usar valor de asignación
+                if (ledgerValue !== 0) {
+                    totals.previous += ledgerValue;
+                    totals.current += ledgerValue;
+                    console.log(`🔍 Using ledger value for ${code}/${name}:`, ledgerValue);
+                } else {
+                    // Fallback a valores de asignación si no hay ledger
+                    totals.previous += parseAccountValue(account.dataset.accountPrevValue);
+                    totals.current += parseAccountValue(account.dataset.accountValue);
+                    console.log(`🔍 Using assignment values for ${code}/${name}:`, {
+                        previous: parseAccountValue(account.dataset.accountPrevValue),
+                        current: parseAccountValue(account.dataset.accountValue)
+                    });
+                }
+            });
+        } else {
+            // Sin ledger disponible, usar valores de asignación (comportamiento original)
+            console.log('🔍 calculateGroupTotals usando valores de asignación (sin ledger)');
+            directAssigned.forEach(account => {
+                totals.previous += parseAccountValue(account.dataset.accountPrevValue);
+                totals.current += parseAccountValue(account.dataset.accountValue);
+            });
+        }
 
         const staticAccounts = Array.from(container.querySelectorAll('.static-account'));
         staticAccounts.forEach(staticAccount => {
@@ -19447,6 +19985,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             totals.current += parseAccountValue(staticAccount.dataset.accountValue);
         });
 
+        console.log('🔢 calculateGroupTotals result:', totals);
         return totals;
     }
 
@@ -28719,12 +29258,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             const observations = loadStoredObservations();
 
-            // Actualizar badges para formularios con observaciones
-            observations.forEach(observation => {
-                if (observation.status === 'pendiente') {
-                    updateObservationBadge(observation.formId, true);
-                }
-            });
+            // Validar que observations sea un array antes de usar forEach
+            if (Array.isArray(observations)) {
+                // Actualizar badges para formularios con observaciones
+                observations.forEach(observation => {
+                    if (observation.status === 'pendiente') {
+                        updateObservationBadge(observation.formId, true);
+                    }
+                });
+            } else {
+                console.warn('⚠️ loadStoredObservations no devolvió un array:', observations);
+            }
 
             await updateIssuesSection();
         }
