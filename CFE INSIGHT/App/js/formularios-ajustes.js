@@ -1522,80 +1522,45 @@ function updateNumeroField() {
             }
         }
 
-        function loadAdjustmentsFromStorage() {
+        async function loadAdjustmentsFromStorage() {
             try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (!raw) return [];
-                const parsed = JSON.parse(raw);
-                const ajustes = Array.isArray(parsed) ? parsed : [];
+                console.log('📥 Cargando ajustes desde base de datos...');
                 
-                // Migrar notas antiguas al nuevo formato
-                ajustes.forEach(ajuste => {
-                    if (!ajuste.notasArray && ajuste.notas) {
-                        // Convertir notas antiguas al nuevo formato
-                        ajuste.notasArray = [];
-                        
-                        // Si las notas tienen el formato nuevo ya, parsearlas
-                        if (ajuste.notas.includes('[') && ajuste.notas.includes(']:')) {
-                            const lines = ajuste.notas.split('\n\n').filter(line => line.trim());
-                            lines.forEach(line => {
-                                const match = line.match(/^\[([^\]]+)\]\s*([^:]+):\s*(.+)$/);
-                                if (match) {
-                                    const migratedNote = {
-                                        id: Date.now() + Math.random(),
-                                        text: match[3].trim(),
-                                        html: match[3].trim(), // Para notas antiguas, texto plano como HTML
-                                        username: match[2].trim(),
-                                        authorName: match[2].trim(),
-                                        timestamp: new Date(match[1]).toISOString(),
-                                        createdAt: match[1]
-                                    };
+                if (!window.getFinancialAdjustments || !currentDatasetId) {
+                    console.warn('⚠️ No se puede cargar: getFinancialAdjustments o currentDatasetId no disponibles');
+                    return [];
+                }
 
-                                    ajuste.notasArray.push(migratedNote);
-                                }
-                            });
-                        } else {
-                            // Nota simple antigua, crear una entrada con usuario por defecto
-                            const legacyNote = {
-                                id: Date.now(),
-                                text: ajuste.notas,
-                                html: ajuste.notas, // Para notas antiguas, texto plano como HTML
-                                username: 'Usuario anterior',
-                                authorName: 'Usuario anterior',
-                                timestamp: new Date().toISOString(),
-                                createdAt: new Date().toLocaleString('es-ES', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })
-                            };
+                // Verificar conexión a la base de datos
+                const isConnected = await window.checkDatabaseConnection();
+                if (!isConnected) {
+                    console.warn('⚠️ Sin conexión a la base de datos');
+                    return [];
+                }
 
-                            ajuste.notasArray.push(legacyNote);
-                        }
-                    } else if (!ajuste.notasArray) {
-                        // Inicializar array vacío si no existe
-                        ajuste.notasArray = [];
-                    }
-
-                    if (Array.isArray(ajuste.notasArray)) {
-                        ajuste.notasArray.forEach(note => {
-                            const normalizedName = getNoteAuthorName(note);
-                            note.username = normalizedName;
-                            if (!note.authorName) {
-                                note.authorName = normalizedName;
-                            }
-                            if (note.email && !note.userEmail) {
-                                note.userEmail = note.email;
-                            }
-                        });
-                    }
-                });
+                // Cargar ajustes desde la base de datos
+                const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
+                console.log(`📥 Ajustes cargados desde BD: ${dbAdjustments.length}`);
                 
-                return ajustes;
+                // Convertir ajustes de la base de datos al formato local
+                const convertedAdjustments = dbAdjustments.map(adj => ({
+                    id: adj.id,
+                    tipo: adj.adjustment_type,
+                    moneda: adj.moneda,
+                    monto: adj.monto,
+                    descripcion: adj.descripcion,
+                    htmlContenido: adj.html_contenido,
+                    adjuntos: adj.adjuntos,
+                    creado: adj.created_at,
+                    modificado: adj.updated_at,
+                    detalles: adj.meta?.detalles || [],
+                    // Mantener compatibilidad con formato existente
+                    notasArray: adj.meta?.notasArray || []
+                }));
+
+                return convertedAdjustments;
             } catch (error) {
-                console.warn('No se pudieron cargar los ajustes almacenados:', error);
+                console.error('❌ Error cargando ajustes desde base de datos:', error);
                 return [];
             }
         }
@@ -1741,45 +1706,57 @@ function updateNumeroField() {
             }, 0);
         }
 
-        function saveAdjustmentsToStorage(data) {
+        async function saveAdjustmentsToStorage(data) {
             try {
-                // 1. Guardar en localStorage (sistema actual)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                console.log('💾 Guardando ajustes directamente en base de datos...');
                 
-                // 2. Guardar en base de datos (nuevo sistema)
-                if (window.saveFinancialAdjustment && currentDatasetId) {
-                    // Guardar cada ajuste individualmente
-                    data.forEach(async (ajuste) => {
-                        try {
-                            const totalMonto = computeAdjustmentTotal(ajuste);
-
-                            if (totalMonto <= 0) {
-                                console.warn('Ajuste omitido para guardado en BD: monto total inválido', ajuste);
-                                return;
-                            }
-
-                            await saveFinancialAdjustment({
-                                datasetId: currentDatasetId,
-                                adjustmentType: ajuste.tipo || 'manual',
-                                moneda: ajuste.moneda || 'GTQ',
-                                monto: totalMonto,
-                                descripcion: ajuste.descripcion || '',
-                                htmlContenido: ajuste.htmlContenido || '',
-                                adjuntos: ajuste.adjuntos || null,
-                                meta: {
-                                    detalles: ajuste.detalles || [],
-                                    creado: ajuste.creado,
-                                    modificado: ajuste.modificado,
-                                    totalMonto
-                                }
-                            });
-                        } catch (error) {
-                            console.warn('Error guardando ajuste en base de datos:', error);
-                        }
-                    });
+                if (!window.saveFinancialAdjustment || !currentDatasetId) {
+                    console.warn('⚠️ No se puede guardar: saveFinancialAdjustment o currentDatasetId no disponibles');
+                    return false;
                 }
+
+                // Guardar cada ajuste individualmente en la base de datos
+                const results = await Promise.allSettled(
+                    data.map(async (ajuste) => {
+                        const totalMonto = computeAdjustmentTotal(ajuste);
+
+                        if (totalMonto <= 0) {
+                            console.warn('Ajuste omitido para guardado en BD: monto total inválido', ajuste);
+                            return null;
+                        }
+
+                        return await saveFinancialAdjustment({
+                            datasetId: currentDatasetId,
+                            adjustmentType: ajuste.tipo || 'manual',
+                            moneda: ajuste.moneda || 'GTQ',
+                            monto: totalMonto,
+                            descripcion: ajuste.descripcion || '',
+                            htmlContenido: ajuste.htmlContenido || '',
+                            adjuntos: ajuste.adjuntos || null,
+                            meta: {
+                                detalles: ajuste.detalles || [],
+                                creado: ajuste.creado,
+                                modificado: ajuste.modificado,
+                                totalMonto
+                            }
+                        });
+                    })
+                );
+
+                const successful = results.filter(r => r.status === 'fulfilled' && r.value).length;
+                const failed = results.filter(r => r.status === 'rejected').length;
+
+                console.log(`✅ Ajustes guardados en BD: ${successful} exitosos, ${failed} fallidos`);
+                
+                // Disparar evento para que la UI se recargue desde BD
+                document.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                    detail: { datasetId: currentDatasetId, count: successful }
+                }));
+
+                return successful > 0;
             } catch (error) {
-                console.warn('No se pudieron guardar los ajustes:', error);
+                console.error('❌ Error guardando ajustes en base de datos:', error);
+                return false;
             }
         }
 
@@ -2100,64 +2077,35 @@ function updateNumeroField() {
             });
         }
 
-        // Función para sincronizar ajustes con la base de datos
+        // Función para sincronizar ajustes con la base de datos (ahora solo recarga desde BD)
         async function syncAdjustmentsWithDatabase() {
             try {
-                console.log(' Sincronizando ajustes con la base de datos...');
+                console.log('🔄 Sincronizando ajustes con la base de datos...');
                 
                 if (!currentDatasetId) {
-                    console.log(' No hay datasetId, omitiendo sincronización de ajustes');
+                    console.log('⚠️ No hay datasetId, omitiendo sincronización de ajustes');
                     return;
                 }
                 
                 // Verificar si hay conexión a la base de datos
-                if (window.getFinancialAdjustments) {
-                    const isConnected = await window.checkDatabaseConnection();
-                    if (!isConnected) {
-                        console.log(' Sin conexión a la base de datos, usando localStorage para ajustes');
-                        return;
-                    }
-                    
-                    // Cargar ajustes desde la base de datos
-                    const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
-                    console.log(' Ajustes cargados desde base de datos:', dbAdjustments.length);
-                    
-                    // Convertir ajustes de la base de datos al formato local
-                    const convertedAdjustments = dbAdjustments.map(adj => ({
-                        id: adj.id,
-                        tipo: adj.adjustment_type,
-                        moneda: adj.moneda,
-                        monto: adj.monto,
-                        descripcion: adj.descripcion,
-                        htmlContenido: adj.html_contenido,
-                        adjuntos: adj.adjuntos,
-                        creado: adj.created_at,
-                        modificado: adj.updated_at,
-                        detalles: adj.meta?.detalles || []
-                    }));
-                    
-                    // Si hay ajustes en la base de datos, actualizar el localStorage
-                    if (convertedAdjustments.length > 0) {
-                        const currentData = {
-                            ajustes: convertedAdjustments,
-                            lastModified: new Date().toISOString()
-                        };
-                        
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
-                        
-                        // Recargar los ajustes en la aplicación
-                        if (typeof loadAjustes === 'function') {
-                            loadAjustes();
-                        }
-                        
-                        console.log(' Ajustes sincronizados y UI actualizada');
-                    }
-                } else {
-                    console.log(' Función de base de datos no disponible para ajustes');
+                if (!window.getFinancialAdjustments) {
+                    console.warn('⚠️ getFinancialAdjustments no disponible');
+                    return;
+                }
+
+                const isConnected = await window.checkDatabaseConnection();
+                if (!isConnected) {
+                    console.warn('⚠️ Sin conexión a la base de datos');
+                    return;
                 }
                 
+                // Recargar los ajustes desde la base de datos
+                if (typeof loadAjustes === 'function') {
+                    await loadAjustes();
+                    console.log('✅ Ajustes recargados desde base de datos');
+                }
             } catch (error) {
-                console.error(' Error en sincronización de ajustes con base de datos:', error);
+                console.error('❌ Error sincronizando ajustes con base de datos:', error);
             }
         }
 

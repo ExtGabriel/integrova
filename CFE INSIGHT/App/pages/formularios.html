@@ -4666,85 +4666,37 @@
             }
         }
 
-        // Re-render la tabla de cuentas cuando cambian los ajustes locales
-        document.addEventListener('localAdjustmentsUpdated', async () => {
-            // Si no hay cuentas en caché, cargarlas primero
-            if (!cachedAccounts.length) {
-                console.log('🔄 Cargando cuentas para actualizar con ajustes...');
-                await loadCuentasFromLatestExcel();
-                return; // loadCuentasFromLatestExcel ya renderiza la tabla con los ajustes
-            }
-
-            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-            const rows = buildAccountRows(cachedAccounts, cachedLedgerMap, cachedLedgerAvailable, localAdjustmentsMap);
-            renderAccountTable(rows, cachedLedgerAvailable);
-        });
-
-        // Re-render la tabla de grupos financieros cuando cambien los ajustes locales
-        document.addEventListener('localAdjustmentsUpdated', async () => {
-            if (!cachedGruposFinancierosRows.length) return;
-
-            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-            if (!cachedFinancialGroupStructure && currentDatasetId) {
-                cachedFinancialGroupStructure = await loadFinancialGroupStructure(currentDatasetId);
-            }
-
-            if (!cachedAssignments.length && currentDatasetId) {
-                cachedAssignments = await loadAssignmentsForDataset(currentDatasetId);
-            }
-
-            const rows = buildGruposFinancierosRows(
-                cachedFinancialGroupStructure,
-                cachedAssignments,
-                cachedLedgerMap,
-                cachedLedgerAvailable,
-                localAdjustmentsMap
-            );
-            cachedGruposFinancierosRows = rows;
-            renderGruposFinancieros(rows, cachedLedgerMeta);
-
-            // Guardar resultados calculados en la base de datos
-            if (window.saveFinancialGroupsResults && currentDatasetId && rows.length > 0) {
+        // Re-render todas las tablas cuando se actualizan ajustes en la base de datos
+        document.addEventListener('databaseAdjustmentsUpdated', async () => {
+            console.log('🔄 Actualizando todas las tablas desde base de datos...');
+            
+            // Actualizar cuentas
+            const cuentasSection = document.getElementById('cuentasSection');
+            if (cuentasSection && cuentasSection.style.display !== 'none') {
                 try {
-                    console.log('Guardando resultados de grupos financieros en base de datos...');
-                    const convertedRows = rows.map(row => ({
-                        accountName: row.accountName || '',
-                        accountCode: row.accountCode || '',
-                        preliminary: row.preliminary || 0,
-                        adjustments: row.adjustments || 0,
-                        finalCurrent: row.finalCurrent || 0,
-                        finalPrevious: row.finalPrevious || 0,
-                        level: row.level || 0,
-                        isParent: row.isParent || false,
-                        rowId: row.rowId || '',
-                        parentId: row.parentId || '',
-                        hasChildren: row.hasChildren || false,
-                        ledgerMissing: row.ledgerMissing || false
-                    }));
-                    
-                    const currentEntity = commitmentDropdownState.currentEntityId;
-                    const currentCommitment = commitmentDropdownState.selectedCommitmentId;
-                    const result = await saveFinancialGroupsResults(currentDatasetId, convertedRows, 'completed', currentEntity, currentCommitment);
-                    console.log('Resultados de grupos financieros guardados:', result);
+                    if (typeof loadCuentasFromLatestExcel === 'function') {
+                        await loadCuentasFromLatestExcel({ forceReload: true });
+                    }
                 } catch (error) {
-                    console.warn('Error guardando resultados de grupos financieros en base de datos:', error);
+                    console.warn('⚠️ Error actualizando cuentas:', error);
                 }
             }
-        });
-
-        // Re-render la tabla de integridad del libro mayor cuando cambian los ajustes locales
-        document.addEventListener('localAdjustmentsUpdated', async () => {
-            // Solo actualizar si la sección está visible y tiene datos
-            const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
-            if (!ledgerIntegritySection || ledgerIntegritySection.style.display === 'none') return;
             
-            try {
-                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
-                renderLedgerIntegrity(rows, meta);
-                console.log('✅ Integridad del libro mayor actualizada con ajustes');
-            } catch (error) {
-                console.warn('⚠️ Error actualizando integridad del libro mayor:', error);
+            // Actualizar grupos financieros
+            if (typeof loadGruposFinancierosFromLatestExcel === 'function') {
+                await loadGruposFinancierosFromLatestExcel({ forceReload: true });
+            }
+            
+            // Actualizar integridad del libro mayor
+            const ledgerIntegritySection = document.getElementById('ledgerIntegritySection');
+            if (ledgerIntegritySection && ledgerIntegritySection.style.display !== 'none') {
+                try {
+                    if (typeof loadLedgerIntegrityFromLatestExcel === 'function') {
+                        await loadLedgerIntegrityFromLatestExcel({ forceReload: true });
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Error actualizando integridad del libro mayor:', error);
+                }
             }
         });
 
@@ -5462,27 +5414,25 @@
             const assignmentsByGroup = new Map();
             const assignmentsByParent = new Map();
 
-            // Solo procesar asignaciones si hay ledger disponible para complementar
-            if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
-                assignmentsArray.forEach(assignment => {
-                    const groupId = (assignment.groupContentId || '').toString().trim();
-                    if (groupId) {
-                        if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
-                        assignmentsByGroup.get(groupId).push(assignment);
-                    }
+            // Procesar asignaciones siempre, independientemente de si hay ledger o no
+            assignmentsArray.forEach(assignment => {
+                const groupId = (assignment.groupContentId || '').toString().trim();
+                if (groupId) {
+                    if (!assignmentsByGroup.has(groupId)) assignmentsByGroup.set(groupId, []);
+                    assignmentsByGroup.get(groupId).push(assignment);
+                }
 
-                    const parentId = (assignment.parentAccountId || '').toString().trim();
-                    if (parentId) {
-                        if (!assignmentsByParent.has(parentId)) assignmentsByParent.set(parentId, []);
-                        assignmentsByParent.get(parentId).push(assignment);
-                    }
-                });
+                const parentId = (assignment.parentAccountId || '').toString().trim();
+                if (parentId) {
+                    if (!assignmentsByParent.has(parentId)) assignmentsByParent.set(parentId, []);
+                    assignmentsByParent.get(parentId).push(assignment);
+                }
+            });
 
-                assignmentsByGroup.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
-                assignmentsByParent.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
-            } else {
-                console.log('🔍 Sin datos de ledger, ignorando asignaciones');
-            }
+            assignmentsByGroup.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+            assignmentsByParent.forEach(list => list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+            
+            console.log('🔍 Asignaciones procesadas:', assignmentsByGroup.size, 'grupos,', assignmentsArray.length, 'asignaciones totales');
 
             const rows = [];
             let rowCounter = 0;
@@ -5863,6 +5813,22 @@
                 finalPrevious: totalFinalPrevious,
                 finalCurrent: totalPreliminary + totalAdjustments
             });
+            
+            // LOGGING ESPECÍFICO: Mostrar grupos con ajustes para depuración
+            console.log('🔍 Grupos con ajustes:');
+            rows.filter(row => (row.adjustments || 0) !== 0).forEach(row => {
+                console.log(`  ${row.accountName}: adjustments=${row.adjustments}, finalCurrent=${row.finalCurrent}`);
+            });
+            
+            // LOGGING DE AJUSTES LOCALES
+            console.log('🔍 Ajustes locales aplicados:');
+            if (adjustmentMap && adjustmentMap.size > 0) {
+                for (const [key, value] of adjustmentMap.entries()) {
+                    console.log(`  ${key}: ${value}`);
+                }
+            } else {
+                console.log('  No hay ajustes locales definidos');
+            }
             
             // Mostrar algunas filas de ejemplo
             const sampleRows = rows.slice(0, 3);
@@ -9206,6 +9172,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Recargar Grupos Financieros
             reloadGruposFinancieros() {
+                
                 dataLoadState.gruposFinancieros = false;
                 if (typeof loadGruposFinancierosFromLatestExcel === 'function') {
                     loadGruposFinancierosFromLatestExcel();
