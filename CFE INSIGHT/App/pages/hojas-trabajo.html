@@ -1643,149 +1643,958 @@
         }
         
         function addGroupFigures(row, groupName, areaCode) {
-            // Limpiar todas las celdas de cifras primero
-            const debeCells = row.querySelectorAll('.col-debe');
-            const haberCells = row.querySelectorAll('.col-haber');
+            // Limpiar solo las celdas de cifras, NO el código del grupo
+            const amountCells = row.querySelectorAll('.col-amount');
+            const allRefCells = row.querySelectorAll('.col-ref');
+            const variationCells = row.querySelectorAll('.col-variation');
+            const variationPctCells = row.querySelectorAll('.col-variation-pct');
             
-            debeCells.forEach(cell => cell.textContent = '');
-            haberCells.forEach(cell => cell.textContent = '');
+            amountCells.forEach(cell => cell.textContent = '');
             
-            // Agregar cifras de ejemplo según el tipo de grupo
-            const figures = getGroupFigures(groupName, areaCode);
+            // Limpiar solo la SEGUNDA columna Ref (índice 1), mantener la primera (índice 0) con el código
+            if (allRefCells.length > 1) {
+                allRefCells[1].textContent = '';  // Segunda Ref
+            }
             
-            if (figures) {
-                // Columna 1: Ref (ya está llena)
-                // Columna 2: Descripción (ya está llena)
+            variationCells.forEach(cell => cell.textContent = '');
+            variationPctCells.forEach(cell => cell.textContent = '');
+            
+            // Obtener datos del libro mayor para este grupo (ahora asíncrono)
+            getLedgerDataForGroupAsync(groupName, areaCode).then(ledgerData => {
+                console.log('=== DATOS RECIBIDOS EN addGroupFigures ===');
+                console.log('ledgerData:', ledgerData);
                 
-                // Columnas 3-14: DEBE/HABER para diferentes períodos
-                if (figures.col3_debe) row.querySelector('.col-debe:nth-of-type(1)').textContent = figures.col3_debe;
-                if (figures.col3_haber) row.querySelector('.col-haber:nth-of-type(1)').textContent = figures.col3_haber;
-                if (figures.col4_debe) row.querySelector('.col-debe:nth-of-type(2)').textContent = figures.col4_debe;
-                if (figures.col4_haber) row.querySelector('.col-haber:nth-of-type(2)').textContent = figures.col4_haber;
-                if (figures.col5_debe) row.querySelector('.col-debe:nth-of-type(3)').textContent = figures.col5_debe;
-                if (figures.col5_haber) row.querySelector('.col-haber:nth-of-type(3)').textContent = figures.col5_haber;
-                if (figures.col6_debe) row.querySelector('.col-debe:nth-of-type(4)').textContent = figures.col6_debe;
-                if (figures.col6_haber) row.querySelector('.col-haber:nth-of-type(4)').textContent = figures.col6_haber;
-                if (figures.col7_debe) row.querySelector('.col-debe:nth-of-type(5)').textContent = figures.col7_debe;
-                if (figures.col7_haber) row.querySelector('.col-haber:nth-of-type(5)').textContent = figures.col7_haber;
-                if (figures.col8_debe) row.querySelector('.col-debe:nth-of-type(6)').textContent = figures.col8_debe;
-                if (figures.col8_haber) row.querySelector('.col-haber:nth-of-type(6)').textContent = figures.col8_haber;
+                if (ledgerData) {
+                    // Columna 1: Descripción (ya está llena)
+                    // Columna 2: Ref (ya está llena con el código)
+                    
+                    // Columna 3: Año actual - Saldo del período actual del libro mayor
+                    const currentYearCell = row.querySelector('td:nth-child(3)');
+                    if (currentYearCell && ledgerData.saldoPeriodoActual !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.saldoPeriodoActual);
+                        currentYearCell.textContent = formattedValue;
+                        console.log(`✅ Año actual aplicado: ${ledgerData.saldoPeriodoActual} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar año actual - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 4: Ajustes (dejar vacío por ahora)
+                    const adjustmentsCell = row.querySelector('td:nth-child(4)');
+                    if (adjustmentsCell) {
+                        adjustmentsCell.textContent = '';
+                    }
+                    
+                    // Columna 5: Ref (segunda ref - ya está vacía)
+                    
+                    // Columna 6: Año anterior - Saldo del período anterior del libro mayor
+                    const previousYearCell = row.querySelector('td:nth-child(6)');
+                    if (previousYearCell && ledgerData.saldoPeriodoAnterior !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.saldoPeriodoAnterior);
+                        previousYearCell.textContent = formattedValue;
+                        console.log(`✅ Año anterior aplicado: ${ledgerData.saldoPeriodoAnterior} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar año anterior - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 7: Variación - Diferencia del libro mayor
+                    const variationCell = row.querySelector('.col-variation');
+                    if (variationCell && ledgerData.diferencia !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.diferencia);
+                        variationCell.textContent = formattedValue;
+                        console.log(`✅ Variación aplicada: ${ledgerData.diferencia} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar variación - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 8: Variación % - Calcular porcentaje
+                    const variationPctCell = row.querySelector('.col-variation-pct');
+                    if (variationPctCell) {
+                        // Siempre calcular usando la función para asegurar formato correcto
+                        const variationPct = calculateVariationPercentage(ledgerData.saldoPeriodoActual, ledgerData.saldoPeriodoAnterior);
+                        variationPctCell.textContent = variationPct;
+                        console.log(`✅ Variación % aplicada: ${variationPct}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar variación % - celda no encontrada');
+                    }
+                    
+                    console.log(`✅ Datos del libro mayor aplicados para ${groupName}:`, ledgerData);
+                } else {
+                    // Si no hay datos del libro mayor, usar valores de ejemplo
+                    console.log(`❌ No se encontraron datos del libro mayor para ${groupName}, usando valores de ejemplo`);
+                    applyExampleFigures(row, groupName);
+                }
+            }).catch(error => {
+                console.error('Error en getLedgerDataForGroupAsync:', error);
+                console.log(`❌ Error al obtener datos, usando valores de ejemplo para ${groupName}`);
+                applyExampleFigures(row, groupName);
+            });
+        }
+        
+        async function getLedgerDataForGroupAsync(groupName, areaCode) {
+            console.log('=== INICIO getLedgerDataForGroupAsync ===');
+            console.log(`Buscando datos del libro mayor para: ${groupName} (código: ${areaCode})`);
+            
+            // Verificar qué hay disponible en diferentes posibles ubicaciones
+            console.log('window.currentExcelData:', typeof window.currentExcelData, !!window.currentExcelData);
+            console.log('localStorage currentExcelData:', !!localStorage.getItem('currentExcelData'));
+            console.log('window.excelData:', typeof window.excelData, !!window.excelData);
+            console.log('localStorage excelData:', !!localStorage.getItem('excelData'));
+            console.log('window.trialBalanceData:', typeof window.trialBalanceData, !!window.trialBalanceData);
+            console.log('localStorage trialBalance:', !!localStorage.getItem('trialBalance'));
+            
+            // Buscar datos de asignación de cuentas que podrían tener el balance de prueba
+            const assignedAccounts = localStorage.getItem('assigned_accounts_v1_' + (window.currentUser?.id || 'null'));
+            console.log('localStorage assigned_accounts:', !!assignedAccounts);
+            
+            if (assignedAccounts) {
+                try {
+                    const parsed = JSON.parse(assignedAccounts);
+                    console.log('Estructura de assigned_accounts:', typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                } catch (e) {
+                    console.log('Error parsing assigned_accounts:', e);
+                }
+            }
+            
+            // Buscar en otras posibles claves de localStorage
+            const possibleKeys = [
+                'excel_data', 'balance_data', 'trial_balance_data', 'ledger_data',
+                'current_dataset', 'dataset_data', 'financial_data', 'accounting_data',
+                'balance_sheet', 'income_statement', 'worksheet_data'
+            ];
+            
+            console.log('=== BUSCANDO EN OTRAS KEYS DE LOCALSTORAGE ===');
+            possibleKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    console.log(`✅ Encontrado ${key}:`, !!data);
+                    try {
+                        const parsed = JSON.parse(data);
+                        console.log(`Estructura de ${key}:`, typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                        
+                        // Si tiene trial balance o accounts, usar estos datos
+                        if (parsed.trialBalance || parsed.accounts || parsed.data) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN ${key}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, parsed);
+                        }
+                    } catch (e) {
+                        console.log(`Error parsing ${key}:`, e);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: ${key}`);
+                }
+            });
+            
+            // Buscar variables globales que podrían existir
+            console.log('=== BUSCANDO VARIABLES GLOBALES ===');
+            const globalVars = [
+                'excelData', 'balanceData', 'trialBalanceData', 'ledgerData',
+                'currentDataset', 'datasetData', 'financialData', 'accountingData',
+                'formData', 'worksheetData', 'currentEntityData'
+            ];
+            
+            globalVars.forEach(varName => {
+                if (typeof window[varName] !== 'undefined') {
+                    console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                    if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                        console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                        return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: window.${varName}`);
+                }
+            });
+            
+            // Buscar en el objeto formDataManager si existe
+            if (typeof window.formDataManager !== 'undefined' && window.formDataManager) {
+                console.log('✅ Encontrado formDataManager');
+                console.log('Métodos disponibles:', Object.getOwnPropertyNames(window.formDataManager));
+                
+                // Intentar obtener datos a través de formDataManager
+                if (typeof window.formDataManager.getCurrentData === 'function') {
+                    const data = window.formDataManager.getCurrentData();
+                    console.log('formDataManager.getCurrentData():', !!data);
+                    if (data && (data.trialBalance || data.accounts || data.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS EN formDataManager!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, data);
+                    }
+                }
+            } else {
+                console.log('❌ No encontrado: formDataManager');
+            }
+            
+            // ÚLTIMO INTENTO: Obtener datos desde la página de formularios
+            console.log('=== INTENTANDO OBTENER DATOS DESDE FORMULARIOS ===');
+            try {
+                // Intentar acceder a las funciones de formularios.html
+                if (window.parent && window.parent.getLedgerDataFromLatestExcel) {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel en parent');
+                    const apiData = window.parent.getLedgerDataFromLatestExcel();
+                    console.log('Datos desde parent:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE PARENT!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else if (typeof getLedgerDataFromLatestExcel === 'function') {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel local');
+                    const apiData = getLedgerDataFromLatestExcel();
+                    console.log('Datos desde API local:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE API LOCAL!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getLedgerDataFromLatestExcel');
+                }
+                
+                // Intentar con las variables globales que usa formularios.html
+                const formulariosVars = [
+                    'currentExcelData', 'excelDataset', 'trialBalanceData', 
+                    'ledgerData', 'balanceData', 'currentDataset'
+                ];
+                
+                // Buscar en window.parent (si formularios.html es el padre)
+                if (window.parent) {
+                    console.log('Buscando en window.parent...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.parent[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado parent.${varName}:`, typeof window.parent[varName], !!window.parent[varName]);
+                            if (window.parent[varName] && (window.parent[varName].trialBalance || window.parent[varName].accounts || window.parent[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN parent.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.parent[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Buscar en window actual
+                console.log('Buscando en window actual...');
+                formulariosVars.forEach(varName => {
+                    if (typeof window[varName] !== 'undefined') {
+                        console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                        if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                        }
+                    }
+                });
+                
+                // Intentar acceder a través de opener si es una ventana emergente
+                if (window.opener) {
+                    console.log('Buscando en window.opener...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.opener[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado opener.${varName}:`, typeof window.opener[varName], !!window.opener[varName]);
+                            if (window.opener[varName] && (window.opener[varName].trialBalance || window.opener[varName].accounts || window.opener[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN opener.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.opener[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Intentar obtener datos de grupos financieros procesados
+                console.log('=== BUSCANDO GRUPOS FINANCIEROS PROCESADOS ===');
+                try {
+                    // Obtener el ID del dataset actual
+                    const datasetId = getLastAssignmentsDatasetId();
+                    console.log('DatasetId para grupos:', datasetId);
+                    
+                    // Cargar grupos financieros desde la base de datos
+                    if (typeof window.getFinancialGroups === 'function') {
+                        const groups = await window.getFinancialGroups(datasetId);
+                        console.log('Grupos financieros encontrados:', groups.length);
+                        
+                        if (groups && groups.length > 0) {
+                            // Buscar el grupo específico por nombre o código
+                            let targetGroup = null;
+                            
+                            // Buscar por código exacto
+                            if (areaCode) {
+                                targetGroup = groups.find(group => 
+                                    group.accountCode === areaCode || 
+                                    group.accountCode === areaCode.toString() ||
+                                    group.code === areaCode
+                                );
+                                console.log(`Búsqueda por código ${areaCode}:`, !!targetGroup);
+                            }
+                            
+                            // Buscar por nombre
+                            if (!targetGroup) {
+                                targetGroup = groups.find(group => {
+                                    const name = group.accountName || group.name || '';
+                                    return name.toLowerCase().includes(groupName.toLowerCase()) ||
+                                           groupName.toLowerCase().includes(name.toLowerCase());
+                                });
+                                console.log(`Búsqueda por nombre ${groupName}:`, !!targetGroup);
+                            }
+                            
+                            if (targetGroup) {
+                                console.log('🎯 GRUPO FINANCIERO ENCONTRADO:', targetGroup);
+                                
+                                // Extraer los datos del grupo
+                                const currentBalance = parseFloat(targetGroup.currentBalance || targetGroup.saldo_actual || 0);
+                                const previousBalance = parseFloat(targetGroup.previousBalance || targetGroup.saldo_anterior || 0);
+                                const difference = currentBalance - previousBalance;
+                                
+                                return {
+                                    saldoPeriodoActual: currentBalance,
+                                    saldoPeriodoAnterior: previousBalance,
+                                    diferencia: difference,
+                                    importeTotalLibroMayor: 0,
+                                    saldoCalculado: currentBalance,
+                                    variationPct: previousBalance !== 0 ? ((currentBalance - previousBalance) / Math.abs(previousBalance)) * 100 : 0
+                                };
+                            } else {
+                                console.log('❌ Grupo no encontrado en grupos financieros');
+                            }
+                        } else {
+                            console.log('❌ No hay grupos financieros disponibles');
+                        }
+                    } else {
+                        console.log('❌ getFinancialGroups no está disponible');
+                    }
+                } catch (error) {
+                    console.log('Error obteniendo grupos financieros:', error);
+                }
+                
+                // Si no encuentra grupos, intentar con Excel como fallback
+                console.log('=== FALLBACK: BUSCANDO EN EXCEL ===');
+                if (typeof getExcelData === 'function') {
+                    console.log('✅ Encontrada función getExcelData');
+                    console.log('Intentando obtener datos con entity/commitment context...');
+                    
+                    // Obtener IDs de entidad y compromiso actuales
+                    const entityId = window.currentEntity?.id || window.currentEntityId || 
+                                    (window.formDataManager && window.formDataManager.currentEntity?.id);
+                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId || 
+                                      (window.formDataManager && window.formDataManager.currentCommitment?.id);
+                    
+                    console.log('Contexto - Entity ID:', entityId, 'Commitment ID:', commitmentId);
+                    
+                    const excelData = await getExcelData(null, entityId, commitmentId);
+                    console.log('Datos desde getExcelData:', !!excelData);
+                    console.log('Estructura completa:', Object.keys(excelData || {}));
+                    
+                    if (excelData && excelData.sheets_data && excelData.sheets_data.length > 0) {
+                        console.log('🎯 DATOS ENCONTRADOS EN sheets_data!');
+                        console.log('Primera hoja:', excelData.sheets_data[0]);
+                        
+                        // Extraer el balance de prueba de sheets_data
+                        const trialBalanceSheet = excelData.sheets_data.find(sheet => 
+                            sheet.name && (
+                                sheet.name.toLowerCase().includes('balance') ||
+                                sheet.name.toLowerCase().includes('trial') ||
+                                sheet.name.toLowerCase().includes('mayor') ||
+                                sheet.name.toLowerCase().includes('cuentas')
+                            )
+                        ) || excelData.sheets_data[0]; // Usar la primera si no encuentra específica
+                        
+                        console.log('Hoja de balance encontrada:', trialBalanceSheet.name);
+                        
+                        // Construir estructura compatible
+                        const processedData = {
+                            trialBalance: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                            accounts: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                            data: trialBalanceSheet.data || trialBalanceSheet.rows || []
+                        };
+                        
+                        console.log('Datos procesados:', processedData);
+                        return getLedgerDataFromExcelData(groupName, areaCode, processedData);
+                    } else if (excelData && excelData.success && excelData.data) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData!');
+                        console.log('Estructura de datos:', Object.keys(excelData.data));
+                        return getLedgerDataFromExcelData(groupName, areaCode, excelData.data);
+                    } else if (excelData && (excelData.trialBalance || excelData.accounts || excelData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData (formato directo)!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getExcelData');
+                }
+                
+            } catch (error) {
+                console.log('Error al obtener datos desde API:', error);
+            }
+            
+            // Si no hay datos reales, devolver null para que use applyExampleFigures
+            console.log('Devolviendo null - se usarán datos de ejemplo');
+            return null;
+        }
+        
+        function getLedgerDataForGroup(groupName, areaCode) {
+            console.log('=== INICIO getLedgerDataForGroup ===');
+            console.log(`Buscando datos del libro mayor para: ${groupName} (código: ${areaCode})`);
+            
+            // Verificar qué hay disponible en diferentes posibles ubicaciones
+            console.log('window.currentExcelData:', typeof window.currentExcelData, !!window.currentExcelData);
+            console.log('localStorage currentExcelData:', !!localStorage.getItem('currentExcelData'));
+            console.log('window.excelData:', typeof window.excelData, !!window.excelData);
+            console.log('localStorage excelData:', !!localStorage.getItem('excelData'));
+            console.log('window.trialBalanceData:', typeof window.trialBalanceData, !!window.trialBalanceData);
+            console.log('localStorage trialBalance:', !!localStorage.getItem('trialBalance'));
+            
+            // Buscar datos de asignación de cuentas que podrían tener el balance de prueba
+            const assignedAccounts = localStorage.getItem('assigned_accounts_v1_' + (window.currentUser?.id || 'null'));
+            console.log('localStorage assigned_accounts:', !!assignedAccounts);
+            
+            if (assignedAccounts) {
+                try {
+                    const parsed = JSON.parse(assignedAccounts);
+                    console.log('Estructura de assigned_accounts:', typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                } catch (e) {
+                    console.log('Error parsing assigned_accounts:', e);
+                }
+            }
+            
+            // Buscar en otras posibles claves de localStorage
+            const possibleKeys = [
+                'excel_data', 'balance_data', 'trial_balance_data', 'ledger_data',
+                'current_dataset', 'dataset_data', 'financial_data', 'accounting_data',
+                'balance_sheet', 'income_statement', 'worksheet_data'
+            ];
+            
+            console.log('=== BUSCANDO EN OTRAS KEYS DE LOCALSTORAGE ===');
+            possibleKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    console.log(`✅ Encontrado ${key}:`, !!data);
+                    try {
+                        const parsed = JSON.parse(data);
+                        console.log(`Estructura de ${key}:`, typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                        
+                        // Si tiene trial balance o accounts, usar estos datos
+                        if (parsed.trialBalance || parsed.accounts || parsed.data) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN ${key}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, parsed);
+                        }
+                    } catch (e) {
+                        console.log(`Error parsing ${key}:`, e);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: ${key}`);
+                }
+            });
+            
+            // Buscar variables globales que podrían existir
+            console.log('=== BUSCANDO VARIABLES GLOBALES ===');
+            const globalVars = [
+                'excelData', 'balanceData', 'trialBalanceData', 'ledgerData',
+                'currentDataset', 'datasetData', 'financialData', 'accountingData',
+                'formData', 'worksheetData', 'currentEntityData'
+            ];
+            
+            globalVars.forEach(varName => {
+                if (typeof window[varName] !== 'undefined') {
+                    console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                    if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                        console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                        return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: window.${varName}`);
+                }
+            });
+            
+            // Buscar en el objeto formDataManager si existe
+            if (typeof window.formDataManager !== 'undefined' && window.formDataManager) {
+                console.log('✅ Encontrado formDataManager');
+                console.log('Métodos disponibles:', Object.getOwnPropertyNames(window.formDataManager));
+                
+                // Intentar obtener datos a través de formDataManager
+                if (typeof window.formDataManager.getCurrentData === 'function') {
+                    const data = window.formDataManager.getCurrentData();
+                    console.log('formDataManager.getCurrentData():', !!data);
+                    if (data && (data.trialBalance || data.accounts || data.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS EN formDataManager!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, data);
+                    }
+                }
+            } else {
+                console.log('❌ No encontrado: formDataManager');
+            }
+            
+            // ÚLTIMO INTENTO: Obtener datos desde la página de formularios
+            console.log('=== INTENTANDO OBTENER DATOS DESDE FORMULARIOS ===');
+            try {
+                // Intentar acceder a las funciones de formularios.html
+                if (window.parent && window.parent.getLedgerDataFromLatestExcel) {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel en parent');
+                    const apiData = window.parent.getLedgerDataFromLatestExcel();
+                    console.log('Datos desde parent:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE PARENT!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else if (typeof getLedgerDataFromLatestExcel === 'function') {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel local');
+                    const apiData = getLedgerDataFromLatestExcel();
+                    console.log('Datos desde API local:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE API LOCAL!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getLedgerDataFromLatestExcel');
+                }
+                
+                // Intentar con las variables globales que usa formularios.html
+                const formulariosVars = [
+                    'currentExcelData', 'excelDataset', 'trialBalanceData', 
+                    'ledgerData', 'balanceData', 'currentDataset'
+                ];
+                
+                // Buscar en window.parent (si formularios.html es el padre)
+                if (window.parent) {
+                    console.log('Buscando en window.parent...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.parent[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado parent.${varName}:`, typeof window.parent[varName], !!window.parent[varName]);
+                            if (window.parent[varName] && (window.parent[varName].trialBalance || window.parent[varName].accounts || window.parent[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN parent.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.parent[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Buscar en window actual
+                console.log('Buscando en window actual...');
+                formulariosVars.forEach(varName => {
+                    if (typeof window[varName] !== 'undefined') {
+                        console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                        if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                        }
+                    }
+                });
+                
+                // Intentar acceder a través de opener si es una ventana emergente
+                if (window.opener) {
+                    console.log('Buscando en window.opener...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.opener[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado opener.${varName}:`, typeof window.opener[varName], !!window.opener[varName]);
+                            if (window.opener[varName] && (window.opener[varName].trialBalance || window.opener[varName].accounts || window.opener[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN opener.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.opener[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Intentar usar database-api con el endpoint correcto
+                if (typeof getExcelData === 'function') {
+                    console.log('✅ Encontrada función getExcelData');
+                    console.log('Intentando obtener datos con entity/commitment context...');
+                    
+                    // Obtener IDs de entidad y compromiso actuales
+                    const entityId = window.currentEntity?.id || window.currentEntityId || 
+                                    (window.formDataManager && window.formDataManager.currentEntity?.id);
+                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId || 
+                                      (window.formDataManager && window.formDataManager.currentCommitment?.id);
+                    
+                    console.log('Contexto - Entity ID:', entityId, 'Commitment ID:', commitmentId);
+                    
+                    getExcelData(null, entityId, commitmentId)
+                        .then(excelData => {
+                            console.log('Datos desde getExcelData:', !!excelData);
+                            console.log('Estructura completa:', Object.keys(excelData || {}));
+                            
+                            if (excelData && excelData.sheets_data && excelData.sheets_data.length > 0) {
+                                console.log('🎯 DATOS ENCONTRADOS EN sheets_data!');
+                                console.log('Primera hoja:', excelData.sheets_data[0]);
+                                
+                                // Extraer el balance de prueba de sheets_data
+                                const trialBalanceSheet = excelData.sheets_data.find(sheet => 
+                                    sheet.name && (
+                                        sheet.name.toLowerCase().includes('balance') ||
+                                        sheet.name.toLowerCase().includes('trial') ||
+                                        sheet.name.toLowerCase().includes('mayor') ||
+                                        sheet.name.toLowerCase().includes('cuentas')
+                                    )
+                                ) || excelData.sheets_data[0]; // Usar la primera si no encuentra específica
+                                
+                                console.log('Hoja de balance encontrada:', trialBalanceSheet.name);
+                                
+                                // Construir estructura compatible
+                                const processedData = {
+                                    trialBalance: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                                    accounts: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                                    data: trialBalanceSheet.data || trialBalanceSheet.rows || []
+                                };
+                                
+                                console.log('Datos procesados:', processedData);
+                                return getLedgerDataFromExcelData(groupName, areaCode, processedData);
+                            } else if (excelData && excelData.success && excelData.data) {
+                                console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData!');
+                                console.log('Estructura de datos:', Object.keys(excelData.data));
+                                return getLedgerDataFromExcelData(groupName, areaCode, excelData.data);
+                            } else if (excelData && (excelData.trialBalance || excelData.accounts || excelData.data)) {
+                                console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData (formato directo)!');
+                                return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                            }
+                        })
+                        .catch(error => {
+                            console.log('Error en getExcelData:', error);
+                        });
+                } else {
+                    console.log('❌ No encontrada función getExcelData');
+                }
+                
+            } catch (error) {
+                console.log('Error al obtener datos desde API:', error);
+            }
+            
+            // Intentar obtener datos del libro mayor real del Excel cargado
+            try {
+                // Verificar si hay datos del Excel disponibles globalmente
+                if (typeof window.currentExcelData !== 'undefined' && window.currentExcelData) {
+                    console.log('Usando datos del Excel cargado');
+                    const result = getLedgerDataFromExcel(groupName, areaCode);
+                    console.log('Resultado de getLedgerDataFromExcel:', result);
+                    return result;
+                }
+                
+                // Verificar si hay datos en localStorage
+                const storedData = localStorage.getItem('currentExcelData');
+                if (storedData) {
+                    console.log('Usando datos del Excel desde localStorage');
+                    const excelData = JSON.parse(storedData);
+                    const result = getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                    console.log('Resultado de getLedgerDataFromExcelData:', result);
+                    return result;
+                }
+                
+                console.log('No se encontraron datos del Excel, usando datos de ejemplo');
+            } catch (error) {
+                console.error('Error al obtener datos del libro mayor:', error);
+            }
+            
+            // Si no hay datos reales, devolver null para que use applyExampleFigures
+            console.log('Devolviendo null - se usarán datos de ejemplo');
+            return null;
+        }
+        
+        function getLedgerDataFromExcel(groupName, areaCode) {
+            // Buscar la cuenta correspondiente en los datos del Excel
+            const excelData = window.currentExcelData;
+            return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+        }
+        
+        function getLedgerDataFromExcelData(groupName, areaCode, excelData) {
+            console.log('=== DEBUGGING DATOS EXCEL ===');
+            console.log('Estructura de excelData:', Object.keys(excelData || {}));
+            
+            if (!excelData) {
+                console.log('No hay datos del Excel');
+                return null;
+            }
+            
+            // Verificar qué datos están disponibles
+            if (excelData.trialBalance) {
+                console.log('Se encontró trialBalance con', excelData.trialBalance.length, 'cuentas');
+                console.log('Primera cuenta de ejemplo:', excelData.trialBalance[0]);
+            } else if (excelData.accounts) {
+                console.log('Se encontró accounts con', excelData.accounts.length, 'cuentas');
+                console.log('Primera cuenta de ejemplo:', excelData.accounts[0]);
+            } else {
+                console.log('No se encontró trialBalance ni accounts. Keys disponibles:', Object.keys(excelData));
+            }
+            
+            // Buscar en diferentes posibles estructuras
+            let accountsData = excelData.trialBalance || excelData.accounts || [];
+            let targetAccount = null;
+            
+            console.log(`Buscando cuenta para: ${groupName} (${areaCode})`);
+            
+            // Verificar si los datos están en formato de array (como en el ejemplo)
+            if (accountsData.length > 0 && Array.isArray(accountsData[0])) {
+                console.log('Datos en formato de array detectados');
+                
+                // El primer array probablemente contiene los encabezados
+                const headers = accountsData[0];
+                console.log('Encabezados:', headers);
+                
+                // Buscar índices de columnas importantes
+                const accountNameIndex = headers.findIndex(h => 
+                    h && (h.toString().toLowerCase().includes('cuenta') || 
+                         h.toString().toLowerCase().includes('name') ||
+                         h.toString().toLowerCase().includes('descripcion'))
+                );
+                
+                const accountNumberIndex = headers.findIndex(h => 
+                    h && (h.toString().toLowerCase().includes('numero') || 
+                         h.toString().toLowerCase().includes('código') ||
+                         h.toString().toLowerCase().includes('code'))
+                );
+                
+                // Identificar columnas de saldo por posición (últimas 2 columnas numéricas)
+                let previousBalanceIndex = -1;
+                let currentBalanceIndex = -1;
+                
+                // Buscar las últimas 2 columnas que contienen números (saldos)
+                for (let i = headers.length - 1; i >= 0; i--) {
+                    const header = headers[i];
+                    // Si es un número grande (probablemente un año o saldo)
+                    if (typeof header === 'number' && header > 1000) {
+                        if (currentBalanceIndex === -1) {
+                            currentBalanceIndex = i;
+                        } else if (previousBalanceIndex === -1) {
+                            previousBalanceIndex = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // Si no encuentra por números, intentar por texto
+                if (previousBalanceIndex === -1) {
+                    previousBalanceIndex = headers.findIndex(h => 
+                        h && (h.toString().toLowerCase().includes('anterior') || 
+                             h.toString().toLowerCase().includes('previo') ||
+                             h.toString().toLowerCase().includes('2023'))
+                    );
+                }
+                
+                if (currentBalanceIndex === -1) {
+                    currentBalanceIndex = headers.findIndex(h => 
+                        h && (h.toString().toLowerCase().includes('actual') || 
+                             h.toString().toLowerCase().includes('2024'))
+                    );
+                }
+                
+                console.log('Índices encontrados - Nombre:', accountNameIndex, 'Número:', accountNumberIndex, 
+                           'Anterior:', previousBalanceIndex, 'Actual:', currentBalanceIndex);
+                console.log('Estructura de encabezados:', headers.map((h, i) => `${i}:${h}`));
+                
+                // Buscar la cuenta en las filas de datos (empezando desde la segunda fila)
+                for (let i = 1; i < accountsData.length; i++) {
+                    const row = accountsData[i];
+                    
+                    // Buscar por código
+                    if (areaCode && accountNumberIndex !== -1) {
+                        const accountNumber = row[accountNumberIndex]?.toString().trim();
+                        if (accountNumber === areaCode || accountNumber === areaCode.toString()) {
+                            console.log(`Cuenta encontrada por código en fila ${i}:`, row);
+                            targetAccount = row;
+                            break;
+                        }
+                    }
+                    
+                    // Buscar por nombre (búsqueda más flexible)
+                    if (!targetAccount && accountNameIndex !== -1) {
+                        const accountName = row[accountNameIndex]?.toString().toLowerCase().trim();
+                        const searchName = groupName.toLowerCase().trim();
+                        
+                        if (accountName) {
+                            // Búsqueda exacta
+                            if (accountName === searchName) {
+                                console.log(`Cuenta encontrada por nombre exacto en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda por inclusión (el nombre del Excel contiene el grupo)
+                            if (accountName.includes(searchName)) {
+                                console.log(`Cuenta encontrada por nombre inclusivo en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda inversa (el grupo contiene parte del nombre del Excel)
+                            if (searchName.includes(accountName)) {
+                                console.log(`Cuenta encontrada por nombre inverso en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda por palabras clave
+                            const groupWords = searchName.split(' ');
+                            const accountWords = accountName.split(' ');
+                            
+                            for (const groupWord of groupWords) {
+                                if (groupWord.length > 2) { // Ignorar palabras muy cortas
+                                    for (const accountWord of accountWords) {
+                                        if (accountWord.length > 2 && 
+                                            (accountWord.includes(groupWord) || groupWord.includes(accountWord))) {
+                                            console.log(`Cuenta encontrada por palabra clave en fila ${i}:`, row);
+                                            console.log(`Palabra coincidente: "${groupWord}" <-> "${accountWord}"`);
+                                            targetAccount = row;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (targetAccount) break;
+                            }
+                        }
+                    }
+                }
+                
+                if (targetAccount) {
+                    // Extraer valores usando los índices encontrados
+                    const previousBalance = previousBalanceIndex !== -1 ? 
+                        parseFloat(targetAccount[previousBalanceIndex] || 0) : 0;
+                    const currentBalance = currentBalanceIndex !== -1 ? 
+                        parseFloat(targetAccount[currentBalanceIndex] || 0) : 0;
+                    
+                    console.log(`Valores extraídos - Anterior: ${previousBalance}, Actual: ${currentBalance}`);
+                    
+                    // Calcular la diferencia
+                    const difference = currentBalance - previousBalance;
+                    const variationPct = previousBalance !== 0 ? (difference / Math.abs(previousBalance)) * 100 : 0;
+                    
+                    return {
+                        saldoPeriodoActual: currentBalance,
+                        saldoPeriodoAnterior: previousBalance,
+                        diferencia: difference,
+                        importeTotalLibroMayor: 0, // No disponible en este formato
+                        saldoCalculado: currentBalance,
+                        variationPct: variationPct
+                    };
+                }
+            } else {
+                // Búsqueda original para formato de objetos
+                if (areaCode) {
+                    targetAccount = accountsData.find(account => 
+                        account.accountNumber === areaCode || 
+                        account.accountNumber === areaCode.toString() ||
+                        account.code === areaCode ||
+                        account.codigo === areaCode
+                    );
+                    console.log(`Búsqueda por código ${areaCode}:`, !!targetAccount);
+                }
+                
+                if (!targetAccount) {
+                    targetAccount = accountsData.find(account => {
+                        const name = account.accountName || account.name || account.descripcion || '';
+                        return name.toLowerCase().includes(groupName.toLowerCase());
+                    });
+                    console.log(`Búsqueda por nombre ${groupName}:`, !!targetAccount);
+                }
+                
+                if (targetAccount) {
+                    console.log(`Cuenta encontrada:`, targetAccount);
+                    
+                    // Extraer datos del objeto (código original)
+                    const previousBalance = parseFloat(
+                        targetAccount.previousBalance || 
+                        targetAccount.saldo_anterior || 
+                        targetAccount.previousYearBalance || 
+                        0
+                    );
+                    
+                    const currentBalance = parseFloat(
+                        targetAccount.currentBalance || 
+                        targetAccount.saldo_actual || 
+                        targetAccount.currentYearBalance || 
+                        0
+                    );
+                    
+                    const ledgerTotal = parseFloat(
+                        targetAccount.ledgerTotal || 
+                        targetAccount.importe_libro_mayor || 
+                        (targetAccount.total_debitos || 0) - (targetAccount.total_creditos || 0) ||
+                        0
+                    );
+                    
+                    console.log(`Valores extraídos - Anterior: ${previousBalance}, Actual: ${currentBalance}, Libro Mayor: ${ledgerTotal}`);
+                    
+                    const calculatedBalance = previousBalance + ledgerTotal;
+                    const difference = calculatedBalance - currentBalance;
+                    
+                    return {
+                        saldoPeriodoActual: currentBalance,
+                        saldoPeriodoAnterior: previousBalance,
+                        diferencia: difference,
+                        importeTotalLibroMayor: ledgerTotal,
+                        saldoCalculado: calculatedBalance
+                    };
+                }
+            }
+            
+            console.log(`No se encontró cuenta para: ${groupName} (${areaCode})`);
+            return null;
+        }
+        
+        function formatCurrency(amount) {
+            console.log('=== FORMATCURRENCY DEBUG ===');
+            console.log('Input amount:', amount);
+            console.log('Type of amount:', typeof amount);
+            
+            // Formatear solo números con paréntesis para valores negativos, sin símbolo de moneda
+            const absAmount = Math.abs(amount);
+            const formatted = absAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            let result;
+            if (amount < 0) {
+                result = `(${formatted})`;
+            } else {
+                result = formatted;
+            }
+            
+            console.log('Formatted result:', result);
+            console.log('=== END FORMATCURRENCY DEBUG ===');
+            return result;
+        }
+        
+        function calculateVariationPercentage(current, previous) {
+            if (previous === 0) return '0.00';
+            
+            const variation = ((current - previous) / Math.abs(previous)) * 100;
+            const formattedValue = Math.abs(variation).toFixed(2);
+            
+            if (variation < 0) {
+                return `(${formattedValue})`;
+            } else {
+                return `+${formattedValue}`;
             }
         }
         
-        function getGroupFigures(groupName, areaCode) {
-            // Cifras de ejemplo según el grupo seleccionado
-            const figuresMap = {
-                'Inventarios': {
-                    col3_debe: '150,000.00',
-                    col3_haber: '',
-                    col4_debe: '120,000.00',
-                    col4_haber: '',
-                    col5_debe: '180,000.00',
-                    col5_haber: '',
-                    col6_debe: '200,000.00',
-                    col6_haber: '',
-                    col7_debe: '165,000.00',
-                    col7_haber: '',
-                    col8_debe: '175,000.00',
-                    col8_haber: ''
-                },
-                'Clientes': {
-                    col3_debe: '85,000.00',
-                    col3_haber: '',
-                    col4_debe: '92,000.00',
-                    col4_haber: '',
-                    col5_debe: '78,000.00',
-                    col5_haber: '',
-                    col6_debe: '95,000.00',
-                    col6_haber: '',
-                    col7_debe: '88,000.00',
-                    col7_haber: '',
-                    col8_debe: '90,000.00',
-                    col8_haber: ''
-                },
-                'Caja y bancos': {
-                    col3_debe: '45,000.00',
-                    col3_haber: '',
-                    col4_debe: '52,000.00',
-                    col4_haber: '',
-                    col5_debe: '38,000.00',
-                    col5_haber: '',
-                    col6_debe: '60,000.00',
-                    col6_haber: '',
-                    col7_debe: '42,000.00',
-                    col7_haber: '',
-                    col8_debe: '48,000.00',
-                    col8_haber: ''
-                },
-                'Propiedad, planta y equipo': {
-                    col3_debe: '500,000.00',
-                    col3_haber: '',
-                    col4_debe: '480,000.00',
-                    col4_haber: '',
-                    col5_debe: '520,000.00',
-                    col5_haber: '',
-                    col6_debe: '550,000.00',
-                    col6_haber: '',
-                    col7_debe: '490,000.00',
-                    col7_haber: '',
-                    col8_debe: '510,000.00',
-                    col8_haber: ''
-                },
-                'Proveedores': {
-                    col3_debe: '',
-                    col3_haber: '75,000.00',
-                    col4_debe: '',
-                    col4_haber: '82,000.00',
-                    col5_debe: '',
-                    col5_haber: '68,000.00',
-                    col6_debe: '',
-                    col6_haber: '88,000.00',
-                    col7_debe: '',
-                    col7_haber: '78,000.00',
-                    col8_debe: '',
-                    col8_haber: '80,000.00'
-                },
-                'Préstamos bancarios': {
-                    col3_debe: '',
-                    col3_haber: '200,000.00',
-                    col4_debe: '',
-                    col4_haber: '195,000.00',
-                    col5_debe: '',
-                    col5_haber: '210,000.00',
-                    col6_debe: '',
-                    col6_haber: '185,000.00',
-                    col7_debe: '',
-                    col7_haber: '205,000.00',
-                    col8_debe: '',
-                    col8_haber: '190,000.00'
-                }
+        function applyExampleFigures(row, groupName) {
+            // Aplicar cifras de ejemplo realistas según el tipo de cuenta
+            const currentYearCell = row.querySelector('td:nth-child(3)');
+            const previousYearCell = row.querySelector('td:nth-child(6)');
+            const variationCell = row.querySelector('.col-variation');
+            const variationPctCell = row.querySelector('.col-variation-pct');
+            
+            // Datos de ejemplo más realistas según el tipo de cuenta
+            const exampleData = {
+                'Inventarios': { current: 150000, previous: 120000 },
+                'Clientes': { current: 85000, previous: 92000 },
+                'Caja y bancos': { current: 45000, previous: 52000 },
+                'Propiedad, planta y equipo': { current: 500000, previous: 480000 },
+                'Proveedores': { current: -75000, previous: -82000 },
+                'Préstamos bancarios': { current: -200000, previous: -195000 }
             };
             
-            // Buscar el grupo en el mapa (coincidencia parcial)
-            for (const key in figuresMap) {
+            let data = { current: 100000, previous: 95000 }; // Default
+            
+            // Buscar datos específicos para el grupo
+            for (const key in exampleData) {
                 if (groupName.includes(key)) {
-                    console.log(`Usando cifras para: ${key}`);
-                    return figuresMap[key];
+                    data = exampleData[key];
+                    break;
                 }
             }
             
-            // Si no se encuentra, devolver cifras genéricas
-            console.log('Usando cifras genéricas para:', groupName);
-            return {
-                col3_debe: '100,000.00',
-                col3_haber: '',
-                col4_debe: '110,000.00',
-                col4_haber: '',
-                col5_debe: '95,000.00',
-                col5_haber: '',
-                col6_debe: '105,000.00',
-                col6_haber: '',
-                col7_debe: '98,000.00',
-                col7_haber: '',
-                col8_debe: '102,000.00',
-                col8_haber: ''
-            };
+            const variation = data.current - data.previous;
+            const variationPct = data.previous !== 0 ? (variation / Math.abs(data.previous)) * 100 : 0;
+            
+            if (currentYearCell) currentYearCell.textContent = formatCurrency(data.current);
+            if (previousYearCell) previousYearCell.textContent = formatCurrency(data.previous);
+            if (variationCell) variationCell.textContent = formatCurrency(variation);
+            if (variationPctCell) variationPctCell.textContent = calculateVariationPercentage(data.current, data.previous);
+            
+            console.log(`Aplicando datos de ejemplo para ${groupName}:`, {
+                current: data.current,
+                previous: data.previous,
+                variation: variation,
+                variationPct: variationPct
+            });
         }
 
         
@@ -1848,12 +2657,7 @@
         }
 
         
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('es-MX', {
-                style: 'currency',
-                currency: 'MXN'
-            }).format(amount);
-        }
+        // formatCurrency function already defined above - removed duplicate
 
         
         

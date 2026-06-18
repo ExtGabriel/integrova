@@ -1113,14 +1113,15 @@ async function syncAllDataToDatabase() {
  */
 async function getExcelData(datasetId = null, entityId = null, commitmentId = null) {
     try {
-        console.log('Getting Excel data from Conjuntos_datos:', { datasetId, entityId, commitmentId });
+        console.log('Getting Excel data from API:', { datasetId, entityId, commitmentId });
         
-        // Construir URL con contexto
-        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        // Construir URL con el endpoint correcto
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/excel/latest`;
         const params = new URLSearchParams();
         
         if (datasetId) {
-            apiUrl += `/${datasetId}`;
+            // Si hay datasetId específico, usar endpoint diferente
+            apiUrl = `${DATABASE_API_BASE_URL}/api/excel/datasets/${datasetId}`;
         } else {
             // Si no hay datasetId, buscar el más reciente con contexto
             if (entityId) {
@@ -1129,7 +1130,6 @@ async function getExcelData(datasetId = null, entityId = null, commitmentId = nu
             if (commitmentId) {
                 params.append('commitment_id', commitmentId);
             }
-            params.append('latest', 'true'); // Indicar que queremos el más reciente
             
             if (params.toString()) {
                 apiUrl += '?' + params.toString();
