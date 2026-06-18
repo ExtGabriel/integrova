@@ -425,6 +425,80 @@
             box-shadow: 0 14px 22px rgba(38, 57, 115, 0.18);
         }
 
+        .area-item--subgroup {
+            margin-left: 20px;
+            background: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+        }
+
+        .area-item-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .area-item-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .area-item-description {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .area-item--subgroup .area-item-name {
+            font-weight: 400;
+        }
+
+        /* Estilos para la barra de búsqueda */
+        .search-container {
+            position: relative;
+            margin: 12px 0;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border: 1px solid var(--sidebar-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 2px rgba(51, 75, 250, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-no-results {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
         .worksheet-content {
             flex: 1;
             background: var(--card-bg);
@@ -827,6 +901,122 @@
                 padding: 24px;
             }
         }
+
+        /* Estilos para el encabezado de la hoja de trabajo */
+        .worksheet-header {
+            text-align: center;
+            padding: 60px 20px 40px 20px;
+            position: relative;
+        }
+
+        .worksheet-header .entity-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0 0 20px 0;
+        }
+
+        .worksheet-header .summary-title {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin: 0 0 15px 0;
+        }
+
+        .worksheet-header .date-line,
+        .worksheet-header .currency-line {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin: 8px 0;
+        }
+
+        .worksheet-header .allinial-logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 140px;
+            max-width: 32%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .worksheet-header .sb-logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 110px;
+            max-width: 28%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* Estilos para la sección de materialidad */
+        .materiality-section {
+            text-align: right;
+            margin-top: 40px;
+            padding-right: 20px;
+        }
+
+        .materiality-line {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin: 5px 0;
+            font-weight: 500;
+        }
+
+        /* Estilos para la tabla de sumaria */
+        .worksheet-table {
+            margin-top: 30px;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 10px 20px rgba(33, 56, 102, 0.06);
+            padding: 18px 18px 8px 18px;
+        }
+
+        .worksheet-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .worksheet-table thead th {
+            border-top: 2px solid #000;
+            padding: 10px 6px 6px 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #000;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .worksheet-table thead .subheader th {
+            border-top: none;
+            padding-top: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #000;
+        }
+
+        .worksheet-table thead tr:last-child th {
+            border-bottom: 2px solid #000;
+        }
+
+        .worksheet-table tbody td {
+            padding: 10px 6px;
+            border-top: none;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .worksheet-table .col-description {
+            text-align: left;
+        }
+
+        .worksheet-table .col-ref,
+        .worksheet-table .col-amount,
+        .worksheet-table .col-variation,
+        .worksheet-table .col-variation-pct {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -862,9 +1052,7 @@
                 
             </div>
             <div class="toolbar-actions">
-                <button type="button" title="Historial"><i class="bi bi-arrow-counterclockwise"></i></button>
-                <button type="button" title="Imprimir"><i class="bi bi-printer"></i></button>
-                <button type="button" title="Cerrar"><i class="bi bi-x-lg"></i></button>
+                <button type="button" title="Editar" onclick="toggleHeaderEdit()"><i class="bi bi-pencil"></i></button>
                 <button type="button" title="Configuración"><i class="bi bi-gear"></i></button>
             </div>
         </div>
@@ -873,29 +1061,27 @@
             <aside class="worksheet-sidebar">
                 <div class="sidebar-header">
                     <span>Áreas</span>
-                    <button class="icon-button" id="areaMenuBtn" onclick="toggleAreaMenu(event)" aria-haspopup="true" aria-expanded="false">
+                    <button class="icon-button" onclick="renderAreasList()" title="Cargar grupos financieros">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
 
-                <div class="area-menu" id="areaMenu" role="menu">
-                    <button type="button" onclick="createNewArea()"><i class="bi bi-journal-plus"></i> Nueva área</button>
+                <div class="search-container">
+                    <input type="text" id="areaSearchInput" class="search-input" placeholder="Buscar grupo..." oninput="filterAreas()">
+                    <i class="bi bi-search search-icon"></i>
                 </div>
 
                 <div id="areaListWrapper" style="flex:1; display:flex; flex-direction:column;">
                     <div class="area-empty" id="areaEmpty">
                         <i class="bi bi-layers"></i>
-                        <span>Agrega tu primera área para comenzar.</span>
+                        <span>Agrega tu área</span>
                     </div>
                     <ul class="area-list" id="areaList"></ul>
                 </div>
             </aside>
 
             <section class="worksheet-content" id="areaDetailPanel">
-                <div class="area-detail-empty">
-                    <i class="bi bi-layout-sidebar-inset"></i>
-                    <p>Selecciona o crea un área para comenzar.</p>
-                </div>
+                <!-- El contenido se cargará dinámicamente -->
             </section>
         </div>
     </div>
@@ -963,7 +1149,47 @@
             initializeWorksheetHeader();
             initializeWorksheetArea();
             document.addEventListener('click', handleGlobalClick);
+            
+            // Monitorear cambios en el panel principal
+            monitorPanelChanges();
         });
+
+        function monitorPanelChanges() {
+            const panel = document.getElementById('areaDetailPanel');
+            if (!panel) return;
+            
+            console.log('🔍 Iniciando monitoreo del panel principal...');
+            
+            // Crear un observer para detectar cambios en el DOM
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        console.log('🔄 CAMBIO DETECTADO EN EL PANEL:');
+                        console.log('Nodos removidos:', mutation.removedNodes.length);
+                        console.log('Nodos agregados:', mutation.addedNodes.length);
+                        
+                        // Verificar si se perdió el worksheet-header
+                        const hasHeader = panel.querySelector('.worksheet-header');
+                        if (!hasHeader) {
+                            console.error('⚠️ ¡EL WORKSHOP-HEADER FUE ELIMINADO!');
+                            console.trace('Stack trace del momento de eliminación:');
+                        }
+                        
+                        // Verificar si se perdió la tabla
+                        const hasTable = panel.querySelector('.worksheet-table');
+                        if (!hasTable) {
+                            console.error('⚠️ ¡EL WORKSHOP-TABLE FUE ELIMINADO!');
+                            console.trace('Stack trace del momento de eliminación:');
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(panel, {
+                childList: true,
+                subtree: true
+            });
+        }
 
         function initializeWorksheetHeader() {
             const titleContainer = document.getElementById('worksheetTitleContainer');
@@ -978,7 +1204,6 @@
 
             titleContainer.innerHTML = `
                 <h1>${title}</h1>
-                <p style="margin:4px 0 0; color:#6b7280;">Herramienta de análisis y ajustes financieros</p>
             `;
         }
 
@@ -1007,7 +1232,7 @@
 
             const layout = document.getElementById('worksheetLayout');
             if (layout) {
-                layout.style.display = 'block';
+                layout.style.display = 'flex';
             }
 
             const panel = document.getElementById('areaDetailPanel');
@@ -1021,15 +1246,601 @@
             return (value || '').toString().trim().toLowerCase();
         }
 
+        async function loadFinancialGroupsAsAreas() {
+            try {
+                // Obtener el ID del dataset actual
+                const datasetId = getLastAssignmentsDatasetId();
+                if (!datasetId) {
+                    console.warn('No hay datasetId disponible para cargar grupos financieros');
+                    return [];
+                }
+
+                console.log('DatasetId para grupos:', datasetId);
+
+                // Cargar grupos financieros desde la base de datos
+                if (typeof window.getFinancialGroups === 'function') {
+                    const groups = await window.getFinancialGroups(datasetId);
+                    console.log('Grupos financieros crudos:', groups);
+                    console.log('Primer grupo estructura:', groups[0]);
+                    
+                    if (Array.isArray(groups) && groups.length > 0) {
+                        console.log('Grupos financieros cargados:', groups.length);
+                        
+                        // Mostrar todos los grupos con estructura jerárquica
+                        return groups.map(group => {
+                            // Debug: mostrar todos los campos disponibles
+                            console.log('Campos del grupo:', Object.keys(group));
+                            console.log('Valores del grupo:', group);
+                            
+                            const indentLevel = group.level || 0;
+                            const indent = '  '.repeat(indentLevel);
+                            const prefix = group.isParent ? '📁' : '📄';
+                            
+                            return {
+                                id: group.rowId || Math.random().toString(36),
+                                name: `${indent}${prefix} ${group.accountName || 'Sin nombre'}`,
+                                description: `Código: ${group.accountCode || 'N/A'}`,
+                                level: indentLevel,
+                                isParent: group.isParent,
+                                parentId: group.parentId
+                            };
+                        });
+                    }
+                } else {
+                    console.warn('getFinancialGroups no está disponible');
+                }
+            } catch (error) {
+                console.error('Error cargando grupos financieros:', error);
+            }
+            
+            return [];
+        }
+
+        // Variable global para almacenar todas las áreas
+        let allAreas = [];
+
+        async function renderAreasList() {
+            const areaList = document.getElementById('areaList');
+            const areaEmpty = document.getElementById('areaEmpty');
+            
+            if (!areaList || !areaEmpty) return;
+
+            // Cargar grupos financieros y guardarlos globalmente
+            allAreas = await loadFinancialGroupsAsAreas();
+            
+            // Aplicar filtro actual si hay texto en búsqueda
+            const searchInput = document.getElementById('areaSearchInput');
+            if (searchInput && searchInput.value.trim()) {
+                filterAreas();
+                return;
+            }
+            
+            if (allAreas.length === 0) {
+                areaEmpty.style.display = 'flex';
+                areaList.style.display = 'none';
+                return;
+            }
+
+            areaEmpty.style.display = 'none';
+            areaList.style.display = 'flex';
+            
+            renderFilteredAreas(allAreas);
+        }
+
+        function renderFilteredAreas(filteredAreas) {
+            const areaList = document.getElementById('areaList');
+            const areaEmpty = document.getElementById('areaEmpty');
+            
+            // Limpiar lista actual
+            areaList.innerHTML = '';
+            
+            if (filteredAreas.length === 0) {
+                // Mostrar mensaje de no resultados
+                const noResults = document.createElement('div');
+                noResults.className = 'search-no-results';
+                noResults.textContent = 'No se encontraron grupos que coincidan con la búsqueda';
+                areaList.appendChild(noResults);
+                return;
+            }
+            
+            // Agregar cada área/grupo financiero con estilo jerárquico
+            filteredAreas.forEach(area => {
+                const li = document.createElement('li');
+                li.className = 'area-item';
+                if (area.level > 0) {
+                    li.classList.add('area-item--subgroup');
+                }
+                
+                li.innerHTML = `
+                    <div class="area-item-content">
+                        <span class="area-item-name">${area.name}</span>
+                        <span class="area-item-description">${area.description}</span>
+                    </div>
+                    <button class="area-delete" onclick="deleteArea('${area.id}')" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+                li.onclick = (e) => {
+                    console.log('=== CLICK EN ÁREA DETECTADO ===');
+                    console.log('Click en área:', area.id, area.name);
+                    console.log('Target del click:', e.target);
+                    console.log('Es delete button?', !!e.target.closest('.area-delete'));
+                    console.log('Evento onclick asignado correctamente para:', area.name);
+                    
+                    if (!e.target.closest('.area-delete')) {
+                        console.log('Llamando a selectArea...');
+                        selectArea(area.id, area.name.replace(/[📁📄]\s*/, '').trim());
+                    } else {
+                        console.log('Click en botón eliminar, ignorando...');
+                    }
+                };
+                
+                // Verificar que el evento se asignó
+                console.log('Evento onclick asignado para área:', area.name);
+                areaList.appendChild(li);
+            });
+        }
+
+        function filterAreas() {
+            const searchInput = document.getElementById('areaSearchInput');
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                renderFilteredAreas(allAreas);
+                return;
+            }
+            
+            // Filtrar áreas por nombre o descripción
+            const filteredAreas = allAreas.filter(area => {
+                const cleanName = area.name.replace(/[📁📄]\s*/, '').toLowerCase();
+                const description = area.description.toLowerCase();
+                return cleanName.includes(searchTerm) || description.includes(searchTerm);
+            });
+            
+            renderFilteredAreas(filteredAreas);
+        }
+
+        function selectArea(areaId, areaName) {
+            selectedAreaId = areaId;
+            
+            console.log('=== DEBUG selectArea INICIO ===');
+            console.log('selectArea llamado con:', areaId, areaName);
+            
+            // Verificar estado actual del panel ANTES de cambios
+            const panel = document.getElementById('areaDetailPanel');
+            console.log('Panel encontrado:', !!panel);
+            if (panel) {
+                console.log('Contenido del panel ANTES:', panel.innerHTML.substring(0, 200) + '...');
+                console.log('Clases del panel:', panel.className);
+                
+                const worksheetHeader = panel.querySelector('.worksheet-header');
+                console.log('worksheet-header encontrado ANTES:', !!worksheetHeader);
+                
+                const worksheetTable = panel.querySelector('.worksheet-table');
+                console.log('worksheet-table encontrado ANTES:', !!worksheetTable);
+            }
+            
+            // Actualizar UI para mostrar área seleccionada
+            document.querySelectorAll('.area-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Encontrar y marcar el elemento seleccionado
+            const areaItems = document.querySelectorAll('.area-item');
+            areaItems.forEach(item => {
+                const nameElement = item.querySelector('.area-item-name');
+                if (nameElement && nameElement.textContent.replace(/[📁📄]\s*/, '').trim() === areaName) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // No actualizar el título del encabezado - mantener "Nombre de la entidad"
+            
+            // Actualizar la tabla existente con el nombre del grupo seleccionado
+            console.log('=== LLAMANDO A updateWorksheetTableWithGroupName ===');
+            console.log('Parámetro areaName:', areaName);
+            updateWorksheetTableWithGroupName(areaName);
+            console.log('=== TERMINÓ updateWorksheetTableWithGroupName ===');
+            
+            // Verificar estado del panel DESPUÉS de cambios
+            console.log('=== VERIFICACIÓN DESPUÉS DE CAMBIOS ===');
+            if (panel) {
+                console.log('Contenido del panel DESPUÉS:', panel.innerHTML.substring(0, 200) + '...');
+                
+                const worksheetHeaderAfter = panel.querySelector('.worksheet-header');
+                console.log('worksheet-header encontrado DESPUÉS:', !!worksheetHeaderAfter);
+                
+                const worksheetTableAfter = panel.querySelector('.worksheet-table');
+                console.log('worksheet-table encontrado DESPUÉS:', !!worksheetTableAfter);
+                
+                // Verificación simple de que los elementos existen
+                if (!worksheetHeaderAfter) {
+                    console.error('⚠️ EL WORKSHOP-HEADER NO SE ENCUENTRA DESPUÉS DE LOS CAMBIOS');
+                }
+                if (!worksheetTableAfter) {
+                    console.error('⚠️ EL WORKSHOP-TABLE NO SE ENCUENTRA DESPUÉS DE LOS CAMBIOS');
+                }
+            }
+            
+            console.log('=== DEBUG selectArea FIN ===');
+            console.log('Área seleccionada:', areaId, areaName);
+        }
+
+        function updateWorksheetTableWithGroupName(groupName) {
+            console.log('=== INICIO updateWorksheetTableWithGroupName ===');
+            console.log('groupName recibido:', groupName);
+            
+            // Buscar la primera fila vacía en la tabla y poner el nombre del grupo
+            const table = document.querySelector('.worksheet-table table');
+            console.log('Tabla encontrada:', !!table);
+            if (!table) {
+                console.log('No se encontró la tabla, saliendo...');
+                return;
+            }
+            
+            const tbody = table.querySelector('tbody');
+            console.log('Tbody encontrado:', !!tbody);
+            if (!tbody) {
+                console.log('No se encontró tbody, saliendo...');
+                return;
+            }
+            
+            // Buscar el área seleccionada para obtener su código
+            console.log('Buscando área en allAreas...');
+            console.log('allAreas disponible:', !!allAreas);
+            console.log('Total allAreas:', allAreas ? allAreas.length : 0);
+            
+            const selectedArea = allAreas.find(area => {
+                const cleanName = area.name.replace(/[📁📄]\s*/, '').trim();
+                console.log('Comparando:', cleanName, 'con', groupName);
+                return cleanName === groupName;
+            });
+            
+            console.log('Área seleccionada encontrada:', !!selectedArea);
+            if (selectedArea) {
+                console.log('Área seleccionada:', selectedArea);
+            }
+            
+            // Extraer el código del área (del description que contiene "Código: XXX")
+            let areaCode = '';
+            if (selectedArea && selectedArea.description) {
+                const codeMatch = selectedArea.description.match(/Código:\s*(.+)/);
+                if (codeMatch) {
+                    areaCode = codeMatch[1].trim();
+                }
+            }
+            
+            console.log('Código extraído:', areaCode);
+            
+            // Siempre usar la primera fila (índice 0) para reemplazar
+            const rows = tbody.querySelectorAll('tr');
+            console.log('Total filas encontradas:', rows.length);
+            
+            if (rows.length > 0) {
+                const firstRow = rows[0];
+                const descriptionCell = firstRow.querySelector('.col-description');
+                const refCell = firstRow.querySelector('.col-ref');
+                
+                console.log('Usando primera fila para reemplazar...');
+                
+                if (descriptionCell && refCell) {
+                    // Limpiar el nombre del grupo: remover iconos y espacios extra
+                    const cleanGroupName = groupName.replace(/[📁📄]\s*-\s*/, '').trim();
+                    console.log('Nombre limpio:', cleanGroupName);
+                    
+                    // Reemplazar contenido de la primera fila
+                    descriptionCell.textContent = cleanGroupName;
+                    refCell.textContent = areaCode || '';
+                    
+                    // Agregar cifras de ejemplo según el grupo seleccionado
+                    addGroupFigures(firstRow, cleanGroupName, areaCode);
+                    
+                    console.log('Primera fila actualizada exitosamente');
+                } else {
+                    console.log('No se encontraron las celdas en la primera fila');
+                }
+            } else {
+                console.log('No hay filas en la tabla');
+            }
+            
+            console.log('=== FIN updateWorksheetTableWithGroupName ===');
+        }
+
+        function createNewWorksheetRow(tbody, groupName, areaCode) {
+            console.log('Creando nueva fila con:', groupName, areaCode);
+            
+            // Crear una nueva fila con la misma estructura que las existentes
+            const newRow = document.createElement('tr');
+            
+            // Limpiar el nombre del grupo
+            const cleanGroupName = groupName.replace(/[📁📄]\s*-\s*/, '').trim();
+            
+            // Estructura de la fila (basada en la tabla existente)
+            newRow.innerHTML = `
+                <td class="col-ref">${areaCode || ''}</td>
+                <td class="col-description">${cleanGroupName}</td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+                <td class="col-debe"></td>
+                <td class="col-haber"></td>
+            `;
+            
+            // Agregar la fila al tbody
+            tbody.appendChild(newRow);
+            console.log('Nueva fila agregada exitosamente');
+        }
+
+        function deleteArea(areaId) {
+            if (confirm('¿Está seguro de eliminar esta área?')) {
+                console.log('Eliminar área:', areaId);
+                // Implementar lógica de eliminación
+                renderAreasList();
+            }
+        }
+
+        function toggleHeaderEdit() {
+            const header = document.querySelector('.worksheet-header');
+            if (!header) return;
+            
+            const entityName = header.querySelector('.entity-name');
+            const summaryTitle = header.querySelector('.summary-title');
+            const dateLine = header.querySelector('.date-line');
+            const currencyLine = header.querySelector('.currency-line');
+            
+            // Si ya está en modo edición, guardar cambios
+            if (header.classList.contains('editing-mode')) {
+                saveHeaderChanges();
+                header.classList.remove('editing-mode');
+                
+                // Restaurar elementos a texto normal
+                makeHeaderReadOnly(entityName);
+                makeHeaderReadOnly(summaryTitle);
+                makeHeaderReadOnly(dateLine);
+                makeHeaderReadOnly(currencyLine);
+            } else {
+                // Activar modo edición
+                header.classList.add('editing-mode');
+                
+                // Hacer elementos editables
+                makeHeaderEditable(entityName);
+                makeHeaderEditable(summaryTitle);
+                makeHeaderEditable(dateLine);
+                makeHeaderEditable(currencyLine);
+            }
+        }
+        
+        function makeHeaderEditable(element) {
+            if (!element) return;
+            
+            element.contentEditable = true;
+            element.style.border = '2px dashed #007bff';
+            element.style.padding = '4px 8px';
+            element.style.borderRadius = '4px';
+            element.style.backgroundColor = '#f8f9fa';
+            element.focus();
+        }
+        
+        function makeHeaderReadOnly(element) {
+            if (!element) return;
+            
+            element.contentEditable = false;
+            element.style.border = 'none';
+            element.style.padding = '0';
+            element.style.backgroundColor = 'transparent';
+        }
+        
+        function saveHeaderChanges() {
+            // Aquí puedes agregar lógica para guardar los cambios si es necesario
+            console.log('Cambios del encabezado guardados');
+        }
+        
+        function addGroupFigures(row, groupName, areaCode) {
+            // Limpiar todas las celdas de cifras primero
+            const debeCells = row.querySelectorAll('.col-debe');
+            const haberCells = row.querySelectorAll('.col-haber');
+            
+            debeCells.forEach(cell => cell.textContent = '');
+            haberCells.forEach(cell => cell.textContent = '');
+            
+            // Agregar cifras de ejemplo según el tipo de grupo
+            const figures = getGroupFigures(groupName, areaCode);
+            
+            if (figures) {
+                // Columna 1: Ref (ya está llena)
+                // Columna 2: Descripción (ya está llena)
+                
+                // Columnas 3-14: DEBE/HABER para diferentes períodos
+                if (figures.col3_debe) row.querySelector('.col-debe:nth-of-type(1)').textContent = figures.col3_debe;
+                if (figures.col3_haber) row.querySelector('.col-haber:nth-of-type(1)').textContent = figures.col3_haber;
+                if (figures.col4_debe) row.querySelector('.col-debe:nth-of-type(2)').textContent = figures.col4_debe;
+                if (figures.col4_haber) row.querySelector('.col-haber:nth-of-type(2)').textContent = figures.col4_haber;
+                if (figures.col5_debe) row.querySelector('.col-debe:nth-of-type(3)').textContent = figures.col5_debe;
+                if (figures.col5_haber) row.querySelector('.col-haber:nth-of-type(3)').textContent = figures.col5_haber;
+                if (figures.col6_debe) row.querySelector('.col-debe:nth-of-type(4)').textContent = figures.col6_debe;
+                if (figures.col6_haber) row.querySelector('.col-haber:nth-of-type(4)').textContent = figures.col6_haber;
+                if (figures.col7_debe) row.querySelector('.col-debe:nth-of-type(5)').textContent = figures.col7_debe;
+                if (figures.col7_haber) row.querySelector('.col-haber:nth-of-type(5)').textContent = figures.col7_haber;
+                if (figures.col8_debe) row.querySelector('.col-debe:nth-of-type(6)').textContent = figures.col8_debe;
+                if (figures.col8_haber) row.querySelector('.col-haber:nth-of-type(6)').textContent = figures.col8_haber;
+            }
+        }
+        
+        function getGroupFigures(groupName, areaCode) {
+            // Cifras de ejemplo según el grupo seleccionado
+            const figuresMap = {
+                'Inventarios': {
+                    col3_debe: '150,000.00',
+                    col3_haber: '',
+                    col4_debe: '120,000.00',
+                    col4_haber: '',
+                    col5_debe: '180,000.00',
+                    col5_haber: '',
+                    col6_debe: '200,000.00',
+                    col6_haber: '',
+                    col7_debe: '165,000.00',
+                    col7_haber: '',
+                    col8_debe: '175,000.00',
+                    col8_haber: ''
+                },
+                'Clientes': {
+                    col3_debe: '85,000.00',
+                    col3_haber: '',
+                    col4_debe: '92,000.00',
+                    col4_haber: '',
+                    col5_debe: '78,000.00',
+                    col5_haber: '',
+                    col6_debe: '95,000.00',
+                    col6_haber: '',
+                    col7_debe: '88,000.00',
+                    col7_haber: '',
+                    col8_debe: '90,000.00',
+                    col8_haber: ''
+                },
+                'Caja y bancos': {
+                    col3_debe: '45,000.00',
+                    col3_haber: '',
+                    col4_debe: '52,000.00',
+                    col4_haber: '',
+                    col5_debe: '38,000.00',
+                    col5_haber: '',
+                    col6_debe: '60,000.00',
+                    col6_haber: '',
+                    col7_debe: '42,000.00',
+                    col7_haber: '',
+                    col8_debe: '48,000.00',
+                    col8_haber: ''
+                },
+                'Propiedad, planta y equipo': {
+                    col3_debe: '500,000.00',
+                    col3_haber: '',
+                    col4_debe: '480,000.00',
+                    col4_haber: '',
+                    col5_debe: '520,000.00',
+                    col5_haber: '',
+                    col6_debe: '550,000.00',
+                    col6_haber: '',
+                    col7_debe: '490,000.00',
+                    col7_haber: '',
+                    col8_debe: '510,000.00',
+                    col8_haber: ''
+                },
+                'Proveedores': {
+                    col3_debe: '',
+                    col3_haber: '75,000.00',
+                    col4_debe: '',
+                    col4_haber: '82,000.00',
+                    col5_debe: '',
+                    col5_haber: '68,000.00',
+                    col6_debe: '',
+                    col6_haber: '88,000.00',
+                    col7_debe: '',
+                    col7_haber: '78,000.00',
+                    col8_debe: '',
+                    col8_haber: '80,000.00'
+                },
+                'Préstamos bancarios': {
+                    col3_debe: '',
+                    col3_haber: '200,000.00',
+                    col4_debe: '',
+                    col4_haber: '195,000.00',
+                    col5_debe: '',
+                    col5_haber: '210,000.00',
+                    col6_debe: '',
+                    col6_haber: '185,000.00',
+                    col7_debe: '',
+                    col7_haber: '205,000.00',
+                    col8_debe: '',
+                    col8_haber: '190,000.00'
+                }
+            };
+            
+            // Buscar el grupo en el mapa (coincidencia parcial)
+            for (const key in figuresMap) {
+                if (groupName.includes(key)) {
+                    console.log(`Usando cifras para: ${key}`);
+                    return figuresMap[key];
+                }
+            }
+            
+            // Si no se encuentra, devolver cifras genéricas
+            console.log('Usando cifras genéricas para:', groupName);
+            return {
+                col3_debe: '100,000.00',
+                col3_haber: '',
+                col4_debe: '110,000.00',
+                col4_haber: '',
+                col5_debe: '95,000.00',
+                col5_haber: '',
+                col6_debe: '105,000.00',
+                col6_haber: '',
+                col7_debe: '98,000.00',
+                col7_haber: '',
+                col8_debe: '102,000.00',
+                col8_haber: ''
+            };
+        }
+
+        
         function renderManualWorksheet(panel) {
             const tableHtml = `
-                <div class="worksheet-empty-state">
-                    <div class="empty-state-content">
-                        <i class="bi bi-inbox" style="font-size: 4rem; color: #6c757d;"></i>
-                        <h3>Hoja de Trabajo</h3>
-                        <p>Esta sección está siendo reconfigurada.</p>
-                        <p>Por favor, utiliza las otras herramientas disponibles.</p>
-                    </div>
+                <div class="worksheet-header">
+                    <img src="../assets/SB&Asociados.png" alt="SB&Asociados" class="sb-logo" />
+                    <img src="../assets/allinialGlobal.png" alt="Allinial Global" class="allinial-logo" />
+                    <h2 class="entity-name">Nombre de la entidad</h2>
+                    <h3 class="summary-title">SUMARIA</h3>
+                    <p class="date-line">Al 31 de diciembre del</p>
+                    <p class="currency-line">Cifras expresadas en</p>
+                </div>
+                <div class="materiality-section">
+                    <p class="materiality-line">Materialidad general:</p>
+                    <p class="materiality-line">Materialidad de desempeño:</p>
+                    <p class="materiality-line">Materialidad trivial:</p>
+                </div>
+                <div class="worksheet-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-description">Descripción</th>
+                                <th class="col-ref">Ref.</th>
+                                <th class="col-amount">Año actual</th>
+                                <th class="col-amount">Ajustes</th>
+                                <th class="col-ref">Ref.</th>
+                                <th class="col-amount">Año anterior</th>
+                                <th class="col-variation">Variación</th>
+                                <th class="col-variation-pct">Variación %</th>
+                            </tr>
+                            <tr class="subheader">
+                                <th></th>
+                                <th></th>
+                                <th>Q</th>
+                                <th>Q</th>
+                                <th></th>
+                                <th>Q</th>
+                                <th>Q</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="col-description">&nbsp;</td>
+                                <td class="col-ref">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-ref">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-variation">&nbsp;</td>
+                                <td class="col-variation-pct">&nbsp;</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             `;
             
@@ -1150,12 +1961,7 @@
             }).join('');
         }
 
-        function selectArea(areaId) {
-            selectedAreaId = areaId;
-            renderAreas();
-            renderAreaDetail();
-        }
-
+        
         function renderAreaDetail() {
             const panel = document.getElementById('areaDetailPanel');
             if (!panel) return;
