@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance General - CFE INSIGHT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="../css/formularios.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --light-bg: #ecf0f1;
+            --white: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border-color: #dcdde1;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .bg-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--white);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .bg-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: var(--white);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .bg-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 600;
+        }
+
+        .bg-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .bg-controls {
+            background: var(--light-bg);
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .bg-filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .bg-filters select {
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--white);
+            font-size: 0.95rem;
+        }
+
+        .bg-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-balance {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary-balance {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+
+        .btn-primary-balance:hover {
+            background: #34495e;
+            transform: translateY(-2px);
+        }
+
+        .btn-success-balance {
+            background: var(--success-color);
+            color: var(--white);
+        }
+
+        .btn-success-balance:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .bg-content {
+            padding: 30px;
+        }
+
+        .bg-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .bg-summary-card {
+            background: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .bg-summary-card h3 {
+            margin: 0 0 10px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .bg-summary-card .amount {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .bg-table-container {
+            background: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .bg-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .bg-table th {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 15px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .bg-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .bg-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bg-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .account-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .account-code {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .amount-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+        }
+
+        .amount-positive {
+            color: var(--success-color);
+        }
+
+        .amount-negative {
+            color: var(--danger-color);
+        }
+
+        .level-0 {
+            font-weight: 600;
+            background: #f8f9fa;
+        }
+
+        .level-1 {
+            padding-left: 30px;
+        }
+
+        .level-2 {
+            padding-left: 60px;
+        }
+
+        .level-3 {
+            padding-left: 90px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 30px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .bg-footer {
+            background: var(--light-bg);
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .bg-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .bg-filters, .bg-actions {
+                justify-content: center;
+            }
+
+            .bg-table {
+                font-size: 0.9rem;
+            }
+
+            .bg-table th, .bg-table td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-container">
+        <!-- Header -->
+        <div class="bg-header">
+            <h1><i class="bi bi-bank"></i> Balance General</h1>
+            <p>Reporte financiero del período</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-controls">
+            <div class="bg-filters">
+                <select id="datasetSelect">
+                    <option value="">Seleccionar dataset...</option>
+                </select>
+                <select id="periodSelect">
+                    <option value="current">Período Actual</option>
+                    <option value="previous">Período Anterior</option>
+                    <option value="comparison">Comparación</option>
+                </select>
+                <select id="formatSelect">
+                    <option value="detailed">Detallado</option>
+                    <option value="summary">Resumido</option>
+                    <option value="condensed">Condensado</option>
+                </select>
+            </div>
+            <div class="bg-actions">
+                <button class="btn-balance btn-primary-balance" onclick="loadBalanceData()">
+                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                </button>
+                <button class="btn-balance btn-success-balance" onclick="exportBalance()">
+                    <i class="bi bi-download"></i> Exportar
+                </button>
+                <button class="btn-balance btn-primary-balance" onclick="printBalance()">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="bg-content">
+            <!-- Summary Cards -->
+            <div class="bg-summary" id="bgSummary">
+                <div class="bg-summary-card">
+                    <h3>Activos Corrientes</h3>
+                    <div class="amount" id="currentAssets">$0.00</div>
+                </div>
+                <div class="bg-summary-card">
+                    <h3>Activos No Corrientes</h3>
+                    <div class="amount" id="nonCurrentAssets">$0.00</div>
+                </div>
+                <div class="bg-summary-card">
+                    <h3>Total Activos</h3>
+                    <div class="amount" id="totalAssets">$0.00</div>
+                </div>
+                <div class="bg-summary-card">
+                    <h3>Total Pasivos y Patrimonio</h3>
+                    <div class="amount" id="totalLiabilitiesEquity">$0.00</div>
+                </div>
+            </div>
+
+            <!-- Balance Table -->
+            <div class="bg-table-container">
+                <div id="balanceContent">
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <h3>No hay datos disponibles</h3>
+                        <p>Selecciona un dataset para ver el balance general</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-footer">
+            <p>CFE INSIGHT - Balance General | Generado: <span id="generatedDate">-</span></p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/database-api.js"></script>
+    <script>
+        // Global variables
+        let currentDatasetId = null;
+        let balanceData = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadAvailableDatasets();
+            updateGeneratedDate();
+        });
+
+        // Load available datasets
+        async function loadAvailableDatasets() {
+            try {
+                const datasets = await window.getExcelDatasets();
+                const select = document.getElementById('datasetSelect');
+                
+                select.innerHTML = '<option value="">Seleccionar dataset...</option>';
+                
+                if (Array.isArray(datasets) && datasets.length > 0) {
+                    datasets.forEach(dataset => {
+                        const option = document.createElement('option');
+                        option.value = dataset.id;
+                        option.textContent = `${dataset.nombre} (${new Date(dataset.created_at).toLocaleDateString()})`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading datasets:', error);
+            }
+        }
+
+        // Load balance data
+        async function loadBalanceData() {
+            const datasetSelect = document.getElementById('datasetSelect');
+            const selectedDatasetId = datasetSelect.value;
+            
+            if (!selectedDatasetId) {
+                alert('Por favor selecciona un dataset');
+                return;
+            }
+
+            currentDatasetId = selectedDatasetId;
+            
+            const contentDiv = document.getElementById('balanceContent');
+            contentDiv.innerHTML = `
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Cargando datos del balance general...</p>
+                </div>
+            `;
+
+            try {
+                // Cargar datos desde grupos financieros
+                console.log('Cargando datos desde grupos financieros');
+                const { rows } = await window.getLatestFinancialGroupResults(selectedDatasetId);
+                
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    showEmptyState('No hay resultados de grupos financieros guardados para este dataset. Por favor genera los grupos financieros primero.');
+                    return;
+                }
+
+                balanceData = rows;
+                renderBalanceTable(rows);
+                updateSummaryCards(rows);
+                
+            } catch (error) {
+                console.error('Error loading balance data:', error);
+                showEmptyState('Error al cargar los datos: ' + error.message);
+            }
+        }
+
+        
+        // Render balance table
+        function renderBalanceTable(rows) {
+            const contentDiv = document.getElementById('balanceContent');
+            
+            const tableHtml = `
+                <table class="bg-table">
+                    <thead>
+                        <tr>
+                            <th>Cuenta</th>
+                            <th>Código</th>
+                            <th>Período Anterior</th>
+                            <th>Período Actual</th>
+                            <th>Variación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => renderBalanceRow(row)).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            contentDiv.innerHTML = tableHtml;
+        }
+
+        // Render individual balance row
+        function renderBalanceRow(row) {
+            const variation = (row.finalCurrent || 0) - (row.finalPrevious || 0);
+            const variationClass = variation >= 0 ? 'amount-positive' : 'amount-negative';
+            
+            return `
+                <tr class="level-${row.level || 0}">
+                    <td>
+                        <div class="account-name">${row.accountName || ''}</div>
+                    </td>
+                    <td>
+                        <div class="account-code">${row.accountCode || ''}</div>
+                    </td>
+                    <td class="amount-cell">
+                        ${formatCurrency(row.finalPrevious || 0)}
+                    </td>
+                    <td class="amount-cell">
+                        ${formatCurrency(row.finalCurrent || 0)}
+                    </td>
+                    <td class="amount-cell ${variationClass}">
+                        ${formatCurrency(variation)}
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Update summary cards
+        function updateSummaryCards(rows) {
+            // Calculate totals based on account types
+            const totals = calculateBalanceTotals(rows);
+            
+            document.getElementById('currentAssets').textContent = formatCurrency(totals.currentAssets);
+            document.getElementById('nonCurrentAssets').textContent = formatCurrency(totals.nonCurrentAssets);
+            document.getElementById('totalAssets').textContent = formatCurrency(totals.totalAssets);
+            document.getElementById('totalLiabilitiesEquity').textContent = formatCurrency(totals.totalLiabilitiesEquity);
+        }
+
+        // Calculate balance totals
+        function calculateBalanceTotals(rows) {
+            const totals = {
+                currentAssets: 0,
+                nonCurrentAssets: 0,
+                totalAssets: 0,
+                totalLiabilitiesEquity: 0
+            };
+
+            rows.forEach(row => {
+                const amount = row.finalCurrent || 0;
+                const name = (row.accountName || '').toLowerCase();
+                
+                if (name.includes('activo') && row.level === 0) {
+                    if (name.includes('corriente')) {
+                        totals.currentAssets = amount;
+                    } else if (name.includes('no corriente')) {
+                        totals.nonCurrentAssets = amount;
+                    }
+                    totals.totalAssets = amount;
+                }
+                
+                if (name.includes('pasivo') || name.includes('patrimonio')) {
+                    totals.totalLiabilitiesEquity = amount;
+                }
+            });
+
+            return totals;
+        }
+
+        // Show empty state
+        function showEmptyState(message) {
+            const contentDiv = document.getElementById('balanceContent');
+            contentDiv.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <h3>No hay datos disponibles</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN'
+            }).format(amount);
+        }
+
+        // Update generated date
+        function updateGeneratedDate() {
+            const dateElement = document.getElementById('generatedDate');
+            dateElement.textContent = new Date().toLocaleString('es-MX');
+        }
+
+        // Export balance
+        function exportBalance() {
+            if (!balanceData.length) {
+                alert('No hay datos para exportar');
+                return;
+            }
+
+            // Create CSV content
+            const headers = ['Cuenta', 'Código', 'Período Anterior', 'Período Actual', 'Variación'];
+            const csvContent = [
+                headers.join(','),
+                ...balanceData.map(row => [
+                    `"${row.accountName || ''}"`,
+                    `"${row.accountCode || ''}"`,
+                    row.finalPrevious || 0,
+                    row.finalCurrent || 0,
+                    (row.finalCurrent || 0) - (row.finalPrevious || 0)
+                ].join(','))
+            ].join('\n');
+
+            // Download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `balance_general_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // Print balance
+        function printBalance() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
