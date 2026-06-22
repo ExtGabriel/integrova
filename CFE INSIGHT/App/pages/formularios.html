@@ -12,6 +12,110 @@
     <link rel="stylesheet" href="/css/formularios.css">
     <link rel="stylesheet" href="/css/assessment.css">
     <style>
+        /* Estilos para cards de ajustes más pequeñas */
+        .adjustment-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+
+        .adjustment-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .adjustment-card__header h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .adjustment-type {
+            background: #007bff;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .adjustment-card__body {
+            margin-bottom: 8px;
+        }
+
+        .adjustment-card__body p {
+            margin: 4px 0;
+            font-size: 0.875rem;
+            color: #555;
+        }
+
+        .adjustment-card__body h5 {
+            margin: 8px 0 6px 0;
+            font-size: 0.875rem;
+            color: #333;
+        }
+
+        .detalle-linea {
+            padding: 6px !important;
+            margin: 3px 0 !important;
+            background: #f8f9fa !important;
+            border-left: 3px solid #007bff !important;
+            border-radius: 3px !important;
+            font-size: 0.8rem !important;
+        }
+
+        .adjustment-card__footer {
+            padding-top: 6px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .adjustment-actions {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .adjustment-actions .btn {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            min-width: 32px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .adjustment-actions .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .adjustment-actions .btn-outline-primary:hover {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .adjustment-actions .btn-outline-secondary:hover {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: white;
+        }
+
         /* Estilos mejorados para archivos subidos */
         .document-item.uploaded-document {
             background: white;
@@ -3333,6 +3437,34 @@
                 case 'adjustments':
                     if (adjustmentsContent) {
                         adjustmentsContent.style.display = 'block';
+                        // Cargar ajustes directamente cuando se muestra la sección
+                        (async () => {
+                            try {
+                                console.log('🔄 Cargando ajustes para sección Ajustes...');
+                                const adjustments = await window.getFinancialAdjustments(window.currentDatasetId);
+                                console.log('📥 Ajustes cargados:', adjustments.length);
+                                
+                                const adjustmentsList = document.getElementById('adjustmentsList');
+                                const adjustmentsEmpty = document.getElementById('adjustmentsEmpty');
+                                
+                                if (adjustmentsList) {
+                                    adjustmentsList.innerHTML = '';
+                                    if (adjustmentsEmpty) {
+                                        adjustmentsEmpty.style.display = adjustments.length ? 'none' : 'grid';
+                                    }
+                                    
+                                    if (adjustments.length > 0) {
+                                        adjustments.forEach(adj => {
+                                            const card = window.createAdjustmentCard(adj);
+                                            if (card) adjustmentsList.appendChild(card);
+                                        });
+                                        console.log('✅ Ajustes renderizados en sección Ajustes');
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('❌ Error cargando ajustes en sección Ajustes:', error);
+                            }
+                        })();
                     }
                     break;
                 case 'risk':
@@ -5922,6 +6054,31 @@
                 console.warn('⚠️ No se pudo actualizar el conteo de grupos financieros:', error);
             }
         }
+
+        // Escuchar actualizaciones de ajustes locales para refrescar secciones
+        document.addEventListener('localAdjustmentsUpdated', function(event) {
+            console.log('🔄 Actualización de ajustes detectada, refrescando secciones...');
+            const adjustments = event.detail?.adjustments || [];
+            console.log('🔍 Ajustes actualizados:', adjustments);
+            
+            // Refrescar sección Cuentas si está visible
+            const cuentasSection = document.getElementById('cuentasSection');
+            if (cuentasSection && cuentasSection.style.display !== 'none') {
+                console.log('🔄 Refrescando sección Cuentas...');
+                if (typeof loadCuentasFromLatestExcel === 'function') {
+                    loadCuentasFromLatestExcel({ forceReload: true });
+                }
+            }
+            
+            // Refrescar sección Grupos Financieros si está visible
+            const gruposSection = document.getElementById('gruposFinancierosSection');
+            if (gruposSection && gruposSection.style.display !== 'none') {
+                console.log('🔄 Refrescando sección Grupos Financieros...');
+                if (typeof loadGruposFinancieros === 'function') {
+                    loadGruposFinancieros({ forceReload: true });
+                }
+            }
+        });
 
         // Aplicar tema guardado
         document.addEventListener('DOMContentLoaded', function () {
@@ -18995,8 +19152,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Función auxiliar para formatear moneda
     function formatCurrency(amount) {
         return new Intl.NumberFormat('es-GT', {
-            style: 'currency',
-            currency: 'GTQ'
+            minimumFractionDigits: 2
         }).format(amount);
     }
     
@@ -20046,17 +20202,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para formatear moneda
         function formatCurrency(value, useAbsoluteValue = false) {
-            if (value == null || value === '' || isNaN(value)) return 'Q0.00';
+            if (value == null || value === '' || isNaN(value)) return '0.00';
             let numValue = parseFloat(value);
-            if (isNaN(numValue)) return 'Q0.00';
+            if (isNaN(numValue)) return '0.00';
             
             // Aplicar lógica de Caseware: convertir a valor absoluto si se solicita
             if (useAbsoluteValue) {
                 numValue = Math.abs(numValue);
             }
             
-            const formattedValue = numValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            return `Q${formattedValue}`;
+            // Formato sin símbolo de moneda, solo número con separadores
+            return numValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         
         // Función específica para asignación de cuentas (siempre aplica Caseware)
@@ -29648,24 +29804,134 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para crear una tarjeta de ajuste
-        function createAdjustmentCard(ajuste) {
+        // Función para formatear montos sin símbolo para ajustes
+    function formatAdjustmentAmount(amount) {
+        return new Intl.NumberFormat('es-GT', {
+            minimumFractionDigits: 2
+        }).format(amount);
+    }
+
+    // Exponer createAdjustmentCard globalmente
+    window.createAdjustmentCard = createAdjustmentCard;
+    
+    function createAdjustmentCard(ajuste) {
+            const meta = ajuste.meta || {};
+            
+            // Debug: mostrar estructura completa de datos
+            console.log('🔍 Estructura completa del ajuste:', ajuste);
+            console.log('🔍 Meta completo:', meta);
+            console.log('🔍 Propiedades en meta:', Object.keys(meta));
+            
+            // Buscar detalles en diferentes posibles ubicaciones
+            let detalles = [];
+            if (meta.detalles && Array.isArray(meta.detalles)) {
+                detalles = meta.detalles;
+                console.log('📥 Encontrados detalles en meta.detalles:', detalles.length);
+            } else if (meta.lineas && Array.isArray(meta.lineas)) {
+                detalles = meta.lineas;
+                console.log('📥 Encontrados detalles en meta.lineas:', detalles.length);
+            } else if (ajuste.detalles && Array.isArray(ajuste.detalles)) {
+                detalles = ajuste.detalles;
+                console.log('📥 Encontrados detalles en ajuste.detalles:', detalles.length);
+            } else if (ajuste.lineas && Array.isArray(ajuste.lineas)) {
+                detalles = ajuste.lineas;
+                console.log('📥 Encontrados detalles en ajuste.lineas:', detalles.length);
+            }
+            
+            // Si encontramos detalles, mostrar la estructura del primero
+            if (detalles.length > 0) {
+                console.log('🔍 Estructura del primer detalle:', detalles[0]);
+                console.log('🔍 Propiedades del primer detalle:', Object.keys(detalles[0]));
+            }
+            
+            // Generar HTML para las líneas del ajuste
+            let detallesHtml = '';
+            if (detalles.length > 0) {
+                detallesHtml = detalles.map(detalle => {
+                    // Usar las propiedades correctas según la estructura de datos
+                    const cuenta = detalle.code || 'N/A';
+                    const descripcion = detalle.name || '';
+                    const monto = Math.abs(detalle.amount || 0);
+                    const naturaleza = detalle.type || 'N/A';
+                    
+                    return `
+                        <div class="detalle-linea" style="padding: 8px; margin: 4px 0; background: #f8f9fa; border-left: 3px solid #007bff; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <strong>${cuenta}</strong>${descripcion ? ` <small style="color: #666;">- ${descripcion}</small>` : ''}
+                                </div>
+                                <div style="text-align: right; min-width: 100px;">
+                                    <span style="font-weight: bold; color: ${naturaleza === 'débito' || naturaleza === 'debit' ? '#28a745' : '#dc3545'};">
+                                        ${naturaleza === 'débito' || naturaleza === 'debit' ? '+' : '-'}${formatAdjustmentAmount(monto)}
+                                    </span>
+                                    <br><small style="color: #666;">${naturaleza}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                detallesHtml = '<p style="color: #666; font-style: italic;">No hay líneas de detalle encontradas</p>';
+            }
+            
             const card = document.createElement('div');
             card.className = 'adjustment-card';
             card.innerHTML = `
                 <div class="adjustment-card__header">
-                    <h3>Ajuste #${ajuste.numero}</h3>
-                    <span class="adjustment-type">${ajuste.tipo}</span>
+                    <h3>Ajuste #${meta.numero || 'N/A'}</h3>
+                    <span class="adjustment-type">${meta.tipoLabel || ajuste.adjustment_type || 'N/A'}</span>
                 </div>
                 <div class="adjustment-card__body">
-                    <p><strong>Período:</strong> ${ajuste.periodo}</p>
-                    <p><strong>Entidad:</strong> ${ajuste.entidad}</p>
-                    <p><strong>Descripción:</strong> ${ajuste.descripcion}</p>
-                    <p><strong>Líneas:</strong> ${ajuste.detalles.length}</p>
+                    <p><strong>Período:</strong> ${meta.periodoLabel || 'N/A'}</p>
+                    <p><strong>Entidad:</strong> ${meta.entidadLabel || 'N/A'}</p>
+                    <p><strong>Descripción:</strong> ${ajuste.descripcion || meta.descripcion || 'Sin descripción'}</p>
+                                        
+                    <div style="margin-top: 15px;">
+                        <h5 style="margin-bottom: 10px; color: #333;">Detalle del ajuste:</h5>
+                        ${detallesHtml}
+                    </div>
                 </div>
                 <div class="adjustment-card__footer">
-                    <small>${new Date(ajuste.createdAt).toLocaleString()}</small>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <small>Creado: ${new Date(ajuste.created_at).toLocaleString()}</small>
+                        <div class="adjustment-actions">
+                            <button class="btn btn-sm btn-outline-primary edit-adjustment" data-ajuste-id="${ajuste.id}" title="Editar ajuste">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm note-adjustment" data-ajuste-id="${ajuste.id}" title="Agregar nota" style="border: none; background: none; color: #6c757d;">
+                                <i class="bi bi-chat-text"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
+            
+            // Agregar event listeners para los botones
+            const editButton = card.querySelector('.edit-adjustment');
+            const noteButton = card.querySelector('.note-adjustment');
+            
+            if (editButton) {
+                editButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const ajusteId = this.dataset.ajusteId;
+                    console.log('📝 Editar ajuste:', ajusteId);
+                    // TODO: Implementar función para editar ajuste
+                    alert('Función de edición en desarrollo. Ajuste ID: ' + ajusteId);
+                });
+            }
+            
+            if (noteButton) {
+                noteButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const ajusteId = this.dataset.ajusteId;
+                    console.log('📝 Agregar nota a ajuste:', ajusteId);
+                    // TODO: Implementar función para agregar nota
+                    alert('Función de notas en desarrollo. Ajuste ID: ' + ajusteId);
+                });
+            }
+            
             return card;
         }
         

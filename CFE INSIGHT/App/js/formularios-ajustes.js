@@ -334,6 +334,32 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         }
 
         // Asegurar que ajustes se inicialice como array
+        console.log('🔄 Inicializando ajustes...');
+        console.log('🔍 currentDatasetId antes de cargar:', currentDatasetId);
+        console.log('🔍 window.currentDatasetId antes de cargar:', window.currentDatasetId);
+        
+        // Si no hay currentDatasetId, intentar obtenerlo del localStorage
+        if (!currentDatasetId && window.currentDatasetId) {
+            currentDatasetId = window.currentDatasetId;
+            console.log('✅ currentDatasetId sincronizado desde window.currentDatasetId:', currentDatasetId);
+        }
+        
+        if (!currentDatasetId) {
+            // Intentar obtener del localStorage como último recurso
+            try {
+                const lastDataset = localStorage.getItem('assigned_accounts_last_dataset_v1');
+                if (lastDataset) {
+                    currentDatasetId = lastDataset;
+                    window.currentDatasetId = lastDataset;
+                    console.log('✅ currentDatasetId recuperado desde localStorage:', currentDatasetId);
+                }
+            } catch (error) {
+                console.warn('⚠️ Error obteniendo currentDatasetId desde localStorage:', error);
+            }
+        }
+        
+        console.log('🔍 currentDatasetId final antes de cargar ajustes:', currentDatasetId);
+        
         ajustes = await loadAdjustmentsFromStorage();
         if (!Array.isArray(ajustes)) {
             console.warn('formularios-ajustes.js: loadAdjustmentsFromStorage no devolvió un array, usando array vacío');
@@ -341,10 +367,35 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         }
         
         console.log('formularios-ajustes.js: ajustes inicializado:', typeof ajustes, ajustes.length, 'elementos');
-        renderAdjustments();
+        renderAjustes(); // Usar renderAjustes en lugar de renderAdjustments
         
         // Inicializar el badge de notificaciones
         updateNotesNotificationBadge();
+
+        // Escuchar actualizaciones de la base de datos para recargar ajustes
+        document.addEventListener('databaseAdjustmentsUpdated', async function(event) {
+            console.log('🔄 Actualización de base de datos detectada, recargando ajustes...');
+            const { datasetId, count } = event.detail || {};
+            console.log(`🔍 Dataset: ${datasetId}, Ajustes actualizados: ${count}`);
+            
+            // Recargar ajustes desde la base de datos
+            try {
+                ajustes = await loadAdjustmentsFromStorage();
+                if (!Array.isArray(ajustes)) {
+                    console.warn('loadAdjustmentsFromStorage no devolvió un array, usando array vacío');
+                    ajustes = [];
+                }
+                
+                console.log('✅ Ajustes recargados desde BD:', ajustes.length, 'elementos');
+                renderAjustes(); // Usar renderAjustes en lugar de renderAdjustments
+                updateNotesNotificationBadge();
+                
+                // También actualizar las tablas financieras
+                broadcastAdjustmentsUpdate();
+            } catch (error) {
+                console.error('❌ Error recargando ajustes desde BD:', error);
+            }
+        });
 
         console.log('🔍 Verificando botones para conectar event listeners:');
         console.log('- openButton (btnNuevoAjuste):', openButton);
@@ -603,27 +654,110 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             }
         }
 
+        // Función para recolectar detalles del formulario
+        function collectDetailsFromForm() {
+            const detailsList = document.getElementById('ajusteDetailsList');
+            if (!detailsList) {
+                console.warn('❌ No se encontró ajusteDetailsList');
+                return [];
+            }
+            
+            const detailRows = detailsList.querySelectorAll('.ajuste-detail-row');
+            const detalles = [];
+            
+            detailRows.forEach((row) => {
+                const code = row.querySelector('.ajuste-detail-row__code')?.textContent || row.dataset.accountCode || '';
+                const name = row.querySelector('.ajuste-detail-row__name')?.textContent || row.dataset.accountName || '';
+                const amountInput = row.querySelector('[data-detail-field="amount"]');
+                const amount = parseFloat(amountInput?.value) || 0;
+                
+                if (code && name && amount !== 0) {
+                    detalles.push({
+                        id: row.dataset.detailId || `detail-${Date.now()}-${Math.random()}`,
+                        code: code.trim(),
+                        name: name.trim(),
+                        amount: amount,
+                        type: amount > 0 ? 'debit' : 'credit'
+                    });
+                }
+            });
+            
+            console.log('✅ Detalles recolectados del formulario:', detalles.length, detalles);
+            return detalles;
+        }
+
+        // Función para guardar ajuste directamente en la base de datos
+        async function saveFinancialAdjustmentToDatabase(ajusteData, onSuccess) {
+            try {
+                console.log('💾 Guardando ajuste directamente en base de datos...', ajusteData);
+                
+                if (!window.saveFinancialAdjustment || !currentDatasetId) {
+                    console.warn('⚠️ No se puede guardar: saveFinancialAdjustment o currentDatasetId no disponibles');
+                    notify('Error: No hay conexión con la base de datos', 'error');
+                    return;
+                }
+
+                const result = await window.saveFinancialAdjustment({
+                    datasetId: currentDatasetId,
+                    adjustmentType: ajusteData.tipo || 'manual',
+                    moneda: ajusteData.moneda || 'GTQ',
+                    monto: ajusteData.monto,
+                    descripcion: ajusteData.descripcion || '',
+                    htmlContenido: ajusteData.htmlContenido || '',
+                    adjuntos: ajusteData.adjuntos || null,
+                    meta: ajusteData.meta || {}
+                });
+
+                console.log('✅ Ajuste guardado en BD:', result);
+                
+                // Disparar evento para que la UI se recargue desde BD
+                document.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                    detail: { datasetId: currentDatasetId, count: 1 }
+                }));
+
+                // Ejecutar callback de éxito
+                if (onSuccess && typeof onSuccess === 'function') {
+                    onSuccess();
+                }
+
+                return result;
+            } catch (error) {
+                console.error('❌ Error guardando ajuste en base de datos:', error);
+                notify('Error al guardar el ajuste en la base de datos', 'error');
+                throw error;
+            }
+        }
+
         handleFormSubmit = function(event) {
             event.preventDefault();
             
-            console.log('=== INICIANDO GUARDADO DE AJUSTE ===');
-            console.log('detalleItems:', detalleItems);
+            console.log('=== INICIANDO GUARDADO DE AJUSTE EN BD ===');
             
-            // Verificar que los elementos del formulario existan
+            // Recolectar detalles directamente del DOM
+            const detallesRecolectados = collectDetailsFromForm();
+            console.log('Detalles recolectados del DOM:', detallesRecolectados);
+            
+            // Obtener valores de los campos con validación - buscar elementos directamente
+            const numeroField = document.getElementById('ajusteNumero');
+            const tipoSelect = document.getElementById('ajusteTipo');
+            const periodoSelect = document.getElementById('ajustePeriodo');
+            const entidadSelect = document.getElementById('ajusteEntidad');
+            const descripcionTextarea = document.getElementById('ajusteDescripcion');
+            
             console.log('Elementos del formulario:');
-            console.log('- numeroField:', numeroField);
-            console.log('- tipoSelect:', tipoSelect);
-            console.log('- periodoSelect:', periodoSelect);
-            console.log('- entidadSelect:', entidadSelect);
-            console.log('- descripcionTextarea:', descripcionTextarea);
+            console.log('- numeroField:', !!numeroField, numeroField?.id);
+            console.log('- tipoSelect:', !!tipoSelect, tipoSelect?.id);
+            console.log('- periodoSelect:', !!periodoSelect, periodoSelect?.id);
+            console.log('- entidadSelect:', !!entidadSelect, entidadSelect?.id);
+            console.log('- descripcionTextarea:', !!descripcionTextarea, descripcionTextarea?.id);
             
-            if (!detalleItems.length) {
+            if (!detallesRecolectados.length) {
                 console.log('ERROR: No hay detalles en el ajuste');
                 notify('Agrega al menos una línea en Detalles antes de guardar.', 'warning');
                 return;
             }
 
-            const hasEmptyAmount = detalleItems.some((item) => !Number.isFinite(item.amount));
+            const hasEmptyAmount = detallesRecolectados.some((item) => !Number.isFinite(item.amount));
             if (hasEmptyAmount) {
                 console.log('ERROR: Hay montos vacíos o inválidos');
                 notify('Completa el monto de cada línea con valores válidos antes de guardar.', 'warning');
@@ -631,23 +765,38 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             }
 
             // Validación de doble partida
-            const balance = calculateAdjustmentBalance();
-            if (!balance.isBalanced) {
+            let totalDebit = 0;
+            let totalCredit = 0;
+            detallesRecolectados.forEach(detail => {
+                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                if (amount > 0) {
+                    totalDebit += amount;
+                } else if (amount < 0) {
+                    totalCredit += Math.abs(amount);
+                }
+            });
+            
+            const difference = totalDebit - totalCredit;
+            const isBalanced = Math.abs(difference) < 0.01;
+            const hasDebit = totalDebit > 0;
+            const hasCredit = totalCredit > 0;
+            
+            if (!isBalanced) {
                 console.log('ERROR: Ajuste desbalanceado - Débitos != Créditos');
-                const excessType = balance.difference > 0 ? 'débitos' : 'créditos';
-                const excessAmount = formatCurrency(Math.abs(balance.difference));
+                const excessType = difference > 0 ? 'débitos' : 'créditos';
+                const excessAmount = formatCurrency(Math.abs(difference));
                 notify(`Ajuste desbalanceado. Exceso de ${excessType}: ${excessAmount}. Los débitos deben ser iguales a los créditos.`, 'error');
                 return;
             }
 
             // Validación de partida doble (al menos un débito y un crédito)
-            if (!balance.hasDebit || !balance.hasCredit) {
+            if (!hasDebit || !hasCredit) {
                 console.log('ERROR: Partida doble requiere al menos un débito y un crédito');
                 notify('Una partida contable requiere al menos una línea en Débito y otra en Crédito.', 'warning');
                 return;
             }
 
-            const hasZeroAmount = detalleItems.some((item) => !Number.isFinite(item.amount) || item.amount === 0);
+            const hasZeroAmount = detallesRecolectados.some((item) => !Number.isFinite(item.amount) || item.amount === 0);
             if (hasZeroAmount) {
                 console.log('ADVERTENCIA: Hay montos en 0');
                 notify('Algunas líneas tienen monto en 0. El ajuste se guardará pero puedes querer revisar los montos.', 'info');
@@ -663,6 +812,11 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             const entidadValue = entidadSelect?.value || '';
             const entidadLabel = entidadSelect?.options[entidadSelect?.selectedIndex]?.text || entidadValue || '';
             const descripcionValue = descripcionTextarea?.value?.trim() || '';
+            
+            console.log('Valores recolectados:', {
+                numero, tipoValue, tipoLabel, periodoValue, periodoLabel,
+                periodoYear, entidadValue, entidadLabel, descripcionValue
+            });
 
             console.log('Valores del formulario:');
             console.log('- numero:', numero);
@@ -695,7 +849,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
 
             console.log('Datos completos del ajuste:', {
                 numero, tipoValue, periodoValue, entidadValue, 
-                descripcion: descripcionValue, detalles: detalleItems
+                descripcion: descripcionValue, detalles: detallesRecolectados
             });
 
             // Verificar si es modo edición
@@ -704,39 +858,10 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             if (editingId) {
                 // Modo edición: actualizar ajuste existente
                 console.log('MODO EDICIÓN - Actualizando ajuste:', editingId);
-                const ajusteIndex = ajustes.findIndex(a => a.id === editingId);
-                if (ajusteIndex !== -1) {
-                    ajustes[ajusteIndex] = {
-                        ...ajustes[ajusteIndex],
-                        numero,
-                        tipo: tipoValue,
-                        tipoLabel,
-                        periodo: periodoValue,
-                        periodoLabel,
-                        periodoYear,
-                        entidad: entidadValue,
-                        entidadLabel,
-                        descripcion: descripcionValue,
-                        descripcionHtml: null,
-                        detalles: [...detalleItems],
-                        updatedAt: new Date().toISOString()
-                    };
-                    
-                    saveAjustes();
-                    renderAjustes();
-                    broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
-                    closeAjusteModal();
-                    notify('Ajuste actualizado correctamente', 'success');
-                } else {
-                    console.log('ERROR: No se encontró el ajuste para editar');
-                    notify('No se encontró el ajuste para editar', 'error');
-                }
-                delete modalBackdrop.dataset.editingId;
-            } else {
-                // Modo creación: crear nuevo ajuste
-                console.log('MODO CREACIÓN - Creando nuevo ajuste');
-                const newAjuste = {
-                    id: uniqueId('ajuste'),
+                
+                // Crear objeto para actualizar en BD
+                const ajusteActualizado = {
+                    id: editingId,
                     numero,
                     tipo: tipoValue,
                     tipoLabel,
@@ -745,23 +870,115 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                     periodoYear,
                     entidad: entidadValue,
                     entidadLabel,
+                    moneda: 'GTQ',
+                    monto: detallesRecolectados.reduce((sum, d) => sum + Math.abs(d.amount), 0),
                     descripcion: descripcionValue,
-                    descripcionHtml: null,
-                    detalles: [...detalleItems],
-                    createdAt: new Date().toISOString()
+                    htmlContenido: '',
+                    adjuntos: null,
+                    meta: {
+                        detalles: detallesRecolectados,
+                        numero,
+                        tipo: tipoValue,
+                        tipoLabel,
+                        periodo: periodoValue,
+                        periodoLabel,
+                        periodoYear,
+                        entidad: entidadValue,
+                        entidadLabel,
+                        creado: new Date().toISOString(),
+                        modificado: new Date().toISOString(),
+                        totalMonto: detallesRecolectados.reduce((sum, d) => sum + Math.abs(d.amount), 0)
+                    }
                 };
                 
-                console.log('Nuevo ajuste a crear:', newAjuste);
+                // Guardar directamente en BD
+                saveFinancialAdjustmentToDatabase(ajusteActualizado, () => {
+                    // Sincronizar en memoria para mostrar inmediatamente
+                    const idx = ajustes.findIndex(a => a.id === editingId);
+                    if (idx !== -1) {
+                        ajustes[idx] = {
+                            ...ajustes[idx],
+                            ...ajusteActualizado,
+                            detalles: detallesRecolectados,
+                            updatedAt: new Date().toISOString()
+                        };
+                    }
+                    renderAjustes();
+                    broadcastAdjustmentsUpdate();
+                    closeAjusteModal();
+                    notify('Ajuste actualizado correctamente', 'success');
+                });
                 
-                ajustes.push(newAjuste);
-                saveAjustes();
-                renderAjustes();
-                broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
-                closeAjusteModal();
-                notify('Ajuste creado correctamente', 'success');
+                delete modalBackdrop.dataset.editingId;
+            } else {
+                // Modo creación: crear nuevo ajuste
+                console.log('MODO CREACIÓN - Creando nuevo ajuste');
+                
+                // Crear objeto para guardar en BD
+                const newAjuste = {
+                    id: `ajuste-${Date.now()}-${Math.random()}`,
+                    numero,
+                    tipo: tipoValue,
+                    tipoLabel,
+                    periodo: periodoValue,
+                    periodoLabel,
+                    periodoYear,
+                    entidad: entidadValue,
+                    entidadLabel,
+                    moneda: 'GTQ',
+                    monto: detallesRecolectados.reduce((sum, d) => sum + Math.abs(d.amount), 0),
+                    descripcion: descripcionValue,
+                    htmlContenido: '',
+                    adjuntos: null,
+                    detalles: detallesRecolectados,
+                    createdAt: new Date().toISOString(),
+                    meta: {
+                        detalles: detallesRecolectados,
+                        numero,
+                        tipo: tipoValue,
+                        tipoLabel,
+                        periodo: periodoValue,
+                        periodoLabel,
+                        periodoYear,
+                        entidad: entidadValue,
+                        entidadLabel,
+                        creado: new Date().toISOString(),
+                        modificado: new Date().toISOString(),
+                        totalMonto: detallesRecolectados.reduce((sum, d) => sum + Math.abs(d.amount), 0)
+                    }
+                };
+                
+                console.log('Nuevo ajuste a guardar en BD:', newAjuste);
+                
+                // Guardar directamente en BD
+                saveFinancialAdjustmentToDatabase(newAjuste, () => {
+                    // Asegurar que el ajuste tenga la estructura correcta para renderizado
+                    const ajusteParaUI = {
+                        ...newAjuste,
+                        // Propiedades directas para compatibilidad con renderizado
+                        numero: newAjuste.numero,
+                        tipo: newAjuste.tipo,
+                        tipoLabel: newAjuste.tipoLabel,
+                        periodo: newAjuste.periodo,
+                        periodoLabel: newAjuste.periodoLabel,
+                        periodoYear: newAjuste.periodoYear,
+                        entidad: newAjuste.entidad,
+                        entidadLabel: newAjuste.entidadLabel,
+                        descripcion: newAjuste.descripcion,
+                        detalles: newAjuste.detalles,
+                        createdAt: newAjuste.createdAt
+                    };
+                    
+                    ajustes.push(ajusteParaUI);
+                    console.log('Ajuste agregado al array local:', ajusteParaUI);
+                    renderAjustes();
+                    broadcastAdjustmentsUpdate();
+                    closeAjusteModal();
+                    notify('Ajuste creado correctamente', 'success');
+                });
             }
             
-            console.log('=== AJUSTE GUARDADO EXITOSAMENTE ===');
+            console.log('=== AJUSTE GUARDADO EN BD EXITOSAMENTE ===');
         }
         handleFormSubmit.isPlaceholder = false;
         
@@ -975,10 +1192,10 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         }
 
         function formatCurrency(amount) {
-            return new Intl.NumberFormat('es-MX', {
-                style: 'currency',
-                currency: 'MXN'
-            }).format(amount);
+            // Formato sin símbolo de moneda, solo número con separadores
+            return Number.isFinite(amount) 
+                ? amount.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : '0.00';
         }
 
         // Agregar estilos para los badges de naturaleza y efectos
@@ -1226,6 +1443,19 @@ function updateNumeroField() {
         function createAdjustmentCard(ajuste) {
             console.log('Creando tarjeta para ajuste:', ajuste);
             
+            // Obtener valores desde meta o directamente del ajuste (compatibilidad)
+            const numero = ajuste.numero || ajuste.meta?.numero || 'N/A';
+            const tipoLabel = ajuste.tipoLabel || ajuste.meta?.tipoLabel || ajuste.tipo || 'N/A';
+            const periodoLabel = ajuste.periodoLabel || ajuste.meta?.periodoLabel || ajuste.periodo || 'N/A';
+            const periodoYear = ajuste.periodoYear || ajuste.meta?.periodoYear || 'N/A';
+            const entidadLabel = ajuste.entidadLabel || ajuste.meta?.entidadLabel || ajuste.entidad || 'N/A';
+            const descripcion = ajuste.descripcion || ajuste.meta?.descripcion || '';
+            const detalles = ajuste.detalles || ajuste.meta?.detalles || [];
+            
+            console.log('Valores para renderizado:', {
+                numero, tipoLabel, periodoLabel, periodoYear, entidadLabel, descripcion, detalles
+            });
+            
             const card = document.createElement('article');
             card.className = 'ajuste-card';
 
@@ -1234,25 +1464,25 @@ function updateNumeroField() {
             title.innerHTML = `
                 <div class="ajuste-card__title">
                     <span class="ajuste-card__title-text">Ajuste</span>
-                    <span class="ajuste-card__number">${ajuste.numero}</span>
-                    <span class="ajuste-card__title-text">- ${ajuste.periodoYear}</span>
+                    <span class="ajuste-card__number">${numero}</span>
+                    <span class="ajuste-card__title-text">- ${periodoYear}</span>
                 </div>
             `;
 
             const entity = document.createElement('div');
             entity.className = 'ajuste-card__entity';
-            entity.textContent = ajuste.entidadLabel;
+            entity.textContent = entidadLabel;
 
             const typePeriod = document.createElement('div');
             typePeriod.className = 'ajuste-card__type-period';
-            typePeriod.textContent = `${ajuste.tipoLabel} - ${ajuste.periodoLabel}`;
+            typePeriod.textContent = `${tipoLabel} - ${periodoLabel}`;
 
             const description = document.createElement('div');
             description.className = 'ajuste-card__description';
             if (ajuste.descripcionHtml) {
                 description.innerHTML = ajuste.descripcionHtml;
-            } else if (ajuste.descripcion) {
-                description.textContent = ajuste.descripcion;
+            } else if (descripcion) {
+                description.textContent = descripcion;
             } else {
                 description.innerHTML = '<span class="ajuste-detail-placeholder">Sin descripción</span>';
             }
@@ -1260,18 +1490,21 @@ function updateNumeroField() {
             const detailsWrapper = document.createElement('div');
             detailsWrapper.className = 'ajuste-card__details';
 
-            (ajuste.detalles || []).forEach((detail) => {
+            detalles.forEach((detail) => {
                 const row = document.createElement('div');
                 row.className = 'ajuste-card__detail';
 
-                const signedAmount = detail.nature === 'haber' ? -Math.abs(detail.amount) : Math.abs(detail.amount);
-                const formattedAmount = formatCurrencyFriendly(Math.abs(signedAmount));
+                // Usar el amount directamente (positivo para débito, negativo para crédito)
+                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                const formattedAmount = formatCurrencyFriendly(Math.abs(amount));
                 const amountElement = document.createElement('span');
-                amountElement.className = signedAmount < 0 ? 'ajuste-card__amount ajuste-card__amount--negative' : 'ajuste-card__amount ajuste-card__amount--positive';
-                amountElement.textContent = signedAmount < 0 ? `(${formattedAmount})` : formattedAmount;
+                amountElement.className = amount < 0 ? 'ajuste-card__amount ajuste-card__amount--negative' : 'ajuste-card__amount ajuste-card__amount--positive';
+                amountElement.textContent = amount < 0 ? `(${formattedAmount})` : formattedAmount;
 
                 const label = document.createElement('span');
-                label.innerHTML = `<strong>${detail.label}</strong><br><small>${detail.meta || (detail.type === 'group' ? 'Agrupamiento' : 'Cuenta')}</small>`;
+                const displayName = detail.label || detail.name || detail.code || 'Sin nombre';
+                const detailType = detail.type === 'group' ? 'Agrupamiento' : 'Cuenta';
+                label.innerHTML = `<strong>${displayName}</strong><br><small>${detail.code || ''} - ${detailType}</small>`;
 
                 row.appendChild(label);
                 row.appendChild(amountElement);
@@ -1885,9 +2118,14 @@ function updateNumeroField() {
         async function loadAdjustmentsFromStorage() {
             try {
                 console.log('📥 Cargando ajustes desde base de datos...');
+                console.log('🔍 currentDatasetId:', currentDatasetId);
+                console.log('🔍 window.currentDatasetId:', window.currentDatasetId);
+                console.log('🔍 window.getFinancialAdjustments disponible:', typeof window.getFinancialAdjustments);
                 
                 if (!window.getFinancialAdjustments || !currentDatasetId) {
                     console.warn('⚠️ No se puede cargar: getFinancialAdjustments o currentDatasetId no disponibles');
+                    console.warn('  - getFinancialAdjustments:', !!window.getFinancialAdjustments);
+                    console.warn('  - currentDatasetId:', currentDatasetId);
                     return [];
                 }
 
@@ -1902,21 +2140,44 @@ function updateNumeroField() {
                 const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
                 console.log(`📥 Ajustes cargados desde BD: ${dbAdjustments.length}`);
                 
-                // Convertir ajustes de la base de datos al formato local
-                const convertedAdjustments = dbAdjustments.map(adj => ({
-                    id: adj.id,
-                    tipo: adj.adjustment_type,
-                    moneda: adj.moneda,
-                    monto: adj.monto,
-                    descripcion: adj.descripcion,
-                    htmlContenido: adj.html_contenido,
-                    adjuntos: adj.adjuntos,
-                    creado: adj.created_at,
-                    modificado: adj.updated_at,
-                    detalles: adj.meta?.detalles || [],
-                    // Mantener compatibilidad con formato existente
-                    notasArray: adj.meta?.notasArray || []
-                }));
+                // Convertir ajustes de la base de datos al formato local (incluyendo metadatos de UI)
+                const convertedAdjustments = dbAdjustments.map((adj) => {
+                    const meta = adj.meta || {};
+                    const numero = meta.numero ?? adj.numero ?? null;
+                    const tipoValue = meta.tipo || adj.adjustment_type || '';
+                    const tipoLabel = meta.tipoLabel || tipoValue || 'N/A';
+                    const periodoValue = meta.periodo || adj.periodo || '';
+                    const periodoLabel = meta.periodoLabel || periodoValue || 'N/A';
+                    const periodoYear = meta.periodoYear || resolvePeriodYear(periodoValue);
+                    const entidadValue = meta.entidad || adj.entidad || '';
+                    const entidadLabel = meta.entidadLabel || entidadValue || 'N/A';
+                    const descripcion = adj.descripcion || meta.descripcion || '';
+                    const detalles = meta.detalles || adj.detalles || [];
+                    const notasArray = meta.notasArray || [];
+
+                    return {
+                        id: adj.id,
+                        numero,
+                        tipo: tipoValue,
+                        tipoLabel,
+                        periodo: periodoValue,
+                        periodoLabel,
+                        periodoYear,
+                        entidad: entidadValue,
+                        entidadLabel,
+                        moneda: adj.moneda,
+                        monto: adj.monto,
+                        descripcion,
+                        htmlContenido: adj.html_contenido || meta.descripcionHtml || '',
+                        adjuntos: adj.adjuntos,
+                        creado: adj.created_at,
+                        modificado: adj.updated_at,
+                        detalles,
+                        meta,
+                        // Mantener compatibilidad con formato existente
+                        notasArray
+                    };
+                });
 
                 return convertedAdjustments;
             } catch (error) {
@@ -2351,10 +2612,8 @@ function updateNumeroField() {
 
         function formatCurrencyFriendly(value) {
             const numericValue = Number.isFinite(value) ? value : 0;
-            if (typeof window.formatCurrency === 'function') {
-                return window.formatCurrency(numericValue);
-            }
-            return `Q${numericValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            // Formato sin símbolo de moneda, solo número con separadores
+            return numericValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function getAccountNature(accountName, accountCode = '') {
@@ -2502,9 +2761,13 @@ function updateNumeroField() {
         window.handleFormSubmit = handleFormSubmit;
         window.openAjusteModal = openAjusteModal;
         window.closeAjusteModal = closeAjusteModal;
+        window.initializeAjustesSystem = initializeAjustesSystem;
+        window.createAdjustmentCard = createAdjustmentCard;
         console.log('✅ Funciones de formularios-ajustes.js expuestas globalmente');
         console.log('🔍 Verificación final - handleFormSubmit:', typeof window.handleFormSubmit);
         console.log('🔍 Verificación final - openAjusteModal:', typeof window.openAjusteModal);
         console.log('🔍 Verificación final - closeAjusteModal:', typeof window.closeAjusteModal);
+        console.log('🔍 Verificación final - initializeAjustesSystem:', typeof window.initializeAjustesSystem);
+        console.log('🔍 Verificación final - createAdjustmentCard:', typeof window.createAdjustmentCard);
     }
 })();

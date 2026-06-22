@@ -317,7 +317,24 @@ async function saveFinancialAdjustment(adjustmentData) {
                 monto: adjustmentData.monto,
                 descripcion: adjustmentData.descripcion || null,
                 htmlContenido: adjustmentData.htmlContenido || null,
-                adjuntos: adjustmentData.adjuntos || null
+                adjuntos: adjustmentData.adjuntos || null,
+                // Include UI metadata for rendering
+                meta: {
+                    numero: adjustmentData.numero,
+                    tipo: adjustmentData.tipo,
+                    tipoLabel: adjustmentData.tipoLabel,
+                    periodo: adjustmentData.periodo,
+                    periodoLabel: adjustmentData.periodoLabel,
+                    periodoYear: adjustmentData.periodoYear,
+                    entidad: adjustmentData.entidad,
+                    entidadLabel: adjustmentData.entidadLabel,
+                    descripcion: adjustmentData.descripcion,
+                    detalles: adjustmentData.detalles,
+                    creado: adjustmentData.creado || new Date().toISOString(),
+                    modificado: adjustmentData.modificado || new Date().toISOString(),
+                    totalMonto: adjustmentData.totalMonto,
+                    ...adjustmentData.meta
+                }
             })
         });
 

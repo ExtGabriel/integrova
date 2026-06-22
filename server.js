@@ -5384,7 +5384,8 @@ app.post('/api/adjustments/save', async (req, res) => {
             monto, 
             descripcion, 
             htmlContenido, 
-            adjuntos 
+            adjuntos,
+            meta
         } = req.body;
         
         const userId = req.headers['user-id'];
@@ -5408,6 +5409,7 @@ app.post('/api/adjustments/save', async (req, res) => {
                 descripcion: descripcion || null,
                 html_contenido: htmlContenido || null,
                 adjuntos: adjuntos || null,
+                meta: meta || {},
                 created_by: userId
             })
             .select()
