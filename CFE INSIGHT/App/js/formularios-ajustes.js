@@ -1,23 +1,28 @@
-(() => {
-    const STORAGE_KEY = 'ajustes_formularios_v1';
+console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
 
-    // Función para obtener el año del Excel cargado
+(() => {
+    console.log('formularios-ajustes.js: Iniciando script');
+    
+    try {
+        const STORAGE_KEY = 'ajustes_formularios_v1';
+
+    // Funcion para obtener el ano del Excel cargado
     function getExcelYear() {
-        // Intentar obtener el año de los datos cargados en la aplicación
+        // Intentar obtener el ano de los datos cargados en la aplicacion
         try {
             // Buscar en localStorage datos del Excel
             const excelData = localStorage.getItem('excel_data_current');
             if (excelData) {
                 const parsed = JSON.parse(excelData);
-                // Extraer año de los datos si existe
-                if (parsed.year || parsed.año) {
-                    return parseInt(parsed.year || parsed.año);
+                // Extraer ano de los datos si existe
+                if (parsed.year || parsed.ano) {
+                    return parseInt(parsed.year || parsed.ano);
                 }
                 // Intentar obtener de alguna columna de datos
                 if (parsed.data && parsed.data.length > 0) {
                     const firstRow = parsed.data[0];
-                    // Buscar columnas que puedan contener años
-                    const yearColumns = ['Año', 'anio', 'year', 'periodo', 'period'];
+                    // Buscar columnas que puedan contener anos
+                    const yearColumns = ['Ano', 'anio', 'year', 'periodo', 'period'];
                     for (const col of yearColumns) {
                         if (firstRow[col]) {
                             const year = parseInt(firstRow[col]);
@@ -29,28 +34,28 @@
                 }
             }
             
-            // Intentar obtener de la URL o parámetros
+            // Intentar obtener de la URL o parametros
             const urlParams = new URLSearchParams(window.location.search);
-            const yearParam = urlParams.get('year') || urlParams.get('año');
+            const yearParam = urlParams.get('year') || urlParams.get('ano');
             if (yearParam) {
                 return parseInt(yearParam);
             }
             
             return null;
         } catch (error) {
-            console.warn('No se pudo obtener el año del Excel:', error);
+            console.warn('No se pudo obtener el ano del Excel:', error);
             return null;
         }
     }
 
     const YEAR_RESOLVERS = {
         'anio-corriente': () => {
-            // Intentar obtener el año del Excel cargado, si no hay, usar año actual
+            // Intentar obtener el ano del Excel cargado, si no hay, usar ano actual
             const excelYear = getExcelYear();
             return excelYear || new Date().getFullYear();
         },
         'anio-anterior': () => {
-            // Intentar obtener el año del Excel cargado, si no hay, usar año anterior
+            // Intentar obtener el ano del Excel cargado, si no hay, usar ano anterior
             const excelYear = getExcelYear();
             return excelYear ? excelYear - 1 : new Date().getFullYear() - 1;
         }
@@ -77,7 +82,207 @@
     let openModalCounter = 0;
     let currentUserProfile = null;
 
+    console.log('formularios-ajustes.js: Script cargado');
+
+    // Declarar funciones en el ámbito global para que estén disponibles inmediatamente
+    let handleFormSubmit, openAjusteModal, closeAjusteModal;
+
+    // Función para crear el modal dinámicamente
+    function createAjusteModal() {
+        console.log('🔧 Creando modal de ajustes dinámicamente...');
+        
+        // Eliminar modal existente si hay alguno
+        const existingModal = document.getElementById('ajusteModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Asegurar que el selector modal tenga z-index más alto
+        ensureSelectorModalZIndex();
+        
+        const modalHTML = `
+            <div class="ajuste-modal-backdrop" id="ajusteModal" hidden>
+                <div class="ajuste-modal" role="dialog" aria-modal="true" aria-labelledby="ajusteModalTitle">
+                    <header class="ajuste-modal__header">
+                        <div>
+                            <h2 id="ajusteModalTitle">Ajuste</h2>
+                            <p class="ajuste-modal__subtitle">Define los datos clave del ajuste y agrega las líneas afectadas.</p>
+                        </div>
+                        <button class="ajuste-modal__close" id="closeAjusteModal" aria-label="Cerrar">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </header>
+
+                    <form id="ajusteForm" class="ajuste-form">
+                        <section class="ajuste-form__grid">
+                            <div class="form-field">
+                                <label for="ajusteNumero">Número <span>*</span></label>
+                                <input type="number" id="ajusteNumero" name="numero" min="1" required readonly>
+                            </div>
+                            <div class="form-field">
+                                <label for="ajusteTipo">Tipo</label>
+                                <select id="ajusteTipo" name="tipo" required>
+                                    <option value="normal">Normal</option>
+                                    <option value="reclasificacion">Reclasificación</option>
+                                    <option value="no-registrado-hecho">No registrado - Hecho</option>
+                                    <option value="no-registrado-proyectado">No registrado - Proyectado</option>
+                                    <option value="no-registrado-critico">No registrado - Crítico</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="ajustePeriodo">Período</label>
+                                <select id="ajustePeriodo" name="periodo" required>
+                                    <option value="anio-corriente">Año corriente</option>
+                                    <option value="anio-anterior">Año anterior</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="ajusteEntidad">Entidad</label>
+                                <select id="ajusteEntidad" name="entidad" required>
+                                    <option value="prueba">PRUEBA</option>
+                                </select>
+                            </div>
+                        </section>
+
+                        <section class="form-field">
+                            <label for="ajusteDescripcion">Descripción</label>
+                            <textarea id="ajusteDescripcion" name="descripcion"></textarea>
+                        </section>
+
+                        <section class="ajuste-details">
+                            <div class="ajuste-details__header">
+                                <h3>Detalles</h3>
+                                <div class="ajuste-details__actions">
+                                    <button type="button" class="link-button" id="addCuentaLine">
+                                        <i class="bi bi-plus-circle"></i>
+                                        Línea de cuenta
+                                    </button>
+                                    <button type="button" class="link-button" id="addGrupoLine">
+                                        <i class="bi bi-plus-circle"></i>
+                                        Línea de grupo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="ajuste-details__empty" id="ajusteDetailsEmpty">
+                                <p>Aún no se han agregado líneas al ajuste.</p>
+                            </div>
+                            <div class="ajuste-details__list" id="ajusteDetailsList"></div>
+                        </section>
+
+                        <footer class="ajuste-modal__footer">
+                            <button type="button" class="btn-outline" id="cancelAjusteModal">Cancelar</button>
+                            <button type="button" class="btn-danger" id="deleteAjusteModal" style="display: none;">Eliminar Ajuste</button>
+                            <button type="submit" class="btn-primary">Guardar</button>
+                        </footer>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Agregar el modal al body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        console.log('✅ Modal de ajustes creado dinámicamente');
+    }
+
+    // Definir funciones inmediatamente en el ámbito global
+    // Funciones placeholder que se reemplazarán cuando se inicialice el sistema
+    handleFormSubmit = function(event) {
+        console.warn('handleFormSubmit llamado antes de inicialización completa');
+        event.preventDefault();
+    };
+    handleFormSubmit.isPlaceholder = true;
+    
+    openAjusteModal = function() {
+        console.warn('openAjusteModal llamado antes de inicialización completa');
+        // Asegurarse de que el modal exista
+        if (!document.getElementById('ajusteModal')) {
+            createAjusteModal();
+        }
+    };
+    openAjusteModal.isPlaceholder = true;
+    
+    closeAjusteModal = function() {
+        console.warn('closeAjusteModal llamado antes de inicialización completa');
+        const modal = document.getElementById('ajusteModal');
+        if (modal) {
+            modal.setAttribute('hidden', '');
+        }
+    };
+    closeAjusteModal.isPlaceholder = true;
+    
+    // Función para asegurar que el selector modal tenga z-index más alto
+    function ensureSelectorModalZIndex() {
+        const selectorModal = document.getElementById('selectorModal');
+        if (selectorModal) {
+            // Asegurar que el selector modal esté por encima del modal de ajustes
+            selectorModal.style.zIndex = '999999';
+            console.log('✅ z-index del selector modal ajustado a 999999');
+        }
+    }
+
+    // Exponer inmediatamente en window
+    if (typeof window !== 'undefined') {
+        window.handleFormSubmit = handleFormSubmit;
+        window.openAjusteModal = openAjusteModal;
+        window.closeAjusteModal = closeAjusteModal;
+        console.log('🔍 Funciones expuestas inmediatamente (placeholder)');
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
+        console.log('formularios-ajustes.js: DOMContentLoaded disparado');
+        
+        // Esperar a que la sección de ajustes sea visible antes de inicializar
+        const initializeWhenVisible = () => {
+            const adjustmentsSection = document.getElementById('adjustments-content');
+            if (adjustmentsSection && adjustmentsSection.style.display !== 'none') {
+                console.log('formularios-ajustes.js: Sección de ajustes visible, inicializando...');
+                initializeAjustesSystem();
+            } else {
+                console.log('formularios-ajustes.js: Sección de ajustes no visible, reintentando en 100ms...');
+                setTimeout(initializeWhenVisible, 100);
+            }
+        };
+        
+        // Prevenir bucles infinitos - solo intentar por un tiempo limitado
+        let attempts = 0;
+        const maxAttempts = 100; // 10 segundos máximo
+        const initializeWhenVisibleSafe = () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                console.warn('formularios-ajustes.js: Máximo de intentos alcanzado, deteniendo inicialización');
+                return;
+            }
+            
+            const adjustmentsSection = document.getElementById('adjustments-content');
+            if (adjustmentsSection && adjustmentsSection.style.display !== 'none') {
+                console.log('formularios-ajustes.js: Sección de ajustes visible, inicializando...');
+                initializeAjustesSystem();
+            } else {
+                console.log(`formularios-ajustes.js: Sección de ajustes no visible, intento ${attempts}/${maxAttempts}, reintentando en 100ms...`);
+                setTimeout(initializeWhenVisibleSafe, 100);
+            }
+        };
+        
+        // Inicializar inmediatamente si ya es visible, o esperar
+        initializeWhenVisibleSafe();
+        
+        // Además, forzar inicialización inmediata para asegurar que las funciones estén disponibles
+        setTimeout(() => {
+            console.log('🔄 Forzando inicialización de ajustes para asegurar disponibilidad de funciones...');
+            initializeAjustesSystem().catch(error => {
+                console.warn('⚠️ Error en inicialización forzada:', error);
+            });
+        }, 1000);
+    });
+    
+    async function initializeAjustesSystem() {
+        console.log('🚀 formularios-ajustes.js: INICIALIZANDO SISTEMA DE AJUSTES');
+        
+        // Crear el modal dinámicamente si no existe
+        if (!document.getElementById('ajusteModal')) {
+            createAjusteModal();
+        }
+        
         const modalBackdrop = document.getElementById('ajusteModal');
         const openButton = document.getElementById('btnNuevoAjuste');
         const closeButton = document.getElementById('closeAjusteModal');
@@ -102,7 +307,23 @@
         const selectorModalClose = document.getElementById('selectorModalClose');
         const selectorSearchInput = document.getElementById('selectorSearch');
 
+        // Validacion con debugging
+        console.log('Elementos encontrados:', {
+            modalBackdrop: !!modalBackdrop,
+            openButton: !!openButton,
+            form: !!form,
+            addCuentaButton: !!addCuentaButton,
+            addGrupoButton: !!addGrupoButton,
+            selectorModal: !!selectorModal,
+            selectorModalList: !!selectorModalList
+        });
+        
         if (!modalBackdrop || !openButton || !form) {
+            console.error('No se encontraron elementos necesarios para el sistema de ajustes:', {
+                modalBackdrop: !!modalBackdrop,
+                openButton: !!openButton,
+                form: !!form
+            });
             return;
         }
 
@@ -112,13 +333,31 @@
             console.warn('No se pudo precargar el usuario actual para notas de ajustes:', error);
         }
 
-        ajustes = loadAdjustmentsFromStorage();
+        // Asegurar que ajustes se inicialice como array
+        ajustes = await loadAdjustmentsFromStorage();
+        if (!Array.isArray(ajustes)) {
+            console.warn('formularios-ajustes.js: loadAdjustmentsFromStorage no devolvió un array, usando array vacío');
+            ajustes = [];
+        }
+        
+        console.log('formularios-ajustes.js: ajustes inicializado:', typeof ajustes, ajustes.length, 'elementos');
         renderAdjustments();
         
         // Inicializar el badge de notificaciones
         updateNotesNotificationBadge();
 
-        openButton.addEventListener('click', () => openAjusteModal());
+        console.log('🔍 Verificando botones para conectar event listeners:');
+        console.log('- openButton (btnNuevoAjuste):', openButton);
+        console.log('- closeButton (closeAjusteModal):', closeButton);
+        console.log('- cancelButton (cancelAjusteModal):', cancelButton);
+        console.log('- deleteButton (deleteAjusteModal):', deleteButton);
+
+        if (openButton) {
+            console.log('✅ Conectando openButton a openAjusteModal');
+            openButton.addEventListener('click', () => openAjusteModal());
+        } else {
+            console.error('❌ openButton (btnNuevoAjuste) NO encontrado');
+        }
         closeButton?.addEventListener('click', () => closeAjusteModal());
         cancelButton?.addEventListener('click', () => closeAjusteModal());
         deleteButton?.addEventListener('click', () => handleDeleteAjuste());
@@ -129,27 +368,59 @@
             }
         });
 
-        form.addEventListener('submit', handleFormSubmit);
+        if (addCuentaButton) {
+            console.log('✅ Boton "Linea de cuenta" encontrado, registrando event listener');
+            addCuentaButton.addEventListener('click', () => {
+                console.log('🔘 Boton "Linea de cuenta" presionado');
+                console.log('🔍 detalleItems antes de seleccionar:', detalleItems.length, detalleItems);
 
-        addCuentaButton?.addEventListener('click', () => {
-            openSelectorModal('account', {
-                onSelect(item) {
-                    detalleItems.push(createDetailFromItem('account', item));
-                    renderDetailItems();
-                    focusLastDetailAmount();
+                const availableAccounts = collectAssignedAccounts();
+                if (!availableAccounts.length) {
+                    notify('No hay cuentas disponibles para seleccionar. Revisa la sección Cuentas / Asignar cuentas.', 'warning');
+                    console.warn('❌ No hay cuentas disponibles para selector de ajustes');
+                    return;
                 }
-            });
-        });
 
-        addGrupoButton?.addEventListener('click', () => {
-            openSelectorModal('group', {
-                onSelect(item) {
-                    detalleItems.push(createDetailFromItem('group', item));
-                    renderDetailItems();
-                    focusLastDetailAmount();
-                }
+                openSelectorModal('account', {
+                    onSelect(item) {
+                        console.log('✅ Cuenta seleccionada:', item);
+                        const newDetail = createDetailFromItem('account', item);
+                        console.log('🔍 Nuevo detalle creado:', newDetail);
+                        detalleItems.push(newDetail);
+                        console.log('🔍 detalleItems después de agregar:', detalleItems.length, detalleItems);
+                        renderDetailItems();
+                        focusLastDetailAmount();
+                    }
+                });
             });
-        });
+        } else {
+            console.error('❌ Boton "Linea de cuenta" NO encontrado');
+        }
+
+        if (addGrupoButton) {
+            console.log('✅ Boton "Linea de grupo" encontrado, registrando event listener');
+            addGrupoButton.addEventListener('click', () => {
+                console.log('🔘 Boton "Linea de grupo" presionado');
+
+                const availableGroups = collectAssignedGroups();
+                if (!availableGroups.length) {
+                    notify('No hay agrupamientos con cuentas asignadas disponibles.', 'warning');
+                    console.warn('❌ No hay grupos disponibles para selector de ajustes');
+                    return;
+                }
+
+                openSelectorModal('group', {
+                    onSelect(item) {
+                        console.log('✅ Grupo seleccionado:', item);
+                        detalleItems.push(createDetailFromItem('group', item));
+                        renderDetailItems();
+                        focusLastDetailAmount();
+                    }
+                });
+            });
+        } else {
+            console.error('❌ Boton "Linea de grupo" NO encontrado');
+        }
 
         selectorModalClose?.addEventListener('click', closeSelectorModal);
         selectorModal?.addEventListener('click', (event) => {
@@ -201,7 +472,7 @@
             }
         });
 
-        // Event listener para cambios en montos (la naturaleza se calcula automáticamente)
+        // Event listener para cambios en montos (la naturaleza se calcula automaticamente)
         detailsList?.addEventListener('input', (event) => {
             const target = event.target;
             if (target.matches('[data-detail-field="amount"]')) {
@@ -217,7 +488,7 @@
                 const balance = calculateAdjustmentBalance();
                 updateBalanceIndicator(balance);
                 
-                // Actualizar visualización de la naturaleza basada en el nuevo signo
+                // Actualizar visualizacion de la naturaleza basada en el nuevo signo
                 updateNatureDisplay(row, detail.amount);
             }
         });
@@ -257,17 +528,17 @@
             }
         });
 
-        function openAjusteModal() {
+        openAjusteModal = function() {
             form.reset();
             detalleItems = [];
             renderDetailItems();
             
-            // Solo actualizar el número si no está en modo edición
+            // Solo actualizar el numero si no esta en modo edicion
             if (!modalBackdrop.dataset.editingId) {
                 updateNumeroField();
             }
             
-            // Ocultar el botón de eliminar para nuevos ajustes
+            // Ocultar el boton de eliminar para nuevos ajustes
             if (deleteButton) {
                 deleteButton.style.display = 'none';
             }
@@ -282,12 +553,21 @@
                 }
             }, 50);
         }
+        openAjusteModal.isPlaceholder = false;
 
-        function closeAjusteModal() {
+        closeAjusteModal = function() {
             if (modalBackdrop.hasAttribute('hidden')) return;
             modalBackdrop.setAttribute('hidden', '');
             enableBodyScroll();
             openButton?.focus();
+        }
+        closeAjusteModal.isPlaceholder = false;
+        
+        // Exponer funciones inmediatamente
+        if (typeof window !== 'undefined') {
+            window.openAjusteModal = openAjusteModal;
+            window.closeAjusteModal = closeAjusteModal;
+            console.log('🔍 Funciones openAjusteModal y closeAjusteModal expuestas (implementaciones reales)');
         }
 
         function handleDeleteAjuste() {
@@ -323,7 +603,7 @@
             }
         }
 
-        function handleFormSubmit(event) {
+        handleFormSubmit = function(event) {
             event.preventDefault();
             
             console.log('=== INICIANDO GUARDADO DE AJUSTE ===');
@@ -482,6 +762,18 @@
             }
             
             console.log('=== AJUSTE GUARDADO EXITOSAMENTE ===');
+        }
+        handleFormSubmit.isPlaceholder = false;
+        
+        // Exponer handleFormSubmit inmediatamente
+        if (typeof window !== 'undefined') {
+            window.handleFormSubmit = handleFormSubmit;
+            console.log('🔍 Función handleFormSubmit expuesta (implementación real)');
+        }
+
+        // Registrar el submit del formulario con la implementación real
+        if (form) {
+            form.addEventListener('submit', handleFormSubmit);
         }
 
         function renderAdjustments() {
@@ -782,9 +1074,20 @@ function updateNumeroField() {
         }
 
         function openSelectorModal(type, { onSelect, detailId } = {}) {
-            if (!selectorModal || !selectorModalList || !selectorModalTitle) return;
+            console.log('🔍 Abriendo selector modal...', { type, selectorModal: !!selectorModal, selectorModalList: !!selectorModalList, selectorModalTitle: !!selectorModalTitle });
+            
+            if (!selectorModal || !selectorModalList || !selectorModalTitle) {
+                console.error('❌ Elementos del selector modal no encontrados:', {
+                    selectorModal: !!selectorModal,
+                    selectorModalList: !!selectorModalList,
+                    selectorModalTitle: !!selectorModalTitle
+                });
+                return;
+            }
 
             const items = type === 'group' ? collectAssignedGroups() : collectAssignedAccounts();
+            console.log(`🔍 Items para selector modal (${type}):`, items.length);
+            
             selectorState = {
                 type,
                 onSelect,
@@ -806,9 +1109,60 @@ function updateNumeroField() {
             }
 
             renderSelectorList(items);
+            
+            // Verificar estado actual del modal
+            console.log('🔍 Estado del selector modal antes de abrir:', {
+                hidden: selectorModal.hasAttribute('hidden'),
+                style: selectorModal.style.cssText,
+                zIndex: selectorModal.style.zIndex,
+                computedZIndex: getComputedStyle(selectorModal).zIndex
+            });
+            
+            // Mover el selector al body para romper cualquier stacking context
+            try {
+                if (selectorModal.parentElement !== document.body) {
+                    document.body.appendChild(selectorModal);
+                    console.log('🔍 selectorModal movido a body para evitar stacking context');
+                }
+            } catch (err) {
+                console.warn('⚠️ No se pudo mover selectorModal a body:', err);
+            }
+
             selectorModal.removeAttribute('hidden');
+            
+            // Forzar visibilidad con estilos inline
+            selectorModal.style.display = 'flex';
+            selectorModal.style.visibility = 'visible';
+            selectorModal.style.opacity = '1';
+            selectorModal.style.pointerEvents = 'auto';
+            selectorModal.style.position = 'fixed';
+            selectorModal.style.top = '0';
+            selectorModal.style.left = '0';
+            selectorModal.style.width = '100vw';
+            selectorModal.style.height = '100vh';
+            selectorModal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            selectorModal.style.zIndex = '999999';
+            
             disableBodyScroll();
-            setTimeout(() => selectorSearchInput?.focus(), 80);
+            
+            console.log('🔍 Estado del selector modal después de abrir:', {
+                hidden: selectorModal.hasAttribute('hidden'),
+                display: selectorModal.style.display,
+                visibility: selectorModal.style.visibility,
+                opacity: selectorModal.style.opacity,
+                pointerEvents: selectorModal.style.pointerEvents,
+                position: selectorModal.style.position,
+                zIndex: selectorModal.style.zIndex,
+                computedZIndex: getComputedStyle(selectorModal).zIndex,
+                computedDisplay: getComputedStyle(selectorModal).display,
+                computedVisibility: getComputedStyle(selectorModal).visibility,
+                computedOpacity: getComputedStyle(selectorModal).opacity
+            });
+            
+            setTimeout(() => {
+                selectorSearchInput?.focus();
+                console.log('🔍 Selector modal forzado a estar visible');
+            }, 80);
         }
 
         function closeSelectorModal() {
@@ -1127,6 +1481,12 @@ function updateNumeroField() {
         }
 
         function updateNotesNotificationBadge() {
+            // Asegurar que ajustes es un array
+            if (!Array.isArray(ajustes)) {
+                console.warn('formularios-ajustes.js: ajustes no es un array en updateNotesNotificationBadge:', typeof ajustes, ajustes);
+                return;
+            }
+            
             // Contar solo ajustes que tienen notas (no solo ajustes creados)
             const adjustmentsWithNotes = ajustes.filter(ajuste => 
                 ajuste.notasArray && ajuste.notasArray.length > 0
@@ -1840,7 +2200,10 @@ function updateNumeroField() {
         };
 
         function collectAssignedAccounts() {
+            console.log('🔍 Recolectando cuentas asignadas...');
+            
             const elements = document.querySelectorAll('.financial-groups-list .assigned-account');
+            console.log(`🔍 Encontrados ${elements.length} elementos .assigned-account`);
             const seen = new Set();
             const accounts = [];
 
@@ -1851,6 +2214,8 @@ function updateNumeroField() {
                 const datasetId = element.dataset.accountDatasetId || window.currentDatasetId || '';
                 const uniqueKey = `${code}-${datasetId}`;
 
+                console.log(`🔍 Cuenta encontrada: ${code} - ${name} (valor: ${value})`);
+                
                 if (code && name && !seen.has(uniqueKey)) {
                     seen.add(uniqueKey);
                     accounts.push({
@@ -1866,7 +2231,9 @@ function updateNumeroField() {
 
             // Si no hay cuentas asignadas, obtener de la sección Cuentas
             if (accounts.length === 0) {
+                console.log('🔍 No hay cuentas asignadas, buscando en tabla #cuentasTableBody...');
                 const cuentasTableRows = document.querySelectorAll('#cuentasTableBody tr');
+                console.log(`🔍 Encontradas ${cuentasTableRows.length} filas en #cuentasTableBody`);
                 cuentasTableRows.forEach((row) => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 2) {
@@ -1890,6 +2257,11 @@ function updateNumeroField() {
                     }
                 });
             }
+
+            console.log(`🔍 Total de cuentas recolectadas: ${accounts.length}`);
+            accounts.forEach(account => {
+                console.log(`🔍 - ${account.code}: ${account.name} (${account.value})`);
+            });
 
             return accounts.sort((a, b) => a.code.localeCompare(b.code, 'es'));
         }
@@ -2030,6 +2402,7 @@ function updateNumeroField() {
         }
 
         function createDetailFromItem(type, item) {
+            console.log('🔧 createDetailFromItem llamado con:', { type, item });
             const nature = getAccountNature(item.name || item.label || '', item.code || '');
             
             const detail = {
@@ -2045,6 +2418,9 @@ function updateNumeroField() {
                 nature: nature,
                 valueSource: item
             };
+            
+            console.log('🔧 Detalle creado en createDetailFromItem:', detail);
+            return detail;
             
             // Si el item tiene un id, guardarlo como referencia
             if (item.id) {
@@ -2113,5 +2489,22 @@ function updateNumeroField() {
         if (typeof currentDatasetId !== 'undefined' && currentDatasetId) {
             syncAdjustmentsWithDatabase();
         }
-    });
+    }
+    
+    } catch (error) {
+        console.error('❌ Error en formularios-ajustes.js:', error);
+        console.error('Stack trace:', error.stack);
+    }
+    
+    // Exponer funciones globalmente inmediatamente después de que se definan
+    // Esto asegura que estén disponibles para formularios.html
+    if (typeof window !== 'undefined') {
+        window.handleFormSubmit = handleFormSubmit;
+        window.openAjusteModal = openAjusteModal;
+        window.closeAjusteModal = closeAjusteModal;
+        console.log('✅ Funciones de formularios-ajustes.js expuestas globalmente');
+        console.log('🔍 Verificación final - handleFormSubmit:', typeof window.handleFormSubmit);
+        console.log('🔍 Verificación final - openAjusteModal:', typeof window.openAjusteModal);
+        console.log('🔍 Verificación final - closeAjusteModal:', typeof window.closeAjusteModal);
+    }
 })();

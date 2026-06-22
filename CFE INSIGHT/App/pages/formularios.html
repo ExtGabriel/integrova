@@ -408,83 +408,7 @@
                 </div>
             </div>
 
-            <!-- Modal Ajustes -->
-            <div class="ajuste-modal-backdrop" id="ajusteModal" hidden>
-                <div class="ajuste-modal" role="dialog" aria-modal="true" aria-labelledby="ajusteModalTitle">
-                    <header class="ajuste-modal__header">
-                        <div>
-                            <h2 id="ajusteModalTitle">Ajuste</h2>
-                            <p class="ajuste-modal__subtitle">Define los datos clave del ajuste y agrega las líneas afectadas.</p>
-                        </div>
-                        <button class="ajuste-modal__close" id="closeAjusteModal" aria-label="Cerrar">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </header>
-
-                    <form id="ajusteForm" class="ajuste-form">
-                        <section class="ajuste-form__grid">
-                            <div class="form-field">
-                                <label for="ajusteNumero">Número <span>*</span></label>
-                                <input type="number" id="ajusteNumero" name="numero" min="1" required readonly>
-                            </div>
-                            <div class="form-field">
-                                <label for="ajusteTipo">Tipo</label>
-                                <select id="ajusteTipo" name="tipo" required>
-                                    <option value="normal">Normal</option>
-                                    <option value="reclasificacion">Reclasificación</option>
-                                    <option value="no-registrado-hecho">No registrado - Hecho</option>
-                                    <option value="no-registrado-proyectado">No registrado - Proyectado</option>
-                                    <option value="no-registrado-critico">No registrado - Crítico</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label for="ajustePeriodo">Período</label>
-                                <select id="ajustePeriodo" name="periodo" required>
-                                    <option value="anio-corriente">Año corriente</option>
-                                    <option value="anio-anterior">Año anterior</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label for="ajusteEntidad">Entidad</label>
-                                <select id="ajusteEntidad" name="entidad" required>
-                                    <option value="prueba">PRUEBA</option>
-                                </select>
-                            </div>
-                        </section>
-
-                        <section class="form-field">
-                            <label for="ajusteDescripcion">Descripción</label>
-                            <textarea id="ajusteDescripcion" name="descripcion"></textarea>
-                        </section>
-
-                        <section class="ajuste-details">
-                            <div class="ajuste-details__header">
-                                <h3>Detalles</h3>
-                                <div class="ajuste-details__actions">
-                                    <button type="button" class="link-button" id="addCuentaLine">
-                                        <i class="bi bi-plus-circle"></i>
-                                        Línea de cuenta
-                                    </button>
-                                    <button type="button" class="link-button" id="addGrupoLine">
-                                        <i class="bi bi-plus-circle"></i>
-                                        Línea de grupo
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="ajuste-details__empty" id="ajusteDetailsEmpty">
-                                <p>Aún no se han agregado líneas al ajuste.</p>
-                            </div>
-                            <div class="ajuste-details__list" id="ajusteDetailsList"></div>
-                        </section>
-
-                        <footer class="ajuste-modal__footer">
-                            <button type="button" class="btn-outline" id="cancelAjusteModal">Cancelar</button>
-                            <button type="button" class="btn-danger" id="deleteAjusteModal" style="display: none;">Eliminar Ajuste</button>
-                            <button type="submit" class="btn-primary">Guardar</button>
-                        </footer>
-                    </form>
-                </div>
-            </div>
+            <!-- Modal de ajustes será creado dinámicamente por formularios-ajustes.js -->
 
             <div class="selector-modal-backdrop" id="selectorModal" hidden>
                 <div class="selector-modal" role="dialog" aria-modal="true" aria-labelledby="selectorModalTitle">
@@ -28300,6 +28224,32 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
     </script>
     <script src="/js/formularios-ajustes.js"></script>
+    <script>
+    console.log('formularios.html: Intentando cargar formularios-ajustes.js');
+    
+    // Verificar si el script se carga correctamente
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            console.log('🔍 Verificación post-load - funciones disponibles:', {
+                handleFormSubmit: typeof window.handleFormSubmit,
+                openAjusteModal: typeof window.openAjusteModal,
+                closeAjusteModal: typeof window.closeAjusteModal
+            });
+        }, 500);
+    });
+</script>
+<script>
+    console.log('formularios.html: formularios-ajustes.js cargado');
+    
+    // Verificar inmediatamente después de cargar
+    setTimeout(() => {
+        console.log('🔍 Verificación inmediata - funciones disponibles:', {
+            handleFormSubmit: typeof window.handleFormSubmit,
+            openAjusteModal: typeof window.openAjusteModal,
+            closeAjusteModal: typeof window.closeAjusteModal
+        });
+    }, 100);
+</script>
 
     <!-- Modal para seleccionar roles -->
     <div id="rolesModal" class="modal">
@@ -29425,7 +29375,836 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             showNotification('Consulta agregada correctamente', 'success');
         }
 
-        // Inicializar la sección de consultas cuando se carga la página
+        // Event listener simple para el botón Nuevo ajuste
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnNuevoAjuste = document.getElementById('btnNuevoAjuste');
+            const ajusteModal = document.getElementById('ajusteModal');
+            const ajusteForm = document.getElementById('ajusteForm');
+            
+            console.log('🔍 Buscando botón btnNuevoAjuste:', !!btnNuevoAjuste);
+            console.log('🔍 Buscando modal ajusteModal:', !!ajusteModal);
+            console.log('🔍 Buscando formulario ajusteForm:', !!ajusteForm);
+            
+            if (btnNuevoAjuste && ajusteModal) {
+                console.log('✅ Registrando event listener para btnNuevoAjuste');
+                btnNuevoAjuste.addEventListener('click', function(e) {
+                    console.log('🔘 Botón Nuevo ajuste presionado');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Limpiar formulario
+                    const form = document.getElementById('ajusteForm');
+                    if (form) {
+                        form.reset();
+                    }
+                    
+                    // Generar número automático
+                    const ajusteNumero = document.getElementById('ajusteNumero');
+                    if (ajusteNumero) {
+                        const currentAjustes = JSON.parse(localStorage.getItem('ajustes') || '[]');
+                        ajusteNumero.value = currentAjustes.length + 1;
+                    }
+                    
+                    // Ocultar botón eliminar
+                    const deleteBtn = document.getElementById('deleteAjusteModal');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = 'none';
+                    }
+                    
+                    // Mostrar modal
+                    ajusteModal.hidden = false;
+                    ajusteModal.style.display = 'flex';
+                    console.log('✅ Modal de ajustes abierto');
+                    
+                    // Configurar botones dentro del modal después de abrirlo
+                    setupModalButtons();
+                });
+            } else {
+                console.error('❌ No se encontraron elementos necesarios para el modal de ajustes');
+            }
+            
+            // Event listener para el submit del formulario
+            if (ajusteForm) {
+                console.log('✅ Registrando event listener para submit del formulario');
+                ajusteForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('🔘 Formulario de ajuste enviado');
+                    handleAjusteFormSubmit();
+                });
+            } else {
+                console.error('❌ No se encontró el formulario ajusteForm');
+            }
+        });
+        
+        // Función para manejar el submit del formulario de ajuste
+        function handleAjusteFormSubmit() {
+            console.log('=== INICIANDO GUARDADO DE AJUSTE (versión integrada) ===');
+            
+            // Esperar y verificar si las funciones de formularios-ajustes.js están disponibles
+            // Usar múltiples intentos con timeouts crecientes
+            let attempts = 0;
+            const maxAttempts = 5;
+            const timeouts = [100, 300, 500, 1000, 2000]; // timeouts en ms
+            
+            function checkFunctions() {
+                attempts++;
+                const isReadyHandler = typeof window.handleFormSubmit === 'function' && window.handleFormSubmit?.isPlaceholder !== true;
+                const isReadyOpen = typeof window.openAjusteModal === 'function' && window.openAjusteModal?.isPlaceholder !== true;
+                const isReadyClose = typeof window.closeAjusteModal === 'function' && window.closeAjusteModal?.isPlaceholder !== true;
+
+                console.log(`🔄 Intento ${attempts}/${maxAttempts} - Verificando funciones...`);
+                console.log('🔍 Estado actual:', {
+                    handleFormSubmit: typeof window.handleFormSubmit,
+                    handlePlaceholder: window.handleFormSubmit?.isPlaceholder,
+                    openAjusteModal: typeof window.openAjusteModal,
+                    openPlaceholder: window.openAjusteModal?.isPlaceholder,
+                    closeAjusteModal: typeof window.closeAjusteModal,
+                    closePlaceholder: window.closeAjusteModal?.isPlaceholder,
+                    intento: attempts,
+                    timeout: timeouts[attempts - 1]
+                });
+                
+                if (isReadyHandler) {
+                    console.log('✅ Usando handleFormSubmit de formularios-ajustes.js (implementación real)');
+                    window.handleFormSubmit({ preventDefault: () => {} });
+                    return;
+                }
+                
+                if (attempts < maxAttempts) {
+                    console.log(`⏳ Funciones no disponibles, reintentando en ${timeouts[attempts]}ms...`);
+                    setTimeout(checkFunctions, timeouts[attempts]);
+                } else {
+                    console.log('❌ Agotados todos los intentos, usando implementación básica');
+                    executeBasicImplementation();
+                }
+            }
+            
+            // Iniciar la verificación
+            setTimeout(checkFunctions, timeouts[0]);
+            
+            function executeBasicImplementation() {
+                // Obtener detalles del ajuste
+            const detailsList = document.getElementById('ajusteDetailsList');
+            const detailRows = detailsList ? detailsList.querySelectorAll('.ajuste-detail-row') : [];
+            
+            if (!detailRows.length) {
+                console.log('ERROR: No hay detalles en el ajuste');
+                showNotification('Agrega al menos una línea en Detalles antes de guardar.', 'warning');
+                return;
+            }
+            
+            // Recolectar detalles
+            const detalles = [];
+            let hasInvalidAmount = false;
+            
+            detailRows.forEach(row => {
+                const amountInput = row.querySelector('[data-detail-field="amount"]');
+                const code = row.querySelector('.ajuste-detail-row__code')?.textContent || '';
+                const label = row.querySelector('.ajuste-detail-row__name')?.textContent || '';
+                const type = row.querySelector('.ajuste-detail-row__type')?.textContent || '';
+                
+                const amount = parseFloat(amountInput?.value) || 0;
+                
+                if (!Number.isFinite(amount)) {
+                    hasInvalidAmount = true;
+                    return;
+                }
+                
+                detalles.push({
+                    id: row.dataset.detailId || `detail-${Date.now()}-${Math.random()}`,
+                    code,
+                    label,
+                    type: type.includes('grupo') ? 'group' : 'account',
+                    amount
+                });
+            });
+            
+            if (hasInvalidAmount) {
+                console.log('ERROR: Hay montos vacíos o inválidos');
+                showNotification('Completa el monto de cada línea con valores válidos antes de guardar.', 'warning');
+                return;
+            }
+            
+            // Validación de doble partida
+            let totalDebit = 0;
+            let totalCredit = 0;
+            
+            detalles.forEach(detail => {
+                if (detail.amount > 0) {
+                    totalDebit += detail.amount;
+                } else if (detail.amount < 0) {
+                    totalCredit += Math.abs(detail.amount);
+                }
+            });
+            
+            const difference = totalDebit - totalCredit;
+            const isBalanced = Math.abs(difference) < 0.01;
+            
+            if (!isBalanced) {
+                console.log('ERROR: Ajuste desbalanceado - Débitos != Créditos');
+                const excessType = difference > 0 ? 'débitos' : 'créditos';
+                const excessAmount = formatCurrency(Math.abs(difference));
+                showNotification(`Ajuste desbalanceado. Exceso de ${excessType}: ${excessAmount}. Los débitos deben ser iguales a los créditos.`, 'error');
+                return;
+            }
+            
+            if (totalDebit === 0 && totalCredit === 0) {
+                console.log('ERROR: Partida doble requiere al menos un débito y un crédito');
+                showNotification('Una partida contable requiere al menos una línea en Débito y otra en Crédito.', 'warning');
+                return;
+            }
+            
+            // Obtener valores del formulario
+            const numero = parseInt(document.getElementById('ajusteNumero')?.value, 10) || 1;
+            const tipo = document.getElementById('ajusteTipo')?.value || '';
+            const periodo = document.getElementById('ajustePeriodo')?.value || '';
+            const entidad = document.getElementById('ajusteEntidad')?.value || '';
+            const descripcion = document.getElementById('ajusteDescripcion')?.value?.trim() || '';
+            
+            // Validar campos requeridos
+            if (!tipo) {
+                showNotification('Por favor selecciona un tipo de ajuste', 'warning');
+                return;
+            }
+            
+            if (!periodo) {
+                showNotification('Por favor selecciona un período', 'warning');
+                return;
+            }
+            
+            if (!entidad) {
+                showNotification('Por favor selecciona una entidad', 'warning');
+                return;
+            }
+            
+            // Crear objeto de ajuste
+            const ajuste = {
+                id: `ajuste-${Date.now()}-${Math.random()}`,
+                numero,
+                tipo,
+                periodo,
+                entidad,
+                descripcion,
+                detalles,
+                createdAt: new Date().toISOString()
+            };
+            
+            console.log('Datos completos del ajuste:', ajuste);
+            
+            // Guardar en localStorage
+            const ajustes = JSON.parse(localStorage.getItem('ajustes') || '[]');
+            ajustes.push(ajuste);
+            localStorage.setItem('ajustes', JSON.stringify(ajustes));
+            
+            // Cerrar modal
+            const ajusteModal = document.getElementById('ajusteModal');
+            if (ajusteModal) {
+                ajusteModal.hidden = true;
+                ajusteModal.style.display = 'none';
+            }
+            
+            // Mostrar notificación
+            showNotification('Ajuste creado correctamente', 'success');
+            
+            // Actualizar lista de ajustes
+            updateAdjustmentsList();
+            
+            // Disparar evento para actualizar otras secciones
+            document.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
+                detail: {
+                    adjustments: detalles.map(d => [d.code, d.amount])
+                }
+            }));
+            
+            console.log('=== AJUSTE GUARDADO EXITOSAMENTE ===');
+            }
+        }
+        
+        // Función para actualizar la lista de ajustes
+        function updateAdjustmentsList() {
+            const adjustmentsList = document.getElementById('adjustmentsList');
+            const adjustmentsEmpty = document.getElementById('adjustmentsEmpty');
+            const ajustes = JSON.parse(localStorage.getItem('ajustes') || '[]');
+            
+            if (!adjustmentsList) return;
+            
+            adjustmentsList.innerHTML = '';
+            
+            if (!ajustes.length) {
+                if (adjustmentsEmpty) {
+                    adjustmentsEmpty.style.display = 'grid';
+                }
+                return;
+            }
+            
+            if (adjustmentsEmpty) {
+                adjustmentsEmpty.style.display = 'none';
+            }
+            
+            ajustes.forEach(ajuste => {
+                const card = createAdjustmentCard(ajuste);
+                adjustmentsList.appendChild(card);
+            });
+        }
+        
+        // Función para crear una tarjeta de ajuste
+        function createAdjustmentCard(ajuste) {
+            const card = document.createElement('div');
+            card.className = 'adjustment-card';
+            card.innerHTML = `
+                <div class="adjustment-card__header">
+                    <h3>Ajuste #${ajuste.numero}</h3>
+                    <span class="adjustment-type">${ajuste.tipo}</span>
+                </div>
+                <div class="adjustment-card__body">
+                    <p><strong>Período:</strong> ${ajuste.periodo}</p>
+                    <p><strong>Entidad:</strong> ${ajuste.entidad}</p>
+                    <p><strong>Descripción:</strong> ${ajuste.descripcion}</p>
+                    <p><strong>Líneas:</strong> ${ajuste.detalles.length}</p>
+                </div>
+                <div class="adjustment-card__footer">
+                    <small>${new Date(ajuste.createdAt).toLocaleString()}</small>
+                </div>
+            `;
+            return card;
+        }
+        
+        // Función para configurar los botones del modal
+        function setupModalButtons() {
+            const addCuentaButton = document.getElementById('addCuentaLine');
+            const addGrupoButton = document.getElementById('addGrupoLine');
+            const selectorModal = document.getElementById('selectorModal');
+            const selectorModalList = document.getElementById('selectorModalList');
+            const selectorModalTitle = document.getElementById('selectorModalTitle');
+            const selectorModalClose = document.getElementById('selectorModalClose');
+            const selectorSearchInput = document.getElementById('selectorSearch');
+            
+            console.log('🔍 Configurando botones del modal:');
+            console.log('- addCuentaButton:', !!addCuentaButton);
+            console.log('- addGrupoButton:', !!addGrupoButton);
+            console.log('- selectorModal:', !!selectorModal);
+            
+            // Botón Línea de cuenta
+            if (addCuentaButton) {
+                console.log('✅ Configurando botón Línea de cuenta');
+                addCuentaButton.onclick = function(e) {
+                    console.log('🔘 Botón Línea de cuenta presionado');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openAccountSelector();
+                };
+            } else {
+                console.error('❌ Botón Línea de cuenta no encontrado');
+            }
+            
+            // Botón Línea de grupo
+            if (addGrupoButton) {
+                console.log('✅ Configurando botón Línea de grupo');
+                addGrupoButton.onclick = function(e) {
+                    console.log('🔘 Botón Línea de grupo presionado');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openGroupSelector();
+                };
+            } else {
+                console.error('❌ Botón Línea de grupo no encontrado');
+            }
+            
+            // Cerrar selector modal
+            if (selectorModalClose) {
+                selectorModalClose.onclick = closeSelectorModalFunc;
+            }
+            
+            // Botones Cancelar y Cerrar del modal principal
+            const cancelBtn = document.getElementById('cancelAjusteModal');
+            const closeBtn = document.getElementById('closeAjusteModal');
+            const ajusteModal = document.getElementById('ajusteModal');
+            
+            if (cancelBtn) {
+                cancelBtn.onclick = function() {
+                    console.log('🔘 Botón Cancelar presionado');
+                    if (ajusteModal) {
+                        ajusteModal.hidden = true;
+                        ajusteModal.style.display = 'none';
+                    }
+                };
+            }
+            
+            if (closeBtn) {
+                closeBtn.onclick = function() {
+                    console.log('🔘 Botón Cerrar (X) presionado');
+                    if (ajusteModal) {
+                        ajusteModal.hidden = true;
+                        ajusteModal.style.display = 'none';
+                    }
+                };
+            }
+            
+            // Cerrar al hacer clic fuera
+            if (selectorModal) {
+                selectorModal.onclick = function(e) {
+                    if (e.target === selectorModal) {
+                        closeSelectorModalFunc();
+                    }
+                };
+            }
+        }
+        
+        // Función para abrir selector de cuentas
+        function openAccountSelector() {
+            const selectorModal = document.getElementById('selectorModal');
+            const selectorModalTitle = document.getElementById('selectorModalTitle');
+            const selectorModalList = document.getElementById('selectorModalList');
+            const selectorSearchInput = document.getElementById('selectorSearch');
+            
+            if (!selectorModal || !selectorModalList || !selectorModalTitle) {
+                console.error('❌ Elementos del selector no encontrados');
+                return;
+            }
+            
+            console.log('🔍 Abriendo selector de cuentas...');
+            
+            // Obtener cuentas disponibles
+            const accounts = collectAvailableAccounts();
+            console.log('📊 Cuentas encontradas:', accounts.length);
+            
+            // Configurar modal
+            selectorModalTitle.textContent = 'Seleccionar cuenta';
+            if (selectorSearchInput) {
+                selectorSearchInput.value = '';
+                selectorSearchInput.oninput = function() {
+                    filterAccounts(accounts, this.value);
+                };
+            }
+            
+            // Renderizar cuentas
+            renderAccountList(accounts);
+            
+            // Mostrar modal
+            selectorModal.hidden = false;
+            selectorModal.style.display = 'flex';
+            console.log('✅ Selector de cuentas abierto');
+        }
+        
+        // Función para abrir selector de grupos
+        function openGroupSelector() {
+            const selectorModal = document.getElementById('selectorModal');
+            const selectorModalTitle = document.getElementById('selectorModalTitle');
+            const selectorModalList = document.getElementById('selectorModalList');
+            const selectorSearchInput = document.getElementById('selectorSearch');
+            
+            if (!selectorModal || !selectorModalList || !selectorModalTitle) {
+                console.error('❌ Elementos del selector no encontrados');
+                return;
+            }
+            
+            console.log('🔍 Abriendo selector de grupos...');
+            
+            // Obtener grupos disponibles
+            const groups = collectAvailableGroups();
+            console.log('📊 Grupos encontrados:', groups.length);
+            
+            // Configurar modal
+            selectorModalTitle.textContent = 'Seleccionar grupo';
+            if (selectorSearchInput) {
+                selectorSearchInput.value = '';
+                selectorSearchInput.oninput = function() {
+                    filterGroups(groups, this.value);
+                };
+            }
+            
+            // Renderizar grupos
+            renderGroupList(groups);
+            
+            // Mostrar modal
+            selectorModal.hidden = false;
+            selectorModal.style.display = 'flex';
+            console.log('✅ Selector de grupos abierto');
+        }
+        
+        // Función para cerrar selector modal
+        function closeSelectorModalFunc() {
+            const selectorModal = document.getElementById('selectorModal');
+            if (selectorModal) {
+                selectorModal.hidden = true;
+                selectorModal.style.display = 'none';
+                console.log('🔒 Selector modal cerrado');
+            }
+        }
+        
+        // Función para recolectar cuentas disponibles
+        function collectAvailableAccounts() {
+            const accounts = [];
+            const seen = new Set();
+            
+            // Buscar cuentas en la tabla de cuentas
+            const cuentasTableRows = document.querySelectorAll('#cuentasTableBody tr');
+            cuentasTableRows.forEach((row) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    const code = cells[0].textContent.trim();
+                    const name = cells[1].textContent.trim();
+                    const value = parseFloat(cells[2].textContent.replace(/[^0-9.-]+/g, '')) || 0;
+                    const uniqueKey = code;
+                    
+                    if (code && name && code !== 'No hay cuentas disponibles' && !seen.has(uniqueKey)) {
+                        seen.add(uniqueKey);
+                        accounts.push({
+                            id: `account-${uniqueKey}`,
+                            code,
+                            name,
+                            value,
+                            type: 'account'
+                        });
+                    }
+                }
+            });
+            
+            // Buscar cuentas asignadas a grupos financieros
+            const assignedAccounts = document.querySelectorAll('.financial-groups-list .assigned-account');
+            assignedAccounts.forEach((element) => {
+                const code = element.dataset.accountCode || '';
+                const name = element.dataset.accountName || element.textContent.trim() || '';
+                const value = parseFloat(element.dataset.accountValue || '0') || 0;
+                const uniqueKey = code;
+                
+                if (code && name && !seen.has(uniqueKey)) {
+                    seen.add(uniqueKey);
+                    accounts.push({
+                        id: `account-${uniqueKey}`,
+                        code,
+                        name,
+                        value,
+                        type: 'account'
+                    });
+                }
+            });
+            
+            return accounts.sort((a, b) => a.code.localeCompare(b.code, 'es'));
+        }
+        
+        // Función para recolectar grupos disponibles
+        function collectAvailableGroups() {
+            const groups = [];
+            const seen = new Set();
+            
+            document.querySelectorAll('.financial-groups-list .group-item').forEach((groupItem, index) => {
+                const groupNameElement = groupItem.querySelector('.group-header .group-name');
+                const groupName = groupNameElement ? groupNameElement.textContent.trim() : '';
+                const groupId = groupNameElement?.dataset.groupId || groupName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                
+                const groupAssignedAccounts = Array.from(groupItem.querySelectorAll('.assigned-account'));
+                if (groupAssignedAccounts.length && groupName && !seen.has(groupId)) {
+                    const total = groupAssignedAccounts.reduce((sum, accountEl) => {
+                        return sum + (parseFloat(accountEl.dataset.accountValue || '0') || 0);
+                    }, 0);
+                    
+                    groups.push({
+                        id: `group-${groupId}`,
+                        type: 'group',
+                        name: groupName,
+                        label: groupName,
+                        meta: `Grupo con ${groupAssignedAccounts.length} cuentas asignadas`,
+                        value: total
+                    });
+                    seen.add(groupId);
+                }
+            });
+            
+            return groups.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        }
+        
+        // Función para renderizar lista de cuentas
+        function renderAccountList(accounts) {
+            const selectorModalList = document.getElementById('selectorModalList');
+            if (!selectorModalList) return;
+            
+            if (!accounts.length) {
+                selectorModalList.innerHTML = '<div class="selector-item__empty">No hay cuentas disponibles. Primero asigna cuentas en la sección "Asignar cuentas".</div>';
+                return;
+            }
+            
+            selectorModalList.innerHTML = accounts.map((account) => `
+                <button type="button" class="selector-item" data-account-code="${account.code}" onclick="selectAccount('${account.code}', '${account.name}', ${account.value})">
+                    <span class="selector-item__line">
+                        <span class="selector-item__title"><strong>${account.code}</strong> · ${account.name}</span>
+                        <span class="selector-item__amount">${account.value.toFixed(2)}</span>
+                    </span>
+                </button>
+            `).join('');
+        }
+        
+        // Función para renderizar lista de grupos
+        function renderGroupList(groups) {
+            const selectorModalList = document.getElementById('selectorModalList');
+            if (!selectorModalList) return;
+            
+            if (!groups.length) {
+                selectorModalList.innerHTML = '<div class="selector-item__empty">No hay grupos disponibles. Primero crea grupos en la sección "Grupos financieros".</div>';
+                return;
+            }
+            
+            selectorModalList.innerHTML = groups.map((group) => `
+                <button type="button" class="selector-item" data-group-id="${group.id}" onclick="selectGroup('${group.id}', '${group.name}', ${group.value})">
+                    <span class="selector-item__line">
+                        <span class="selector-item__title">${group.name}</span>
+                        <span class="selector-item__amount">${group.value.toFixed(2)}</span>
+                    </span>
+                    <span class="selector-item__meta">${group.meta}</span>
+                </button>
+            `).join('');
+        }
+        
+        // Función para seleccionar cuenta
+        function selectAccount(code, name, value) {
+            console.log('✅ Cuenta seleccionada:', { code, name, value });
+            // Aquí puedes agregar la lógica para agregar la cuenta al ajuste
+            addAccountToAdjustment(code, name, value);
+            closeSelectorModalFunc();
+        }
+        
+        // Función para seleccionar grupo
+        function selectGroup(id, name, value) {
+            console.log('✅ Grupo seleccionado:', { id, name, value });
+            // Aquí puedes agregar la lógica para agregar el grupo al ajuste
+            addGroupToAdjustment(id, name, value);
+            closeSelectorModalFunc();
+        }
+        
+        // Función para agregar cuenta al ajuste
+        function addAccountToAdjustment(code, name, value) {
+            const detailsList = document.getElementById('ajusteDetailsList');
+            const detailsEmpty = document.getElementById('ajusteDetailsEmpty');
+            
+            if (!detailsList) return;
+            
+            // Ocultar estado vacío
+            if (detailsEmpty) {
+                detailsEmpty.style.display = 'none';
+            }
+            
+            // Crear nueva línea de detalle
+            const detailId = 'detail-' + Date.now();
+            const detailHtml = `
+                <div class="ajuste-detail-row" data-detail-id="${detailId}">
+                    <div class="ajuste-detail-row__content">
+                        <div class="ajuste-detail-row__header">
+                            <div class="ajuste-detail-row__type">Línea de cuenta</div>
+                            <div class="ajuste-detail-row__actions">
+                                <button type="button" class="link-button" onclick="removeDetail('${detailId}')">Eliminar</button>
+                            </div>
+                        </div>
+                        <div class="ajuste-detail-row__info">
+                            <span class="ajuste-detail-row__code">${code}</span>
+                            <span class="ajuste-detail-row__name">${name}</span>
+                        </div>
+                        <div class="ajuste-detail-row__amounts">
+                            <div class="ajuste-detail-row__amount">
+                                <label for="detail-amount-${detailId}">Cantidad</label>
+                                <input type="number" id="detail-amount-${detailId}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="0.00" placeholder="0.00" onchange="calculateAdjustmentTotals()">
+                                <small class="amount-hint">Positivo = Débito, Negativo = Crédito</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            detailsList.insertAdjacentHTML('beforeend', detailHtml);
+            
+            // Agregar event listener para cálculos automáticos
+            const amountInput = document.getElementById(`detail-amount-${detailId}`);
+            if (amountInput) {
+                amountInput.addEventListener('input', calculateAdjustmentTotals);
+            }
+            
+            console.log('✅ Cuenta agregada al ajuste');
+            calculateAdjustmentTotals(); // Recalcular totales
+        }
+        
+        // Función para agregar grupo al ajuste
+        function addGroupToAdjustment(id, name, value) {
+            const detailsList = document.getElementById('ajusteDetailsList');
+            const detailsEmpty = document.getElementById('ajusteDetailsEmpty');
+            
+            if (!detailsList) return;
+            
+            // Ocultar estado vacío
+            if (detailsEmpty) {
+                detailsEmpty.style.display = 'none';
+            }
+            
+            // Crear nueva línea de detalle
+            const detailId = 'detail-' + Date.now();
+            const detailHtml = `
+                <div class="ajuste-detail-row" data-detail-id="${detailId}">
+                    <div class="ajuste-detail-row__content">
+                        <div class="ajuste-detail-row__header">
+                            <div class="ajuste-detail-row__type">Línea de grupo</div>
+                            <div class="ajuste-detail-row__actions">
+                                <button type="button" class="link-button" onclick="removeDetail('${detailId}')">Eliminar</button>
+                            </div>
+                        </div>
+                        <div class="ajuste-detail-row__info">
+                            <span class="ajuste-detail-row__code">GRUPO</span>
+                            <span class="ajuste-detail-row__name">${name}</span>
+                        </div>
+                        <div class="ajuste-detail-row__amounts">
+                            <div class="ajuste-detail-row__amount">
+                                <label for="detail-amount-${detailId}">Cantidad</label>
+                                <input type="number" id="detail-amount-${detailId}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="0.00" placeholder="0.00" onchange="calculateAdjustmentTotals()">
+                                <small class="amount-hint">Positivo = Débito, Negativo = Crédito</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            detailsList.insertAdjacentHTML('beforeend', detailHtml);
+            
+            // Agregar event listener para cálculos automáticos
+            const amountInput = document.getElementById(`detail-amount-${detailId}`);
+            if (amountInput) {
+                amountInput.addEventListener('input', calculateAdjustmentTotals);
+            }
+            
+            console.log('✅ Grupo agregado al ajuste');
+            calculateAdjustmentTotals(); // Recalcular totales
+        }
+        
+        // Función para eliminar detalle
+        function removeDetail(detailId) {
+            const detailRow = document.querySelector(`[data-detail-id="${detailId}"]`);
+            if (detailRow) {
+                detailRow.remove();
+                console.log('🗑️ Detalle eliminado:', detailId);
+                
+                // Si no hay más detalles, mostrar estado vacío
+                const detailsList = document.getElementById('ajusteDetailsList');
+                const detailsEmpty = document.getElementById('ajusteDetailsEmpty');
+                if (detailsList && detailsEmpty && detailsList.children.length === 0) {
+                    detailsEmpty.style.display = 'block';
+                }
+            }
+        }
+        
+        // Función para calcular totales del ajuste (débitos y créditos)
+        function calculateAdjustmentTotals() {
+            let totalDebit = 0;
+            let totalCredit = 0;
+            
+            // Obtener todos los detalles del ajuste
+            const detailRows = document.querySelectorAll('.ajuste-detail-row');
+            
+            detailRows.forEach(row => {
+                const amountInput = row.querySelector('[data-detail-field="amount"]');
+                if (amountInput) {
+                    const amount = parseFloat(amountInput.value) || 0;
+                    
+                    // Lógica contable: positivo = débito, negativo = crédito
+                    if (amount > 0) {
+                        totalDebit += amount;
+                    } else if (amount < 0) {
+                        totalCredit += Math.abs(amount);
+                    }
+                }
+            });
+            
+            // Actualizar el indicador de balance
+            const balance = {
+                totalDebit,
+                totalCredit,
+                difference: totalDebit - totalCredit,
+                isBalanced: Math.abs(totalDebit - totalCredit) < 0.01,
+                hasDebit: totalDebit > 0,
+                hasCredit: totalCredit > 0
+            };
+            
+            updateBalanceIndicator(balance);
+            
+            console.log('📊 Totales del ajuste:', {
+                débitos: totalDebit,
+                créditos: totalCredit,
+                balanceado: balance.isBalanced
+            });
+        }
+        
+        // Función para formatear moneda
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN'
+            }).format(amount);
+        }
+        
+        // Función para actualizar el indicador de balance
+        function updateBalanceIndicator(balance) {
+            // Buscar o crear el contenedor del indicador de balance
+            let balanceIndicator = document.getElementById('ajusteBalanceIndicator');
+            
+            if (!balanceIndicator) {
+                balanceIndicator = document.createElement('div');
+                balanceIndicator.id = 'ajusteBalanceIndicator';
+                balanceIndicator.style.cssText = `
+                    padding: 12px 16px;
+                    margin: 12px 0;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border: 1px solid;
+                    transition: all 0.3s ease;
+                `;
+                
+                // Insertar después del header de detalles
+                const detailsHeader = document.querySelector('.ajuste-details__header');
+                if (detailsHeader) {
+                    detailsHeader.parentNode.insertBefore(balanceIndicator, detailsHeader.nextSibling);
+                }
+            }
+
+            // Actualizar contenido y estilos según el balance
+            if (balance.isBalanced) {
+                balanceIndicator.style.backgroundColor = '#d4edda';
+                balanceIndicator.style.borderColor = '#28a745';
+                balanceIndicator.style.color = '#155724';
+                balanceIndicator.innerHTML = `
+                    <span>✅ Ajuste balanceado</span>
+                    <span>Débitos: ${formatCurrency(balance.totalDebit)} = Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                `;
+            } else {
+                balanceIndicator.style.backgroundColor = '#f8d7da';
+                balanceIndicator.style.borderColor = '#dc3545';
+                balanceIndicator.style.color = '#721c24';
+                
+                const excessType = balance.difference > 0 ? 'Débitos' : 'Créditos';
+                const excessAmount = formatCurrency(Math.abs(balance.difference));
+                
+                balanceIndicator.innerHTML = `
+                    <span>⚠️ Ajuste desbalanceado - Exceso de ${excessType}: ${excessAmount}</span>
+                    <span>Débitos: ${formatCurrency(balance.totalDebit)} | Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                `;
+            }
+        }
+        
+        // Funciones de filtro (básicas)
+        function filterAccounts(accounts, searchTerm) {
+            const filtered = accounts.filter(account => 
+                account.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                account.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            renderAccountList(filtered);
+        }
+        
+        function filterGroups(groups, searchTerm) {
+            const filtered = groups.filter(group => 
+                group.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            renderGroupList(filtered);
+        }
+
+        // Función de búsqueda de formularios
         document.addEventListener('DOMContentLoaded', function() {
             // Limpiar datos de ejemplo si existen
             const queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
