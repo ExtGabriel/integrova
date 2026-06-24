@@ -2994,8 +2994,8 @@
                 const prevSpan = account.querySelector('.static-account-value[data-year="previous"]');
                 const currentSpan = account.querySelector('.static-account-value[data-year="current"]');
 
-                if (prevSpan) prevSpan.textContent = formatCurrency(0);
-                if (currentSpan) currentSpan.textContent = formatCurrency(0);
+                if (prevSpan) prevSpan.textContent = formatNumberWithoutCurrency(0);
+                if (currentSpan) currentSpan.textContent = formatNumberWithoutCurrency(0);
             });
         }
 
@@ -3593,11 +3593,9 @@
         }
 
         function formatLedgerCurrency(value) {
-            if (!Number.isFinite(value)) return 'Q0.00';
-            const absValue = Math.abs(value);
-            const formatted = absValue.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const withSymbol = `Q${formatted}`;
-            return value < 0 ? `(${withSymbol})` : withSymbol;
+            if (!Number.isFinite(value)) return '0.00';
+            const formatted = Math.abs(value).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return value < 0 ? `(${formatted})` : formatted;
         }
 
         function formatLedgerCell(value, options = {}) {
@@ -4834,8 +4832,8 @@
                     account.dataset.accountPrevValue = '0';
                     const prevSpan = account.querySelector('.static-account-value[data-year="previous"]');
                     const currentSpan = account.querySelector('.static-account-value[data-year="current"]');
-                    if (prevSpan) prevSpan.textContent = formatCurrency(0);
-                    if (currentSpan) currentSpan.textContent = formatCurrency(0);
+                    if (prevSpan) prevSpan.textContent = formatNumberWithoutCurrency(0);
+                    if (currentSpan) currentSpan.textContent = formatNumberWithoutCurrency(0);
                 });
 
                 const totalsByStaticAccount = new Map();
@@ -4871,8 +4869,8 @@
 
                     const prevSpan = staticAccount.querySelector('.static-account-value[data-year="previous"]');
                     const currentSpan = staticAccount.querySelector('.static-account-value[data-year="current"]');
-                    if (prevSpan) prevSpan.textContent = formatCurrency(totals.previous);
-                    if (currentSpan) currentSpan.textContent = formatCurrency(totals.current);
+                    if (prevSpan) prevSpan.textContent = formatNumberWithoutCurrency(totals.previous);
+                    if (currentSpan) currentSpan.textContent = formatNumberWithoutCurrency(totals.current);
                 });
 
                 const subGroupContents = panel.querySelectorAll('.sub-group-content');
@@ -17586,8 +17584,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         displayName = accountNumber || '[sin datos]';
                     }
                     
-                    const displayValue = currentValue != null ? formatCurrency(numericValue) : '';
-                    const displayPreviousValue = previousValue != null ? formatCurrency(numericPreviousValue) : '';
+                    const displayValue = currentValue != null ? formatNumberWithoutCurrency(numericValue) : '';
+                    const displayPreviousValue = previousValue != null ? formatNumberWithoutCurrency(numericPreviousValue) : '';
                     
                     // Mostrar en formato de columnas como Excel: LS | Código | Nombre | 2023 | 2024
                     const lsColumn = lsValue ? `<span class="account-ls-column">${lsValue}</span>` : '<span class="account-ls-column"></span>';
@@ -17664,10 +17662,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
 
     function parseAccountValue(rawValue) {
-        console.log('DEBUG parseAccountValue - rawValue:', rawValue, 'type:', typeof rawValue);
         if (rawValue == null) return 0;
         if (typeof rawValue === 'number') {
-            console.log('DEBUG parseAccountValue - returning number:', rawValue);
             return rawValue;
         }
 
@@ -17677,35 +17673,59 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         const trimmed = rawValue.trim();
-        const hasParens = trimmed.startsWith('(') && trimmed.endsWith(')');
-        const cleaned = trimmed.replace(/[Q\s()]/g, '');
+        
+        // Eliminar símbolos de moneda pero mantener signos
+        let cleaned = trimmed.replace(/[Q$€£¥\s]/g, '');
+        
+        // Manejar paréntesis para negativos (contabilidad)
+        const hasParens = cleaned.startsWith('(') && cleaned.endsWith(')');
+        if (hasParens) {
+            cleaned = cleaned.slice(1, -1); // Quitar paréntesis pero marcar como negativo
+        }
+        
+        // Detectar signo explícito al inicio
+        let isNegative = false;
+        if (cleaned.startsWith('-')) {
+            isNegative = true;
+            cleaned = cleaned.slice(1);
+        } else if (cleaned.startsWith('+')) {
+            cleaned = cleaned.slice(1);
+        }
+        
+        // Manejar separadores decimales
         const hasComma = cleaned.includes(',');
         const hasDot = cleaned.includes('.');
 
+        let parsed = 0;
         if (hasComma && hasDot) {
             if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
-                const normalized = cleaned.replace(/\./g, '').replace(',', '.');
-                const parsed = parseFloat(normalized);
-                if (!Number.isFinite(parsed)) return 0;
-                return hasParens ? -Math.abs(parsed) : parsed;
+                // Formato europeo: 1.234,56
+                parsed = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+            } else {
+                // Formato americano: 1,234.56
+                parsed = parseFloat(cleaned.replace(/,/g, ''));
             }
-
-            const normalized = cleaned.replace(/,/g, '');
-            const parsed = parseFloat(normalized);
-            if (!Number.isFinite(parsed)) return 0;
-            return hasParens ? -Math.abs(parsed) : parsed;
+        } else if (hasComma) {
+            // Podría ser decimal o separador de miles
+            if (cleaned.length - cleaned.lastIndexOf(',') <= 3) {
+                // Probablemente decimal: 1234,56
+                parsed = parseFloat(cleaned.replace(',', '.'));
+            } else {
+                // Probablemente separador de miles: 1,234
+                parsed = parseFloat(cleaned.replace(/,/g, ''));
+            }
+        } else {
+            parsed = parseFloat(cleaned);
         }
 
-        if (hasComma) {
-            const normalized = cleaned.replace(',', '.');
-            const parsed = parseFloat(normalized);
-            if (!Number.isFinite(parsed)) return 0;
-            return hasParens ? -Math.abs(parsed) : parsed;
-        }
-
-        const parsed = parseFloat(cleaned);
         if (!Number.isFinite(parsed)) return 0;
-        return hasParens ? -Math.abs(parsed) : parsed;
+        
+        // Aplicar signo negativo si corresponde
+        if (hasParens || isNegative) {
+            return -Math.abs(parsed);
+        }
+        
+        return parsed;
     }
         
     const ASSIGNMENTS_STORAGE_PREFIX = 'assigned_accounts_v1';
@@ -18816,16 +18836,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content += `<tr>`;
                 content += `<td>${account.name || ''}</td>`;
                 content += `<td>${account.code || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
-                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
-                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatNumberWithoutCurrency(variacion)}</td>`;
                 content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
 
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL ACTIVO</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(activoData.total - (activoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(activoData.previousYearTotal || 0) !== 0 ? ((activoData.total - (activoData.previousYearTotal || 0)) / (activoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL ACTIVO</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(activoData.total)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(activoData.total - (activoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(activoData.previousYearTotal || 0) !== 0 ? ((activoData.total - (activoData.previousYearTotal || 0)) / (activoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
@@ -18852,16 +18872,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content += `<tr>`;
                 content += `<td>${account.name || ''}</td>`;
                 content += `<td>${account.code || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
-                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
-                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatNumberWithoutCurrency(variacion)}</td>`;
                 content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(pasivoData.total - (pasivoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(pasivoData.previousYearTotal || 0) !== 0 ? ((pasivoData.total - (pasivoData.previousYearTotal || 0)) / (pasivoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(pasivoData.total)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(pasivoData.total - (pasivoData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(pasivoData.previousYearTotal || 0) !== 0 ? ((pasivoData.total - (pasivoData.previousYearTotal || 0)) / (pasivoData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Patrimonio
@@ -18880,16 +18900,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content += `<tr>`;
                 content += `<td>${account.name || ''}</td>`;
                 content += `<td>${account.code || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
-                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
-                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatNumberWithoutCurrency(variacion)}</td>`;
                 content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(patrimonioData.total - (patrimonioData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(patrimonioData.previousYearTotal || 0) !== 0 ? ((patrimonioData.total - (patrimonioData.previousYearTotal || 0)) / (patrimonioData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PATRIMONIO</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(patrimonioData.total)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(patrimonioData.total - (patrimonioData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(patrimonioData.previousYearTotal || 0) !== 0 ? ((patrimonioData.total - (patrimonioData.previousYearTotal || 0)) / (patrimonioData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Total Pasivo + Patrimonio
@@ -18899,7 +18919,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const variacionTotalPorcentaje = totalPasivoPatrimonioAnterior !== 0 ? (variacionTotal / totalPasivoPatrimonioAnterior) * 100 : 0;
         
         content += `<table class="balance-table">`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO + PATRIMONIO</strong></td><td class="total-amount"><strong>${formatCurrency(totalPasivoPatrimonio)}</strong></td><td class="total-amount"><strong>${formatCurrency(variacionTotal)}</strong></td><td class="total-amount"><strong>${variacionTotalPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL PASIVO + PATRIMONIO</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(totalPasivoPatrimonio)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(variacionTotal)}</strong></td><td class="total-amount"><strong>${variacionTotalPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
@@ -18926,16 +18946,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content += `<tr>`;
                 content += `<td>${account.name || ''}</td>`;
                 content += `<td>${account.code || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
-                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
-                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatNumberWithoutCurrency(variacion)}</td>`;
                 content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL INGRESOS</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(ingresosData.total - (ingresosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(ingresosData.previousYearTotal || 0) !== 0 ? ((ingresosData.total - (ingresosData.previousYearTotal || 0)) / (ingresosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL INGRESOS</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(ingresosData.total)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(ingresosData.total - (ingresosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(ingresosData.previousYearTotal || 0) !== 0 ? ((ingresosData.total - (ingresosData.previousYearTotal || 0)) / (ingresosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Gastos
@@ -18954,16 +18974,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content += `<tr>`;
                 content += `<td>${account.name || ''}</td>`;
                 content += `<td>${account.code || ''}</td>`;
-                content += `<td class="amount">${formatCurrency(valorAnterior)}</td>`;
-                content += `<td class="amount">${formatCurrency(valorActual)}</td>`;
-                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatCurrency(variacion)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorAnterior)}</td>`;
+                content += `<td class="amount">${formatNumberWithoutCurrency(valorActual)}</td>`;
+                content += `<td class="amount ${variacion >= 0 ? 'positive' : 'negative'}">${formatNumberWithoutCurrency(variacion)}</td>`;
                 content += `<td class="percentage ${variacionPorcentaje >= 0 ? 'positive' : 'negative'}">${variacionPorcentaje.toFixed(2)}%</td>`;
                 content += `</tr>`;
             });
         });
         
         content += `</tbody>`;
-        content += `<tfoot><tr><td colspan="3"><strong>TOTAL GASTOS</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total)}</strong></td><td class="total-amount"><strong>${formatCurrency(gastosData.total - (gastosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(gastosData.previousYearTotal || 0) !== 0 ? ((gastosData.total - (gastosData.previousYearTotal || 0)) / (gastosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>TOTAL GASTOS</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(gastosData.total)}</strong></td><td class="total-amount"><strong>${formatNumberWithoutCurrency(gastosData.total - (gastosData.previousYearTotal || 0))}</strong></td><td class="total-amount"><strong>${(gastosData.previousYearTotal || 0) !== 0 ? ((gastosData.total - (gastosData.previousYearTotal || 0)) / (gastosData.previousYearTotal || 0) * 100).toFixed(2) : 0}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         // Resultado del período
@@ -18973,16 +18993,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const variacionResultadoPorcentaje = resultadoAnterior !== 0 ? (variacionResultado / resultadoAnterior) * 100 : 0;
         
         content += `<table class="balance-table">`;
-        content += `<tfoot><tr><td colspan="3"><strong>RESULTADO DEL PERÍODO</strong></td><td class="total-amount ${resultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(resultado)}</strong></td><td class="total-amount ${variacionResultado >= 0 ? 'positive' : 'negative'}"><strong>${formatCurrency(variacionResultado)}</strong></td><td class="total-amount ${variacionResultadoPorcentaje >= 0 ? 'positive' : 'negative'}"><strong>${variacionResultadoPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
+        content += `<tfoot><tr><td colspan="3"><strong>RESULTADO DEL PERÍODO</strong></td><td class="total-amount ${resultado >= 0 ? 'positive' : 'negative'}"><strong>${formatNumberWithoutCurrency(resultado)}</strong></td><td class="total-amount ${variacionResultado >= 0 ? 'positive' : 'negative'}"><strong>${formatNumberWithoutCurrency(variacionResultado)}</strong></td><td class="total-amount ${variacionResultadoPorcentaje >= 0 ? 'positive' : 'negative'}"><strong>${variacionResultadoPorcentaje.toFixed(2)}%</strong></td></tr></tfoot>`;
         content += `</table>`;
         
         return content;
     }
 
-    // Función auxiliar para formatear moneda
-    function formatCurrency(amount) {
+    // Función para formatear números sin símbolo de moneda (para cuentas asignadas)
+    function formatNumberWithoutCurrency(amount) {
         return new Intl.NumberFormat('es-GT', {
-            minimumFractionDigits: 2
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         }).format(amount);
     }
     
@@ -19275,12 +19296,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const previousSpan = document.createElement('span');
                     previousSpan.className = 'static-account-value';
                     previousSpan.dataset.year = 'previous';
-                    previousSpan.textContent = formatCurrency(0);
+                    previousSpan.textContent = formatNumberWithoutCurrency(0);
 
                     const currentSpan = document.createElement('span');
                     currentSpan.className = 'static-account-value';
                     currentSpan.dataset.year = 'current';
-                    currentSpan.textContent = formatCurrency(currentValue);
+                    currentSpan.textContent = formatNumberWithoutCurrency(currentValue);
 
                     valueElement.replaceWith(previousSpan, currentSpan);
                 } else if (existingPrevSpan && existingCurrentSpan) {
@@ -19290,8 +19311,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     account.dataset.accountPrevValue = prevValue;
                     account.dataset.accountValue = currentValue;
 
-                    existingPrevSpan.textContent = formatCurrency(prevValue);
-                    existingCurrentSpan.textContent = formatCurrency(currentValue);
+                    existingPrevSpan.textContent = formatNumberWithoutCurrency(prevValue);
+                    existingCurrentSpan.textContent = formatNumberWithoutCurrency(currentValue);
                 } else {
                     account.dataset.accountValue = 0;
                     account.dataset.accountPrevValue = 0;
@@ -19299,12 +19320,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const previousSpan = document.createElement('span');
                     previousSpan.className = 'static-account-value';
                     previousSpan.dataset.year = 'previous';
-                    previousSpan.textContent = formatCurrency(0);
+                    previousSpan.textContent = formatNumberWithoutCurrency(0);
 
                     const currentSpan = document.createElement('span');
                     currentSpan.className = 'static-account-value';
                     currentSpan.dataset.year = 'current';
-                    currentSpan.textContent = formatCurrency(0);
+                    currentSpan.textContent = formatNumberWithoutCurrency(0);
 
                     account.appendChild(previousSpan);
                     account.appendChild(currentSpan);
@@ -19548,8 +19569,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         div.dataset.accountValue = numericValue;
         div.dataset.accountPrevValue = numericPrevValue;
         
-        const formattedValue = formatCurrency(Number.isFinite(numericValue) ? numericValue : 0);
-        const formattedPrevValue = formatCurrency(Number.isFinite(numericPrevValue) ? numericPrevValue : 0);
+        const formattedValue = formatNumberWithoutCurrency(Number.isFinite(numericValue) ? numericValue : 0);
+        const formattedPrevValue = formatNumberWithoutCurrency(Number.isFinite(numericPrevValue) ? numericPrevValue : 0);
         
         console.log('💰 Valor formateado para cuenta:', accountData.code, '→', formattedValue, '(crudo:', numericValue, ')');
 
@@ -19643,7 +19664,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         accountElement.innerHTML = `
             <span class="account-name">${accountData.code} ${accountData.name}</span>
             <span class="account-ls">LS: ${accountData.ls || 'N/A'}</span>
-            <span class="account-value">${formatCurrency(numericValue)}</span>
+            <span class="account-value">${formatNumberWithoutCurrency(numericValue)}</span>
         `;
         
         // Agregar evento de clic
@@ -19892,10 +19913,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         const currentSpan = staticAccountElement.querySelector('.static-account-value[data-year="current"]');
 
         if (previousSpan) {
-            previousSpan.textContent = formatCurrency(previousTotal);
+            previousSpan.textContent = formatNumberWithoutCurrency(previousTotal);
         }
         if (currentSpan) {
-            currentSpan.textContent = formatCurrency(currentTotal);
+            currentSpan.textContent = formatNumberWithoutCurrency(currentTotal);
         }
         
         // Actualizar también el subgrupo si estamos dentro de uno
@@ -19915,8 +19936,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     function renderGroupTotals(valueSpan, totals) {
         if (!valueSpan) return;
 
-        const formattedPrev = formatCurrency(Number.isFinite(totals.previous) ? totals.previous : 0);
-        const formattedCurrent = formatCurrency(Number.isFinite(totals.current) ? totals.current : 0);
+        const formattedPrev = formatNumberWithoutCurrency(Number.isFinite(totals.previous) ? totals.previous : 0);
+        const formattedCurrent = formatNumberWithoutCurrency(Number.isFinite(totals.current) ? totals.current : 0);
 
         valueSpan.innerHTML = `
             <span class="group-value-item" data-year="previous">${formattedPrev}</span>
@@ -20031,7 +20052,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
         
         // Función para formatear moneda
-        function formatCurrency(value, useAbsoluteValue = false) {
+        function formatNumberWithoutCurrency(value, useAbsoluteValue = false) {
             if (value == null || value === '' || isNaN(value)) return '0.00';
             let numValue = parseFloat(value);
             if (isNaN(numValue)) return '0.00';
@@ -20046,8 +20067,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función específica para asignación de cuentas (siempre aplica Caseware)
-        function formatCurrencyCaseware(value) {
-            return formatCurrency(value, true);
+        function formatNumberWithoutCurrencyCaseware(value) {
+            return formatNumberWithoutCurrency(value, true);
         }
 
         function formatDateTime(value) {
@@ -29534,7 +29555,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (!isBalanced) {
                 console.log('ERROR: Ajuste desbalanceado - Débitos != Créditos');
                 const excessType = difference > 0 ? 'débitos' : 'créditos';
-                const excessAmount = formatCurrency(Math.abs(difference));
+                const excessAmount = formatNumberWithoutCurrency(Math.abs(difference));
                 showNotification(`Ajuste desbalanceado. Exceso de ${excessType}: ${excessAmount}. Los débitos deben ser iguales a los créditos.`, 'error');
                 return;
             }
@@ -30230,10 +30251,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para formatear moneda
-        function formatCurrency(amount) {
+        function formatNumberWithoutCurrency(amount) {
             return new Intl.NumberFormat('es-MX', {
-                style: 'currency',
-                currency: 'MXN'
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             }).format(amount);
         }
         
@@ -30272,7 +30293,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 balanceIndicator.style.color = '#155724';
                 balanceIndicator.innerHTML = `
                     <span>✅ Ajuste balanceado</span>
-                    <span>Débitos: ${formatCurrency(balance.totalDebit)} = Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                    <span>Débitos: ${formatNumberWithoutCurrency(balance.totalDebit)} = Créditos: ${formatNumberWithoutCurrency(balance.totalCredit)}</span>
                 `;
             } else {
                 balanceIndicator.style.backgroundColor = '#f8d7da';
@@ -30280,11 +30301,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 balanceIndicator.style.color = '#721c24';
                 
                 const excessType = balance.difference > 0 ? 'Débitos' : 'Créditos';
-                const excessAmount = formatCurrency(Math.abs(balance.difference));
+                const excessAmount = formatNumberWithoutCurrency(Math.abs(balance.difference));
                 
                 balanceIndicator.innerHTML = `
                     <span>⚠️ Ajuste desbalanceado - Exceso de ${excessType}: ${excessAmount}</span>
-                    <span>Débitos: ${formatCurrency(balance.totalDebit)} | Créditos: ${formatCurrency(balance.totalCredit)}</span>
+                    <span>Débitos: ${formatNumberWithoutCurrency(balance.totalDebit)} | Créditos: ${formatNumberWithoutCurrency(balance.totalCredit)}</span>
                 `;
             }
         }
