@@ -1596,6 +1596,7 @@ window.syncAllDataToDatabase = syncAllDataToDatabase;
 window.getExcelData = getExcelData;
 window.saveExcelData = saveExcelData;
 window.deleteExcelData = deleteExcelData;
+window.getExcelDatasets = listExcelDatasets;
 
 // Form data management
 window.saveFormData = saveFormData;

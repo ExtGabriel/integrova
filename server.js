@@ -4268,6 +4268,13 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
         
         console.log(`✅ Dataset ${datasetId} eliminado completamente`);
         
+        // Limpiar cache de cuentas en memoria para este usuario
+        const cacheKey = `accounts_${userId}`;
+        if (accountsCache.has(cacheKey)) {
+            accountsCache.delete(cacheKey);
+            console.log(`🗑️ Cache de cuentas eliminado al borrar dataset para usuario: ${userId}`);
+        }
+        
         res.json({ 
             success: true, 
             message: 'Dataset eliminado exitosamente',
@@ -4766,6 +4773,9 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         
         // Obtener cuentas desde la base de datos con sus UUIDs reales
         console.log('Obteniendo cuentas desde cuentas_contables...');
+        console.log('🔍 Conjunto ID:', conjunto.id);
+        console.log('🔍 User ID:', userId);
+        
         const { data: dbAccounts, error: dbError } = await supabase
             .from('cuentas_contables')
             .select('*')
@@ -4774,47 +4784,16 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             
         if (dbError) {
             console.error('Error obteniendo cuentas de la base de datos:', dbError);
-            // Fallback: usar el método antiguo del Excel
-            const accounts = [];
-            const dataRows = sheetData.slice(1);
-            
-            dataRows.forEach((row, index) => {
-                if (!row || row.length === 0) return;
-                
-                const accountNumber = extractAccountNumber(row, mapping.accountNumber);
-                const accountName = extractAccountName(row, mapping.accountName);
-                const currentYearValue = extractValue(row, mapping.currentYear);
-                const previousYearValue = extractValue(row, mapping.previousYear);
-                const lsValue = mapping.ls >= 0 ? extractLSValueFromRow(row, mapping.ls) : '';
-                
-                if (!accountNumber && !accountName) return;
-                
-                accounts.push({
-                    id: `excel-${index}`,
-                    code: accountNumber || `CUENTA-${index}`,
-                    name: accountName || '',
-                    value: currentYearValue,
-                    current_year_value: currentYearValue,
-                    previous_year_value: previousYearValue,
-                    debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
-                    credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
-                    conjunto_id: conjunto.id,
-                    ls: lsValue ? lsValue.toString().trim() : '',
-                    meta: {
-                        ls: lsValue ? lsValue.toString().trim() : ''
-                    }
-                });
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error obteniendo cuentas desde la base de datos' 
             });
-            
-            res.json({ 
-                success: true, 
-                data: accounts,
-                datasetExists: true
-            });
-            return;
         }
         
-        console.log(`Encontradas ${dbAccounts.length} cuentas en la base de datos`);
+        console.log(`🔍 Encontradas ${dbAccounts.length} cuentas en la base de datos`);
+        console.log('🔍 dbAccounts es array:', Array.isArray(dbAccounts));
+        console.log('🔍 Primera cuenta (si existe):', dbAccounts?.[0]);
+        console.log('🔍 Todas las cuentas:', dbAccounts);
         
         // Deduplicar cuentas por número de cuenta para evitar duplicados
         const uniqueAccounts = new Map();

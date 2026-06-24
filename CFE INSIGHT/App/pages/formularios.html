@@ -2654,8 +2654,8 @@
                                 <th>LS (Grupo)</th>
                                 <th>Número de cuenta</th>
                                 <th>Nombre de la cuenta</th>
-                                <th>Año anterior</th>
                                 <th>Año actual</th>
+                                <th>Año anterior</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3334,8 +3334,7 @@
                 // Establecer currentDatasetId globalmente
                 currentDatasetId = datasetId;
                 window.currentDatasetId = datasetId;
-                localStorage.setItem(getAssignmentsLastDatasetKey(), datasetId);
-                console.log('✅ currentDatasetId establecido desde nuevo dataset:', currentDatasetId);
+                console.log('✅ currentDatasetId establecido desde nuevo dataset (sin localStorage):', currentDatasetId);
                 console.log('🔍 window.currentDatasetId sincronizado:', window.currentDatasetId);
                 
                 // Ahora procesar el mapeo
@@ -4451,7 +4450,9 @@
         }
 
         function buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
-            console.log('DEBUG: buildTrialBalanceRows - accounts:', accounts.slice(0, 2));
+            console.log('DEBUG: buildTrialBalanceRows - accounts.length:', accounts.length);
+            console.log('DEBUG: buildTrialBalanceRows - isArray:', Array.isArray(accounts));
+            console.log('DEBUG: buildTrialBalanceRows - primeros 2 elementos:', accounts.slice(0, 2));
             
             // Deduplicar cuentas por número de cuenta para evitar duplicados en frontend
             const uniqueAccounts = new Map();
@@ -4462,6 +4463,7 @@
                 }
             });
             
+            console.log(`DEBUG: uniqueAccounts.size después de deduplicación: ${uniqueAccounts.size}`);
             console.log(`Cuentas únicas después de deduplicación en frontend: ${uniqueAccounts.size}`);
             
             const rows = Array.from(uniqueAccounts.values())
@@ -4529,52 +4531,8 @@
         async function loadCuentasFromLatestExcel() {
             try {
                 const userId = getCurrentUserId();
-                const cacheKey = `cuentas_cache_${userId}`;
-                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
                 
-                // Intentar cargar desde cache primero (válido por 30 minutos)
-                try {
-                    const cachedDataRaw = localStorage.getItem(cacheKey);
-                    const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
-                    
-                    if (cachedDataRaw && cachedTimestamp) {
-                        const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
-                        const thirtyMinutes = 30 * 60 * 1000; // 30 minutos en ms
-                        
-                        if (cacheAge < thirtyMinutes) {
-                            console.log('📦 Cargando cuentas desde cache local (edad:', Math.round(cacheAge/60000), 'minutos)');
-                            const parsedCache = JSON.parse(cachedDataRaw);
-                            const {
-                                accounts = [],
-                                ledgerMap: serializedLedgerMap = [],
-                                ledgerAvailable = false,
-                                meta = ''
-                            } = parsedCache || {};
-
-                            const restoredLedgerMap = Array.isArray(serializedLedgerMap)
-                                ? new Map(serializedLedgerMap)
-                                : new Map();
-
-                            cachedTrialBalanceAccounts = accounts;
-                            cachedLedgerMap = restoredLedgerMap;
-                            cachedLedgerAvailable = ledgerAvailable;
-                            cachedLedgerMeta = meta;
-
-                            const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-                            const rows = buildTrialBalanceRows(accounts, restoredLedgerMap, ledgerAvailable, localAdjustmentsMap);
-                            renderCuentasTable(rows, meta);
-                            
-                            dataLoadState.cuentas = true;
-                            console.log('✅ Cuentas cargadas desde cache');
-                            return;
-                        }
-                    }
-                } catch (cacheError) {
-                    console.warn('⚠️ Error leyendo cache:', cacheError);
-                }
-                
-                // Si no hay cache válido, cargar desde API
-                console.log('🌐 Cargando cuentas desde API (sin cache o cache expirado)');
+                console.log('🌐 Cargando cuentas desde la base de datos...');
                 
                 // Mostrar indicador de carga
                 const cuentasSection = document.getElementById('cuentasSection');
@@ -4584,7 +4542,7 @@
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Cargando cuentas...</span>
                             </div>
-                            <p class="mt-2">Cargando cuentas asignadas...</p>
+                            <p class="mt-2">Cargando cuentas desde la base de datos...</p>
                         </div>
                     `;
                     const tableContainer = cuentasSection.querySelector('.table-responsive');
@@ -4593,6 +4551,7 @@
                     }
                 }
                 
+                // Cargar cuentas desde la API
                 const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {
                         'user-id': userId
@@ -4601,124 +4560,33 @@
                 const result = await response.json();
 
                 if (!response.ok || !result.success) {
-                    throw new Error(result.error || 'Error cargando cuentas');
+                    throw new Error(result.error || 'Error cargando cuentas desde la base de datos');
                 }
 
                 const accounts = result.data || [];
-                cachedTrialBalanceAccounts = accounts;
+                console.log('📊 Cuentas cargadas desde BD (antes de deduplicación):', accounts.length);
+                console.log('🔍 accounts inmediatamente de API:', accounts);
+                console.log('🔍 accounts es array:', Array.isArray(accounts));
+                console.log('🔍 accounts.length:', accounts.length);
 
+                // Cargar datos del ledger desde la API
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
                 const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                
+                // Construir y renderizar tabla
                 const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap);
                 renderCuentasTable(rows, meta);
                 
-                // Guardar en cache para futuras cargas
-                try {
-                    const cacheData = {
-                        accounts,
-                        ledgerMap: Array.isArray(ledgerMap) ? ledgerMap : Array.from(ledgerMap instanceof Map ? ledgerMap.entries() : []),
-                        ledgerAvailable,
-                        meta,
-                        timestamp: Date.now()
-                    };
-                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-                    localStorage.setItem(cacheTimestampKey, Date.now().toString());
-                    console.log('💾 Cuentas guardadas en cache local');
-                } catch (saveError) {
-                    console.warn('⚠️ Error guardando cache:', saveError);
-                }
-                
                 // Marcar como cargado exitosamente
                 dataLoadState.cuentas = true;
-                console.log('✅ Cuentas cargadas desde API y cacheadas');
+                console.log('✅ Cuentas cargadas exitosamente desde la base de datos');
                 
             } catch (err) {
-                console.error('Error cargando cuentas:', err);
+                console.error('Error cargando cuentas desde la base de datos:', err);
                 
-                // Intentar usar cache antiguo como fallback
-                try {
-                    const userId = getCurrentUserId();
-                    const cacheKey = `cuentas_cache_${userId}`;
-                    const cachedData = localStorage.getItem(cacheKey);
-                    
-                    if (cachedData) {
-                        console.log('🔄 Usando cache antiguo como fallback...');
-                        const parsedCache = JSON.parse(cachedData);
-                        const {
-                            accounts = [],
-                            ledgerMap: serializedLedgerMap = [],
-                            ledgerAvailable = false,
-                            meta = ''
-                        } = parsedCache || {};
-
-                        const restoredLedgerMap = Array.isArray(serializedLedgerMap)
-                            ? new Map(serializedLedgerMap)
-                            : new Map();
-
-                        cachedTrialBalanceAccounts = accounts;
-                        cachedLedgerMap = restoredLedgerMap;
-                        cachedLedgerAvailable = ledgerAvailable;
-                        cachedLedgerMeta = meta;
-
-                        const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
-                        const rows = buildTrialBalanceRows(accounts, restoredLedgerMap, ledgerAvailable, localAdjustmentsMap);
-                        renderCuentasTable(rows, meta);
-                        
-                        dataLoadState.cuentas = true;
-                        console.log('✅ Cuentas cargadas desde cache fallback');
-                        return;
-                    }
-                } catch (fallbackError) {
-                    console.warn('⚠️ Error en fallback:', fallbackError);
-                }
-                
-                // Si todo falla, mostrar error
-                renderCuentasTable([], '');
-                alert(err?.message || 'Error cargando cuentas. Por favor, recarga la página.');
-            }
-        }
-
-        // Función para limpiar cache de cuentas (útil para desarrollo o cuando se actualizan datos)
-        function clearCuentasCache() {
-            try {
-                const userId = getCurrentUserId();
-                const cacheKey = `cuentas_cache_${userId}`;
-                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
-                
-                localStorage.removeItem(cacheKey);
-                localStorage.removeItem(cacheTimestampKey);
-                console.log('🗑️ Cache de cuentas eliminado');
-            } catch (error) {
-                console.warn('⚠️ Error eliminando cache:', error);
-            }
-        }
-
-        // Función para verificar estado del cache
-        function getCuentasCacheStatus() {
-            try {
-                const userId = getCurrentUserId();
-                const cacheKey = `cuentas_cache_${userId}`;
-                const cacheTimestampKey = `cuentas_cache_timestamp_${userId}`;
-                
-                const cachedData = localStorage.getItem(cacheKey);
-                const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
-                
-                if (!cachedData || !cachedTimestamp) {
-                    return { exists: false, age: null, valid: false };
-                }
-                
-                const cacheAge = Date.now() - parseInt(cachedTimestamp);
-                const thirtyMinutes = 30 * 60 * 1000;
-                const valid = cacheAge < thirtyMinutes;
-                
-                return {
-                    exists: true,
-                    age: Math.round(cacheAge / 60000), // minutos
-                    valid: valid,
-                    size: JSON.stringify(cachedData).length // bytes
-                };
-            } catch (error) {
-                return { exists: false, age: null, valid: false, error: error.message };
+                // Mostrar estado vacío si hay error
+                renderCuentasTable([], 'Error cargando cuentas desde la base de datos. Por favor, recarga la página.');
+                dataLoadState.cuentas = false;
             }
         }
 
@@ -4854,23 +4722,26 @@
                 return [];
             }
 
+            // SOLO usar base de datos - eliminar localStorage para evitar duplicados
             try {
-                if (typeof window.loadAndSyncAssignments === 'function') {
-                    const assignments = await window.loadAndSyncAssignments(resolvedDatasetId);
+                if (typeof window.getAccountAssignments === 'function') {
+                    const assignments = await window.getAccountAssignments(resolvedDatasetId);
 
                     if (Array.isArray(assignments) && assignments.length > 0) {
                         console.log('✅ Asignaciones cargadas desde la BD:', assignments.length);
                         return assignments;
+                    } else {
+                        console.log('📊 No hay asignaciones en la BD para el dataset:', resolvedDatasetId);
+                        return [];
                     }
                 }
             } catch (error) {
                 console.warn('⚠️ Error cargando asignaciones desde BD:', error);
             }
 
-            // Fallback a localStorage (priorizar)
-            const fallback = getStoredAssignments(resolvedDatasetId) || [];
-            console.log('📁 Asignaciones usando fallback localStorage:', fallback.length);
-            return Array.isArray(fallback) ? fallback : [];
+            // Si no hay BD, retornar vacío (no usar localStorage)
+            console.log('📊 No se pudieron cargar asignaciones desde la BD, retornando vacío');
+            return [];
         }
 
         function normalizeAssignmentForCache(assignment, datasetId) {
@@ -5256,17 +5127,8 @@
                 return currentDatasetId;
             }
 
-            try {
-                const lastDataset = localStorage.getItem(getAssignmentsLastDatasetKey());
-                if (lastDataset) {
-                    currentDatasetId = lastDataset;
-                    window.currentDatasetId = lastDataset;
-                    console.log('🔁 currentDatasetId restaurado desde localStorage:', lastDataset);
-                    return lastDataset;
-                }
-            } catch (error) {
-                console.warn('⚠️ No se pudo restaurar el dataset desde localStorage:', error);
-            }
+            // No se usa localStorage para restaurar dataset - solo base de datos
+            console.log('📊 No se usa localStorage para restaurar dataset, se consultará la base de datos');
 
             console.warn('⚠️ No hay dataset activo disponible. Carga un Excel o selecciona un dataset.');
             return '';
@@ -5365,23 +5227,10 @@
                         firstAssignment: cachedAssignments?.[0]
                     });
                     
-                    // Si las asignaciones están vacías, intentar cargar desde localStorage
+                    // Si las asignaciones están vacías, registrar y continuar sin localStorage
                     if (!cachedAssignments || cachedAssignments.length === 0) {
-                        console.log('⚠️ Asignaciones vacías, intentando cargar desde localStorage...');
-                        const localStorageKey = 'assigned_accounts_v1_' + getCurrentUserId() + '_' + resolvedDatasetId;
-                        const localStorageData = localStorage.getItem(localStorageKey);
-                        console.log('🔍 DIAGNÓSTICO: localStorage key:', localStorageKey);
-                        console.log('🔍 DIAGNÓSTICO: localStorage data exists:', !!localStorageData);
-                        
-                        if (localStorageData) {
-                            try {
-                                cachedAssignments = JSON.parse(localStorageData);
-                                console.log('✅ Asignaciones cargadas desde localStorage:', cachedAssignments.length);
-                            } catch (e) {
-                                console.error('❌ Error parseando localStorage:', e);
-                                cachedAssignments = [];
-                            }
-                        }
+                        console.log('⚠️ Asignaciones vacías - no se usará localStorage, solo base de datos');
+                        cachedAssignments = [];
                     }
                     
                     const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
@@ -5765,6 +5614,14 @@
                         childAssignmentRows.push(assignmentRow.row);
                         hasContent = true;
                     });
+                    
+                    // Si hay asignaciones hijas, NO sumar el valor base de la cuenta estática para evitar duplicación
+                    if (childAssignmentRows.length > 0) {
+                        totals.preliminary -= base.preliminary;
+                        totals.adjustments -= base.adjustments;
+                        totals.finalPrevious -= base.finalPrevious;
+                        console.log(`🔍 Evitando doble conteo para ${node.label || nodeAccountId}: restando valores base de cuenta estática`);
+                    }
                 }
 
                 const directAssignmentRows = [];
@@ -17137,26 +16994,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 Object.keys(localStorage).forEach(key => {
                     if (
                         key.startsWith('assignments_') ||
-                        key.startsWith('assigned_accounts_v1_') ||
-                        key.startsWith('assigned_accounts_last_dataset_v1_')
+                        key.startsWith('assigned_accounts_v1_')
                     ) {
                         localStorage.removeItem(key);
                     }
                 });
 
-                localStorage.removeItem('currentDatasetId');
-                localStorage.removeItem('lastDatasetId');
-                localStorage.removeItem('assignmentsLastDataset');
-                localStorage.removeItem('excel_data_current');
-
-                try {
-                    const lastDatasetKey = getAssignmentsLastDatasetKey();
-                    localStorage.removeItem(lastDatasetKey);
-                } catch (keyError) {
-                    console.warn('⚠️ Error eliminando clave de último dataset:', keyError);
-                }
-
-                console.log('✅ localStorage limpiado');
+                // No se limpia localStorage para dataset - solo base de datos
+                console.log('✅ No se usa localStorage para dataset, solo base de datos');
             } catch (error) {
                 console.warn('⚠️ Error limpiando localStorage:', error);
             }
@@ -17681,14 +17526,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('🔄 restoreAssignedAccounts llamando a handleDatasetChange');
                 handleDatasetChange(normalizedCurrentId, normalizedDatasetId);
             } else if (normalizedDatasetId) {
-                console.log('✅ restoreAssignedAccounts estableciendo currentDatasetId directamente');
+                console.log('✅ restoreAssignedAccounts estableciendo currentDatasetId directamente (sin localStorage)');
                 currentDatasetId = normalizedDatasetId;
                 window.currentDatasetId = normalizedDatasetId;
-                try {
-                    localStorage.setItem(getAssignmentsLastDatasetKey(), normalizedDatasetId);
-                } catch (error) {
-                    console.warn('⚠️ Error guardando dataset activo:', error);
-                }
             }
 
             if (Array.isArray(accounts)) {
@@ -17869,7 +17709,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     }
         
     const ASSIGNMENTS_STORAGE_PREFIX = 'assigned_accounts_v1';
-    const ASSIGNMENTS_LAST_DATASET_KEY = 'assigned_accounts_last_dataset_v1';
     
     // Hacer currentDatasetId globalmente accesible
     window.currentDatasetId = null;
@@ -17883,7 +17722,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     let cachedAssignments = [];
     let cachedFinancialGroupStructure = null;
     let cachedGruposFinancierosRows = [];
-    let cachedTrialBalanceAccounts = [];
     // Las siguientes variables se declaran más adelante en el código para evitar duplicación
     // let cachedLedgerMap = new Map();
     // let cachedLedgerAvailable = false;
@@ -17897,10 +17735,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         return getCurrentUserId() || 'anon';
     }
 
-    function getAssignmentsLastDatasetKey() {
-        return `${ASSIGNMENTS_LAST_DATASET_KEY}_${getAssignmentsUserKey()}`;
-    }
-
+    
     function getAssignmentsStorageKey(datasetId) {
         const normalized = normalizeDatasetId(datasetId);
         return `${ASSIGNMENTS_STORAGE_PREFIX}_${getAssignmentsUserKey()}_${normalized}`;
@@ -17911,11 +17746,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             let resolvedDatasetId = datasetId ? datasetId.toString().trim() : '';
 
             if (!resolvedDatasetId) {
-                const lastDataset = localStorage.getItem(getAssignmentsLastDatasetKey());
-                if (lastDataset) {
-                    resolvedDatasetId = lastDataset;
-                    currentDatasetId = lastDataset;
-                }
+                // No se usa localStorage para dataset - debe venir como parámetro
+                console.warn('⚠️ No se proporcionó datasetId y no se usa localStorage');
+                return [];
             }
 
             if (!resolvedDatasetId) {
@@ -17997,11 +17830,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.warn('Error gestionando carpetas General:', error);
         }
 
-        try {
-            localStorage.setItem(getAssignmentsLastDatasetKey(), nextId);
-        } catch (error) {
-            console.warn('⚠️ Error guardando dataset activo:', error);
-        }
+        // No se usa localStorage para dataset - solo base de datos
+        console.log('✅ Dataset activo gestionado en base de datos, sin localStorage');
     }
 
     function getAccountKey(accountData) {
@@ -20387,6 +20217,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Reiniciar completamente el sistema (similar a cuando se sube nuevo archivo)
                 resetAllDataOnNewFile();
                 
+                // Limpiar específicamente el cache de cuentas sin asignar
+                cachedUnassignedAccounts = [];
+                cachedUnassignedDatasetId = null;
+                dataLoadState.unassignedAccounts = false;
+                console.log('🗑️ Cache de cuentas sin asignar limpiado después de eliminar dataset');
+                
                 // Mostrar estado vacío en lugar de cargar siguiente dataset
                 const tableBody = document.getElementById('datasetHistoryBody');
                 
@@ -20455,8 +20291,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (latestResponse.ok && latestResult.success && latestResult.data) {
                     currentDatasetId = latestResult.data.id;
                     window.currentDatasetId = latestResult.data.id;
-                    localStorage.setItem(getAssignmentsLastDatasetKey(), currentDatasetId);
-                    console.log('✅ Dataset actual establecido:', currentDatasetId);
+                    console.log('✅ Dataset actual establecido (sin localStorage):', currentDatasetId);
                     console.log('🔍 Verificación - currentDatasetId después de asignar:', currentDatasetId);
                     console.log('🔍 Verificación - window.currentDatasetId:', window.currentDatasetId);
                 } else {
