@@ -379,7 +379,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         let isReloadingAdjustments = false;
         
         // Escuchar actualizaciones de la base de datos para recargar ajustes
-        document.addEventListener('databaseAdjustmentsUpdated', async function(event) {
+        window.addEventListener('databaseAdjustmentsUpdated', async function(event) {
             if (isReloadingAdjustments) {
                 console.log('🔄 Ya se está recargando ajustes, ignorando evento duplicado...');
                 return;
@@ -738,7 +738,8 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                         code: code.trim(),
                         name: name.trim(),
                         amount: amount,
-                        type: amount > 0 ? 'debit' : 'credit'
+                        type: 'account', // necesario para partida doble y mapeo de ajustes
+                        movementSide: amount > 0 ? 'debit' : 'credit'
                     });
                 }
             });
@@ -779,7 +780,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 console.log('✅ Ajuste guardado en BD:', result);
                 
                 // Disparar evento para que la UI se recargue desde BD
-                document.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                window.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
                     detail: { datasetId: currentDatasetId, count: 1 }
                 }));
 
@@ -892,6 +893,47 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             console.log('- periodoValue:', periodoValue);
             console.log('- entidadValue:', entidadValue);
             console.log('- descripcion:', descripcionValue);
+
+            // Validación de partida doble: al menos 2 cuentas y Debe = Haber
+            const accountDetails = (detallesRecolectados || []).filter(d => d.type === 'account' && (d.code || '').trim());
+            if (accountDetails.length < 2) {
+                console.warn('ERROR: La partida necesita al menos dos cuentas (doble entrada)');
+                notify('La partida necesita al menos dos cuentas (doble partida). Agrega cuenta contrapartida.', 'warning');
+                return;
+            }
+
+            const totals = accountDetails.reduce((acc, detail) => {
+                const code = (detail.code || '').trim();
+                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                const originSide = getAccountOriginSide(code);
+
+                if (originSide === 'DEBE') {
+                    if (amount >= 0) {
+                        acc.debe += amount; // mismo lado DEBE
+                    } else {
+                        acc.haber += Math.abs(amount); // lado contrario
+                    }
+                } else {
+                    if (amount <= 0) {
+                        acc.haber += Math.abs(amount); // mismo lado HABER
+                    } else {
+                        acc.debe += amount; // lado contrario
+                    }
+                }
+
+                return acc;
+            }, { debe: 0, haber: 0 });
+
+            const diff = Math.abs(totals.debe - totals.haber);
+            const format = (n) => Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            console.log('🔍 Validación partida doble:', { debe: totals.debe, haber: totals.haber, diff });
+
+            if (diff > 0.01) {
+                console.warn(`ERROR: La partida no cuadra. Debe: ${totals.debe}, Haber: ${totals.haber}`);
+                notify(`La partida no cuadra: Debe Q${format(totals.debe)} vs Haber Q${format(totals.haber)}. Ajusta los montos.`, 'error');
+                return;
+            }
 
             // Validar campos requeridos
             if (!tipoValue) {
@@ -1193,8 +1235,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                             <div class="ajuste-detail-row__info">
                                 <span class="ajuste-detail-row__code">${code}</span>
                                 <span class="ajuste-detail-row__name">${detail.label}</span>
-                                <span class="account-origin">Origen: ${originSide}</span>
-                            </div>
+                                                            </div>
                             <div class="ajuste-detail-row__amounts">
                                 <div class="ajuste-detail-row__nature-display">
                                     <label>Naturaleza contable</label>
@@ -1207,8 +1248,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                                 <div class="ajuste-detail-row__amount">
                                     <label for="detail-amount-${detail.id}">Cantidad</label>
                                     <input type="number" id="detail-amount-${detail.id}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="${amountValue}" placeholder="0.00">
-                                    <small class="amount-hint">Origen ${originSide}: ${originSide === 'DEBE' ? '+' : '-'} = SUMA, ${originSide === 'DEBE' ? '-' : '+'} = RESTA</small>
-                                </div>
+                                                                    </div>
                             </div>
                         </div>
                     </div>
@@ -2552,7 +2592,7 @@ function updateNumeroField() {
                 console.log(`✅ Ajustes guardados en BD: ${successful} exitosos, ${failed} fallidos`);
                 
                 // Disparar evento para que la UI se recargue desde BD
-                document.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                window.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
                     detail: { datasetId: currentDatasetId, count: successful }
                 }));
 
@@ -2630,7 +2670,7 @@ function updateNumeroField() {
 
         function broadcastAdjustmentsUpdate() {
             const map = computeAdjustmentsMap();
-            document.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
+            window.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
                 detail: {
                     adjustments: Array.from(map.entries())
                 }
