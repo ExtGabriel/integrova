@@ -298,7 +298,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         const detailsEmptyState = document.getElementById('ajusteDetailsEmpty');
         const addCuentaButton = document.getElementById('addCuentaLine');
         const addGrupoButton = document.getElementById('addGrupoLine');
-        const adjustmentsList = document.getElementById('adjustmentsList');
+        // adjustmentsList eliminado - solo se usa ajuste-card-wrapper system
         const adjustmentsEmpty = document.getElementById('adjustmentsEmpty');
 
         const selectorModal = document.getElementById('selectorModal');
@@ -361,6 +361,9 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         console.log('🔍 currentDatasetId final antes de cargar ajustes:', currentDatasetId);
         
         ajustes = await loadAdjustmentsFromStorage();
+        if (typeof window !== 'undefined') {
+            window.ajustes = ajustes;
+        }
         if (!Array.isArray(ajustes)) {
             console.warn('formularios-ajustes.js: loadAdjustmentsFromStorage no devolvió un array, usando array vacío');
             ajustes = [];
@@ -372,8 +375,17 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         // Inicializar el badge de notificaciones
         updateNotesNotificationBadge();
 
+        // Bandera para evitar múltiples recargas simultáneas
+        let isReloadingAdjustments = false;
+        
         // Escuchar actualizaciones de la base de datos para recargar ajustes
         document.addEventListener('databaseAdjustmentsUpdated', async function(event) {
+            if (isReloadingAdjustments) {
+                console.log('🔄 Ya se está recargando ajustes, ignorando evento duplicado...');
+                return;
+            }
+            
+            isReloadingAdjustments = true;
             console.log('🔄 Actualización de base de datos detectada, recargando ajustes...');
             const { datasetId, count } = event.detail || {};
             console.log(`🔍 Dataset: ${datasetId}, Ajustes actualizados: ${count}`);
@@ -394,6 +406,11 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 broadcastAdjustmentsUpdate();
             } catch (error) {
                 console.error('❌ Error recargando ajustes desde BD:', error);
+            } finally {
+                // Resetear la bandera después de un tiempo para permitir futuras recargas
+                setTimeout(() => {
+                    isReloadingAdjustments = false;
+                }, 500);
             }
         });
 
@@ -411,7 +428,15 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         }
         closeButton?.addEventListener('click', () => closeAjusteModal());
         cancelButton?.addEventListener('click', () => closeAjusteModal());
-        deleteButton?.addEventListener('click', () => handleDeleteAjuste());
+        if (deleteButton) {
+            console.log('✅ Conectando deleteButton a handleDeleteAjuste');
+            deleteButton.addEventListener('click', () => {
+                console.log('🔘 Botón de eliminar presionado');
+                handleDeleteAjuste();
+            });
+        } else {
+            console.error('❌ deleteButton (deleteAjusteModal) NO encontrado');
+        }
 
         modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) {
@@ -580,18 +605,26 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         });
 
         openAjusteModal = function() {
-            form.reset();
-            detalleItems = [];
-            renderDetailItems();
+            // No limpiar el formulario si ya se está en modo edición
+            const isEditing = modalBackdrop.dataset.editingId;
+            console.log('🔧 openAjusteModal: isEditing =', isEditing);
             
-            // Solo actualizar el numero si no esta en modo edicion
-            if (!modalBackdrop.dataset.editingId) {
+            if (!isEditing) {
+                console.log('🔧 openAjusteModal: Limpiando formulario (modo nuevo)');
+                form.reset();
+                detalleItems = [];
+                renderDetailItems();
                 updateNumeroField();
-            }
-            
-            // Ocultar el boton de eliminar para nuevos ajustes
-            if (deleteButton) {
-                deleteButton.style.display = 'none';
+                // Ocultar el botón de eliminar solo para nuevos ajustes
+                if (deleteButton) {
+                    deleteButton.style.display = 'none';
+                }
+            } else {
+                console.log('🔧 openAjusteModal: Manteniendo formulario (modo edición)');
+                // Mostrar el botón de eliminar para ajustes existentes
+                if (deleteButton) {
+                    deleteButton.style.display = 'inline-block';
+                }
             }
             
             selectorSearchInput && (selectorSearchInput.value = '');
@@ -611,6 +644,9 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             modalBackdrop.setAttribute('hidden', '');
             enableBodyScroll();
             openButton?.focus();
+            
+            // Limpiar modo edición al cerrar
+            delete modalBackdrop.dataset.editingId;
         }
         closeAjusteModal.isPlaceholder = false;
         
@@ -624,29 +660,54 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         function handleDeleteAjuste() {
             const editingId = modalBackdrop.dataset.editingId;
             
+            console.log('🔧 handleDeleteAjuste iniciado');
+            console.log('🔍 editingId:', editingId);
+            console.log('🔍 modalBackdrop.dataset:', modalBackdrop.dataset);
+            console.log('🔍 currentDatasetId:', currentDatasetId);
+            console.log('🔍 window.deleteFinancialAdjustment disponible:', typeof window.deleteFinancialAdjustment);
+            
             if (!editingId) {
                 notify('No se puede eliminar: no hay un ajuste seleccionado para editar', 'error');
                 return;
             }
 
             // Confirmar eliminación
+            console.log('🔍 Mostrando diálogo de confirmación...');
             if (confirm('¿Estás seguro de que deseas eliminar este ajuste? Esta acción no se puede deshacer.')) {
-                // Eliminar el ajuste del array
-                const ajusteIndex = ajustes.findIndex(a => a.id === editingId);
-                if (ajusteIndex !== -1) {
-                    const ajusteEliminado = ajustes[ajusteIndex];
-                    ajustes.splice(ajusteIndex, 1);
-                    
-                    // Guardar cambios y actualizar la lista
-                    saveAjustes();
-                    renderAjustes();
-                    broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
-                    closeAjusteModal();
-                    
-                    notify(`Ajuste #${ajusteEliminado.numero} eliminado correctamente`, 'success');
-                    console.log('Ajuste eliminado:', ajusteEliminado);
+                console.log('✅ Usuario confirmó eliminación');
+                
+                // Eliminar directamente de la base de datos
+                console.log('🔧 Eliminando ajuste directamente de BD:', editingId);
+                
+                if (typeof window.deleteFinancialAdjustment === 'function' && currentDatasetId) {
+                    console.log('🔧 Llamando a deleteFinancialAdjustment...');
+                    window.deleteFinancialAdjustment(editingId, currentDatasetId)
+                        .then(() => {
+                            console.log('✅ Ajuste eliminado de la base de datos');
+                            
+                            // Recargar ajustes desde BD y actualizar UI
+                            loadAdjustmentsFromStorage().then(ajustesRecargados => {
+                                ajustes = ajustesRecargados;
+                                renderAjustes();
+                                broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
+                                closeAjusteModal();
+                                
+                                notify('Ajuste eliminado correctamente', 'success');
+                            }).catch(error => {
+                                console.error('❌ Error recargando ajustes:', error);
+                                // Si falla la recarga, renderizar igual para quitar la tarjeta
+                                renderAjustes();
+                                closeAjusteModal();
+                                notify('Ajuste eliminado (recarga pendiente)', 'success');
+                            });
+                        })
+                        .catch(error => {
+                            console.error('❌ Error eliminando ajuste de la base de datos:', error);
+                            notify('Error al eliminar el ajuste de la base de datos', 'error');
+                        });
                 } else {
-                    notify('No se encontró el ajuste para eliminar', 'error');
+                    console.error('❌ No se puede eliminar: función o datasetId no disponible');
+                    notify('Error: No hay conexión con la base de datos', 'error');
                 }
                 
                 // Limpiar el modo edición
@@ -697,7 +758,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                     return;
                 }
 
-                const result = await window.saveFinancialAdjustment({
+                const payload = {
                     datasetId: currentDatasetId,
                     adjustmentType: ajusteData.tipo || 'manual',
                     moneda: ajusteData.moneda || 'GTQ',
@@ -706,7 +767,14 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                     htmlContenido: ajusteData.htmlContenido || '',
                     adjuntos: ajusteData.adjuntos || null,
                     meta: ajusteData.meta || {}
-                });
+                };
+                
+                // Solo agregar el ID si es una actualización (el ID ya es un UUID válido de la BD)
+                if (ajusteData.id && !ajusteData.id.startsWith('ajuste-')) {
+                    payload.id = ajusteData.id;
+                }
+                
+                const result = await window.saveFinancialAdjustment(payload);
 
                 console.log('✅ Ajuste guardado en BD:', result);
                 
@@ -985,7 +1053,8 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         // Exponer handleFormSubmit inmediatamente
         if (typeof window !== 'undefined') {
             window.handleFormSubmit = handleFormSubmit;
-            console.log('🔍 Función handleFormSubmit expuesta (implementación real)');
+            window.renderAjusteCards = renderAjusteCards;
+            console.log('🔍 Funciones expuestas: handleFormSubmit, renderAjusteCards');
         }
 
         // Registrar el submit del formulario con la implementación real
@@ -993,28 +1062,57 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             form.addEventListener('submit', handleFormSubmit);
         }
 
-        function renderAdjustments() {
-            if (!adjustmentsList) return;
-
-            adjustmentsList.innerHTML = '';
-            if (!Array.isArray(ajustes) || !ajustes.length) {
-                if (adjustmentsEmpty) {
-                    adjustmentsEmpty.style.display = 'grid';
+        // Función para renderizar cards usando ajuste-card-wrapper
+        function renderAjusteCards(ajustesArray) {
+            const container = document.getElementById('ajusteCardsContainer');
+            const emptyState = document.getElementById('adjustmentsEmpty');
+            
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            if (!Array.isArray(ajustesArray) || !ajustesArray.length) {
+                if (emptyState) {
+                    emptyState.style.display = 'grid';
                 }
                 return;
             }
-
-            if (adjustmentsEmpty) {
-                adjustmentsEmpty.style.display = 'none';
+            
+            if (emptyState) {
+                emptyState.style.display = 'none';
             }
-
-            ajustes.forEach((ajuste) => {
-                adjustmentsList.appendChild(createAdjustmentCard(ajuste));
-            });
+            
+            console.log('📋 Renderizando ajustes con ajuste-card-wrapper:', ajustesArray.length);
+            
+            // Verificar que createAdjustmentCard esté disponible
+            if (typeof window.createAdjustmentCard !== 'function') {
+                console.error('❌ window.createAdjustmentCard no está disponible. Usando función local.');
+                // Usar la función local directamente
+                ajustesArray.forEach(ajuste => {
+                    const wrapper = createAdjustmentCard(ajuste);
+                    if (wrapper) {
+                        container.appendChild(wrapper);
+                    }
+                });
+            } else {
+                // Usar la función global
+                ajustesArray.forEach(ajuste => {
+                    const wrapper = window.createAdjustmentCard(ajuste);
+                    if (wrapper) {
+                        container.appendChild(wrapper);
+                    }
+                });
+            }
+            
+            console.log('✅ Ajustes renderizados con ajuste-card-wrapper');
         }
 
         function renderAjustes() {
-            renderAdjustments();
+            if (typeof window !== 'undefined') {
+                window.ajustes = ajustes;
+            }
+            // Usar el nuevo sistema de renderizado con ajuste-card-wrapper
+            renderAjusteCards(ajustes);
             // Actualizar el badge de notificaciones después de renderizar
             updateNotesNotificationBadge();
         }
@@ -1589,6 +1687,12 @@ function updateNumeroField() {
             return mainWrapper;
         }
 
+        // Exponer createAdjustmentCard globalmente inmediatamente después de definirla
+        if (typeof window !== 'undefined') {
+            window.createAdjustmentCard = createAdjustmentCard;
+            console.log('✅ createAdjustmentCard expuesta globalmente');
+        }
+
         function updateDetailWithItem(detail, item) {
             if (detail.type === 'group') {
                 detail.name = item.name;
@@ -1639,32 +1743,110 @@ function updateNumeroField() {
         }
 
         function editAdjustment(ajuste) {
+            console.log('🔧 editAdjustment iniciado con:', ajuste);
+            
+            // Establecer modo edición ANTES de abrir el modal
+            modalBackdrop.dataset.editingId = ajuste.id;
+            console.log('✅ editingId establecido:', modalBackdrop.dataset.editingId);
+            
             // Abrir modal con los datos del ajuste a editar
             openAjusteModal();
             
             // Esperar un momento a que el modal se abra completamente
             setTimeout(() => {
-                // Cargar datos del ajuste en el formulario
-                if (numeroField) numeroField.value = ajuste.numero;
-                if (tipoSelect) tipoSelect.value = ajuste.tipo;
-                if (periodoSelect) periodoSelect.value = ajuste.periodo;
-                if (entidadSelect) entidadSelect.value = ajuste.entidad;
-                if (descripcionTextarea) descripcionTextarea.value = ajuste.descripcion || '';
+                console.log('🔧 editAdjustment: Cargando datos del ajuste', ajuste);
                 
-                // Cargar detalles
-                detalleItems = (ajuste.detalles || []).map(detail => {
-                    // Mantener la naturaleza original si está definida, si no, detectar automáticamente
-                    const nature = detail.nature || getAccountNature(detail.name || detail.label || '', detail.code || '');
-                    
-                    return {
+                // Re-obtener elementos del formulario por si acaso
+                const modal = document.getElementById('ajusteModal');
+                const currentNumeroField = modal?.querySelector('#ajusteNumero');
+                const currentTipoSelect = modal?.querySelector('#ajusteTipo');
+                const currentPeriodoSelect = modal?.querySelector('#ajustePeriodo');
+                const currentEntidadSelect = modal?.querySelector('#ajusteEntidad');
+                const currentDescripcionTextarea = modal?.querySelector('#ajusteDescripcion');
+                
+                console.log('🔧 Elementos del formulario disponibles:');
+                console.log('- modal:', !!modal);
+                console.log('- numeroField:', !!currentNumeroField, currentNumeroField?.id);
+                console.log('- tipoSelect:', !!currentTipoSelect, currentTipoSelect?.id);
+                console.log('- periodoSelect:', !!currentPeriodoSelect, currentPeriodoSelect?.id);
+                console.log('- entidadSelect:', !!currentEntidadSelect, currentEntidadSelect?.id);
+                console.log('- descripcionTextarea:', !!currentDescripcionTextarea, currentDescripcionTextarea?.id);
+                console.log('- Datos del ajuste:', {
+                    numero: ajuste.numero,
+                    tipo: ajuste.tipo,
+                    periodo: ajuste.periodo,
+                    entidad: ajuste.entidad,
+                    descripcion: ajuste.descripcion
+                });
+                
+                // Obtener datos desde meta o directamente del ajuste (compatibilidad)
+                const datos = {
+                    numero: ajuste.numero || ajuste.meta?.numero || '',
+                    tipo: ajuste.tipo || ajuste.meta?.tipo || '',
+                    periodo: ajuste.periodo || ajuste.meta?.periodo || '',
+                    entidad: ajuste.entidad || ajuste.meta?.entidad || '',
+                    descripcion: ajuste.descripcion || ajuste.meta?.descripcion || ''
+                };
+                
+                console.log('🔧 Datos obtenidos para cargar:', datos);
+                
+                // Cargar datos del ajuste en el formulario
+                if (currentNumeroField) {
+                    currentNumeroField.value = datos.numero || '';
+                    console.log('✅ numeroField asignado:', currentNumeroField.value);
+                } else {
+                    console.warn('⚠️ numeroField no encontrado');
+                }
+                if (currentTipoSelect) {
+                    currentTipoSelect.value = datos.tipo || '';
+                    console.log('✅ tipoSelect asignado:', currentTipoSelect.value);
+                } else {
+                    console.warn('⚠️ tipoSelect no encontrado');
+                }
+                if (currentPeriodoSelect) {
+                    currentPeriodoSelect.value = datos.periodo || '';
+                    console.log('✅ periodoSelect asignado:', currentPeriodoSelect.value);
+                } else {
+                    console.warn('⚠️ periodoSelect no encontrado');
+                }
+                if (currentEntidadSelect) {
+                    currentEntidadSelect.value = datos.entidad || '';
+                    console.log('✅ entidadSelect asignado:', currentEntidadSelect.value);
+                } else {
+                    console.warn('⚠️ entidadSelect no encontrado');
+                }
+                if (currentDescripcionTextarea) {
+                    currentDescripcionTextarea.value = datos.descripcion || '';
+                    console.log('✅ descripcionTextarea asignado:', currentDescripcionTextarea.value);
+                } else {
+                    console.warn('⚠️ descripcionTextarea no encontrado');
+                }
+                
+                // Cargar detalles - buscar en múltiples propiedades para compatibilidad
+                const detallesOrigen = ajuste.detalles || ajuste.meta?.detalles || [];
+                console.log('🔧 Cargando detalles desde:', detallesOrigen.length, 'elementos');
+                console.log('🔧 Primer detalle original:', detallesOrigen[0]);
+                
+                detalleItems = detallesOrigen.map(detail => {
+                    const amount = Number(detail.amount);
+                    const isNumber = Number.isFinite(amount);
+                    // Determinar naturaleza original o inferir
+                    const nature = detail.nature || (detail.type === 'credit' ? 'haber' : detail.type === 'debit' ? 'debe' : getAccountNature(detail.name || detail.label || '', detail.code || ''));
+                    const normalized = {
                         ...detail,
-                        amount: Number.isFinite(detail.amount) ? detail.amount : 0,
+                        label: detail.label || detail.name || detail.code || 'Sin nombre',
+                        type: detail.type || 'account',
+                        amount: isNumber ? amount : 0,
                         nature: nature === 'haber' ? 'haber' : 'debe',
                         id: uniqueId('detail')
                     };
+                    console.log('🔧 Detalle normalizado:', normalized);
+                    return normalized;
                 });
                 
+                console.log('🔧 detalleItems después de cargar:', detalleItems);
                 renderDetailItems();
+                console.log('🔧 renderDetailItems ejecutado');
                 // NO llamar a updateNumeroField() en modo edición para mantener el número original
                 
                 // Marcar como modo edición
@@ -2763,11 +2945,16 @@ function updateNumeroField() {
         window.closeAjusteModal = closeAjusteModal;
         window.initializeAjustesSystem = initializeAjustesSystem;
         window.createAdjustmentCard = createAdjustmentCard;
+        window.editAdjustment = editAdjustment;
+        window.openNotesModal = openNotesModal;
+        window.ajustes = ajustes;
         console.log('✅ Funciones de formularios-ajustes.js expuestas globalmente');
         console.log('🔍 Verificación final - handleFormSubmit:', typeof window.handleFormSubmit);
         console.log('🔍 Verificación final - openAjusteModal:', typeof window.openAjusteModal);
         console.log('🔍 Verificación final - closeAjusteModal:', typeof window.closeAjusteModal);
         console.log('🔍 Verificación final - initializeAjustesSystem:', typeof window.initializeAjustesSystem);
         console.log('🔍 Verificación final - createAdjustmentCard:', typeof window.createAdjustmentCard);
+        console.log('🔍 Verificación final - editAdjustment:', typeof window.editAdjustment);
+        console.log('🔍 Verificación final - openNotesModal:', typeof window.openNotesModal);
     }
 })();

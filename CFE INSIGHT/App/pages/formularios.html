@@ -1916,7 +1916,8 @@
                         </div>
                     </div>
 
-                    <div id="adjustmentsList" class="adjustments-list"></div>
+                    <!-- Contenedor para cards ajuste-card-wrapper -->
+                    <div id="ajusteCardsContainer" class="ajuste-cards-container"></div>
 
                     <div class="adjustments-empty" id="adjustmentsEmpty">
                         <i class="bi bi-sliders"></i>
@@ -3436,6 +3437,11 @@
                 case 'adjustments':
                     if (adjustmentsContent) {
                         adjustmentsContent.style.display = 'block';
+                        // Inicializar el sistema de ajustes si no está inicializado
+                        if (typeof window.initializeAjustesSystem === 'function') {
+                            console.log('🔧 Inicializando sistema de ajustes...');
+                            window.initializeAjustesSystem();
+                        }
                         // Cargar ajustes directamente cuando se muestra la sección
                         (async () => {
                             try {
@@ -3443,22 +3449,11 @@
                                 const adjustments = await window.getFinancialAdjustments(window.currentDatasetId);
                                 console.log('📥 Ajustes cargados:', adjustments.length);
                                 
-                                const adjustmentsList = document.getElementById('adjustmentsList');
-                                const adjustmentsEmpty = document.getElementById('adjustmentsEmpty');
-                                
-                                if (adjustmentsList) {
-                                    adjustmentsList.innerHTML = '';
-                                    if (adjustmentsEmpty) {
-                                        adjustmentsEmpty.style.display = adjustments.length ? 'none' : 'grid';
-                                    }
-                                    
-                                    if (adjustments.length > 0) {
-                                        adjustments.forEach(adj => {
-                                            const card = window.createAdjustmentCard(adj);
-                                            if (card) adjustmentsList.appendChild(card);
-                                        });
-                                        console.log('✅ Ajustes renderizados en sección Ajustes');
-                                    }
+                                // Renderizar ajustes usando el nuevo sistema ajuste-card-wrapper
+                                if (typeof window.renderAjusteCards === 'function') {
+                                    window.renderAjusteCards(adjustments);
+                                } else {
+                                    console.log('⚠️ renderAjusteCards no disponible');
                                 }
                             } catch (error) {
                                 console.error('❌ Error cargando ajustes en sección Ajustes:', error);
@@ -4569,10 +4564,38 @@
 
                 // Cargar datos del ledger desde la API
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
-                const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                
+                // Cargar ajustes desde la base de datos
+                let adjustmentsMap = new Map();
+                try {
+                    if (window.getFinancialAdjustments && currentDatasetId) {
+                        const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
+                        console.log(`📥 Ajustes cargados desde BD para cuentas: ${dbAdjustments.length}`);
+                        
+                        // Convertir ajustes de BD a mapa
+                        adjustmentsMap = new Map();
+                        dbAdjustments.forEach(ajuste => {
+                            if (ajuste.cuenta_codigo) {
+                                adjustmentsMap.set(ajuste.cuenta_codigo, {
+                                    amount: parseFloat(ajuste.monto) || 0,
+                                    type: ajuste.tipo || 'ajuste',
+                                    description: ajuste.descripcion || '',
+                                    id: ajuste.id
+                                });
+                            }
+                        });
+                        console.log('✅ Mapa de ajustes desde BD creado para sección Cuentas');
+                    } else {
+                        console.warn('⚠️ getFinancialAdjustments no disponible, usando ajustes locales');
+                        adjustmentsMap = getLocalAdjustmentsMapSafe();
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Error cargando ajustes desde BD, usando ajustes locales:', error);
+                    adjustmentsMap = getLocalAdjustmentsMapSafe();
+                }
                 
                 // Construir y renderizar tabla
-                const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, localAdjustmentsMap);
+                const rows = buildTrialBalanceRows(accounts, ledgerMap, ledgerAvailable, adjustmentsMap);
                 renderCuentasTable(rows, meta);
                 
                 // Marcar como cargado exitosamente
@@ -4592,16 +4615,14 @@
         document.addEventListener('databaseAdjustmentsUpdated', async () => {
             console.log('🔄 Actualizando todas las tablas desde base de datos...');
             
-            // Actualizar cuentas
-            const cuentasSection = document.getElementById('cuentasSection');
-            if (cuentasSection && cuentasSection.style.display !== 'none') {
-                try {
-                    if (typeof loadCuentasFromLatestExcel === 'function') {
-                        await loadCuentasFromLatestExcel({ forceReload: true });
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Error actualizando cuentas:', error);
+            // Actualizar cuentas siempre (no solo si está visible)
+            try {
+                if (typeof loadCuentasFromLatestExcel === 'function') {
+                    await loadCuentasFromLatestExcel({ forceReload: true });
+                    console.log('✅ Sección Cuentas actualizada después de crear ajuste');
                 }
+            } catch (error) {
+                console.warn('⚠️ Error actualizando cuentas:', error);
             }
             
             // Actualizar grupos financieros
@@ -29618,8 +29639,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Mostrar notificación
             showNotification('Ajuste creado correctamente', 'success');
             
-            // Actualizar lista de ajustes
-            updateAdjustmentsList();
+            // Actualizar lista de ajustes usando el nuevo sistema
+            setTimeout(async () => {
+                try {
+                    const adjustments = await window.getFinancialAdjustments(window.currentDatasetId);
+                    if (typeof window.renderAjusteCards === 'function') {
+                        window.renderAjusteCards(adjustments);
+                    }
+                } catch (error) {
+                    console.error('❌ Error actualizando ajustes después de crear:', error);
+                }
+            }, 500);
             
             // Disparar evento para actualizar otras secciones
             document.dispatchEvent(new CustomEvent('localAdjustmentsUpdated', {
@@ -29632,32 +29662,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
         
-        // Función para actualizar la lista de ajustes
-        function updateAdjustmentsList() {
-            const adjustmentsList = document.getElementById('adjustmentsList');
-            const adjustmentsEmpty = document.getElementById('adjustmentsEmpty');
-            const ajustes = JSON.parse(localStorage.getItem('ajustes') || '[]');
-            
-            if (!adjustmentsList) return;
-            
-            adjustmentsList.innerHTML = '';
-            
-            if (!ajustes.length) {
-                if (adjustmentsEmpty) {
-                    adjustmentsEmpty.style.display = 'grid';
-                }
-                return;
-            }
-            
-            if (adjustmentsEmpty) {
-                adjustmentsEmpty.style.display = 'none';
-            }
-            
-            ajustes.forEach(ajuste => {
-                const card = createAdjustmentCard(ajuste);
-                adjustmentsList.appendChild(card);
-            });
-        }
+        // updateAdjustmentsList eliminado - solo se usa ajuste-card-wrapper system
         
         // Función para crear una tarjeta de ajuste
         // Función para formatear montos sin símbolo para ajustes
@@ -29667,10 +29672,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }).format(amount);
     }
 
-    // Exponer createAdjustmentCard globalmente
-    window.createAdjustmentCard = createAdjustmentCard;
-    
-    function createAdjustmentCard(ajuste) {
+    // createAdjustmentCard eliminado - solo se usa la función de formularios-ajustes.js que crea ajuste-card-wrapper
             const meta = ajuste.meta || {};
             
             // Debug: mostrar estructura completa de datos
@@ -29772,10 +29774,309 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     e.stopPropagation();
                     const ajusteId = this.dataset.ajusteId;
                     console.log('📝 Editar ajuste:', ajusteId);
-                    // TODO: Implementar función para editar ajuste
-                    alert('Función de edición en desarrollo. Ajuste ID: ' + ajusteId);
+                    console.log('🔍 window.editAdjustment disponible:', typeof window.editAdjustment);
+                    console.log('🔍 window.ajustes disponible:', !!window.ajustes, window.ajustes?.length);
+                    
+                    // Intentar acceder a editAdjustment de múltiples formas
+                    let editFunction = window.editAdjustment;
+                    
+                    // Si no está en window, crearlo inmediatamente
+                    if (!editFunction) {
+                        console.log('🔧 Creando editAdjustment inmediatamente...');
+                        editFunction = function(ajuste) {
+                            console.log('🔧 editAdjustment (creado en línea) ejecutado con:', ajuste);
+                            
+                            // Establecer modo edición ANTES de abrir el modal
+                            const modal = document.getElementById('ajusteModal');
+                            if (modal) {
+                                modal.dataset.editingId = ajuste.id;
+                                console.log('✅ editingId establecido en modal:', modal.dataset.editingId);
+                                
+                                // Abrir modal
+                                if (typeof window.openAjusteModal === 'function') {
+                                    window.openAjusteModal();
+                                } else {
+                                    // Fallback: abrir modal directamente
+                                    modal.removeAttribute('hidden');
+                                    modal.style.display = 'flex';
+                                }
+                                
+                                // Cargar datos después de que el modal se abra
+                                setTimeout(() => {
+                                    console.log('🔧 Cargando datos del ajuste en el formulario...');
+                                    
+                                    const numeroField = modal.querySelector('#ajusteNumero');
+                                    const tipoSelect = modal.querySelector('#ajusteTipo');
+                                    const periodoSelect = modal.querySelector('#ajustePeriodo');
+                                    const entidadSelect = modal.querySelector('#ajusteEntidad');
+                                    const descripcionTextarea = modal.querySelector('#ajusteDescripcion');
+                                    
+                                    console.log('🔧 Elementos encontrados:', {
+                                        numeroField: !!numeroField,
+                                        tipoSelect: !!tipoSelect,
+                                        periodoSelect: !!periodoSelect,
+                                        entidadSelect: !!entidadSelect,
+                                        descripcionTextarea: !!descripcionTextarea
+                                    });
+                                    
+                                    // Cargar datos del ajuste - usar las propiedades correctas
+                                    console.log('🔧 Estructura completa del ajuste:', Object.keys(ajuste));
+                                    console.log('🔧 Valores del ajuste:', {
+                                        adjustment_type: ajuste.adjustment_type,
+                                        entity_id: ajuste.entity_id,
+                                        commitment_id: ajuste.commitment_id,
+                                        description: ajuste.description,
+                                        meta: ajuste.meta
+                                    });
+                                    
+                                    if (numeroField) {
+                                        // El número puede estar en meta.numero o generar uno nuevo
+                                        const numero = ajuste.meta?.numero || ajuste.numero || 'N/A';
+                                        numeroField.value = numero;
+                                        console.log('✅ Número cargado:', numero);
+                                    }
+                                    if (tipoSelect) {
+                                        // El tipo está en adjustment_type
+                                        const tipo = ajuste.adjustment_type || 'normal';
+                                        tipoSelect.value = tipo;
+                                        console.log('✅ Tipo cargado:', tipo);
+                                    }
+                                    if (periodoSelect) {
+                                        // El período puede estar en meta o usar el actual
+                                        const periodo = ajuste.meta?.periodo || ajuste.periodo || '2024-12';
+                                        periodoSelect.value = periodo;
+                                        console.log('✅ Período cargado:', periodo);
+                                    }
+                                    if (entidadSelect) {
+                                        // La entidad está en entity_id
+                                        const entidad = ajuste.entity_id || '';
+                                        entidadSelect.value = entidad;
+                                        console.log('✅ Entidad cargada:', entidad);
+                                    }
+                                    if (descripcionTextarea) {
+                                        // La descripción está en description
+                                        const descripcion = ajuste.description || '';
+                                        descripcionTextarea.value = descripcion;
+                                        console.log('✅ Descripción cargada:', descripcion);
+                                    }
+                                    
+                                    // Mostrar botón de eliminar si existe
+                                    const deleteButton = modal.querySelector('#deleteAjusteModal');
+                                    if (deleteButton) {
+                                        deleteButton.style.display = 'inline-block';
+                                        console.log('✅ Botón eliminar mostrado');
+                                    }
+                                    
+                                    // Cargar detalles usando el sistema original de formularios-ajustes.js
+                                    console.log('🔧 Buscando cuentas contables...');
+                                    console.log('🔧 cuentas_contables:', ajuste.cuentas_contables);
+                                    console.log('🔧 meta.detalles:', ajuste.meta?.detalles);
+                                    
+                                    const cuentasContables = ajuste.cuentas_contables || ajuste.meta?.detalles || [];
+                                    if (cuentasContables.length > 0) {
+                                        console.log('🔧 Cargando', cuentasContables.length, 'cuentas contables usando el sistema original');
+                                        
+                                        // Convertir las cuentas al formato que espera el sistema original
+                                        window.detalleItems = cuentasContables.map((cuenta, index) => ({
+                                            id: cuenta.id || `detail-${index}`,
+                                            type: 'account', // Siempre es cuenta para edición
+                                            code: cuenta.code || cuenta.codigo || 'N/A',
+                                            label: cuenta.name || cuenta.nombre || 'Sin nombre',
+                                            amount: cuenta.amount || cuenta.monto || 0
+                                        }));
+                                        
+                                        console.log('🔧 detalleItems preparados:', window.detalleItems);
+                                        
+                                        // Usar la función original renderDetailItems
+                                        if (typeof window.renderDetailItems === 'function') {
+                                            window.renderDetailItems();
+                                            console.log('✅ Detalles cargados usando renderDetailItems original');
+                                        } else {
+                                            console.warn('⚠️ renderDetailItems no disponible, intentando con el sistema global...');
+                                            // Fallback: buscar la función en el ámbito global
+                                            setTimeout(() => {
+                                                if (typeof window.renderDetailItems === 'function') {
+                                                    window.renderDetailItems();
+                                                    console.log('✅ Detalles cargados con delay');
+                                                } else {
+                                                    console.error('❌ No se pudo cargar renderDetailItems');
+                                                }
+                                            }, 100);
+                                        }
+                                        
+                                        // Actualizar totales
+                                        setTimeout(() => {
+                                            if (typeof window.actualizarTotalesAjuste === 'function') {
+                                                window.actualizarTotalesAjuste();
+                                                console.log('✅ Totales actualizados');
+                                            } else {
+                                                console.log('⚠️ actualizarTotalesAjuste no disponible, calculando totales manualmente...');
+                                                // Calcular totales manualmente
+                                                let totalDebito = 0;
+                                                let totalCredito = 0;
+                                                
+                                                cuentasContables.forEach(cuenta => {
+                                                    const amount = cuenta.amount || 0;
+                                                    if (cuenta.type === 'credit') {
+                                                        totalCredito += Math.abs(amount);
+                                                    } else {
+                                                        totalDebito += amount;
+                                                    }
+                                                });
+                                                
+                                                console.log('🔧 Totales calculados - Débito:', totalDebito, 'Crédito:', totalCredito);
+                                                
+                                                // Actualizar los elementos del DOM si existen
+                                                const totalDebitoEl = modal.querySelector('#totalDebito');
+                                                const totalCreditoEl = modal.querySelector('#totalCredito');
+                                                const diferenciaEl = modal.querySelector('#diferencia');
+                                                
+                                                if (totalDebitoEl) {
+                                                    totalDebitoEl.textContent = totalDebito.toLocaleString('es-MX', {
+                                                        style: 'currency',
+                                                        currency: 'MXN'
+                                                    });
+                                                }
+                                                if (totalCreditoEl) {
+                                                    totalCreditoEl.textContent = totalCredito.toLocaleString('es-MX', {
+                                                        style: 'currency',
+                                                        currency: 'MXN'
+                                                    });
+                                                }
+                                                if (diferenciaEl) {
+                                                    const diferencia = totalDebito - totalCredito;
+                                                    diferenciaEl.textContent = diferencia.toLocaleString('es-MX', {
+                                                        style: 'currency',
+                                                        currency: 'MXN'
+                                                    });
+                                                    // Cambiar color según el balance
+                                                    if (diferencia === 0) {
+                                                        diferenciaEl.style.color = '#28a745';
+                                                    } else {
+                                                        diferenciaEl.style.color = '#dc3545';
+                                                    }
+                                                }
+                                                
+                                                console.log('✅ Totales actualizados manualmente');
+                                            }
+                                        }, 100);
+                                        
+                                        console.log('✅ Cuentas contables cargadas exitosamente');
+                                    } else {
+                                        console.log('⚠️ No se encontraron cuentas contables para este ajuste');
+                                    }
+                                    
+                                    console.log('✅ Todos los datos cargados exitosamente');
+                                }, 300);
+                            } else {
+                                console.error('❌ Modal no encontrado');
+                                alert('No se pudo encontrar el modal de ajustes');
+                            }
+                        };
+                        
+                        // Exponer la función globalmente para futuros usos
+                        window.editAdjustment = editFunction;
+                        console.log('✅ editAdjustment creado y expuesto globalmente');
+                    }
+                    
+                    if (typeof editFunction === 'function') {
+                        // Buscar el ajuste completo en memoria si está disponible
+                        const ajustesLocales = (window.ajustes || []);
+                        const ajusteSeleccionado = ajustesLocales.find(a => String(a.id) === String(ajusteId)) || ajuste;
+                        console.log('🔍 Ajuste encontrado:', !!ajusteSeleccionado, ajusteSeleccionado?.id);
+                        if (ajusteSeleccionado) {
+                            editFunction(ajusteSeleccionado);
+                        } else {
+                            console.warn('⚠️ No se encontró el ajuste con ID:', ajusteId);
+                            alert('No se encontró el ajuste para editar.');
+                        }
+                    } else if (typeof window.openAjusteModal === 'function') {
+                        console.warn('⚠️ editAdjustment no disponible, abriendo modal vacío');
+                        window.openAjusteModal();
+                    } else {
+                        alert('No se pudo abrir el editor de ajustes.');
+                    }
                 });
             }
+            
+            // Script para forzar la exposición de editAdjustment si no está disponible
+            setTimeout(() => {
+                if (typeof window.editAdjustment !== 'function') {
+                    console.log('🔧 Forzando exposición de editAdjustment...');
+                    // Intentar acceder a la función del módulo y exponerla
+                    try {
+                        // Buscar si hay alguna variable global que contenga las funciones
+                        if (typeof window.initializeAjustesSystem === 'function') {
+                            // Si initializeAjustesSystem está disponible, el módulo debería estar cargado
+                            // Intentar forzar la exposición de editAdjustment
+                            const event = new CustomEvent('forceExposeEditAdjustment');
+                            document.dispatchEvent(event);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Error forzando exposición de editAdjustment:', error);
+                    }
+                }
+            }, 500);
+            
+            // Listener para forzar la exposición de editAdjustment
+            document.addEventListener('forceExposeEditAdjustment', () => {
+                console.log('🔧 Evento forceExposeEditAdjustment recibido');
+                // Intentar acceder a editAdjustment a través del alcance global
+                try {
+                    // Si el módulo está cargado, debería tener acceso a la función
+                    // Intentar diferentes métodos para acceder a la función
+                    if (typeof window.editAdjustment === 'function') {
+                        console.log('✅ editAdjustment ya está disponible');
+                        return;
+                    }
+                    
+                    // Intentar acceder a través de una llamada directa al módulo
+                    console.log('🔧 Buscando editAdjustment en el módulo...');
+                    
+                    // Forzar la exposición manualmente
+                    const scripts = document.querySelectorAll('script');
+                    for (let script of scripts) {
+                        if (script.src && script.src.includes('formularios-ajustes.js')) {
+                            console.log('🔧 Script formularios-ajustes.js encontrado');
+                            // El script ya debería estar ejecutado
+                            break;
+                        }
+                    }
+                    
+                    // Último recurso: intentar recrear la función básica
+                    if (typeof window.openAjusteModal === 'function') {
+                        console.log('🔧 Creando editAdjustment básico...');
+                        window.editAdjustment = function(ajuste) {
+                            console.log('🔧 editAdjustment básico ejecutado con:', ajuste);
+                            // Establecer modo edición
+                            const modal = document.getElementById('ajusteModal');
+                            if (modal) {
+                                modal.dataset.editingId = ajuste.id;
+                                window.openAjusteModal();
+                                // Cargar datos después de un pequeño delay
+                                setTimeout(() => {
+                                    const numeroField = modal.querySelector('#ajusteNumero');
+                                    const tipoSelect = modal.querySelector('#ajusteTipo');
+                                    const periodoSelect = modal.querySelector('#ajustePeriodo');
+                                    const entidadSelect = modal.querySelector('#ajusteEntidad');
+                                    const descripcionTextarea = modal.querySelector('#ajusteDescripcion');
+                                    
+                                    if (numeroField) numeroField.value = ajuste.numero || '';
+                                    if (tipoSelect) tipoSelect.value = ajuste.tipo || '';
+                                    if (periodoSelect) periodoSelect.value = ajuste.periodo || '';
+                                    if (entidadSelect) entidadSelect.value = ajuste.entidad || '';
+                                    if (descripcionTextarea) descripcionTextarea.value = ajuste.descripcion || '';
+                                    
+                                    console.log('✅ Datos básicos cargados en el formulario');
+                                }, 200);
+                            }
+                        };
+                        console.log('✅ editAdjustment básico creado y expuesto');
+                    }
+                } catch (error) {
+                    console.error('❌ Error en forceExposeEditAdjustment:', error);
+                }
+            });
             
             if (noteButton) {
                 noteButton.addEventListener('click', function(e) {
@@ -29783,8 +30084,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     e.stopPropagation();
                     const ajusteId = this.dataset.ajusteId;
                     console.log('📝 Agregar nota a ajuste:', ajusteId);
-                    // TODO: Implementar función para agregar nota
-                    alert('Función de notas en desarrollo. Ajuste ID: ' + ajusteId);
+                    if (typeof window.openNotesModal === 'function') {
+                        const ajustesLocales = (window.ajustes || []);
+                        const ajusteSeleccionado = ajustesLocales.find(a => a.id === ajusteId) || ajuste;
+                        window.openNotesModal(ajusteSeleccionado);
+                    } else {
+                        alert('No se pudo abrir las notas para este ajuste.');
+                    }
                 });
             }
             
@@ -30077,121 +30383,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             `).join('');
         }
         
-        // Función para seleccionar cuenta
+        // Función para seleccionar cuenta - usando el sistema original
         function selectAccount(code, name, value) {
             console.log('✅ Cuenta seleccionada:', { code, name, value });
-            // Aquí puedes agregar la lógica para agregar la cuenta al ajuste
-            addAccountToAdjustment(code, name, value);
+            // Usar el sistema original de formularios-ajustes.js
+            if (typeof window.createDetailFromItem === 'function' && typeof window.detalleItems !== 'undefined') {
+                const newDetail = window.createDetailFromItem('account', { code, name, value });
+                window.detalleItems.push(newDetail);
+                if (typeof window.renderDetailItems === 'function') {
+                    window.renderDetailItems();
+                }
+            }
             closeSelectorModalFunc();
         }
         
-        // Función para seleccionar grupo
+        // Función para seleccionar grupo - usando el sistema original
         function selectGroup(id, name, value) {
             console.log('✅ Grupo seleccionado:', { id, name, value });
-            // Aquí puedes agregar la lógica para agregar el grupo al ajuste
-            addGroupToAdjustment(id, name, value);
+            // Usar el sistema original de formularios-ajustes.js
+            if (typeof window.createDetailFromItem === 'function' && typeof window.detalleItems !== 'undefined') {
+                const newDetail = window.createDetailFromItem('group', { id, name, value });
+                window.detalleItems.push(newDetail);
+                if (typeof window.renderDetailItems === 'function') {
+                    window.renderDetailItems();
+                }
+            }
             closeSelectorModalFunc();
         }
         
-        // Función para agregar cuenta al ajuste
-        function addAccountToAdjustment(code, name, value) {
-            const detailsList = document.getElementById('ajusteDetailsList');
-            const detailsEmpty = document.getElementById('ajusteDetailsEmpty');
-            
-            if (!detailsList) return;
-            
-            // Ocultar estado vacío
-            if (detailsEmpty) {
-                detailsEmpty.style.display = 'none';
-            }
-            
-            // Crear nueva línea de detalle
-            const detailId = 'detail-' + Date.now();
-            const detailHtml = `
-                <div class="ajuste-detail-row" data-detail-id="${detailId}">
-                    <div class="ajuste-detail-row__content">
-                        <div class="ajuste-detail-row__header">
-                            <div class="ajuste-detail-row__type">Línea de cuenta</div>
-                            <div class="ajuste-detail-row__actions">
-                                <button type="button" class="link-button" onclick="removeDetail('${detailId}')">Eliminar</button>
-                            </div>
-                        </div>
-                        <div class="ajuste-detail-row__info">
-                            <span class="ajuste-detail-row__code">${code}</span>
-                            <span class="ajuste-detail-row__name">${name}</span>
-                        </div>
-                        <div class="ajuste-detail-row__amounts">
-                            <div class="ajuste-detail-row__amount">
-                                <label for="detail-amount-${detailId}">Cantidad</label>
-                                <input type="number" id="detail-amount-${detailId}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="0.00" placeholder="0.00" onchange="calculateAdjustmentTotals()">
-                                <small class="amount-hint">Positivo = Débito, Negativo = Crédito</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            detailsList.insertAdjacentHTML('beforeend', detailHtml);
-            
-            // Agregar event listener para cálculos automáticos
-            const amountInput = document.getElementById(`detail-amount-${detailId}`);
-            if (amountInput) {
-                amountInput.addEventListener('input', calculateAdjustmentTotals);
-            }
-            
-            console.log('✅ Cuenta agregada al ajuste');
-            calculateAdjustmentTotals(); // Recalcular totales
-        }
-        
-        // Función para agregar grupo al ajuste
-        function addGroupToAdjustment(id, name, value) {
-            const detailsList = document.getElementById('ajusteDetailsList');
-            const detailsEmpty = document.getElementById('ajusteDetailsEmpty');
-            
-            if (!detailsList) return;
-            
-            // Ocultar estado vacío
-            if (detailsEmpty) {
-                detailsEmpty.style.display = 'none';
-            }
-            
-            // Crear nueva línea de detalle
-            const detailId = 'detail-' + Date.now();
-            const detailHtml = `
-                <div class="ajuste-detail-row" data-detail-id="${detailId}">
-                    <div class="ajuste-detail-row__content">
-                        <div class="ajuste-detail-row__header">
-                            <div class="ajuste-detail-row__type">Línea de grupo</div>
-                            <div class="ajuste-detail-row__actions">
-                                <button type="button" class="link-button" onclick="removeDetail('${detailId}')">Eliminar</button>
-                            </div>
-                        </div>
-                        <div class="ajuste-detail-row__info">
-                            <span class="ajuste-detail-row__code">GRUPO</span>
-                            <span class="ajuste-detail-row__name">${name}</span>
-                        </div>
-                        <div class="ajuste-detail-row__amounts">
-                            <div class="ajuste-detail-row__amount">
-                                <label for="detail-amount-${detailId}">Cantidad</label>
-                                <input type="number" id="detail-amount-${detailId}" data-detail-field="amount" step="0.01" min="-999999999.99" max="999999999.99" value="0.00" placeholder="0.00" onchange="calculateAdjustmentTotals()">
-                                <small class="amount-hint">Positivo = Débito, Negativo = Crédito</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            detailsList.insertAdjacentHTML('beforeend', detailHtml);
-            
-            // Agregar event listener para cálculos automáticos
-            const amountInput = document.getElementById(`detail-amount-${detailId}`);
-            if (amountInput) {
-                amountInput.addEventListener('input', calculateAdjustmentTotals);
-            }
-            
-            console.log('✅ Grupo agregado al ajuste');
-            calculateAdjustmentTotals(); // Recalcular totales
-        }
+        // NOTA: Estas funciones fueron eliminadas para usar solo el sistema original de formularios-ajustes.js
+// El sistema original usa renderDetailItems() y la estructura completa con naturaleza y efectos
         
         // Función para eliminar detalle
         function removeDetail(detailId) {

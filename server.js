@@ -5355,6 +5355,7 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
 app.post('/api/adjustments/save', async (req, res) => {
     try {
         const { 
+            id,
             datasetId, 
             accountId, 
             assignmentId, 
@@ -5376,23 +5377,40 @@ app.post('/api/adjustments/save', async (req, res) => {
             });
         }
 
-        const { data, error } = await supabase
-            .from('ajustes_financieros')
-            .insert({
-                dataset_id: datasetId,
-                account_id: accountId || null,
-                assignment_id: assignmentId || null,
-                adjustment_type: adjustmentType || 'manual',
-                moneda: moneda || 'GTQ',
-                monto: monto,
-                descripcion: descripcion || null,
-                html_contenido: htmlContenido || null,
-                adjuntos: adjuntos || null,
-                meta: meta || {},
-                created_by: userId
-            })
-            .select()
-            .single();
+        const payload = {
+            dataset_id: datasetId,
+            account_id: accountId || null,
+            assignment_id: assignmentId || null,
+            adjustment_type: adjustmentType || 'manual',
+            moneda: moneda || 'GTQ',
+            monto: monto,
+            descripcion: descripcion || null,
+            html_contenido: htmlContenido || null,
+            adjuntos: adjuntos || null,
+            meta: meta || {},
+            updated_at: new Date().toISOString()
+        };
+
+        let data, error;
+
+        if (id) {
+            ({ data, error } = await supabase
+                .from('ajustes_financieros')
+                .update(payload)
+                .eq('id', id)
+                .eq('dataset_id', datasetId)
+                .select()
+                .single());
+        } else {
+            ({ data, error } = await supabase
+                .from('ajustes_financieros')
+                .insert({
+                    ...payload,
+                    created_by: userId
+                })
+                .select()
+                .single());
+        }
 
         if (error) throw error;
 
@@ -5438,6 +5456,88 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error obteniendo ajustes' 
+        });
+    }
+});
+
+// Eliminar ajuste financiero
+app.delete('/api/adjustments/:adjustmentId', async (req, res) => {
+    try {
+        const { adjustmentId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+        
+        // Primero verificar que el ajuste exista y obtener su dataset
+        const { data: adjustment, error: fetchError } = await supabase
+            .from('ajustes_financieros')
+            .select('*')
+            .eq('id', adjustmentId)
+            .single();
+            
+        if (fetchError) {
+            if (fetchError.code === 'PGRST116') {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Adjustment not found' 
+                });
+            }
+            throw fetchError;
+        }
+        
+        if (!adjustment) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Adjustment not found' 
+            });
+        }
+
+        // Verificar que el dataset pertenezca al usuario
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('user_id')
+            .eq('id', adjustment.dataset_id)
+            .single();
+            
+        if (datasetError || !dataset) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Dataset not found' 
+            });
+        }
+        
+        if (dataset.user_id !== userId) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Access denied' 
+            });
+        }
+        
+        // Eliminar el ajuste
+        const { error: deleteError } = await supabase
+            .from('ajustes_financieros')
+            .delete()
+            .eq('id', adjustmentId);
+            
+        if (deleteError) throw deleteError;
+        
+        console.log(`✅ Ajuste ${adjustmentId} eliminado por usuario ${userId}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Adjustment deleted successfully' 
+        });
+
+    } catch (error) {
+        console.error('Error eliminando ajuste:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error deleting adjustment' 
         });
     }
 });

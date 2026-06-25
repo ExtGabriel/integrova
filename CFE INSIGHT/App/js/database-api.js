@@ -309,6 +309,7 @@ async function saveFinancialAdjustment(adjustmentData) {
                 'user-id': getCurrentUserId()
             },
             body: JSON.stringify({
+                id: adjustmentData.id || adjustmentData.adjustmentId || null,
                 datasetId: adjustmentData.datasetId || currentDatasetId,
                 accountId: adjustmentData.accountId || null,
                 assignmentId: adjustmentData.assignmentId || null,
@@ -574,6 +575,39 @@ async function getFinancialAdjustments(datasetId) {
     } catch (error) {
         console.error('Error in getFinancialAdjustments:', error);
         return [];
+    }
+}
+
+/**
+ * Elimina un ajuste financiero de la base de datos
+ * @param {string} adjustmentId - ID del ajuste a eliminar
+ * @param {string} datasetId - ID del dataset (para validación)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function deleteFinancialAdjustment(adjustmentId, datasetId) {
+    try {
+        console.log('Deleting adjustment from database:', { adjustmentId, datasetId });
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${adjustmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Adjustment deleted successfully:', result);
+        return result;
+
+    } catch (error) {
+        console.error('Error in deleteFinancialAdjustment:', error);
+        throw error;
     }
 }
 
@@ -1583,6 +1617,7 @@ window.getAccountAssignments = getAccountAssignments;
 window.deleteAccountAssignment = deleteAccountAssignment;
 window.saveFinancialAdjustment = saveFinancialAdjustment;
 window.getFinancialAdjustments = getFinancialAdjustments;
+window.deleteFinancialAdjustment = deleteFinancialAdjustment;
 window.saveAccountAdjustments = saveAccountAdjustments;
 window.saveFinancialGroupsResults = saveFinancialGroupsResults;
 window.saveLedgerIntegrityResults = saveLedgerIntegrityResults;
