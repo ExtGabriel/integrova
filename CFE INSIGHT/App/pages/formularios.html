@@ -4747,113 +4747,18 @@
             }
             
             // Actualizar Grupos Financieros con ajustes por nombre (después de recargar cuentas)
+            // DESHABILITADO: Esta función sobrescribe los ajustes correctos aplicados por código
+            // Los ajustes ahora se aplican correctamente en loadGruposFinancierosFromDatabase
             setTimeout(() => {
                 try {
-                    const dbAdjustments = event.detail.adjustments || [];
-                    console.log('🔧 Procesando', dbAdjustments.length, 'ajustes para Grupos Financieros');
+                    console.log('🔧 Sistema de ajustes por nombre deshabilitado - usando ajustes por código');
+                    console.log('🔧 Los ajustes se aplican correctamente en loadGruposFinancierosFromDatabase');
                     
-                    // Obtener ajustes locales para compatibilidad
-                    const localAdjustments = window.ajustes || [];
+                    // No hacer nada - los ajustes ya están aplicados correctamente
+                    // por el sistema de ajustes por código en loadGruposFinancierosFromDatabase
                     
-                    // Crear mapa de ajustes locales
-                    function getLocalAdjustmentsMapSafe() {
-                        const map = new Map();
-                        localAdjustments.forEach(ajuste => {
-                            (ajuste.detalles || []).forEach(detail => {
-                                if (detail.type !== 'account') return;
-                                const code = (detail.code || '').trim();
-                                if (!code) return;
-                                const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
-                                const originSide = window.getAccountOriginSide(code);
-                                let effectiveAmount = originSide === 'DEBE' ? amount : -amount;
-                                map.set(code, (map.get(code) || 0) + effectiveAmount);
-                            });
-                        });
-                        return map;
-                    }
-                    
-                    // Crear mapa de ajustes por nombre para Grupos Financieros
-                    const adjustmentsMap = getLocalAdjustmentsMapSafe();
-                    const adjustmentsByName = new Map();
-                    
-                    dbAdjustments.forEach(ajuste => {
-                        const detalles = ajuste.meta?.detalles || [];
-                        detalles.forEach(detail => {
-                            if (detail.type !== 'account') return;
-                            
-                            const code = (detail.code || '').trim();
-                            const name = (detail.name || '').trim();
-                            if (!code && !name) return;
-                            
-                            const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
-                            const originSide = window.getAccountOriginSide(code);
-                            let effectiveAmount = originSide === 'DEBE' ? amount : -amount;
-                            
-                            // Guardar por código
-                            if (code) {
-                                const currentAmount = adjustmentsMap.get(code) || 0;
-                                adjustmentsMap.set(code, currentAmount + effectiveAmount);
-                            }
-                            
-                            // Guardar por nombre
-                            if (name) {
-                                const currentAmountByName = adjustmentsByName.get(name) || 0;
-                                adjustmentsByName.set(name, currentAmountByName + effectiveAmount);
-                            }
-                        });
-                    });
-                    
-                    console.log('✅ Mapa de ajustes por nombre:', Object.fromEntries(adjustmentsByName));
-                    
-                    // Actualizar tabla existente con nuevos ajustes por nombre
-                    const existingRows = document.querySelectorAll('#gruposFinancierosTableBody tr');
-                    existingRows.forEach(row => {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 4) {
-                            const accountName = cells[0].textContent.trim();
-                            
-                            // Buscar ajuste por nombre exacto
-                            let adjustment = 0;
-                            let matchedName = '';
-                            
-                            if (adjustmentsByName.has(accountName)) {
-                                adjustment = adjustmentsByName.get(accountName);
-                                matchedName = accountName;
-                                console.log(`✅ Coincidencia exacta: "${accountName}" → ${adjustment}`);
-                            }
-                            
-                            const adjustmentCell = cells[2];
-                            const finalCell = cells[3];
-                            
-                            if (adjustmentCell) {
-                                adjustmentCell.textContent = adjustment !== 0 ? 
-                                    Number(adjustment).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-                                
-                                if (adjustment !== 0) {
-                                    adjustmentCell.title = `Ajuste: Q${Number(adjustment).toLocaleString('es-GT')}\nCuenta: ${matchedName || accountName}`;
-                                    adjustmentCell.style.cursor = 'pointer';
-                                    adjustmentCell.style.fontWeight = 'bold';
-                                    adjustmentCell.style.color = adjustment > 0 ? '#28a745' : '#dc3545';
-                                } else {
-                                    adjustmentCell.title = '';
-                                    adjustmentCell.style.cursor = 'default';
-                                    adjustmentCell.style.fontWeight = 'normal';
-                                    adjustmentCell.style.color = '';
-                                }
-                            }
-                            
-                            if (finalCell && adjustmentCell) {
-                                const preliminaryText = cells[1].textContent || '0';
-                                const preliminary = Number(preliminaryText.replace(/[^0-9.-]/g, '')) || 0;
-                                const final = preliminary + adjustment;
-                                finalCell.textContent = Number(final).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                            }
-                        }
-                    });
-                    
-                    console.log('✅ Grupos Financieros actualizado con ajustes por nombre');
                 } catch (error) {
-                    console.error('❌ Error actualizando Grupos Financieros:', error);
+                    console.warn('⚠️ Error en sistema deshabilitado:', error);
                 }
             }, 1500); // Esperar a que termine la recarga de cuentas
             
@@ -5447,14 +5352,59 @@
                 });
                 
                 if (financialGroups && financialGroups.length > 0) {
-                    // Si hay grupos financieros guardados, usarlos
-                    cachedGruposFinancierosRows = financialGroups;
-                    cachedFinancialGroupsMeta = 'BD';
+                    // Cargar ajustes actuales desde la base de datos
+                    console.log('🔍 Cargando ajustes actuales para aplicar a grupos financieros...');
+                    const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId);
+                    console.log('🔍 Ajustes cargados:', dbAdjustments.length);
+                    
+                    // Convertir ajustes a mapa
+                    const adjustmentsMap = new Map();
+                    dbAdjustments.forEach(ajuste => {
+                        const detalles = ajuste.meta?.detalles || [];
+                        detalles.forEach(detail => {
+                            if (detail.type !== 'account') return;
+                            const code = (detail.code || '').trim();
+                            if (!code) return;
+                            const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                            
+                            // Usar el amount directamente (ya viene con el signo correcto)
+                            const currentAmount = adjustmentsMap.get(code) || 0;
+                            adjustmentsMap.set(code, currentAmount + amount);
+                            console.log(`🔍 Ajuste aplicado: ${code} = ${amount}`);
+                        });
+                    });
+                    
+                    console.log('🔍 Mapa de ajustes construido:', Object.fromEntries(adjustmentsMap));
+                    
+                    // Actualizar grupos financieros con ajustes actuales
+                    const updatedFinancialGroups = financialGroups.map(row => {
+                        const adjustment = adjustmentsMap.get(row.accountCode) || 0;
+                        const newFinalCurrent = (row.preliminary || 0) + adjustment;
+                        
+                        console.log(`🔍 Actualizando fila ${row.accountCode}:`, {
+                            nombre: row.accountName,
+                            preliminary: row.preliminary,
+                            adjustment,
+                            oldFinal: row.finalCurrent,
+                            newFinal: newFinalCurrent
+                        });
+                        
+                        return {
+                            ...row,
+                            adjustments: adjustment,
+                            finalCurrent: newFinalCurrent,
+                            ledgerMissing: false // Forzar a mostrar ajustes
+                        };
+                    });
+                    
+                    // Usar grupos financieros actualizados con ajustes
+                    cachedGruposFinancierosRows = updatedFinancialGroups;
+                    cachedFinancialGroupsMeta = 'BD+Ajustes';
                     cachedFinancialGroupsLoaded = true;
-                    renderGruposFinancieros(financialGroups, cachedFinancialGroupsMeta);
+                    renderGruposFinancieros(updatedFinancialGroups, cachedFinancialGroupsMeta);
                     initializeGruposFinancierosToggles();
                     updateFinancialGroupCounts();
-                    console.log('✅ Grupos financieros cargados desde base de datos');
+                    console.log('✅ Grupos financieros cargados desde base de datos con ajustes aplicados');
                 } else {
                     // Si no hay grupos financieros guardados, construir desde el libro mayor
                     console.log('📊 No hay grupos financieros guardados, construyendo desde libro mayor...');
@@ -17497,6 +17447,89 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
         }
         
+        // Listener para actualización automática de grupos financieros cuando se guardan ajustes en BD
+        document.addEventListener('databaseAdjustmentsUpdated', async (event) => {
+            console.log('🔄 Evento de ajustes de BD detectado, actualizando grupos financieros...', event.detail);
+            
+            try {
+                // Solo actualizar si es el dataset actual
+                if (event.detail?.datasetId === currentDatasetId) {
+                    await actualizarGruposFinancierosConAjustes();
+                    console.log('✅ Grupos financieros actualizados automáticamente después de guardar ajuste');
+                }
+            } catch (error) {
+                console.error('❌ Error actualizando grupos financieros:', error);
+            }
+        });
+
+        // Listener para actualización automática de grupos financieros (ajustes locales)
+        document.addEventListener('localAdjustmentsUpdated', async () => {
+            console.log('🔄 Evento de ajustes locales detectado, actualizando grupos financieros...');
+            
+            try {
+                await actualizarGruposFinancierosConAjustes();
+                console.log('✅ Grupos financieros actualizados automáticamente desde ajustes locales');
+            } catch (error) {
+                console.error('❌ Error actualizando grupos financieros:', error);
+            }
+        });
+
+        // Función centralizada para actualizar grupos financieros con ajustes
+        async function actualizarGruposFinancierosConAjustes() {
+            try {
+                // Obtener ajustes actuales
+                const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
+                console.log('🔍 Ajustes actuales:', dbAdjustments.length);
+                
+                // Convertir ajustes a mapa
+                const adjustmentsMap = new Map();
+                dbAdjustments.forEach(ajuste => {
+                    const detalles = ajuste.meta?.detalles || [];
+                    detalles.forEach(detail => {
+                        if (detail.type !== 'account') return;
+                        const code = (detail.code || '').trim();
+                        if (!code) return;
+                        const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
+                        
+                        // Usar el amount directamente (ya viene con el signo correcto)
+                        const currentAmount = adjustmentsMap.get(code) || 0;
+                        adjustmentsMap.set(code, currentAmount + amount);
+                    });
+                });
+                
+                // Si no hay grupos financieros en cache, cargarlos primero
+                if (!cachedGruposFinancierosRows || cachedGruposFinancierosRows.length === 0) {
+                    console.log('🔍 No hay grupos financieros en cache, cargando desde BD...');
+                    await loadGruposFinancierosFromDatabase();
+                    return;
+                }
+                
+                // Actualizar filas existentes
+                const updatedRows = cachedGruposFinancierosRows.map(row => {
+                    const adjustment = adjustmentsMap.get(row.accountCode) || 0;
+                    const newFinalCurrent = (row.preliminary || 0) + adjustment;
+                    
+                    return {
+                        ...row,
+                        adjustments: adjustment,
+                        finalCurrent: newFinalCurrent,
+                        ledgerMissing: false // Forzar a mostrar ajustes
+                    };
+                });
+                
+                // Actualizar cache y renderizar
+                cachedGruposFinancierosRows = updatedRows;
+                cachedFinancialGroupsMeta = 'BD+Ajustes';
+                renderGruposFinancieros(updatedRows, cachedFinancialGroupsMeta);
+                
+            } catch (error) {
+                console.error('❌ Error en actualizarGruposFinancierosConAjustes:', error);
+                throw error;
+            }
+        }
+
+        console.log('🔧 Listeners para actualización automática de grupos financieros agregados');
+
         // Función completa de reinicio cuando se sube nuevo archivo
         function resetAllDataOnNewFile() {
             console.log('🧹 REINICIANDO TODA LA APLICACIÓN - Nuevo archivo subido');
