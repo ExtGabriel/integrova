@@ -2367,7 +2367,7 @@
                         <h2>Integridad del libro mayor</h2>
                         
                         <p style="color: #6c757d; margin-bottom: 20px;">
-                            Verifique la integridad de los asientos del diario comparando el saldo calculado del período actual con el saldo del período actual. 
+                            Verifique la integridad de los asientos del diario comparando el saldo calculado del período actual (saldo anterior + libro mayor) con el saldo del período actual. 
                             Las variaciones se muestran en la columna Diferencia.
                         </p>
 
@@ -2403,7 +2403,6 @@
                                             <th style="text-align:left; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Nombre de la cuenta</th>
                                             <th style="text-align:left; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Número de cuenta</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Saldo del periodo anterior</th>
-                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Importe total del libro mayor</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Saldo calculado del periodo actual</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Saldo del periodo actual</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Diferencia</th>
@@ -2411,7 +2410,7 @@
                                     </thead>
                                     <tbody id="ledgerIntegrityTableBody">
                                         <tr>
-                                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                                                     <i class="bi bi-hourglass-split" style="font-size: 1.2rem;"></i>
                                                     <span>Cargando datos del libro mayor...</span>
@@ -3717,6 +3716,7 @@
         }
 
         // Función para sumar valores originales del Excel de la última columna (año anterior)
+        // ESPECÍFICA PARA INTEGRIDAD DEL LIBRO MAYOR
         function sumAssignedOriginalTotals(accounts) {
             return accounts.reduce((acc, account) => {
                 const accountName = (account.dataset.accountName || '').toString().trim();
@@ -3726,12 +3726,12 @@
                 const previousOriginalRaw = parseAccountValue(account.dataset.accountPrevOriginal || account.dataset.accountPrevValue);
                 const currentOriginalRaw = parseAccountValue(account.dataset.accountCurrentOriginal || account.dataset.accountValue);
                 
-                // Para libro mayor: usar valores originales del Excel SIN normalización
-                // para mantener los signos correctos del Excel
-                // Saldo del periodo anterior = penúltima columna (año anterior)
-                // Saldo del periodo actual = última columna (año actual)
-                acc.previous += currentOriginalRaw || 0; // Saldo del periodo anterior = penúltima columna Excel (sin normalizar)
-                acc.current += previousOriginalRaw || 0; // Saldo del periodo actual = última columna Excel (sin normalizar)
+                // Integridad del libro mayor:
+                // - Saldo del período anterior (col 1) = año anterior
+                // - Saldo calculado del período actual (col 2) usa previous + ledger (se calcula después)
+                // - Saldo del período actual (col 3) = año actual
+                acc.previous += previousOriginalRaw || 0; // Año anterior
+                acc.current += currentOriginalRaw || 0;   // Año actual
                 return acc;
             }, { previous: 0, current: 0 });
         }
@@ -3766,9 +3766,9 @@
         }) {
             const ledgerValue = Number.isFinite(ledger) ? ledger : 0;
             
-            // Lógica CaseWare: comparar dos fotografías (saldo anterior vs saldo actual)
+            // Lógica específica para libro mayor: Saldo calculado del periodo actual = Saldo del periodo anterior (año anterior)
             const calculated = previous;
-            const difference = calculated - current;
+            const difference = current - calculated;
             const hasError = Number.isFinite(difference) ? Math.abs(difference) > 0.01 : false;
             return {
                 accountName,
@@ -3832,13 +3832,16 @@
                         const accountCode = (child.dataset.accountCode || '').toString().trim();
                         const accountName = (child.dataset.accountName || '').toString().trim();
                         
-                        // Para libro mayor: usar valores originales del Excel para periodo anterior
+                        // PARA INTEGRIDAD DEL LIBRO MAYOR: VALORES DE CUENTAS INDIVIDUALES
+                        // - Saldo del período anterior = año anterior (previousRaw)
+                        // - Saldo del período actual = año actual (currentRaw)
+                        // - Importe total del libro mayor = año actual (ledgerTotal)
                         const previousRaw = parseAccountValue(child.dataset.accountPrevOriginal || child.dataset.accountPrevValue);
                         const currentRaw = parseAccountValue(child.dataset.accountValue);
                         
-                        // Para libro mayor: usar valores originales SIN normalización para mantener signos correctos
-                        const previous = previousRaw; // Valor original de última columna Excel (sin normalizar)
-                        const current = currentRaw;
+                        // MODIFICACIÓN ESPECÍFICA PARA INTEGRIDAD DEL LIBRO MAYOR:
+                        const previous = previousRaw; // Saldo del periodo anterior = año anterior
+                        const current = currentRaw;   // Saldo del periodo actual = año actual
                         const staticAccountId = child.dataset.accountId || '';
                         const scope = child.closest('.group-content, .sub-group-content');
                         const assignedAccounts = scope
@@ -3958,7 +3961,7 @@
             if (!Array.isArray(rows) || rows.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                             <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
                             <div>No hay cuentas asignadas para calcular la integridad.</div>
                         </td>
@@ -3995,10 +3998,9 @@
                             </div>
                         </td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5;">${row.accountNumber || '-'}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.previous)}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${ledgerCell}</td>
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.calculated)}</td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.current)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.current)}</td>
+                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatLedgerCell(row.previous)}</td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600;">${diffCell}</td>
                     </tr>
                 `;
@@ -5097,12 +5099,29 @@
                     const groupContentId = assignment?.groupContentId || '';
                     if (!groupContentId) return;
 
+                    const groupContent = document.getElementById(groupContentId);
+                    if (!groupContent) return;
+
                     const currentValue = parseAccountValue(assignment.value);
                     const previousValue = parseAccountValue(assignment.prevValue);
                     const parentAccountId = assignment.parentAccountId || '';
+                    let targetParentId = parentAccountId;
 
-                    if (parentAccountId) {
-                        const key = `${groupContentId}::${parentAccountId}`;
+                    // Fallback: si no hay parentAccountId, usar el LS/código para encontrar la cuenta estática
+                    if (!targetParentId) {
+                        const normalizedLs = (assignment.ls || assignment.meta?.ls || '').toString().trim();
+                        if (normalizedLs) {
+                            const staticAccount = groupContent.querySelector(
+                                `.static-account[data-account-id="${normalizedLs}"], .static-account[data-account-code="${normalizedLs}"]`
+                            );
+                            if (staticAccount) {
+                                targetParentId = staticAccount.dataset.accountId || normalizedLs;
+                            }
+                        }
+                    }
+
+                    if (targetParentId) {
+                        const key = `${groupContentId}::${targetParentId}`;
                         if (!totalsByStaticAccount.has(key)) {
                             totalsByStaticAccount.set(key, { previous: 0, current: 0 });
                         }
@@ -17558,7 +17577,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (ledgerBody) {
                     ledgerBody.innerHTML = `
                         <tr>
-                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                 <i class="bi bi-hourglass-split"></i>
                                 <p>Cargando integridad del libro mayor...</p>
                             </td>
@@ -18091,8 +18110,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     
                     const currentValue = a.value ?? a.current_year_value ?? 0;
                     const previousValue = a.previous_year_value ?? a.previousYearValue ?? 0;
+                    // Guardar también los valores originales (sin normalizar) para libro mayor
+                    const currentOriginal = a.current_year_original ?? a.currentYearOriginal ?? currentValue;
+                    const previousOriginal = a.previous_year_original ?? a.previousYearOriginal ?? previousValue;
                     const numericValue = parseAccountValue(currentValue);
                     const numericPreviousValue = parseAccountValue(previousValue);
+                    const numericCurrentOriginal = parseAccountValue(currentOriginal);
+                    const numericPreviousOriginal = parseAccountValue(previousOriginal);
                     const lsValue = a.ls || a.LS || a.ls_value || '';
                     const datasetId = a.conjunto_id || a.datasetId || a.dataset_id || currentDatasetId || '';
                     
@@ -18690,14 +18714,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const emptyState = groupContent.querySelector('.empty-state');
             if (emptyState) emptyState.remove();
 
+            // Resolver padre por LS/código si no viene parentAccountId
+            let resolvedParentId = assignment.parentAccountId || '';
+            if (!resolvedParentId) {
+                const normalizedLs = (assignment.ls || assignment.meta?.ls || '').toString().trim();
+                if (normalizedLs) {
+                    const staticMatch = groupContent.querySelector(
+                        `.static-account[data-account-id="${normalizedLs}"], .static-account[data-account-code="${normalizedLs}"]`
+                    );
+                    if (staticMatch) {
+                        resolvedParentId = staticMatch.dataset.accountId || normalizedLs;
+                        console.log('🔗 Resuelto parentAccountId por LS/código:', normalizedLs, '→', resolvedParentId);
+                    }
+                }
+            }
+
             let assignedAccount = null;
-            if (assignment.parentAccountId) {
+            if (resolvedParentId) {
                 const parentAccount = groupContent.querySelector(
-                    `.static-account[data-account-id="${assignment.parentAccountId}"]`
+                    `.static-account[data-account-id="${resolvedParentId}"]`
                 );
                 assignedAccount = createAssignedAccountElement(accountData);
                 assignedAccount.classList.add('assigned-subaccount');
-                assignedAccount.dataset.parentAccountId = assignment.parentAccountId;
+                assignedAccount.dataset.parentAccountId = resolvedParentId;
                 if (parentAccount) {
                     parentAccount.insertAdjacentElement('afterend', assignedAccount);
                     updateStaticAccountTotals(parentAccount, groupContent);
@@ -18720,10 +18759,40 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         syncUnassignedAccountsWithAssignments(assignments);
         refreshGroupPanelTotals(assignments);
         
-        // Actualizar grupos financieros si es necesario
-        if (typeof updateAllGroupCounts === 'function') {
-            updateAllGroupCounts();
-        }
+        // Forzar actualización de todos los contadores de grupos después de restaurar
+        setTimeout(() => {
+            const allGroupContents = document.querySelectorAll('.group-content, .sub-group-content');
+            allGroupContents.forEach(content => {
+                updateGroupCount(content);
+            });
+            
+            // Actualizar también los totales de cuentas estáticas
+            const allStaticAccounts = document.querySelectorAll('.static-account');
+            allStaticAccounts.forEach(staticAccount => {
+                const container = staticAccount.closest('.group-content, .sub-group-content');
+                if (container) {
+                    updateStaticAccountTotals(staticAccount, container);
+                    
+                    // Forzar actualización visual de los valores en la UI
+                    const prevValueSpan = staticAccount.querySelector('.static-account-value[data-year="previous"]');
+                    const currentValueSpan = staticAccount.querySelector('.static-account-value[data-year="current"]');
+                    
+                    if (prevValueSpan) {
+                        prevValueSpan.textContent = formatNumberWithoutCurrency(staticAccount.dataset.accountPrevValue);
+                    }
+                    if (currentValueSpan) {
+                        currentValueSpan.textContent = formatNumberWithoutCurrency(staticAccount.dataset.accountValue);
+                    }
+                }
+            });
+            
+            // Actualizar los totales del panel de grupos financieros
+            if (typeof refreshGroupPanelTotals === 'function') {
+                refreshGroupPanelTotals(cachedAssignments);
+            }
+            
+            console.log('✅ Actualización forzada de contadores y UI completada');
+        }, 100);
     }
 
     function syncUnassignedAccountsWithAssignments(assignments = null) {
@@ -18773,7 +18842,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 this.classList.add('selected');
                 
                 // Extraer datos de la cuenta - preferir data-attributes, sino extraer del texto
-                let accountCode, accountName, accountValue, accountPrevValue;
+                let accountCode, accountName, accountValue, accountPrevValue, accountPrevOriginal, accountCurrentOriginal;
                 
                 if (this.dataset.accountCode && this.dataset.accountName) {
                     // Cuentas dinámicas (lado izquierdo)
@@ -18781,6 +18850,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     accountName = this.dataset.accountName;
                     accountValue = this.dataset.accountValue;
                     accountPrevValue = this.dataset.accountPrevValue;
+                    accountPrevOriginal = this.dataset.accountPrevOriginal || accountPrevValue;
+                    accountCurrentOriginal = this.dataset.accountCurrentOriginal || accountValue;
                     console.log('📊 Datos desde data-attributes:', { accountCode, accountName, accountValue, accountPrevValue });
                 } else {
                     // Cuentas estáticas (lado derecho) - extraer del texto
@@ -18806,6 +18877,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 
                 const numericValue = parseAccountValue(accountValue);
                 const numericPrevValue = parseAccountValue(accountPrevValue);
+                const numericPrevOriginal = parseAccountValue(accountPrevOriginal ?? numericPrevValue);
+                const numericCurrentOriginal = parseAccountValue(accountCurrentOriginal ?? numericValue);
 
                 selectedAccount = {
                     element: this,
@@ -18815,6 +18888,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     ls: this.dataset.accountLs || '',
                     value: numericValue,
                     prevValue: numericPrevValue,
+                    prevOriginal: numericPrevOriginal,
+                    currentOriginal: numericCurrentOriginal,
                     datasetId: this.dataset.accountDatasetId || currentDatasetId
                 };
                 
@@ -20105,8 +20180,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         div.dataset.accountDatasetId = accountData.datasetId || currentDatasetId || '';
         const numericValue = parseAccountValue(accountData.value);
         const numericPrevValue = parseAccountValue(accountData.prevValue);
+        const numericPrevOriginal = parseAccountValue(accountData.prevOriginal ?? accountData.prevValue);
+        const numericCurrentOriginal = parseAccountValue(accountData.currentOriginal ?? accountData.value);
         div.dataset.accountValue = numericValue;
         div.dataset.accountPrevValue = numericPrevValue;
+        div.dataset.accountPrevOriginal = numericPrevOriginal;
+        div.dataset.accountCurrentOriginal = numericCurrentOriginal;
         
         const formattedValue = formatNumberWithoutCurrency(Number.isFinite(numericValue) ? numericValue : 0);
         const formattedPrevValue = formatNumberWithoutCurrency(Number.isFinite(numericPrevValue) ? numericPrevValue : 0);
@@ -20418,6 +20497,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         const staticAccounts = Array.from(container.querySelectorAll('.static-account'));
         staticAccounts.forEach(staticAccount => {
+            // Asegurar que cada cuenta estática tenga sus totales sincronizados con las subcuentas asignadas
+            updateStaticAccountTotals(staticAccount, container);
             totals.previous += parseAccountValue(staticAccount.dataset.accountPrevValue);
             totals.current += parseAccountValue(staticAccount.dataset.accountValue);
         });
