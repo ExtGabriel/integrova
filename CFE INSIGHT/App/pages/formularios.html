@@ -4823,30 +4823,30 @@
                 `;
             }).join('');
 
-            // Usar un timeout para asegurar que el DOM esté actualizado
+            // Usar un timeout mayor para asegurar que el DOM esté completamente actualizado
             setTimeout(() => {
                 initializeGruposFinancierosToggles();
-            }, 10);
+            }, 100);
         }
 
         function initializeGruposFinancierosToggles() {
             const tbody = document.getElementById('gruposFinancierosTableBody');
-            if (!tbody) return;
+            if (!tbody) {
+                console.warn('⚠️ No se encontró tbody de grupos financieros');
+                return;
+            }
 
-            // Limpiar listeners anteriores para evitar duplicados
-            const existingToggles = tbody.querySelectorAll('.financial-toggle');
-            existingToggles.forEach(toggle => {
-                const newToggle = toggle.cloneNode(true);
-                toggle.parentNode.replaceChild(newToggle, toggle);
-            });
+            // Remover event listeners anteriores
+            const newTbody = tbody.cloneNode(true);
+            tbody.parentNode.replaceChild(newTbody, tbody);
 
             const getDescendants = (rowId) => {
-                const rows = Array.from(tbody.querySelectorAll(`tr[data-parent-id="${rowId}"]`));
+                const rows = Array.from(newTbody.querySelectorAll(`tr[data-parent-id="${rowId}"]`));
                 return rows.flatMap(row => [row, ...getDescendants(row.dataset.rowId)]);
             };
 
-            // Usar event delegation para asegurar que los eventos funcionen
-            tbody.addEventListener('click', (event) => {
+            // Usar event delegation con el nuevo tbody
+            newTbody.addEventListener('click', (event) => {
                 const button = event.target.closest('.financial-toggle');
                 if (!button) return;
 
@@ -4854,20 +4854,29 @@
                 event.stopPropagation();
 
                 const rowId = button.dataset.rowId;
-                if (!rowId) return;
+                if (!rowId) {
+                    console.warn('⚠️ Toggle sin rowId');
+                    return;
+                }
 
                 const descendants = getDescendants(rowId);
                 const isCollapsed = button.dataset.collapsed === 'true';
                 button.dataset.collapsed = (!isCollapsed).toString();
+                
                 const icon = button.querySelector('i');
                 if (icon) {
                     icon.classList.toggle('bi-chevron-right', !isCollapsed);
                     icon.classList.toggle('bi-chevron-down', isCollapsed);
                 }
+                
                 descendants.forEach(row => {
                     row.style.display = isCollapsed ? '' : 'none';
                 });
+
+                console.log(`🔄 Toggle ${rowId}: ${isCollapsed ? 'expandido' : 'colapsado'} (${descendants.length} filas afectadas)`);
             });
+
+            console.log('✅ Toggles de grupos financieros inicializados correctamente');
         }
 
         async function loadAssignmentsForDataset(datasetId) {
@@ -5307,6 +5316,34 @@
             return '';
         }
 
+        // Recalcula totales de padres a partir de los hijos (ajustes incluidos)
+        function recomputeFinancialGroupTotals(rows = []) {
+            if (!Array.isArray(rows) || rows.length === 0) return rows;
+
+            const cloned = rows.map(r => ({ ...r }));
+            const maxLevel = cloned.reduce((max, row) => {
+                const lvl = Number(row.level) || 0;
+                return lvl > max ? lvl : max;
+            }, 0);
+
+            for (let level = maxLevel; level >= 0; level--) {
+                const levelRows = cloned.filter(r => (Number(r.level) || 0) === level);
+                levelRows.forEach(row => {
+                    const children = cloned.filter(child => child.parentId === row.rowId);
+                    if (!children.length) return;
+
+                    const sum = (key) => children.reduce((acc, child) => acc + (Number(child[key]) || 0), 0);
+
+                    row.preliminary = sum('preliminary');
+                    row.adjustments = sum('adjustments');
+                    row.finalCurrent = sum('finalCurrent');
+                    row.finalPrevious = sum('finalPrevious');
+                });
+            }
+
+            return cloned;
+        }
+
         async function loadGruposFinancierosFromLatestExcel({ forceReload = false } = {}) {
             console.log('🔍 DIAGNÓSTICO: Iniciando carga de grupos financieros...');
             console.log('🔍 currentDatasetId:', currentDatasetId);
@@ -5351,7 +5388,7 @@
                     firstItem: financialGroups?.[0]
                 });
                 
-                if (financialGroups && financialGroups.length > 0) {
+        if (financialGroups && financialGroups.length > 0) {
                     // Cargar ajustes actuales desde la base de datos
                     console.log('🔍 Cargando ajustes actuales para aplicar a grupos financieros...');
                     const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId);
@@ -5377,7 +5414,7 @@
                     console.log('🔍 Mapa de ajustes construido:', Object.fromEntries(adjustmentsMap));
                     
                     // Actualizar grupos financieros con ajustes actuales
-                    const updatedFinancialGroups = financialGroups.map(row => {
+                    const updatedFinancialGroups = recomputeFinancialGroupTotals(financialGroups.map(row => {
                         const adjustment = adjustmentsMap.get(row.accountCode) || 0;
                         const newFinalCurrent = (row.preliminary || 0) + adjustment;
                         
@@ -5395,7 +5432,7 @@
                             finalCurrent: newFinalCurrent,
                             ledgerMissing: false // Forzar a mostrar ajustes
                         };
-                    });
+                    }));
                     
                     // Usar grupos financieros actualizados con ajustes
                     cachedGruposFinancierosRows = updatedFinancialGroups;
@@ -5405,6 +5442,42 @@
                     initializeGruposFinancierosToggles();
                     updateFinancialGroupCounts();
                     console.log('✅ Grupos financieros cargados desde base de datos con ajustes aplicados');
+                    
+                    // Guardar los totales recalculados en la base de datos
+                    try {
+                        if (window.saveFinancialGroupsResults && updatedFinancialGroups.length > 0) {
+                            console.log('💾 Guardando totales recalculados en la base de datos (carga inicial)...');
+                            
+                            // Preparar datos para guardar
+                            const resultsToSave = updatedFinancialGroups.map(row => ({
+                                row_id: row.rowId,
+                                account_code: row.accountCode,
+                                account_name: row.accountName,
+                                level: row.level,
+                                parent_id: row.parentId,
+                                preliminary: row.preliminary || 0,
+                                adjustments: row.adjustments || 0,
+                                final_current: row.finalCurrent || 0,
+                                final_previous: row.finalPrevious || 0,
+                                has_children: row.hasChildren || false,
+                                is_leaf: !row.hasChildren
+                            }));
+                            
+                            const saveResult = await window.saveFinancialGroupsResults(
+                                resolvedDatasetId,
+                                resultsToSave,
+                                'completed' // Estado: completado con ajustes aplicados
+                            );
+                            
+                            console.log('✅ Totales recalculados guardados en BD (carga inicial):', {
+                                runId: saveResult.run?.id,
+                                rowsCount: saveResult.rows?.length || 0
+                            });
+                        }
+                    } catch (saveError) {
+                        console.error('❌ Error guardando totales recalculados (carga inicial):', saveError);
+                        // No interrumpir el flujo, solo registrar el error
+                    }
                 } else {
                     // Si no hay grupos financieros guardados, construir desde el libro mayor
                     console.log('📊 No hay grupos financieros guardados, construyendo desde libro mayor...');
@@ -17504,8 +17577,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
                 
-                // Actualizar filas existentes
-                const updatedRows = cachedGruposFinancierosRows.map(row => {
+                // Actualizar filas existentes y recalcular totales ascendentes
+                const updatedRows = recomputeFinancialGroupTotals(cachedGruposFinancierosRows.map(row => {
                     const adjustment = adjustmentsMap.get(row.accountCode) || 0;
                     const newFinalCurrent = (row.preliminary || 0) + adjustment;
                     
@@ -17515,12 +17588,48 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         finalCurrent: newFinalCurrent,
                         ledgerMissing: false // Forzar a mostrar ajustes
                     };
-                });
+                }));
                 
                 // Actualizar cache y renderizar
                 cachedGruposFinancierosRows = updatedRows;
                 cachedFinancialGroupsMeta = 'BD+Ajustes';
                 renderGruposFinancieros(updatedRows, cachedFinancialGroupsMeta);
+                
+                // Guardar los totales recalculados en la base de datos
+                try {
+                    if (window.saveFinancialGroupsResults && updatedRows.length > 0) {
+                        console.log('💾 Guardando totales recalculados en la base de datos...');
+                        
+                        // Preparar datos para guardar
+                        const resultsToSave = updatedRows.map(row => ({
+                            row_id: row.rowId,
+                            account_code: row.accountCode,
+                            account_name: row.accountName,
+                            level: row.level,
+                            parent_id: row.parentId,
+                            preliminary: row.preliminary || 0,
+                            adjustments: row.adjustments || 0,
+                            final_current: row.finalCurrent || 0,
+                            final_previous: row.finalPrevious || 0,
+                            has_children: row.hasChildren || false,
+                            is_leaf: !row.hasChildren
+                        }));
+                        
+                        const saveResult = await window.saveFinancialGroupsResults(
+                            resolvedDatasetId,
+                            resultsToSave,
+                            'completed' // Estado: completado con ajustes aplicados
+                        );
+                        
+                        console.log('✅ Totales recalculados guardados en BD:', {
+                            runId: saveResult.run?.id,
+                            rowsCount: saveResult.rows?.length || 0
+                        });
+                    }
+                } catch (saveError) {
+                    console.error('❌ Error guardando totales recalculados:', saveError);
+                    // No interrumpir el flujo, solo registrar el error
+                }
                 
             } catch (error) {
                 console.error('❌ Error en actualizarGruposFinancierosConAjustes:', error);

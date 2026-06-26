@@ -690,6 +690,12 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                                 ajustes = ajustesRecargados;
                                 renderAjustes();
                                 broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
+                                
+                                // Disparar evento para actualizar grupos financieros
+                                window.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                                    detail: { datasetId: currentDatasetId, count: -1 }
+                                }));
+                                
                                 closeAjusteModal();
                                 
                                 notify('Ajuste eliminado correctamente', 'success');
@@ -1659,9 +1665,6 @@ function updateNumeroField() {
             const actionsWrapper = document.createElement('div');
             actionsWrapper.className = 'ajuste-card__external-actions';
             actionsWrapper.innerHTML = `
-                <button type="button" class="ajuste-card__action-btn" data-action="duplicate" title="Duplicar ajuste">
-                    <i class="bi bi-files"></i>
-                </button>
                 <button type="button" class="ajuste-card__action-btn" data-action="edit" title="Editar ajuste">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -1702,10 +1705,6 @@ function updateNumeroField() {
                 console.log('Dataset del botón:', button.dataset);
                 
                 switch (action) {
-                    case 'duplicate':
-                        console.log('Ejecutando duplicateAdjustment');
-                        duplicateAdjustment(ajuste);
-                        break;
                     case 'edit':
                         console.log('Ejecutando editAdjustment');
                         editAdjustment(ajuste);
@@ -1763,23 +1762,6 @@ function updateNumeroField() {
 
         function getDetailById(id) {
             return detalleItems.find((item) => item.id === id);
-        }
-
-        function duplicateAdjustment(ajuste) {
-            // Crear una copia del ajuste con nuevo número
-            const duplicatedAjuste = {
-                ...ajuste,
-                id: uniqueId('ajuste'),
-                numero: computeNextNumber(),
-                createdAt: new Date().toISOString()
-            };
-            
-            // Agregar a la lista de ajustes
-            ajustes.push(duplicatedAjuste);
-            saveAjustes();
-            renderAjustes();
-            
-            notify('Ajuste duplicado correctamente', 'success');
         }
 
         function editAdjustment(ajuste) {
