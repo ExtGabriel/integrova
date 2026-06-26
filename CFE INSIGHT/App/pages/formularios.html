@@ -4493,12 +4493,8 @@
 
                     const adjustments = Number.isFinite(mergedAdjustmentsRaw) ? mergedAdjustmentsRaw : 0;
                     const finalCurrent = preliminary + adjustments;
-                    const finalPrevious = computeNetBalance(
-                        account,
-                        ['debit', 'debito_actual', 'current_year_debit', 'currentYearDebit'],
-                        ['credit', 'credito_actual', 'current_year_credit', 'currentYearCredit'],
-                        ['value', 'saldo', 'current_year_value']
-                    );
+                    // Para la columna 31/12/2023 Final, solo mostrar el valor guardado del año anterior sin cálculos
+                    const finalPrevious = getNumericValue(account, ['current_year_value']) || 0;
 
                     return {
                         accountNumber: code,
