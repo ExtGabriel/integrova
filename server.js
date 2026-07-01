@@ -2827,14 +2827,44 @@ app.post('/api/ai/generate-report', async (req, res) => {
 app.get('/api/excel/latest', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
         
-        const { data, error } = await supabase
+        console.log('🔍 /api/excel/latest called with:', { userId, entity_id, commitment_id });
+        
+        let query = supabase
             .from('conjuntos_datos')
             .select('*')
             .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true)
+            .eq('is_active', true);
+        
+        // Agregar filtros de entidad y compromiso si se proporcionan
+        if (entity_id) {
+            console.log('🔍 Adding entity_id filter:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Adding commitment_id filter:', commitment_id);
+            query = query.eq('commitment_id', commitment_id);
+        }
+        
+        // Verificar query SQL generado
+        console.log('🔍 Executing query for conjuntos_datos...');
+        
+        const { data, error } = await query
             .order('fecha_importacion', { ascending: false })
             .limit(1);
+        
+        console.log('🔍 Query result:', { 
+            dataCount: data?.length || 0, 
+            error: error?.message,
+            firstRecord: data?.[0] ? {
+                id: data[0].id,
+                nombre: data[0].nombre,
+                entity_id: data[0].entity_id,
+                commitment_id: data[0].commitment_id,
+                hasSheets: !!data[0].data?.sheets
+            } : null
+        });
 
         if (error) {
             console.error('Error al obtener el último conjunto de datos:', error);
@@ -5841,22 +5871,92 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 
         console.log('✅ Snapshot creado exitosamente:', snapshot.id);
 
-        // Actualizar el snapshot para incluir los grupos financieros en el meta
+        // VALIDACIÓN Y FILTRADO INTELIGENTE ANTES DE GUARDAR
+        console.log('🔍 Aplicando filtrado inteligente a grupos financieros...');
+        
+        const filteredResults = results.filter((result, index) => {
+            // Criterios de inclusión
+            const hasFinancialData = (result.preliminary !== 0 || result.adjustments !== 0 || 
+                                    result.finalCurrent !== 0 || result.finalPrevious !== 0);
+            const isMainStructuralGroup = (result.isParent && result.hasChildren && 
+                                         result.accountName && result.accountName.trim() !== '' && 
+                                         !result.accountName.startsWith('-'));
+            const hasValidCodeAndData = (result.accountCode && result.accountCode.trim() !== '' && 
+                                       result.accountName && result.accountName.trim() !== '' && 
+                                       !result.accountName.startsWith('-') && 
+                                       (hasFinancialData || result.hasChildren));
+            
+            const shouldKeep = hasFinancialData || isMainStructuralGroup || hasValidCodeAndData;
+            
+            // Log para primeras 5 filas
+            if (index < 5) {
+                console.log(`🔍 Filtro grupo ${index}:`, {
+                    accountName: result.accountName,
+                    accountCode: result.accountCode,
+                    preliminary: result.preliminary,
+                    hasFinancialData,
+                    isMainStructuralGroup,
+                    hasValidCodeAndData,
+                    shouldKeep
+                });
+            }
+            
+            return shouldKeep;
+        });
+        
+        console.log(`🔍 Filtrado de grupos: ${filteredResults.length} de ${results.length} grupos pasaron el filtro`);
+        
+        // Función de conversión segura para números
+        function safeConvertNumber(value) {
+            if (value === null || value === undefined || value === '') {
+                return 0;
+            }
+            
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+            }
+            
+            const stringValue = String(value).trim();
+            
+            // Manejar paréntesis (valores negativos)
+            if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+                const innerValue = stringValue.slice(1, -1).trim();
+                const converted = safeConvertNumber(innerValue);
+                return -Math.abs(converted);
+            }
+            
+            // Remover comas y símbolos
+            let cleanValue = stringValue.replace(/,/g, '').replace(/[$€£¥]/g, '');
+            
+            // Manejar signos
+            const isNegative = cleanValue.startsWith('-') || cleanValue.endsWith('-');
+            cleanValue = cleanValue.replace(/^-|-$/g, '');
+            
+            const parsed = parseFloat(cleanValue);
+            
+            if (Number.isFinite(parsed) && !isNaN(parsed)) {
+                return isNegative ? -Math.abs(parsed) : parsed;
+            }
+            
+            return 0;
+        }
+        
+        // Actualizar el snapshot para incluir los grupos financieros filtrados y limpios
         const updatedMeta = {
             ...snapshot.meta,
-            groups: results.map(result => ({
-                accountName: result.accountName || '',
-                accountCode: result.accountCode || '',
-                preliminary: result.preliminary || 0,
-                adjustments: result.adjustments || 0,
-                finalCurrent: result.finalCurrent || 0,
-                finalPrevious: result.finalPrevious || 0,
-                level: result.level || 0,
-                isParent: result.isParent || false,
-                rowId: result.rowId || '',
-                parentId: result.parentId || '',
-                hasChildren: result.hasChildren || false,
-                ledgerMissing: result.ledgerMissing || false
+            groups: filteredResults.map(result => ({
+                accountName: (result.accountName || '').trim(),
+                accountCode: (result.accountCode || '').trim(),
+                preliminary: safeConvertNumber(result.preliminary),
+                adjustments: safeConvertNumber(result.adjustments),
+                finalCurrent: safeConvertNumber(result.finalCurrent),
+                finalPrevious: safeConvertNumber(result.finalPrevious),
+                level: parseInt(result.level) || 0,
+                isParent: Boolean(result.isParent),
+                rowId: String(result.rowId || ''),
+                parentId: String(result.parentId || ''),
+                hasChildren: Boolean(result.hasChildren),
+                ledgerMissing: Boolean(result.ledgerMissing)
             }))
         };
 

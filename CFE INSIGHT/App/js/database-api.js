@@ -535,8 +535,8 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
         }
 
         console.log('Financial groups results saved successfully:', { 
-            runId: result.run.id, 
-            rowsCount: result.rows.length 
+            snapshotId: result.snapshot?.id, 
+            groupsCount: result.groupsCount || 0 
         });
         
         return result;
