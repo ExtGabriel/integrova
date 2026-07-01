@@ -651,9 +651,9 @@
 
         .dynamic-table-grid {
             display: grid;
-            grid-template-columns: minmax(260px, 2fr) 110px repeat(2, minmax(140px, 1fr)) minmax(150px, 1.1fr) minmax(130px, 0.9fr) 90px;
+            grid-template-columns: minmax(280px, 2fr) 90px minmax(130px, 1fr) minmax(130px, 1fr) minmax(150px, 1.1fr) 90px minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 0.9fr) 90px;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
         }
 
         .dynamic-table-header {
@@ -980,7 +980,7 @@
 
         .worksheet-table thead th {
             border-top: 2px solid #000;
-            padding: 10px 6px 6px 6px;
+            padding: 12px 10px 6px 10px;
             font-weight: 600;
             font-size: 0.95rem;
             color: #000;
@@ -1001,7 +1001,7 @@
         }
 
         .worksheet-table tbody td {
-            padding: 10px 6px;
+            padding: 12px 10px;
             border-top: none;
             font-size: 0.95rem;
             color: var(--text-main);
@@ -1211,6 +1211,62 @@
             return window.getCurrentUserId ? (window.getCurrentUserId() || 'anon') : 'anon';
         }
 
+        async function ensureCurrentUserLoaded() {
+            console.log('🔍 Verificando usuario actual...');
+            
+            // Si ya tenemos el usuario, retornar
+            if (window.currentUser && window.currentUser.id) {
+                console.log('✅ Usuario ya cargado:', window.currentUser.id);
+                return;
+            }
+            
+            // Intentar cargar desde sessionStorage
+            try {
+                const sessionUser = sessionStorage.getItem('currentUser');
+                if (sessionUser) {
+                    const parsed = JSON.parse(sessionUser);
+                    if (parsed && parsed.id) {
+                        window.currentUser = parsed;
+                        console.log('✅ Usuario cargado desde sessionStorage:', parsed.id);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('❌ Error cargando desde sessionStorage:', e);
+            }
+            
+            // Intentar cargar desde localStorage
+            try {
+                const localUser = localStorage.getItem('currentUser');
+                if (localUser) {
+                    const parsed = JSON.parse(localUser);
+                    if (parsed && parsed.id) {
+                        window.currentUser = parsed;
+                        console.log('✅ Usuario cargado desde localStorage:', parsed.id);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('❌ Error cargando desde localStorage:', e);
+            }
+            
+            // Intentar obtener desde auth-guard si está disponible
+            if (typeof window.getUserUI === 'function') {
+                try {
+                    const user = window.getUserUI();
+                    if (user && user.id) {
+                        window.currentUser = user;
+                        console.log('✅ Usuario cargado desde getUserUI:', user.id);
+                        return;
+                    }
+                } catch (e) {
+                    console.log('❌ Error cargando desde getUserUI:', e);
+                }
+            }
+            
+            console.log('❌ No se pudo cargar la información del usuario');
+        }
+
         function getLastAssignmentsDatasetId() {
             try {
                 const baseKey = 'assigned_accounts_last_dataset_v1';
@@ -1248,6 +1304,9 @@
 
         async function loadFinancialGroupsAsAreas() {
             try {
+                // Asegurarse de que el usuario esté cargado
+                await ensureCurrentUserLoaded();
+                
                 // Obtener el ID del dataset actual
                 const datasetId = getLastAssignmentsDatasetId();
                 if (!datasetId) {
@@ -1255,13 +1314,16 @@
                     return [];
                 }
 
-                console.log('DatasetId para grupos:', datasetId);
+                console.log('🔍 DatasetId para grupos:', datasetId);
+                console.log('🔍 Usuario actual:', window.currentUser?.id);
 
                 // Cargar grupos financieros desde la base de datos
                 if (typeof window.getFinancialGroups === 'function') {
+                    console.log('🔍 Llamando a getFinancialGroups...');
                     const groups = await window.getFinancialGroups(datasetId);
-                    console.log('Grupos financieros crudos:', groups);
-                    console.log('Primer grupo estructura:', groups[0]);
+                    console.log('🔍 Grupos financieros crudos:', groups);
+                    console.log('🔍 Longitud de grupos:', groups.length);
+                    console.log('🔍 Primer grupo estructura:', groups[0]);
                     
                     if (Array.isArray(groups) && groups.length > 0) {
                         console.log('Grupos financieros cargados:', groups.length);
@@ -1318,6 +1380,18 @@
             if (allAreas.length === 0) {
                 areaEmpty.style.display = 'flex';
                 areaList.style.display = 'none';
+                
+                // Mostrar mensaje informativo sobre cómo crear grupos
+                const areaEmptyElement = document.getElementById('areaEmpty');
+                if (areaEmptyElement) {
+                    areaEmptyElement.innerHTML = `
+                        <i class="bi bi-layers"></i>
+                        <span>No hay grupos financieros disponibles</span>
+                        <small style="opacity: 0.7; font-size: 0.85rem; margin-top: 8px;">
+                            Para crear grupos, ve a "Formularios" → "Asignar cuentas" y haz las asignaciones desde el Excel
+                        </small>
+                    `;
+                }
                 return;
             }
 
@@ -1555,22 +1629,17 @@
             // Limpiar el nombre del grupo
             const cleanGroupName = groupName.replace(/[📁📄]\s*-\s*/, '').trim();
             
-            // Estructura de la fila (basada en la tabla existente)
+            // Estructura de la fila (basada en la nueva tabla de 9 columnas)
             newRow.innerHTML = `
-                <td class="col-ref">${areaCode || ''}</td>
                 <td class="col-description">${cleanGroupName}</td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
-                <td class="col-debe"></td>
-                <td class="col-haber"></td>
+                <td class="col-ref">${areaCode || ''}</td>
+                <td class="col-amount"></td>
+                <td class="col-amount"></td>
+                <td class="col-amount"></td>
+                <td class="col-ref"></td>
+                <td class="col-amount"></td>
+                <td class="col-variation"></td>
+                <td class="col-variation-pct"></td>
             `;
             
             // Agregar la fila al tbody
@@ -2621,6 +2690,7 @@
                                 <th class="col-ref">Ref.</th>
                                 <th class="col-amount">Año actual</th>
                                 <th class="col-amount">Ajustes</th>
+                                <th class="col-amount">Saldos finales</th>
                                 <th class="col-ref">Ref.</th>
                                 <th class="col-amount">Año anterior</th>
                                 <th class="col-variation">Variación</th>
@@ -2629,18 +2699,20 @@
                             <tr class="subheader">
                                 <th></th>
                                 <th></th>
-                                <th>Q</th>
-                                <th>Q</th>
                                 <th></th>
-                                <th>Q</th>
-                                <th>Q</th>
-                                <th>%</th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td class="col-description">&nbsp;</td>
                                 <td class="col-ref">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
                                 <td class="col-amount">&nbsp;</td>
                                 <td class="col-amount">&nbsp;</td>
                                 <td class="col-ref">&nbsp;</td>
@@ -2840,10 +2912,13 @@
                         <div class="dynamic-table-grid dynamic-table-header">
                             ${renderHeaderCell('Descripción')}
                             ${renderHeaderCell('Ref.')}
-                            ${renderHeaderCell(currentYear, 'Q')}
-                            ${renderHeaderCell(previousYear, 'Q')}
-                            ${renderHeaderCell('Variación', 'Q')}
-                            ${renderHeaderCell('Variación', '%')}
+                            ${renderHeaderCell('Año actual')}
+                            ${renderHeaderCell('Ajustes')}
+                            ${renderHeaderCell('Saldos finales')}
+                            ${renderHeaderCell('Ref.')}
+                            ${renderHeaderCell('Año anterior')}
+                            ${renderHeaderCell('Variación')}
+                            ${renderHeaderCell('Variación %')}
                             ${renderHeaderCell('', '', 'actions')}
                         </div>
                         <div class="dynamic-table-body">
@@ -2910,10 +2985,19 @@
                         <input type="text" class="dynamic-input--number" value="${safeCurrent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${currentYear}', this.value)">
                     </div>
                     <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'adjustments', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safePrevious}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'finalBalances', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--center" value="${safeReference}" placeholder="" oninput="handleRowChange('${areaId}', '${sectionId}', '${row.id}', 'reference2', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
                         <input type="text" class="dynamic-input--number" value="${safePrevious}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${previousYear}', this.value)">
                     </div>
                     <div class="dynamic-cell">
-                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationQ', this.value)">
+                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variation', this.value)">
                     </div>
                     <div class="dynamic-cell">
                         <input type="text" class="dynamic-input--percent" value="${safeVariationPercent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationPercent', this.value)">
@@ -3001,10 +3085,13 @@
                 id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
                 description: '',
                 reference: '',
+                reference2: '',
                 values: {
                     [years[0]]: '',
                     [years[1]]: '',
-                    variationQ: '',
+                    adjustments: '',
+                    finalBalances: '',
+                    variation: '',
                     variationPercent: ''
                 }
             };

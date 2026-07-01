@@ -5400,7 +5400,23 @@ app.post('/api/adjustments/save', async (req, res) => {
         
         const userId = req.headers['user-id'];
         
+        console.log('🔍 DEBUG saveFinancialAdjustment - REQUEST BODY:', req.body);
+        console.log('🔍 DEBUG saveFinancialAdjustment - HEADERS:', req.headers);
+        console.log('🔍 DEBUG saveFinancialAdjustment:', { 
+            id, 
+            datasetId, 
+            userId, 
+            adjustmentType, 
+            moneda, 
+            monto,
+            descripcion,
+            htmlContenido,
+            adjuntos,
+            meta
+        });
+        
         if (!userId || !datasetId || !monto) {
+            console.log('❌ ERROR: Faltan datos requeridos - userId:', !!userId, 'datasetId:', !!datasetId, 'monto:', !!monto);
             return res.status(400).json({ 
                 success: false, 
                 error: 'Faltan datos requeridos' 
@@ -5421,9 +5437,12 @@ app.post('/api/adjustments/save', async (req, res) => {
             updated_at: new Date().toISOString()
         };
 
+        console.log('🔍 DEBUG saveFinancialAdjustment - PAYLOAD CONSTRUIDO:', payload);
+
         let data, error;
 
         if (id) {
+            console.log('🔍 DEBUG saveFinancialAdjustment - MODO ACTUALIZACIÓN - ID:', id);
             ({ data, error } = await supabase
                 .from('ajustes_financieros')
                 .update(payload)
@@ -5432,6 +5451,7 @@ app.post('/api/adjustments/save', async (req, res) => {
                 .select()
                 .single());
         } else {
+            console.log('🔍 DEBUG saveFinancialAdjustment - MODO CREACIÓN - Nuevo registro');
             ({ data, error } = await supabase
                 .from('ajustes_financieros')
                 .insert({
@@ -5440,6 +5460,13 @@ app.post('/api/adjustments/save', async (req, res) => {
                 })
                 .select()
                 .single());
+        }
+        
+        console.log('🔍 DEBUG saveFinancialAdjustment - RESULTADO BD:', { data, error });
+        
+        if (error) {
+            console.error('❌ ERROR EN BASE DE DATOS:', error);
+            throw error;
         }
 
         if (error) throw error;
@@ -6212,6 +6239,17 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
         
         console.log('🔍 DEBUG getFinancialGroups:', { datasetId, userId });
         
+        // Primero, verificar si hay snapshots para este usuario
+        const { data: allSnapshots, error: allError } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('user_id', userId);
+            
+        console.log('🔍 Todos los snapshots del usuario:', allSnapshots?.length || 0);
+        if (allSnapshots && allSnapshots.length > 0) {
+            console.log('🔍 IDs de datasets con snapshots:', allSnapshots.map(s => s.dataset_id));
+        }
+        
         // Obtener el snapshot más reciente para este dataset
         const { data: snapshot, error: snapshotError } = await supabase
             .from('financial_group_snapshots')
@@ -6223,10 +6261,27 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
             .single();
             
         if (snapshotError || !snapshot) {
-            console.log('🔍 No se encontró snapshot para dataset:', datasetId);
+            console.log('🔍 No se encontró snapshot para dataset:', datasetId, 'Error:', snapshotError);
+            console.log('🔍 Buscando snapshots con dataset_id similar...');
+            
+            // Buscar snapshots que puedan coincidir parcialmente
+            const { data: similarSnapshots } = await supabase
+                .from('financial_group_snapshots')
+                .select('*')
+                .eq('user_id', userId)
+                .ilike('dataset_id', `%${datasetId}%`);
+                
+            console.log('🔍 Snapshots similares encontrados:', similarSnapshots?.length || 0);
+            
             return res.json({ 
                 success: true, 
-                groups: [] 
+                groups: [],
+                debug: {
+                    datasetId,
+                    userId,
+                    totalUserSnapshots: allSnapshots?.length || 0,
+                    similarSnapshots: similarSnapshots?.length || 0
+                }
             });
         }
         
@@ -6234,6 +6289,16 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
         const groupsData = snapshot.meta?.groups || [];
         
         console.log('✅ Grupos financieros retornados desde snapshot meta:', groupsData.length);
+        console.log('🔍 Estructura del snapshot:', {
+            id: snapshot.id,
+            dataset_id: snapshot.dataset_id,
+            user_id: snapshot.user_id,
+            generated_at: snapshot.generated_at,
+            hasMeta: !!snapshot.meta,
+            metaKeys: snapshot.meta ? Object.keys(snapshot.meta) : [],
+            groupsCount: groupsData.length
+        });
+        
         res.json({ 
             success: true, 
             groups: groupsData 

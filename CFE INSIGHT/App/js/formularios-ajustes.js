@@ -776,7 +776,8 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                     meta: ajusteData.meta || {}
                 };
                 
-                // Solo agregar el ID si es una actualización (el ID ya es un UUID válido de la BD)
+                // Solo incluir el ID si es un UUID válido (para actualizaciones)
+                // No incluir IDs temporales que empiezan con "ajuste-" (esos son para nuevos ajustes)
                 if (ajusteData.id && !ajusteData.id.startsWith('ajuste-')) {
                     payload.id = ajusteData.id;
                 }
