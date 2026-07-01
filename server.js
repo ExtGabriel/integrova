@@ -5871,6 +5871,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 
         console.log('✅ Snapshot creado exitosamente:', snapshot.id);
 
+<<<<<<< HEAD
         // VALIDACIÓN Y FILTRADO INTELIGENTE ANTES DE GUARDAR
         console.log('🔍 Aplicando filtrado inteligente a grupos financieros...');
         
@@ -5901,11 +5902,57 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                 });
             }
             
+=======
+        // 🔧 VALIDACIÓN ESTRICTA - Filtrar grupos vacíos antes de guardar
+        console.log('🔍 Iniciando filtrado de grupos financieros...');
+        
+        const filteredResults = results.filter((result, index) => {
+            // Criterios de validación para grupos financieros
+            const hasFinancialData = 
+                (result.preliminary !== 0) || 
+                (result.adjustments !== 0) || 
+                (result.finalCurrent !== 0) || 
+                (result.finalPrevious !== 0);
+            
+            const hasValidIdentification = 
+                (result.accountCode && result.accountCode.trim() !== '') ||
+                (result.accountName && result.accountName.trim() !== '' && result.accountName !== 'Grupo');
+            
+            const isMainStructuralGroup = 
+                result.isParent && 
+                result.hasChildren && 
+                result.accountName && 
+                result.accountName.trim() !== '' && 
+                !result.accountName.startsWith('-');
+            
+            // Mostrar diagnóstico para primeras 5 filas
+            if (index < 5) {
+                console.log(`🔍 Fila ${index} - ${result.accountName}:`, {
+                    hasFinancialData,
+                    hasValidIdentification,
+                    isMainStructuralGroup,
+                    preliminary: result.preliminary,
+                    adjustments: result.adjustments,
+                    finalCurrent: result.finalCurrent,
+                    accountCode: result.accountCode,
+                    isParent: result.isParent,
+                    hasChildren: result.hasChildren
+                });
+            }
+            
+            const shouldKeep = hasFinancialData || hasValidIdentification || isMainStructuralGroup;
+            
+            if (!shouldKeep) {
+                console.log(`🔍 Filtrando grupo sin datos válidos: ${result.accountName} (${result.accountCode})`);
+            }
+            
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
             return shouldKeep;
         });
         
         console.log(`🔍 Filtrado de grupos: ${filteredResults.length} de ${results.length} grupos pasaron el filtro`);
         
+<<<<<<< HEAD
         // Función de conversión segura para números
         function safeConvertNumber(value) {
             if (value === null || value === undefined || value === '') {
@@ -5958,6 +6005,33 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                 hasChildren: Boolean(result.hasChildren),
                 ledgerMissing: Boolean(result.ledgerMissing)
             }))
+=======
+        // Si no hay grupos válidos, advertir pero continuar con snapshot vacío
+        if (filteredResults.length === 0) {
+            console.warn('⚠️ ADVERTENCIA: No hay grupos válidos para guardar. Guardando snapshot vacío.');
+        }
+
+        // Actualizar el snapshot para incluir los grupos financieros filtrados en el meta
+        const updatedMeta = {
+            ...snapshot.meta,
+            groups: filteredResults.map(result => ({
+                accountName: result.accountName || '',
+                accountCode: result.accountCode || '',
+                preliminary: result.preliminary || 0,
+                adjustments: result.adjustments || 0,
+                finalCurrent: result.finalCurrent || 0,
+                finalPrevious: result.finalPrevious || 0,
+                level: result.level || 0,
+                isParent: result.isParent || false,
+                rowId: result.rowId || '',
+                parentId: result.parentId || '',
+                hasChildren: result.hasChildren || false,
+                ledgerMissing: result.ledgerMissing || false
+            })),
+            filteredCount: filteredResults.length,
+            originalCount: results.length,
+            filteredAt: new Date().toISOString()
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
         };
 
         const { data: updatedSnapshot, error: updateError } = await supabase
@@ -6445,21 +6519,64 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
 
         const conjunto = Array.isArray(conjuntoData) ? conjuntoData[0] : conjuntoData;
         
-        // Obtener cuentas desde la base de datos con sus UUIDs reales (como /api/accounts/unassigned)
+        // 🔧 MEJORADA: Buscar cuenta por código o por nombre
         console.log('Obteniendo cuenta desde cuentas_contables...');
-        const { data: dbAccounts, error: dbError } = await supabase
+        let { data: dbAccounts, error: dbError } = await supabase
             .from('cuentas_contables')
             .select('*')
             .eq('conjunto_id', conjunto.id)
-            .eq('code', code)
+            .eq('numero_cuenta', code)
             .single();
             
+        // Si no encuentra por código, buscar por nombre
         if (dbError || !dbAccounts) {
-            console.error('Cuenta no encontrada en cuentas_contables:', dbError);
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Cuenta no encontrada' 
-            });
+            console.log(`Cuenta no encontrada por código ${code}, buscando por nombre...`);
+            
+            // Mapeo de códigos antiguos a nombres de cuenta
+            const codeToNameMap = {
+                '12990102': 'Depreciación acumulada mobiliario y equipo',
+                '12990101': 'Depreciación acumulada equipo de computación', 
+                '12990103': 'Depreciación acumulada vehiculos',
+                '12990105': 'Depreciación acumulada mejoras a propiedad'
+            };
+            
+            const accountName = codeToNameMap[code] || code;
+            
+            const { data: dbAccountsByName, error: dbErrorByName } = await supabase
+                .from('cuentas_contables')
+                .select('*')
+                .eq('conjunto_id', conjunto.id)
+                .ilike('nombre_cuenta', `%${accountName}%`)
+                .limit(1)
+                .single();
+                
+            if (dbErrorByName || !dbAccountsByName) {
+                // Último intento: buscar por código que contenga el número
+                console.log(`Buscando cuenta con código que contenga ${code}...`);
+                const { data: dbAccountsByPartialCode, error: dbErrorPartialCode } = await supabase
+                    .from('cuentas_contables')
+                    .select('*')
+                    .eq('conjunto_id', conjunto.id)
+                    .ilike('numero_cuenta', `%${code}%`)
+                    .limit(1)
+                    .single();
+                    
+                if (dbErrorPartialCode || !dbAccountsByPartialCode) {
+                    console.error('Cuenta no encontrada por ningún método:', { code, accountName, dbError, dbErrorByName, dbErrorPartialCode });
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'Cuenta no encontrada' 
+                    });
+                }
+                
+                dbAccounts = dbAccountsByPartialCode;
+                console.log('Cuenta encontrada por código parcial:', dbAccounts);
+            } else {
+                dbAccounts = dbAccountsByName;
+                console.log('Cuenta encontrada por nombre:', dbAccounts);
+            }
+        } else {
+            console.log('Cuenta encontrada por código:', dbAccounts);
         }
         
         console.log('Account found in cuentas_contables:', dbAccounts);

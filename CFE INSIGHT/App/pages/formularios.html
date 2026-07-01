@@ -4604,12 +4604,46 @@
         function getLedgerValueForAccount(ledgerMap, code, name) {
             const codeKey = (code || '').toString().trim();
             const nameKey = (name || '').toString().trim();
+            
+            // 🔧 MEJORADA: Búsqueda más robusta en el ledger
             if (codeKey && ledgerMap.has(codeKey)) {
-                return ledgerMap.get(codeKey) || 0;
+                const value = ledgerMap.get(codeKey);
+                if (value !== null && value !== undefined) {
+                    console.log(`🔍 Ledger encontrado por código: ${codeKey} =`, value);
+                    return value;
+                }
             }
+            
+            // Búsqueda por nombre exacto
             if (nameKey && ledgerMap.has(nameKey)) {
-                return ledgerMap.get(nameKey) || 0;
+                const value = ledgerMap.get(nameKey);
+                if (value !== null && value !== undefined) {
+                    console.log(`🔍 Ledger encontrado por nombre: ${nameKey} =`, value);
+                    return value;
+                }
             }
+            
+            // 🔧 Búsqueda parcial por nombre (si el nombre es largo)
+            if (nameKey && nameKey.length > 3) {
+                for (const [ledgerKey, ledgerValue] of ledgerMap.entries()) {
+                    if (ledgerKey.includes(nameKey) || nameKey.includes(ledgerKey)) {
+                        console.log(`🔍 Ledger encontrado por coincidencia parcial: ${nameKey} ≈ ${ledgerKey} =`, ledgerValue);
+                        return ledgerValue;
+                    }
+                }
+            }
+            
+            // 🔧 Búsqueda por código parcial (si el código tiene prefijos)
+            if (codeKey && codeKey.length > 2) {
+                for (const [ledgerKey, ledgerValue] of ledgerMap.entries()) {
+                    if (ledgerKey.includes(codeKey) || codeKey.includes(ledgerKey)) {
+                        console.log(`🔍 Ledger encontrado por coincidencia parcial de código: ${codeKey} ≈ ${ledgerKey} =`, ledgerValue);
+                        return ledgerValue;
+                    }
+                }
+            }
+            
+            console.log(`🔍 Ledger NO encontrado para: código=${codeKey}, nombre=${nameKey}`);
             return 0;
         }
 
@@ -4965,6 +4999,10 @@
             
             // Actualizar grupos financieros
             if (typeof loadGruposFinancierosFromLatestExcel === 'function') {
+                // Limpiar caché de grupos financieros para forzar recarga
+                cachedFinancialGroupsLoaded = false;
+                cachedGruposFinancierosRows = [];
+                dataLoadState.gruposFinancieros = false;
                 await loadGruposFinancierosFromLatestExcel({ forceReload: true });
             }
             
@@ -5148,38 +5186,32 @@
                 renderGruposFinancieros(rows, cachedLedgerMeta);
                 refreshGroupPanelTotals(normalized);
                 
-                // Guardar automáticamente los grupos financieros actualizados en la base de datos
-                if (window.saveFinancialGroupsResults && rows.length > 0) {
-                    try {
-                        console.log('💾 Guardando grupos financieros actualizados tras asignación...');
-                        const currentEntity = commitmentDropdownState.currentEntityId;
-                        const currentCommitment = commitmentDropdownState.selectedCommitmentId;
-                        const convertedRows = rows.map(row => ({
-                            accountName: row.accountName || '',
-                            accountCode: row.accountCode || '',
-                            preliminary: row.preliminary || 0,
-                            adjustments: row.adjustments || 0,
-                            finalCurrent: row.finalCurrent || 0,
-                            finalPrevious: row.finalPrevious || 0,
-                            level: row.level || 0,
-                            isParent: row.isParent || false,
-                            rowId: row.rowId || '',
-                            parentId: row.parentId || '',
-                            hasChildren: row.hasChildren || false,
-                            ledgerMissing: row.ledgerMissing || false
-                        }));
-                        
-                        window.saveFinancialGroupsResults(resolvedDatasetId, convertedRows, 'completed', currentEntity, currentCommitment)
-                            .then(result => {
-                                console.log('✅ Grupos financieros guardados automáticamente tras asignación:', result);
-                            })
-                            .catch(error => {
-                                console.warn('⚠️ Error guardando grupos financieros tras asignación:', error);
-                            });
-                    } catch (error) {
-                        console.warn('⚠️ Error en proceso de guardado automático de grupos financieros:', error);
-                    }
-                }
+                // Guardado automático desactivado - El usuario controlará manualmente los commits
+                // if (window.saveFinancialGroupsResults && rows.length > 0) {
+                //     try {
+                //         console.log('💾 Guardando grupos financieros actualizados tras asignación...');
+                //         const currentEntity = commitmentDropdownState.currentEntityId;
+                //         const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                //         const convertedRows = rows.map(row => ({
+                //             accountName: row.accountName || '',
+                //             accountCode: row.accountCode || '',
+                //             preliminary: row.preliminary || 0,
+                //             adjustments: row.adjustments || 0,
+                //             finalCurrent: row.finalCurrent || 0,
+                //             finalPrevious: row.finalPrevious || 0,
+                //             level: row.level || 0,
+                //             isParent: row.isParent || false,
+                //             rowId: row.rowId || '',
+                //             parentId: row.parentId || '',
+                //             hasChildren: row.hasChildren || false,
+                //             ledgerMissing: row.ledgerMissing || false
+                //         }));
+                //         
+                //         window.saveFinancialGroupsResults(resolvedDatasetId, convertedRows, 'completed', currentEntity, currentCommitment)
+                //             .then(result => {
+                //                 console.log('✅ Grupos financieros guardados automáticamente tras asignación:', result);
+                //             })
+                            // }
 
             } catch (error) {
                 console.warn('⚠️ Error refrescando grupos financieros tras actualizar asignaciones:', error);
@@ -5291,10 +5323,26 @@
             try {
                 if (typeof window.getFinancialGroups === 'function') {
                     const groups = await window.getFinancialGroups(resolvedDatasetId);
-                    if (Array.isArray(groups) && groups.length > 0) {
+                    const hasValidGroups = Array.isArray(groups) && groups.some(group =>
+                        (group.accountCode && group.accountCode.trim() !== '') ||
+                        (group.accountName && group.accountName.trim() !== '') ||
+                        (group.preliminary !== 0) ||
+                        (group.adjustments !== 0) ||
+                        (group.finalCurrent !== 0) ||
+                        (group.finalPrevious !== 0)
+                    );
+
+                    console.log('🔍 loadFinancialGroupStructure diagnóstico:', {
+                        totalGroups: Array.isArray(groups) ? groups.length : 0,
+                        hasValidGroups,
+                        sample: Array.isArray(groups) ? groups[0] : null
+                    });
+
+                    if (hasValidGroups) {
                         console.log('✅ Estructura de grupos financieros cargada desde la base de datos:', groups.length);
                         return buildFinancialGroupStructureFromDatabase(groups);
                     }
+                    console.warn('⚠️ Estructura de grupos de BD vacía/ inválida. Usando DOM estático');
                 }
             } catch (error) {
                 console.warn('⚠️ Error cargando estructura de grupos financieros desde BD:', error);
@@ -5421,7 +5469,7 @@
                             accountCode: '',
                             staticValue: 0,
                             staticPrevValue: 0,
-                            meta: { domSource: true, groupName: name }
+                            meta: { domSource: true, groupName: name, originalName: name }
                         };
                         node.children = [];
                         nodes.set(node.id, node);
@@ -5452,7 +5500,8 @@
                                 accountName,
                                 accountCode,
                                 accountValue: staticValue,
-                                accountPrevValue: staticPrevValue
+                                accountPrevValue: staticPrevValue,
+                                originalName: accountName
                             }
                         };
                         node.children = [];
@@ -5463,6 +5512,8 @@
             };
 
             const groupItems = list.querySelectorAll('.group-item');
+            console.log(`🔍 Encontrados ${groupItems.length} grupos en el DOM`);
+            
             groupItems.forEach((groupItem, groupIndex) => {
                 const groupNameElement = groupItem.querySelector('.group-header .group-name');
                 const rawGroupName = groupNameElement ? groupNameElement.textContent.trim() : `Grupo ${groupIndex + 1}`;
@@ -5481,7 +5532,7 @@
                     accountCode: '',
                     staticValue: 0,
                     staticPrevValue: 0,
-                    meta: { domSource: true, groupName: rawGroupName }
+                    meta: { domSource: true, groupName: rawGroupName, originalName: rawGroupName }
                 };
                 node.children = [];
                 nodes.set(node.id, node);
@@ -5505,6 +5556,52 @@
                     });
                 }
             });
+
+            // 🔧 Asegurar que los grupos principales existan
+            const mainGroups = [
+                { name: 'Activo', code: '1', id: 'activo-main' },
+                { name: 'Pasivo y Patrimonio', code: '2', id: 'pasivo-patrimonio-main' },
+                { name: 'Resultados', code: '4', id: 'resultados-main' }
+            ];
+
+            console.log('🔍 Verificando grupos principales...');
+            mainGroups.forEach(group => {
+                const exists = Array.from(nodes.values()).some(node => 
+                    node.name === group.name || node.name.includes(group.name.split(' ')[0])
+                );
+                
+                if (!exists) {
+                    console.log(`⚠️ Creando grupo principal faltante: ${group.name}`);
+                    const mainGroupNode = {
+                        id: group.id,
+                        label: group.name,
+                        name: group.name,
+                        type: 'group',
+                        parentId: '',
+                        parentContainerId: '',
+                        order: -1,
+                        accountId: null,
+                        accountCode: group.code,
+                        staticValue: 0,
+                        staticPrevValue: 0,
+                        meta: { domSource: true, groupName: group.name, originalName: group.name, isMainGroup: true }
+                    };
+                    mainGroupNode.children = [];
+                    nodes.set(mainGroupNode.id, mainGroupNode);
+                    
+                    if (!rootSet.has(mainGroupNode.id)) {
+                        rootSet.add(mainGroupNode.id);
+                        roots.push(mainGroupNode.id);
+                    }
+                } else {
+                    console.log(`✅ Grupo principal encontrado: ${group.name}`);
+                }
+            });
+
+            console.log(`📊 Total grupos después de verificación: ${nodes.size}`);
+            console.log(`📋 Grupos principales:`, Array.from(nodes.values())
+                .filter(n => n.type === 'group')
+                .map(n => `${n.id}: ${n.name}`));
 
             return nodes.size ? { nodes, roots, source: 'dom' } : null;
         }
@@ -5579,6 +5676,7 @@
             return cloned;
         }
 
+<<<<<<< HEAD
         // Función robusta para convertir valores de Excel a números seguros
         function safeConvertToNumber(value, fieldName = '', accountCode = '') {
             // Si ya es número válido, retornarlo
@@ -5702,6 +5800,44 @@
             console.log(`✅ Grupos financieros validados: ${cleanedGroups.length} válidos de ${groups.length} totales`);
             return cleanedGroups;
         }
+=======
+        const sanitizeFinancialGroupRow = (row = {}) => {
+            const safeNumber = (value) => parseAccountValue(value ?? 0);
+            const code = (
+                row.accountCode ??
+                row.account_code ??
+                row.code ??
+                row.meta?.accountCode ??
+                row.meta?.code ??
+                ''
+            ).toString().trim();
+            const name = (
+                row.accountName ??
+                row.account_name ??
+                row.name ??
+                row.label ??
+                row.meta?.name ??
+                row.meta?.label ??
+                ''
+            ).toString().trim();
+            const fallbackName = name || code || 'Cuenta sin nombre';
+            const rowId = (row.rowId || row.row_id || code || `financial-row-${Math.random().toString(16).slice(2)}`).toString();
+
+            return {
+                ...row,
+                rowId,
+                accountCode: code,
+                accountName: fallbackName,
+                level: Number(row.level ?? row.nivel ?? 0) || 0,
+                parentId: (row.parentId ?? row.parent_id ?? '').toString(),
+                hasChildren: Boolean(row.hasChildren ?? row.has_children),
+                preliminary: safeNumber(row.preliminary ?? row.preliminary_total ?? row.current ?? 0),
+                adjustments: safeNumber(row.adjustments ?? row.adjustment ?? row.ajustes ?? 0),
+                finalCurrent: safeNumber(row.finalCurrent ?? row.final_current ?? row.current ?? 0),
+                finalPrevious: safeNumber(row.finalPrevious ?? row.final_previous ?? row.previous ?? 0),
+            };
+        };
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
 
         async function loadGruposFinancierosFromLatestExcel({ forceReload = false } = {}) {
             console.log('🔍 DIAGNÓSTICO: Iniciando carga de grupos financieros...');
@@ -5727,7 +5863,9 @@
             if (cachedFinancialGroupsLoaded && !forceReload && Array.isArray(cachedGruposFinancierosRows) && cachedGruposFinancierosRows.length > 0) {
                 console.log('♻️ Reutilizando grupos financieros desde caché en memoria');
                 console.log('🔍 DIAGNÓSTICO: Usando caché - filas:', cachedGruposFinancierosRows.length);
-                renderGruposFinancieros(cachedGruposFinancierosRows, cachedFinancialGroupsMeta);
+                const sanitizedCache = cachedGruposFinancierosRows.map(sanitizeFinancialGroupRow);
+                cachedGruposFinancierosRows = sanitizedCache;
+                renderGruposFinancieros(sanitizedCache, cachedFinancialGroupsMeta);
                 initializeGruposFinancierosToggles();
                 updateFinancialGroupCounts();
                 dataLoadState.gruposFinancieros = true;
@@ -5739,8 +5877,11 @@
                 console.log('🔍 DIAGNÓSTICO: Llamando a getFinancialGroups con datasetId:', resolvedDatasetId);
                 
                 // Cargar grupos financieros guardados en la base de datos
-                const financialGroups = await getFinancialGroups(resolvedDatasetId);
-                console.log('📊 Grupos financieros cargados:', financialGroups);
+                const rawFinancialGroups = await getFinancialGroups(resolvedDatasetId);
+                const financialGroups = Array.isArray(rawFinancialGroups)
+                    ? rawFinancialGroups.map(sanitizeFinancialGroupRow)
+                    : [];
+                console.log('📊 Grupos financieros cargados (sanitizados):', financialGroups);
                 console.log('🔍 DIAGNÓSTICO: Resultados de BD:', {
                     isArray: Array.isArray(financialGroups),
                     length: financialGroups?.length || 0,
@@ -5754,7 +5895,30 @@
                     console.log('🔍 Grupos después de limpieza robusta:', cleanedFinancialGroups.length);
                 }
                 
+<<<<<<< HEAD
         if (cleanedFinancialGroups && cleanedFinancialGroups.length > 0) {
+=======
+        // 🔍 DETECTAR GRUPOS VACÍOS - Si todos están vacíos, regenerar desde libro mayor
+        const hasValidGroups = financialGroups && financialGroups.length > 0 && financialGroups.some(group => 
+            (group.accountCode && group.accountCode.trim() !== '') ||
+            (group.accountName && group.accountName.trim() !== '') ||
+            (group.preliminary !== 0) ||
+            (group.adjustments !== 0) ||
+            (group.finalCurrent !== 0) ||
+            (group.finalPrevious !== 0)
+        );
+
+        // 🎯 FORZAR REGENERACIÓN PARA PROBAR EL NUEVO ENFOQUE LEDGER
+        const forceRegeneration = false; // Cambiar a false después de probar
+        console.log('🔍 DIAGNÓSTICO: Validación de grupos:', {
+            totalGroups: financialGroups?.length || 0,
+            hasValidGroups,
+            forceRegeneration,
+            sampleGroup: financialGroups?.[0]
+        });
+
+        if (hasValidGroups && !forceRegeneration) {
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
                     // Cargar ajustes actuales desde la base de datos
                     console.log('🔍 Cargando ajustes actuales para aplicar a grupos financieros...');
                     const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId);
@@ -5801,9 +5965,11 @@
                     }));
                     
                     // Usar grupos financieros actualizados con ajustes
-                    cachedGruposFinancierosRows = updatedFinancialGroups;
+                    const sanitizedUpdatedGroups = updatedFinancialGroups.map(sanitizeFinancialGroupRow);
+                    cachedGruposFinancierosRows = sanitizedUpdatedGroups;
                     cachedFinancialGroupsMeta = 'BD+Ajustes';
                     cachedFinancialGroupsLoaded = true;
+<<<<<<< HEAD
                     
                     // Sincronizar con variables globales para diagnóstico
                     window.cachedGruposFinancierosRows = cachedGruposFinancierosRows;
@@ -5812,49 +5978,55 @@
                     window.dataLoadState.gruposFinancieros = true;
                     
                     renderGruposFinancieros(updatedFinancialGroups, cachedFinancialGroupsMeta);
+=======
+                    renderGruposFinancieros(sanitizedUpdatedGroups, cachedFinancialGroupsMeta);
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
                     initializeGruposFinancierosToggles();
                     updateFinancialGroupCounts();
                     console.log('✅ Grupos financieros cargados desde base de datos con ajustes aplicados');
                     
                     // Guardar los totales recalculados en la base de datos
                     try {
-                        if (window.saveFinancialGroupsResults && updatedFinancialGroups.length > 0) {
-                            console.log('💾 Guardando totales recalculados en la base de datos (carga inicial)...');
-                            
-                            // VALIDACIÓN PREVIA: Verificar que los datos no estén corruptos antes de guardar
-                            const validatedGroups = validateAndCleanFinancialGroups(updatedFinancialGroups);
-                            
-                            if (validatedGroups.length === 0) {
-                                console.warn('⚠️ Todos los grupos financieros están corruptos, cancelando guardado automático');
-                                return;
-                            }
-                            
-                            if (validatedGroups.length < updatedFinancialGroups.length) {
-                                const corruptCount = updatedFinancialGroups.length - validatedGroups.length;
-                                console.warn(`⚠️ Se omitirán ${corruptCount} grupos corruptos del guardado automático`);
-                            }
-                            
-                            // Preparar datos para guardar con grupos validados
-                            const resultsToSave = validatedGroups.map(row => ({
-                                row_id: row.rowId,
-                                account_code: row.accountCode,
-                                account_name: row.accountName,
-                                level: row.level,
-                                parent_id: row.parentId,
-                                preliminary: row.preliminary || 0,
-                                adjustments: row.adjustments || 0,
-                                final_current: row.finalCurrent || 0,
-                                final_previous: row.finalPrevious || 0,
-                                has_children: row.hasChildren || false,
-                                is_leaf: !row.hasChildren
-                            }));
-                            
-                            console.log(`🔍 Guardando ${resultsToSave.length} grupos validados de ${updatedFinancialGroups.length} totales`);
-                            
-                            const saveResult = await window.saveFinancialGroupsResults(
-                                resolvedDatasetId,
-                                resultsToSave,
-                                'completed' // Estado: completado con ajustes aplicados
+                        const sourceGroupsForSave = sanitizedUpdatedGroups;
+                        let saveResult = null;
+                        // Guardado automático desactivado - El usuario controlará manualmente los commits
+                        // if (window.saveFinancialGroupsResults && sourceGroupsForSave.length > 0) {
+                        //     console.log('💾 Guardando totales recalculados en la base de datos (carga inicial)...');
+                        //     
+                        //     // VALIDACIÓN PREVIA: Verificar que los datos no estén corruptos antes de guardar
+                        //     const validatedGroups = validateAndCleanFinancialGroups(updatedFinancialGroups);
+                        //     
+                        //     if (validatedGroups.length === 0) {
+                        //         console.warn('⚠️ Todos los grupos financieros están corruptos, cancelando guardado automático');
+                        //         return;
+                        //     }
+                        //     
+                        //     if (validatedGroups.length < updatedFinancialGroups.length) {
+                        //         const corruptCount = updatedFinancialGroups.length - validatedGroups.length;
+                        //         console.warn(`⚠️ Se omitirán ${corruptCount} grupos corruptos del guardado automático`);
+                        //     }
+                        //     
+                        //     // Preparar datos para guardar con grupos validados
+                        //     const resultsToSave = validatedGroups.map(row => ({
+                        //         row_id: row.rowId,
+                        //         account_code: row.accountCode,
+                        //         account_name: row.accountName,
+                        //         level: row.level,
+                        //         parent_id: row.parentId,
+                        //         preliminary: row.preliminary || 0,
+                        //         adjustments: row.adjustments || 0,
+                        //         final_current: row.finalCurrent || 0,
+                        //         final_previous: row.finalPrevious || 0,
+                        //         has_children: row.hasChildren || false,
+                        //         is_leaf: !row.hasChildren
+                        //     }));
+                        //     
+                        //     console.log(`🔍 Guardando ${resultsToSave.length} grupos validados de ${updatedFinancialGroups.length} totales`);
+                        //     
+                        //     const saveResult = await window.saveFinancialGroupsResults(
+                        //         resolvedDatasetId,
+                        //         resultsToSave,
+                        //         'completed' // Estado: completado con ajustes aplicados
                             );
                             
                             console.log('✅ Totales recalculados guardados en BD (carga inicial):', {
@@ -5862,15 +6034,110 @@
                                 groupsCount: saveResult.groupsCount || 0,
                                 validatedGroups: resultsToSave.length,
                                 originalGroups: updatedFinancialGroups.length
+=======
+                            // Preparar datos para guardar con validación
+                            const resultsToSave = sourceGroupsForSave
+                                .filter(row => {
+                                    // 🔥 VALIDACIÓN MEJORADA: Permitir grupos con datos significativos
+                                    const hasValidName = row.accountName && row.accountName.trim() !== '' && !row.accountName.startsWith('-');
+                                    const hasValidCode = row.accountCode && row.accountCode.trim() !== '';
+                                    const hasFinancialData = 
+                                        (row.preliminary !== 0) ||
+                                        (row.adjustments !== 0) ||
+                                        (row.finalCurrent !== 0) ||
+                                        (row.finalPrevious !== 0);
+                                    
+                                    // Permitir si: tiene nombre válido Y (tiene código O tiene datos financieros)
+                                    const isValid = hasValidName && (hasValidCode || hasFinancialData);
+                                    
+                                    if (!isValid) {
+                                        console.log('🔍 Filtrando grupo inválido en carga inicial:', {
+                                            name: row.accountName,
+                                            code: row.accountCode,
+                                            preliminary: row.preliminary,
+                                            hasValidName,
+                                            hasValidCode,
+                                            hasFinancialData
+                                        });
+                                    }
+                                    return isValid;
+                                })
+                                .map(row => {
+                                    // 🔥 VALIDACIÓN ANTI-CORRUPTIÓN: Evitar valores inválidos
+                                    const safeNumber = (value) => {
+                                        if (value === null || value === undefined || value === '') return 0;
+                                        const num = Number(value);
+                                        if (!Number.isFinite(num) || isNaN(num)) return 0;
+                                        // Evitar números extremadamente grandes o pequeños (notación científica corrupta)
+                                        if (Math.abs(num) > 1e15) return 0;
+                                        return num;
+                                    };
+                                    
+                                    // 🔍 DEBUG: Verificar datos antes de guardar
+                                    console.log(`🔍 DEBUG Guardando fila:`, {
+                                        rowId: row.rowId,
+                                        accountCode: row.accountCode,
+                                        accountName: row.accountName,
+                                        originalName: row.meta?.originalName,
+                                        level: row.level,
+                                        preliminary: row.preliminary,
+                                        finalPrevious: row.finalPrevious,
+                                        meta: row.meta
+                                    });
+                                    
+                                    return {
+                                        row_id: row.rowId || '',
+                                        account_code: row.accountCode || '',
+                                        account_name: row.accountName || '',
+                                        level: Number(row.level) || 0,
+                                        parent_id: row.parentId || '',
+                                        preliminary: safeNumber(row.preliminary),
+                                        adjustments: safeNumber(row.adjustments),
+                                        final_current: safeNumber(row.finalCurrent),
+                                        final_previous: safeNumber(row.finalPrevious),
+                                        has_children: Boolean(row.hasChildren),
+                                        is_leaf: !Boolean(row.hasChildren)
+                                    };
+                                });
+                            
+                            console.log('🔍 Grupos a guardar (carga inicial):', {
+                                total: updatedFinancialGroups.length,
+                                validos: resultsToSave.length,
+                                filtrados: updatedFinancialGroups.length - resultsToSave.length
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
                             });
+                            
+                            // Solo guardar si hay grupos válidos
+                            if (resultsToSave.length > 0) {
+                                saveResult = await window.saveFinancialGroupsResults(
+                                    resolvedDatasetId,
+                                    resultsToSave,
+                                    'completed' // Estado: completado con ajustes aplicados
+                                );
+                                
+                                console.log('✅ Totales recalculados guardados en BD (carga inicial):', {
+                                    runId: saveResult.run?.id,
+                                    rowsCount: saveResult.rows?.length || 0
+                                });
+                            } else {
+                                console.warn('⚠️ No hay grupos válidos para guardar en carga inicial');
+                            }
+                            
+                            // Solo mostrar log si se guardó algo
+                            if (resultsToSave.length > 0 && saveResult) {
+                                console.log('✅ Totales recalculados guardados en BD (carga inicial):', {
+                                    runId: saveResult?.run?.id || 'N/A',
+                                    rowsCount: saveResult?.rows?.length || 0
+                                });
+                            }
                         }
                     } catch (saveError) {
                         console.error('❌ Error guardando totales recalculados (carga inicial):', saveError);
                         // No interrumpir el flujo, solo registrar el error
                     }
                 } else {
-                    // Si no hay grupos financieros guardados, construir desde el libro mayor
-                    console.log('📊 No hay grupos financieros guardados, construyendo desde libro mayor...');
+                    // Si no hay grupos financieros guardados O están vacíos, construir desde el libro mayor
+                    console.log('📊 No hay grupos financieros válidos, construyendo desde libro mayor...');
                     console.log('🔍 DIAGNÓSTICO: Iniciando construcción desde libro mayor...');
                     
                     initializeStaticAccounts();
@@ -5984,10 +6251,11 @@
                     }
                     
                     const rows = buildGruposFinancierosRows(cachedFinancialGroupStructure, cachedAssignments, ledgerMap, ledgerAvailable, adjustmentsMap);
+                    const sanitizedRows = rows.map(sanitizeFinancialGroupRow);
                     
                     // Forzar asignación global
-                    window.cachedGruposFinancierosRows = rows;
-                    cachedGruposFinancierosRows = rows;
+                    window.cachedGruposFinancierosRows = sanitizedRows;
+                    cachedGruposFinancierosRows = sanitizedRows;
                     
                     console.log('🔍 DEBUG: cachedGruposFinancierosRows guardado:', {
                         count: rows.length,
@@ -6003,10 +6271,43 @@
                     console.log('  rows sample:', rows.slice(0, 3));
                     console.log('  meta:', meta);
                     
-                    renderGruposFinancieros(rows, meta);
+                    renderGruposFinancieros(sanitizedRows, meta);
                     initializeGruposFinancierosToggles();
                     updateFinancialGroupCounts();
                     console.log('✅ Grupos financieros construidos desde libro mayor');
+                    
+                    // 🔥 NUEVO: Guardado automático desactivado - El usuario controlará manualmente los commits
+                    // if (sanitizedRows.length > 0 && window.saveFinancialGroupsResults) {
+                    //     try {
+                    //         console.log('💾 Guardando grupos desde DOM en la base de datos...');
+                    //         const currentEntity = commitmentDropdownState.currentEntityId;
+                    //         const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                    //         
+                    //         // Convertir al formato que espera la BD
+                    //         const convertedRows = sanitizedRows.map(row => ({
+                    //             account_code: row.accountCode || '',
+                    //             account_name: row.accountName || '',
+                    //             preliminary: row.preliminary || 0,
+                    //             adjustments: row.adjustments || 0,
+                    //             final_current: row.finalCurrent || 0,
+                    //             final_previous: row.finalPrevious || 0,
+                    //             level: row.level || 0,
+                    //             has_children: row.hasChildren || false,
+                    //             is_parent: row.isParent || false,
+                    //             is_leaf: !row.hasChildren,
+                    //             ledger_missing: row.ledgerMissing || false
+                    //         }));
+                    //         
+                    //         window.saveFinancialGroupsResults(
+                    //             resolvedDatasetId, 
+                    //             convertedRows, 
+                    //             'completed', 
+                    //             currentEntity, 
+                    //             currentCommitment
+                    //         ).then(result => {
+                    //             console.log('✅ Grupos desde DOM guardados en BD:', result);
+                    //             cachedFinancialGroupsMeta = meta + ' + BD';
+                            // }
                 }
                 
                 // Agregar listener para actualización automática cuando se crean ajustes
@@ -6221,12 +6522,570 @@
             }
         }
 
+        // 🎯 NUEVA FUNCIÓN: Generar grupos financieros directamente desde el ledger
+        // 🎯 NUEVA FUNCIÓN: Generar grupos financieros directamente desde asignaciones
+        // Usando la estructura original del sistema DOM
+        function buildGruposFinancierosFromAssignments(assignments, localAdjustmentsMap = new Map()) {
+            console.log('🎯 buildGruposFinancierosFromAssignments - Generando desde asignaciones');
+            console.log('📊 Asignaciones disponibles:', assignments.length);
+            
+            const adjustmentMap = localAdjustmentsMap instanceof Map ? localAdjustmentsMap : new Map(localAdjustmentsMap || []);
+            
+            // 🏗️ USAR LA ESTRUCTURA ORIGINAL DEL SISTEMA
+            const originalStructure = buildFinancialGroupStructureFromDom();
+            
+            if (!originalStructure || !originalStructure.nodes) {
+                console.warn('⚠️ No se encontró estructura original, generando estructura plana');
+                return buildGruposFinancierosFromAssignmentsFlat(assignments, localAdjustmentsMap);
+            }
+            
+            console.log('🏗️ Usando estructura original del sistema:', {
+                totalNodes: originalStructure.nodes.size,
+                roots: originalStructure.roots?.length || 0
+            });
+            
+            // 🎯 MAPEAR ASIGNACIONES A LA ESTRUCTURA EXISTENTE
+            const assignmentMap = new Map();
+            for (const assignment of assignments) {
+                const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
+                const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
+                
+                if (codeKey) {
+                    assignmentMap.set(codeKey, assignment);
+                }
+                if (nameKey) {
+                    assignmentMap.set(nameKey, assignment);
+                }
+            }
+            
+            const rows = [];
+            let rowCounter = 0;
+            const nextRowId = () => `financial-row-${rowCounter++}`;
+            const nodeRowIdMap = new Map(); // nodeId -> rowId de la fila de grupo
+            const rowIndexMap = new Map(); // rowId -> índice en rows para inserciones ordenadas
+            
+            // 🔍 MOSTRAR DATOS DE ASIGNACIONES PARA DEPURACIÓN
+            console.log('📊 Muestra de datos de asignaciones con groupContentId:');
+            let sampleCount = 0;
+            for (const assignment of assignments) {
+                if (sampleCount < 5) {
+                    console.log(`  Assignment ${sampleCount + 1}:`, {
+                        code: assignment.code,
+                        name: assignment.name,
+                        value: assignment.value,
+                        prevValue: assignment.prevValue,
+                        groupContentId: assignment.groupContentId,
+                        parentGroupId: assignment.parentGroupId,
+                        accountId: assignment.accountId
+                    });
+                    sampleCount++;
+                }
+            }
+            
+            // Contar asignaciones con y sin groupContentId
+            const withGroupContentId = assignments.filter(a => a.groupContentId).length;
+            const withParentGroupId = assignments.filter(a => a.parentGroupId).length;
+            const withoutAnyGroup = assignments.filter(a => !a.groupContentId && !a.parentGroupId).length;
+            
+            console.log('📈 Estadísticas de asignaciones:', {
+                total: assignments.length,
+                conGroupContentId: withGroupContentId,
+                conParentGroupId: withParentGroupId,
+                sinAsignacion: withoutAnyGroup
+            });
+            
+            // 🎯 PROCESAR NODOS DE LA ESTRUCTURA ORIGINAL Y ASIGNACIONES
+            const processedNodes = new Set();
+            
+            // Primero procesar nodos estructurales (groups y subgroups)
+            for (const [nodeId, node] of originalStructure.nodes) {
+                if (node.type === 'group' || node.type === 'subgroup') {
+                    // Para grupos, calcular totales de sus asignaciones hijas
+                    let preliminary = 0;
+                    let finalPrevious = 0;
+                    let adjustments = 0;
+                    let finalCurrent = 0;
+                    
+                    // Buscar asignaciones que pertenecen a este grupo
+                    const groupAssignments = assignments.filter(assignment => 
+                        assignment.groupContentId === nodeId || 
+                        assignment.parentGroupId === nodeId
+                    );
+                    
+                    // Sumar valores de las asignaciones del grupo
+                    groupAssignments.forEach(assignment => {
+                        const assignmentPreliminary = parseAccountValue(assignment.value || 0);
+                        const assignmentFinalPrevious = parseAccountValue(assignment.prevValue || 0);
+                        const assignmentCode = assignment.code || assignment.accountCode || '';
+                        const assignmentName = assignment.name || assignment.accountName || '';
+                        
+                        // Aplicar ajustes locales
+                        const localAdjustment = adjustmentMap.get(assignmentCode) || adjustmentMap.get(assignmentName) || 0;
+                        const assignmentFinalCurrent = assignmentPreliminary + localAdjustment;
+                        
+                        preliminary += assignmentPreliminary;
+                        finalPrevious += assignmentFinalPrevious;
+                        adjustments += localAdjustment;
+                        finalCurrent += assignmentFinalCurrent;
+                    });
+                    
+                    const parentRowId = (node.parentId && nodeRowIdMap.has(node.parentId))
+                        ? nodeRowIdMap.get(node.parentId)
+                        : '';
+                    const row = {
+                        rowId: nextRowId(),
+                        accountName: node.name || node.label || nodeId,
+                        accountCode: node.accountCode || '',
+                        preliminary,
+                        adjustments,
+                        finalCurrent,
+                        finalPrevious,
+                        level: node.type === 'group' ? 0 : 1,
+                        isParent: true,
+                        hasChildren: groupAssignments.length > 0,
+                        parentId: parentRowId,
+                        nodeType: node.type,
+                        ledgerMissing: false,
+                        meta: { ...node.meta, assignmentCount: groupAssignments.length }
+                    };
+                    
+                    rows.push(row);
+                    nodeRowIdMap.set(nodeId, row.rowId);
+                    rowIndexMap.set(row.rowId, rows.length - 1);
+                    processedNodes.add(nodeId);
+                    
+                    console.log(`📁 Grupo ${nodeId}:`, {
+                        name: node.name,
+                        assignments: groupAssignments.length,
+                        totals: { preliminary, finalPrevious, adjustments, finalCurrent }
+                    });
+                }
+            }
+            
+            // Luego procesar asignaciones como cuentas individuales
+            const processedAssignments = new Set();
+            
+            assignments.forEach(assignment => {
+                const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
+                const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
+                
+                if (!codeKey) return;
+                
+                // Evitar duplicados
+                const assignmentKey = `${codeKey}-${nameKey}`;
+                if (processedAssignments.has(assignmentKey)) return;
+                processedAssignments.add(assignmentKey);
+                
+                // Extraer valores de la asignación
+                let preliminary = parseAccountValue(assignment.value || 0);
+                let finalPrevious = parseAccountValue(assignment.prevValue || 0);
+                
+                // Aplicar ajustes locales
+                const adjustments = adjustmentMap.get(codeKey) || adjustmentMap.get(nameKey) || 0;
+                const finalCurrent = preliminary + adjustments;
+                
+                // 🎯 USAR ASIGNACIONES EXISTENTES DEL LIBRO MAYOR DIRECTAMENTE
+                let parentId = '';
+                if (assignment.groupContentId) {
+                    parentId = assignment.groupContentId;
+                    console.log(`📌 Usando groupContentId existente: ${parentId} para cuenta ${codeKey} - ${nameKey}`);
+                } else if (assignment.parentGroupId) {
+                    parentId = assignment.parentGroupId;
+                    console.log(`📌 Usando parentGroupId existente: ${parentId} para cuenta ${codeKey} - ${nameKey}`);
+                } else {
+                    // Solo si no tiene asignación, mapear automáticamente
+                    parentId = mapAccountCodeToGroup(codeKey, nameKey, originalStructure);
+                    console.log(`⚠️ Sin asignación, mapeo automático: ${codeKey} - ${nameKey} → ${parentId}`);
+                }
+                
+                // Crear fila para esta asignación
+                const parentRowId = (parentId && nodeRowIdMap.has(parentId))
+                    ? nodeRowIdMap.get(parentId)
+                    : '';
+                const originalName = assignment.meta?.name || assignment.meta?.originalName || nameKey || `Cuenta ${codeKey}`;
+                const row = {
+                    rowId: nextRowId(),
+                    accountName: originalName,
+                    accountCode: codeKey,
+                    preliminary,
+                    adjustments,
+                    finalCurrent,
+                    finalPrevious,
+                    level: parentRowId ? 1 : 2, // Si tiene padre, nivel 1; si no, nivel 2
+                    isParent: false,
+                    hasChildren: false,
+                    parentId: parentRowId,
+                    nodeType: 'account',
+                    ledgerMissing: false,
+                    meta: { 
+                        assignmentSource: true, 
+                        parentGroupId: parentId,
+                        originalName: originalName,
+                        accountName: originalName
+                    }
+                };
+                
+                // Insertar justo después del grupo padre si existe, si no al final
+                if (parentRowId && rowIndexMap.has(parentRowId)) {
+                    const parentIndex = rowIndexMap.get(parentRowId);
+                    const insertionIndex = parentIndex + 1;
+                    rows.splice(insertionIndex, 0, row);
+                    // Recalcular índices
+                    rows.forEach((r, idx) => rowIndexMap.set(r.rowId, idx));
+                } else {
+                    rows.push(row);
+                    rowIndexMap.set(row.rowId, rows.length - 1);
+                }
+                
+                console.log(`💰 Asignación ${codeKey}-${nameKey}:`, {
+                    preliminary,
+                    finalPrevious,
+                    adjustments,
+                    finalCurrent,
+                    parentId,
+                    parentRowId
+                });
+            });
+            
+            console.log(`✅ Generados ${rows.length} grupos financieros usando estructura original`);
+            console.log('📊 Resumen:', {
+                totalNodes: originalStructure.nodes.size,
+                rowsGenerated: rows.length,
+                withAssignmentData: rows.filter(r => !r.ledgerMissing).length,
+                withStaticData: rows.filter(r => r.ledgerMissing).length
+            });
+            
+            return rows;
+        }
+
+        // 🎯 FUNCIÓN DE MAPEO INTELIGENTE DE CUENTAS A GRUPOS
+        function mapAccountCodeToGroup(accountCode, accountName, structure) {
+            console.log(`🔍 Analizando mapeo: ${accountCode} - ${accountName}`);
+            
+            if (!structure || !structure.nodes) {
+                console.log('❌ Estructura vacía, retornando ""');
+                return '';
+            }
+            
+            // 🏦 REGLAS DE MAPEO BASADAS EN CÓDIGOS DE CUENTA
+            const code = accountCode.toString().trim();
+            const name = accountName.toLowerCase();
+            
+            console.log(`📊 Código: "${code}", Nombre: "${name}"`);
+            
+            // Clientes: códigos que empiezan con 1103 o contienen "cliente"
+            if (code.startsWith('1103') || name.includes('cliente')) {
+                return findGroupByCodeOrName('130', 'Clientes', structure);
+            }
+            
+            // Caja y Bancos: códigos que empiezan con 1101 o contienen "caja" o "banco"
+            if (code.startsWith('1101') || name.includes('caja') || name.includes('banco')) {
+                return findGroupByCodeOrName('140', 'Caja y bancos', structure);
+            }
+            
+            // Proveedores: códigos que empiezan con 2101 o contienen "proveedor"
+            if (code.startsWith('2101') || name.includes('proveedor')) {
+                return findGroupByCodeOrName('425', 'Proveedores', structure);
+            }
+            
+            // Préstamos bancarios: códigos que empiezan con 400 o contienen "préstamo" o "bancario"
+            if (code.startsWith('400') || name.includes('préstamo') || name.includes('bancario')) {
+                return findGroupByCodeOrName('400', 'Préstamos bancarios', structure);
+            }
+            
+            // Anticipos de clientes: códigos que empiezan con 336 o contienen "anticipo" y "cliente"
+            if (code.startsWith('336') || (name.includes('anticipo') && name.includes('cliente'))) {
+                return findGroupByCodeOrName('336', 'Anticipos de clientes', structure);
+            }
+            
+            // Anticipos a proveedores: códigos que empiezan con 137 o contienen "anticipo" y "proveedor"
+            if (code.startsWith('137') || (name.includes('anticipo') && name.includes('proveedor'))) {
+                return findGroupByCodeOrName('137', 'Anticipos a proveedores', structure);
+            }
+            
+            // Inversiones: códigos que empiezan con 120 o 150 o contienen "inversión"
+            if (code.startsWith('120') || code.startsWith('150') || name.includes('inversión')) {
+                return findGroupByCodeOrName('120', 'Inversiones', structure);
+            }
+            
+            // Impuestos por cobrar: códigos que empiezan con 136 o contienen "impuesto" y "cobrar"
+            if (code.startsWith('136') || (name.includes('impuesto') && name.includes('cobrar'))) {
+                return findGroupByCodeOrName('136', 'Impuestos por cobrar', structure);
+            }
+            
+            // Impuestos por pagar: códigos que empiezan con 335 o contienen "impuesto" y "pagar"
+            if (code.startsWith('335') || (name.includes('impuesto') && name.includes('pagar'))) {
+                return findGroupByCodeOrName('335', 'Impuestos por pagar', structure);
+            }
+            
+            // Otras cuentas por cobrar: códigos que empiezan con 135
+            if (code.startsWith('135')) {
+                return findGroupByCodeOrName('135', 'Otras cuentas por cobrar', structure);
+            }
+
+            // 🔝 Fallback por dígito principal
+            const leading = code.charAt(0);
+            console.log(`🔢 Dígito principal: "${leading}"`);
+            
+            if (leading === '1') {
+                const result = findGroupByCodeOrName('', 'Activo', structure);
+                console.log(`🎯 Dígito 1 → Activo: ${result}`);
+                return result;
+            }
+            if (leading === '2' || leading === '3') {
+                const result = findGroupByCodeOrName('', 'Pasivo y Patrimonio', structure);
+                console.log(`🎯 Dígito ${leading} → Pasivo y Patrimonio: ${result}`);
+                return result;
+            }
+            if (leading === '4' || leading === '5') {
+                const result = findGroupByCodeOrName('', 'Resultados', structure);
+                console.log(`🎯 Dígito ${leading} → Resultados: ${result}`);
+                return result;
+            }
+            
+            // Por defecto, buscar en Resultados si no hay coincidencia específica
+            console.log(`⚠️ Sin coincidencia, usando Resultados por defecto`);
+            const result = findGroupByCodeOrName('', 'Resultados', structure);
+            console.log(`🎯 Default → Resultados: ${result}`);
+            return result;
+        }
+        
+        // Función auxiliar para encontrar grupo por código o nombre
+        function findGroupByCodeOrName(targetCode, targetName, structure) {
+            console.log(`🔎 Buscando grupo: code="${targetCode}", name="${targetName}"`);
+            
+            // Primero buscar por código exacto
+            if (targetCode) {
+                for (const [nodeId, node] of structure.nodes) {
+                    if (node.accountCode === targetCode && (node.type === 'group' || node.type === 'subgroup')) {
+                        console.log(`✅ Encontrado por código: ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                }
+            }
+            
+            // Luego buscar por nombre - mejorado para grupos principales
+            for (const [nodeId, node] of structure.nodes) {
+                if (node.type === 'group' || node.type === 'subgroup') {
+                    const nodeName = (node.name || node.label || '').toLowerCase();
+                    const targetLower = targetName.toLowerCase();
+                    
+                    // Búsqueda exacta primero
+                    if (targetName && nodeName === targetLower) {
+                        console.log(`✅ Encontrado por nombre exacto: ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                    
+                    // Búsqueda por palabras clave para grupos principales
+                    if (targetLower.includes('activo') && nodeName.includes('activo')) {
+                        console.log(`✅ Encontrado por palabra clave 'activo': ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                    if (targetLower.includes('pasivo') && nodeName.includes('pasivo')) {
+                        console.log(`✅ Encontrado por palabra clave 'pasivo': ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                    if (targetLower.includes('patrimonio') && nodeName.includes('patrimonio')) {
+                        console.log(`✅ Encontrado por palabra clave 'patrimonio': ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                    if (targetLower.includes('resultados') && nodeName.includes('resultados')) {
+                        console.log(`✅ Encontrado por palabra clave 'resultados': ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                    
+                    // Búsqueda parcial como fallback
+                    if (targetName && nodeName.includes(targetLower)) {
+                        console.log(`✅ Encontrado por nombre parcial: ${nodeId} - ${node.name}`);
+                        return nodeId;
+                    }
+                }
+            }
+            
+            // 🔧 FALLBACK: Si no se encuentra, intentar retornar IDs de grupos principales conocidos
+            console.log(`❌ No se encontró grupo para ${targetCode} - ${targetName}`);
+            console.log(`📋 Grupos disponibles:`, Array.from(structure.nodes.entries()).map(([id, node]) => `${id}: ${node.name} (${node.type})`));
+            
+            // Fallback para grupos principales
+            const targetLower = targetName.toLowerCase();
+            if (targetLower.includes('activo')) {
+                console.log(`🔧 Fallback: retornando activo-main`);
+                return 'activo-main';
+            }
+            if (targetLower.includes('pasivo') || targetLower.includes('patrimonio')) {
+                console.log(`🔧 Fallback: retornando pasivo-patrimonio-main`);
+                return 'pasivo-patrimonio-main';
+            }
+            if (targetLower.includes('resultados')) {
+                console.log(`🔧 Fallback: retornando resultados-main`);
+                return 'resultados-main';
+            }
+            
+            return '';
+        }
+
+        // Función fallback para generar estructura plana si no hay estructura original
+        function buildGruposFinancierosFromAssignmentsFlat(assignments, localAdjustmentsMap = new Map()) {
+            console.log('⚠️ Generando estructura plana desde asignaciones (fallback)');
+            
+            const adjustmentMap = localAdjustmentsMap instanceof Map ? localAdjustmentsMap : new Map(localAdjustmentsMap || []);
+            const rows = [];
+            let rowCounter = 0;
+            const nextRowId = () => `financial-row-${rowCounter++}`;
+            
+            for (const assignment of assignments) {
+                const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
+                const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
+                
+                let preliminary = parseAccountValue(assignment.value || 0);
+                let finalPrevious = parseAccountValue(assignment.prevValue || 0);
+                const adjustments = adjustmentMap.get(codeKey) || adjustmentMap.get(nameKey) || 0;
+                const finalCurrent = preliminary + adjustments;
+                
+                const row = {
+                    rowId: nextRowId(),
+                    accountName: nameKey || `Cuenta ${codeKey}`,
+                    accountCode: codeKey,
+                    preliminary,
+                    adjustments,
+                    finalCurrent,
+                    finalPrevious,
+                    level: 2,
+                    isParent: false,
+                    hasChildren: false,
+                    parentId: '',
+                    nodeType: 'account',
+                    ledgerMissing: false
+                };
+                
+                rows.push(row);
+            }
+            
+            return rows;
+        }
+
+        function buildGruposFinancierosFromLedger(structure, ledgerMap, localAdjustmentsMap = new Map()) {
+            console.log('🎯 buildGruposFinancierosFromLedger - Generando desde datos del libro mayor');
+            console.log('📊 Ledger entries disponibles:', ledgerMap.size);
+            
+            const adjustmentMap = localAdjustmentsMap instanceof Map ? localAdjustmentsMap : new Map(localAdjustmentsMap || []);
+            const effectiveStructure = (structure && structure.nodes instanceof Map) ? structure : buildFinancialGroupStructureFromDom();
+            
+            if (!effectiveStructure || !(effectiveStructure.nodes instanceof Map) || !effectiveStructure.nodes.size) {
+                console.error('❌ ERROR: Estructura de grupos inválida para generación desde ledger');
+                return [];
+            }
+            
+            const rows = [];
+            let rowCounter = 0;
+            const nextRowId = () => `financial-row-${rowCounter++}`;
+            
+            // 🔍 MOSTRAR DATOS DEL LEDGER PARA DEPURACIÓN
+            console.log('📊 Muestra de datos del ledger:');
+            let sampleCount = 0;
+            for (const [key, value] of ledgerMap.entries()) {
+                if (sampleCount < 3) {
+                    console.log(`  Ledger[${key}]:`, value);
+                    sampleCount++;
+                }
+            }
+            
+            // 🎯 PROCESAR DIRECTAMENTE LAS ENTRADAS DEL LEDGER
+            for (const [ledgerKey, ledgerEntry] of ledgerMap.entries()) {
+                // Extraer código y nombre del ledgerKey
+                let codeKey = '';
+                let nameKey = '';
+                
+                // El ledgerKey puede venir en diferentes formatos:
+                // "11010101-Cuenta Nombre"
+                // "11010101"
+                // "Cuenta Nombre"
+                if (ledgerKey.includes('-')) {
+                    const parts = ledgerKey.split('-');
+                    codeKey = parts[0].trim();
+                    nameKey = parts.slice(1).join('-').trim();
+                } else if (/^\d+$/.test(ledgerKey)) {
+                    // Es solo números, buscar nombre en el ledgerEntry
+                    codeKey = ledgerKey;
+                    nameKey = ledgerEntry.name || ledgerEntry.accountName || ledgerEntry.description || '';
+                } else {
+                    // Es texto, usar como nombre
+                    nameKey = ledgerKey;
+                    codeKey = ledgerEntry.code || ledgerEntry.accountCode || '';
+                }
+                
+                // Extraer valores del ledgerEntry
+                let preliminary = 0;
+                let finalPrevious = 0;
+                
+                if (typeof ledgerEntry === 'object' && ledgerEntry !== null) {
+                    // Valores por año
+                    preliminary = parseAccountValue(ledgerEntry.currentYear || ledgerEntry.preliminary || ledgerEntry.value2024 || 0);
+                    finalPrevious = parseAccountValue(ledgerEntry.previousYear || ledgerEntry.finalPrevious || ledgerEntry.value2023 || 0);
+                } else {
+                    // Es un valor simple (ajuste)
+                    preliminary = parseAccountValue(ledgerEntry);
+                    finalPrevious = 0;
+                }
+                
+                // Aplicar ajustes locales
+                const adjustments = adjustmentMap.get(codeKey) || adjustmentMap.get(nameKey) || 0;
+                const finalCurrent = preliminary + adjustments;
+                
+                console.log(`🎯 Ledger Entry ${codeKey}-${nameKey}:`, {
+                    preliminary,
+                    finalPrevious,
+                    adjustments,
+                    finalCurrent
+                });
+                
+                // Crear fila para esta cuenta del ledger
+                const row = {
+                    rowId: nextRowId(),
+                    accountName: nameKey || `Cuenta ${codeKey}`,
+                    accountCode: codeKey,
+                    preliminary,
+                    adjustments,
+                    finalCurrent,
+                    finalPrevious,
+                    level: 2, // Nivel por defecto para cuentas del ledger
+                    isParent: false,
+                    hasChildren: false,
+                    parentId: '',
+                    nodeType: 'ledger-account',
+                    ledgerMissing: false
+                };
+                
+                rows.push(row);
+            }
+            
+            console.log(`✅ Generados ${rows.length} grupos financieros desde el ledger`);
+            return rows;
+        }
+
         function buildGruposFinancierosRows(structure, assignments, ledgerMap, ledgerAvailable, localAdjustmentsMap = new Map()) {
             console.log('🔍 DIAGNÓSTICO AVANZADO - buildGruposFinancierosRows:');
+            const effectiveLedgerMap = ledgerMap instanceof Map ? ledgerMap : new Map(ledgerMap || []);
+            const hasLedgerData = !!ledgerAvailable && effectiveLedgerMap.size > 0;
+
             console.log('  structure:', !!structure, structure?.nodes?.size || 0);
             console.log('  assignments:', Array.isArray(assignments) ? assignments.length : 'not array');
-            console.log('  ledgerMap:', ledgerMap?.size || 0);
+            console.log('  ledgerMap:', effectiveLedgerMap.size);
             console.log('  ledgerAvailable:', ledgerAvailable);
+            
+            // 🎯 NUEVO ENFOQUE: Si hay datos del ledger, generar grupos directamente desde el ledger
+            console.log('🔍 DEBUG - Verificando condiciones para ledger:');
+            console.log('  ledgerAvailable:', ledgerAvailable);
+            console.log('  ledgerMap exists:', !!effectiveLedgerMap);
+            console.log('  ledgerMap size:', effectiveLedgerMap.size);
+            console.log('  ledgerMap > 0:', hasLedgerData);
+            
+            if (hasLedgerData) {
+                console.log('🎯 GENERANDO GRUPOS DIRECTAMENTE DESDE LEDGER - más práctico!');
+                return buildGruposFinancierosFromLedger(structure, effectiveLedgerMap, localAdjustmentsMap);
+            }
+            
+            console.log('🔍 INFO: No hay datos del ledger disponibles, usando estructura + asignaciones');
             
             const effectiveStructure = (structure && structure.nodes instanceof Map)
                 ? structure
@@ -6327,8 +7186,21 @@
             const normalizeNodeType = (type) => (type || '').toString().toLowerCase();
 
             const summarizeAssignment = (assignment) => {
+                // 🔍 DEBUG: Verificar datos de la asignación
+                console.log(`🔍 DEBUG Assignment:`, {
+                    assignment,
+                    code: assignment.code,
+                    accountCode: assignment.accountCode,
+                    name: assignment.name,
+                    accountName: assignment.accountName,
+                    value: assignment.value,
+                    prevValue: assignment.prevValue
+                });
+                
                 const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
                 const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
+                
+                console.log(`🔍 DEBUG Keys: codeKey="${codeKey}", nameKey="${nameKey}"`);
 
                 // PRIORIZAR LEDGER: Tomar valores del libro mayor si están disponibles
                 let preliminary = 0;
@@ -6387,8 +7259,10 @@
 
             const createAssignmentRow = (assignment, level, parentRowId) => {
                 const summary = summarizeAssignment(assignment);
+                const cleanedName = stripAccountPrefix(summary.label);
+                const displayName = cleanedName || summary.accountCode || summary.label || 'Cuenta sin nombre';
                 const row = {
-                    accountName: stripAccountPrefix(summary.label),
+                    accountName: displayName,
                     accountId: summary.accountId,
                     accountCode: summary.accountCode,
                     preliminary: summary.preliminary,
@@ -6442,8 +7316,11 @@
                 adjustments += localAdj;
                 const finalCurrent = preliminary + adjustments;
 
+                const cleanedName = stripAccountPrefix(nameKey || codeKey || '');
+                const displayName = cleanedName || codeKey || nameKey || 'Cuenta sin nombre';
+
                 const row = {
-                    accountName: stripAccountPrefix(nameKey || codeKey || 'Cuenta'),
+                    accountName: displayName,
                     accountId: codeKey,
                     accountCode: codeKey,
                     preliminary,
@@ -6657,10 +7534,35 @@
                 const hasValues = (Math.abs(totals.preliminary) + Math.abs(totals.adjustments) + Math.abs(totals.finalPrevious)) !== 0;
                 const ledgerMissingFlag = ledgerAvailable ? false : !hasValues;
 
+                // 🔧 PRESERVAR NOMBRES CORRECTOS - Evitar nombres vacíos
+                const accountName = node.label || node.name || node.meta?.name || node.meta?.label || 'Grupo';
+                const accountCode = node.accountCode || node.meta?.accountCode || node.meta?.code || '';
+                
+                // 🔧 VALIDACIÓN DE DATOS - Asegurar que siempre haya información mínima
+                const hasValidData = 
+                    (accountCode && accountCode.trim() !== '') ||
+                    (accountName && accountName.trim() !== '' && accountName !== 'Grupo') ||
+                    (totals.preliminary !== 0) ||
+                    (totals.adjustments !== 0) ||
+                    (finalCurrent !== 0) ||
+                    (totals.finalPrevious !== 0);
+
+                // Si no hay datos válidos pero es un nodo principal, mantener con nombre correcto
+                const shouldInclude = hasValidData || (level === 0 && accountName !== 'Grupo');
+
+                if (!shouldInclude) {
+                    console.log(`🔍 Filtrando grupo sin datos válidos: ${accountName} (${accountCode})`);
+                    return {
+                        totals: { preliminary: 0, adjustments: 0, finalPrevious: 0 },
+                        rows: [],
+                        hasContent: false
+                    };
+                }
+
                 const row = {
-                    accountName: node.label || node.name || 'Grupo',
+                    accountName: accountName,
                     accountId: nodeAccountId || null,
-                    accountCode: node.accountCode || node.meta?.accountCode || node.meta?.code || '',
+                    accountCode: accountCode,
                     preliminary: totals.preliminary,
                     adjustments: totals.adjustments,
                     finalCurrent,
@@ -7014,6 +7916,15 @@
         }
 
         function renderGruposFinancieros(rows, meta) {
+            console.log('🔍 DEBUG renderGruposFinancieros - Datos recibidos:', {
+                rowsCount: rows?.length || 0,
+                meta,
+                sampleRow: rows?.[0],
+                sampleRowMeta: rows?.[0]?.meta,
+                sampleRowOriginalName: rows?.[0]?.meta?.originalName,
+                sampleRowAccountName: rows?.[0]?.accountName
+            });
+            
             const tbody = document.getElementById('gruposFinancierosTableBody');
             if (!tbody) return;
 
@@ -7081,6 +7992,34 @@
                 const adjustmentsCell = row.ledgerMissing
                     ? formatLedgerMissingCell()
                     : formatLedgerCell(row.adjustments);
+                    
+                // 🔍 DEBUG: Verificar qué datos tenemos para esta fila
+                console.log(`🔍 DEBUG Fila ${index} - Datos de cuenta:`, {
+                    rowId: row.rowId,
+                    meta: row.meta,
+                    originalName: row.meta?.originalName,
+                    accountName: row.accountName,
+                    accountCode: row.accountCode,
+                    label: row.label,
+                    level: row.level,
+                    preliminary: row.preliminary,
+                    adjustments: row.adjustments,
+                    finalCurrent: row.finalCurrent,
+                    finalPrevious: row.finalPrevious,
+                    staticPrevValue: row.staticPrevValue
+                });
+                
+                const displayName = row.meta?.originalName || row.accountName || row.accountCode || row.label || 'Cuenta sin nombre';
+                
+                // Obtener el tipo de grupo financiero
+                const groupType = getGroupType(displayName, row.groupContentId);
+                
+                console.log(`🔍 DEBUG Fila ${index} - DisplayName final:`, displayName);
+                console.log(`🔍 DEBUG Fila ${index} - Valores finales:`, {
+                    finalCurrent: row.finalCurrent,
+                    finalPrevious: row.finalPrevious,
+                    staticPrevValue: row.staticPrevValue
+                });
                 const toggle = row.hasChildren
                     ? `<button class="financial-toggle" data-row-id="${row.rowId}" aria-label="Expandir/contraer" style="border: none; background: transparent; padding: 0; margin: 0 4px 0 0; cursor: pointer; color: #64748b;">
                            <i class="bi bi-chevron-down"></i>
@@ -7092,7 +8031,8 @@
                         <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; background-color: inherit;">
                             <div style="display: flex; align-items: center; margin-left: ${indent}px;">
                                 ${toggle}
-                                ${row.accountName}
+                                ${displayName}
+                                ${groupType ? `<small style="color: #6c757d; margin-left: 8px; font-weight: 400;">(${groupType})</small>` : ''}
                             </div>
                         </td>
                         <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; text-align:right; background-color: inherit;">${formatLedgerCell(row.preliminary)}</td>
@@ -19058,11 +19998,21 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     function parseAccountValue(rawValue) {
         if (rawValue == null) return 0;
         if (typeof rawValue === 'number') {
+            // 🔥 VALIDACIÓN ANTI-CORRUPTIÓN: Evitar números enormes
+            if (!Number.isFinite(rawValue) || Math.abs(rawValue) > 1e15) {
+                console.warn('⚠️ Valor numérico corrupto detectado y corregido:', rawValue);
+                return 0;
+            }
             return rawValue;
         }
 
         if (typeof rawValue !== 'string') {
             const numeric = Number(rawValue);
+            // 🔥 VALIDACIÓN ANTI-CORRUPTIÓN: Evitar números enormes
+            if (!Number.isFinite(numeric) || Math.abs(numeric) > 1e15) {
+                console.warn('⚠️ Valor convertido corrupto detectado y corregido:', rawValue, '→', numeric);
+                return 0;
+            }
             return Number.isFinite(numeric) ? numeric : 0;
         }
 
@@ -19113,6 +20063,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         if (!Number.isFinite(parsed)) return 0;
+        
+        // 🔥 VALIDACIÓN ANTI-CORRUPTIÓN FINAL: Evitar números enormes
+        if (Math.abs(parsed) > 1e15) {
+            console.warn('⚠️ Valor parseado corrupto detectado y corregido:', rawValue, '→', parsed);
+            return 0;
+        }
         
         // Aplicar signo negativo si corresponde
         if (hasParens || isNegative) {

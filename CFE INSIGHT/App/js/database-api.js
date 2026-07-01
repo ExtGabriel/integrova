@@ -506,9 +506,38 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
     try {
         console.log('Saving financial groups results:', { datasetId, resultsCount: results.length, entityId, commitmentId });
         
+        // � FILTRAR GRUPOS VACÍOS - Evitar enviar datos corruptos
+        const validResults = results.filter(group => {
+            const hasValidData = 
+                (group.account_code && group.account_code.trim() !== '') ||
+                (group.account_name && group.account_name.trim() !== '') ||
+                (group.preliminary !== 0) ||
+                (group.adjustments !== 0) ||
+                (group.final_current !== 0) ||
+                (group.final_previous !== 0);
+            
+            if (!hasValidData) {
+                console.log('🔍 Filtrando grupo vacío:', group);
+            }
+            
+            return hasValidData;
+        });
+        
+        console.log('🔍 Filtrado de grupos:', {
+            original: results.length,
+            validos: validResults.length,
+            filtrados: results.length - validResults.length
+        });
+        
+        // Si no hay grupos válidos, no enviar nada
+        if (validResults.length === 0) {
+            console.warn('⚠️ No hay grupos válidos para guardar - abortando operación');
+            return { success: false, error: 'No hay grupos válidos para guardar' };
+        }
+        
         const requestBody = {
             datasetId,
-            results,
+            results: validResults,
             status,
             entityId,
             commitmentId
@@ -535,8 +564,14 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
         }
 
         console.log('Financial groups results saved successfully:', { 
+<<<<<<< HEAD
             snapshotId: result.snapshot?.id, 
             groupsCount: result.groupsCount || 0 
+=======
+            runId: result.run?.id || 'N/A', 
+            rowsCount: result.rows?.length || result.results?.length || 0,
+            success: result.success
+>>>>>>> f4924b8fb104b8abab50408d9f87bbed5df06d5a
         });
         
         return result;
