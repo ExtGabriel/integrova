@@ -521,11 +521,26 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         // Event listeners para botones de filtro de impacto
         const impactFilterButtons = document.querySelectorAll('[data-filter="impact"]');
         impactFilterButtons.forEach(button => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
                 // Remover clase active de todos los botones de impacto
                 impactFilterButtons.forEach(btn => btn.classList.remove('active'));
                 // Agregar clase active al botón clickeado
                 button.classList.add('active');
+                
+                // Asegurar que los datos estén cargados antes de aplicar el filtro
+                if (!Array.isArray(ajustes) || ajustes.length === 0) {
+                    console.log('🔧 Filtro: Cargando ajustes antes de aplicar filtro...');
+                    try {
+                        ajustes = await loadAdjustmentsFromStorage();
+                        if (!Array.isArray(ajustes)) {
+                            ajustes = [];
+                        }
+                        console.log(`🔧 Filtro: ${ajustes.length} ajustes cargados para filtrar`);
+                    } catch (error) {
+                        console.error('❌ Error cargando ajustes para filtro:', error);
+                        ajustes = [];
+                    }
+                }
                 
                 // Re-renderizar ajustes con el nuevo filtro
                 renderAjustes();
@@ -1245,26 +1260,40 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
         }
 
         function renderAjustes() {
+            console.log('🔍 renderAjustes llamado - ajustes.length:', ajustes.length);
+            console.log('🔍 renderAjustes - contenido de ajustes:', ajustes);
+            
             if (typeof window !== 'undefined') {
                 window.ajustes = ajustes;
+                console.log('🔍 window.ajustes establecido - length:', window.ajustes.length);
             }
             
             // Aplicar filtro si está activo
             let ajustesFiltrados = ajustes;
             const filtroActivo = getActiveImpactFilter();
+            console.log('🔍 filtroActivo:', filtroActivo);
             
             if (filtroActivo && filtroActivo !== 'all') {
                 ajustesFiltrados = ajustes.filter(ajuste => {
+                    // Obtener el tipo desde ambos campos posibles (compatibilidad UI vs BD)
+                    const tipoAjuste = ajuste.tipo || ajuste.adjustment_type || '';
+                    
                     if (filtroActivo === 'affects') {
                         // Mostrar solo los que afectan cuentas (Normal)
-                        return ajuste.tipo !== 'no-registrado-hecho' && ajuste.adjustment_type !== 'no-registrado-hecho';
+                        return tipoAjuste !== 'no-registrado-hecho';
                     } else if (filtroActivo === 'no-affects') {
                         // Mostrar solo los que no afectan cuentas (No registrado)
-                        return ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho';
+                        return tipoAjuste === 'no-registrado-hecho';
                     }
                     return true;
                 });
                 console.log(`🔍 Filtrando ajustes: ${filtroActivo} - ${ajustes.length} totales, ${ajustesFiltrados.length} visibles`);
+                console.log('🔍 Estructura de datos de ajustes:', ajustes.map(a => ({
+                    id: a.id,
+                    tipo: a.tipo,
+                    adjustment_type: a.adjustment_type,
+                    tipoDetectado: a.tipo || a.adjustment_type
+                })));
             }
             
             // Usar el nuevo sistema de renderizado con ajuste-card-wrapper
