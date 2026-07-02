@@ -122,12 +122,12 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                             <div class="form-field">
                                 <label for="ajusteTipo">Tipo</label>
                                 <select id="ajusteTipo" name="tipo" required>
-                                    <option value="normal">Normal</option>
-                                    <option value="reclasificacion">Reclasificación</option>
-                                    <option value="no-registrado-hecho">No registrado - Hecho</option>
-                                    <option value="no-registrado-proyectado">No registrado - Proyectado</option>
-                                    <option value="no-registrado-critico">No registrado - Crítico</option>
+                                    <option value="normal">Normal - Afecta saldos de cuentas</option>
+                                    <option value="no-registrado-hecho">No registrado - Solo documentación</option>
                                 </select>
+                                <small id="tipoHelpText" style="color: #666; font-size: 0.85em; margin-top: 4px; display: block;">
+                                    Los ajustes "Normal" modifican los saldos de las cuentas. Los "No registrado" solo documentan transacciones.
+                                </small>
                             </div>
                             <div class="form-field">
                                 <label for="ajustePeriodo">Período</label>
@@ -518,6 +518,28 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             closeSelectorModal();
         });
 
+        // Event listeners para botones de filtro de impacto
+        const impactFilterButtons = document.querySelectorAll('[data-filter="impact"]');
+        impactFilterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remover clase active de todos los botones de impacto
+                impactFilterButtons.forEach(btn => btn.classList.remove('active'));
+                // Agregar clase active al botón clickeado
+                button.classList.add('active');
+                
+                // Re-renderizar ajustes con el nuevo filtro
+                renderAjustes();
+                
+                console.log('🔍 Filtro de impacto cambiado a:', button.dataset.value);
+            });
+        });
+        
+        // Establecer "Todos los ajustes" como filtro por defecto
+        const defaultFilterButton = document.querySelector('[data-filter="impact"][data-value="all"]');
+        if (defaultFilterButton) {
+            defaultFilterButton.classList.add('active');
+        }
+
         selectorSearchInput?.addEventListener('input', (event) => {
             if (!selectorState) return;
             const term = event.target.value.trim().toLowerCase();
@@ -529,6 +551,21 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 return haystack.includes(term);
             });
             renderSelectorList(filtered);
+        });
+
+        // Event listener para actualizar texto de ayuda del tipo de ajuste
+        tipoSelect?.addEventListener('change', (event) => {
+            const tipoHelpText = document.getElementById('tipoHelpText');
+            if (!tipoHelpText) return;
+            
+            const selectedValue = event.target.value;
+            if (selectedValue === 'no-registrado-hecho') {
+                tipoHelpText.textContent = '⚠️ Este ajuste NO modificará los saldos de las cuentas. Solo sirve para documentar la transacción.';
+                tipoHelpText.style.color = '#d67700'; // Color naranja para advertencia
+            } else {
+                tipoHelpText.textContent = '✅ Este ajuste SÍ modificará los saldos de las cuentas afectadas.';
+                tipoHelpText.style.color = '#28a745'; // Color verde para confirmación
+            }
         });
 
         detailsList?.addEventListener('input', (event) => {
@@ -604,7 +641,22 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             }
         });
 
-        openAjusteModal = function() {
+        openAjusteModal = async function() {
+            // Asegurar que los ajustes estén cargados antes de abrir el modal
+            if (!Array.isArray(ajustes) || ajustes.length === 0) {
+                console.log('🔧 openAjusteModal: Cargando ajustes antes de abrir modal...');
+                try {
+                    ajustes = await loadAdjustmentsFromStorage();
+                    if (!Array.isArray(ajustes)) {
+                        ajustes = [];
+                    }
+                    console.log(`🔧 openAjusteModal: ${ajustes.length} ajustes cargados`);
+                } catch (error) {
+                    console.error('❌ Error cargando ajustes en openAjusteModal:', error);
+                    ajustes = [];
+                }
+            }
+            
             // No limpiar el formulario si ya se está en modo edición
             const isEditing = modalBackdrop.dataset.editingId;
             console.log('🔧 openAjusteModal: isEditing =', isEditing);
@@ -685,27 +737,32 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                         .then(() => {
                             console.log('✅ Ajuste eliminado de la base de datos');
                             
-                            // Recargar ajustes desde BD y actualizar UI
-                            loadAdjustmentsFromStorage().then(ajustesRecargados => {
-                                ajustes = ajustesRecargados;
-                                renderAjustes();
-                                broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
-                                
-                                // Disparar evento para actualizar grupos financieros
-                                window.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
-                                    detail: { datasetId: currentDatasetId, count: -1 }
-                                }));
-                                
-                                closeAjusteModal();
-                                
-                                notify('Ajuste eliminado correctamente', 'success');
-                            }).catch(error => {
-                                console.error('❌ Error recargando ajustes:', error);
-                                // Si falla la recarga, renderizar igual para quitar la tarjeta
-                                renderAjustes();
-                                closeAjusteModal();
-                                notify('Ajuste eliminado (recarga pendiente)', 'success');
-                            });
+                            // Pequeña pausa para asegurar que la BD se actualice completamente
+                            setTimeout(() => {
+                                // Recargar ajustes desde BD y actualizar UI
+                                loadAdjustmentsFromStorage().then(ajustesRecargados => {
+                                    console.log('🔄 Recargando ajustes después de eliminación...');
+                                    ajustes = ajustesRecargados;
+                                    renderAjustes();
+                                    broadcastAdjustmentsUpdate(); // Actualizar tablas financieras
+                                    
+                                    // Disparar evento para actualizar grupos financieros
+                                    console.log('🔄 Disparando evento databaseAdjustmentsUpdated después de eliminación...');
+                                    window.dispatchEvent(new CustomEvent('databaseAdjustmentsUpdated', {
+                                        detail: { datasetId: currentDatasetId, count: -1 }
+                                    }));
+                                    
+                                    closeAjusteModal();
+                                    
+                                    notify('Ajuste eliminado correctamente', 'success');
+                                }).catch(error => {
+                                    console.error('❌ Error recargando ajustes:', error);
+                                    // Si falla la recarga, renderizar igual para quitar la tarjeta
+                                    renderAjustes();
+                                    closeAjusteModal();
+                                    notify('Ajuste eliminado (recarga pendiente)', 'success');
+                                });
+                            }, 300); // 300ms de delay
                         })
                         .catch(error => {
                             console.error('❌ Error eliminando ajuste de la base de datos:', error);
@@ -761,6 +818,8 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 
                 if (!window.saveFinancialAdjustment || !currentDatasetId) {
                     console.warn('⚠️ No se puede guardar: saveFinancialAdjustment o currentDatasetId no disponibles');
+                    console.warn('⚠️ window.saveFinancialAdjustment:', typeof window.saveFinancialAdjustment);
+                    console.warn('⚠️ currentDatasetId:', currentDatasetId);
                     notify('Error: No hay conexión con la base de datos', 'error');
                     return;
                 }
@@ -780,7 +839,13 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 // No incluir IDs temporales que empiezan con "ajuste-" (esos son para nuevos ajustes)
                 if (ajusteData.id && !ajusteData.id.startsWith('ajuste-')) {
                     payload.id = ajusteData.id;
+                    console.log('🔍 Incluyendo ID para actualización:', ajusteData.id);
+                } else {
+                    console.log('🔍 No incluyendo ID (ajuste nuevo o ID temporal):', ajusteData.id);
                 }
+                
+                console.log('🔍 Payload final enviado a saveFinancialAdjustment:', payload);
+                console.log('🔍 Llamando a window.saveFinancialAdjustment...');
                 
                 const result = await window.saveFinancialAdjustment(payload);
 
@@ -909,6 +974,7 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 return;
             }
 
+            // Calcular totales de partida doble (usado para ambos tipos de ajuste)
             const totals = accountDetails.reduce((acc, detail) => {
                 const code = (detail.code || '').trim();
                 const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
@@ -936,10 +1002,26 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
 
             console.log('🔍 Validación partida doble:', { debe: totals.debe, haber: totals.haber, diff });
 
-            if (diff > 0.01) {
-                console.warn(`ERROR: La partida no cuadra. Debe: ${totals.debe}, Haber: ${totals.haber}`);
-                notify(`La partida no cuadra: Debe Q${format(totals.debe)} vs Haber Q${format(totals.haber)}. Ajusta los montos.`, 'error');
-                return;
+            // VALIDACIÓN ESPECIAL PARA AJUSTES "NO REGISTRADO"
+            if (tipoValue === 'no-registrado-hecho') {
+                console.log('🔍 Validando ajuste tipo "No registrado"...');
+                
+                if (diff > 0.01) {
+                    console.warn(`ERROR: Ajuste "No registrado" no cuadra. Debe: ${totals.debe}, Haber: ${totals.haber}`);
+                    notify(`Ajuste "No registrado" debe cuadrar: Debe Q${format(totals.debe)} vs Haber Q${format(totals.haber)}`, 'error');
+                    return;
+                }
+                
+                // Mensaje informativo para "No registrado"
+                console.log('✅ Ajuste "No registrado" validado correctamente');
+                notify('Ajuste "No registrado" se guardará pero NO afectará los saldos de las cuentas.', 'info');
+            } else {
+                // Validación normal para ajustes "Normal"
+                if (diff > 0.01) {
+                    console.warn(`ERROR: La partida no cuadra. Debe: ${totals.debe}, Haber: ${totals.haber}`);
+                    notify(`La partida no cuadra: Debe Q${format(totals.debe)} vs Haber Q${format(totals.haber)}. Ajusta los montos.`, 'error');
+                    return;
+                }
             }
 
             // Validar campos requeridos
@@ -974,7 +1056,9 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             
             if (editingId) {
                 // Modo edición: actualizar ajuste existente
-                console.log('MODO EDICIÓN - Actualizando ajuste:', editingId);
+                console.log('🔍 MODO EDICIÓN - Actualizando ajuste:', editingId);
+                console.log('🔍 editingId type:', typeof editingId);
+                console.log('🔍 editingId starts with "ajuste-":', editingId.startsWith('ajuste-'));
                 
                 // Crear objeto para actualizar en BD
                 const ajusteActualizado = {
@@ -1007,6 +1091,10 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                         totalMonto: detallesRecolectados.reduce((sum, d) => sum + Math.abs(d.amount), 0)
                     }
                 };
+                
+                console.log('🔍 Ajuste actualizado completo:', ajusteActualizado);
+                console.log('🔍 currentDatasetId:', currentDatasetId);
+                console.log('🔍 window.saveFinancialAdjustment disponible:', typeof window.saveFinancialAdjustment);
                 
                 // Guardar directamente en BD
                 saveFinancialAdjustmentToDatabase(ajusteActualizado, () => {
@@ -1160,10 +1248,35 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             if (typeof window !== 'undefined') {
                 window.ajustes = ajustes;
             }
+            
+            // Aplicar filtro si está activo
+            let ajustesFiltrados = ajustes;
+            const filtroActivo = getActiveImpactFilter();
+            
+            if (filtroActivo && filtroActivo !== 'all') {
+                ajustesFiltrados = ajustes.filter(ajuste => {
+                    if (filtroActivo === 'affects') {
+                        // Mostrar solo los que afectan cuentas (Normal)
+                        return ajuste.tipo !== 'no-registrado-hecho' && ajuste.adjustment_type !== 'no-registrado-hecho';
+                    } else if (filtroActivo === 'no-affects') {
+                        // Mostrar solo los que no afectan cuentas (No registrado)
+                        return ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho';
+                    }
+                    return true;
+                });
+                console.log(`🔍 Filtrando ajustes: ${filtroActivo} - ${ajustes.length} totales, ${ajustesFiltrados.length} visibles`);
+            }
+            
             // Usar el nuevo sistema de renderizado con ajuste-card-wrapper
-            renderAjusteCards(ajustes);
+            renderAjusteCards(ajustesFiltrados);
             // Actualizar el badge de notificaciones después de renderizar
             updateNotesNotificationBadge();
+        }
+
+        // Función para obtener el filtro activo de impacto
+        function getActiveImpactFilter() {
+            const activeButton = document.querySelector('[data-filter="impact"].active');
+            return activeButton ? activeButton.dataset.value : 'all';
         }
 
         function calculateAdjustmentBalance() {
@@ -2264,11 +2377,28 @@ function updateNumeroField() {
         }
 
         function computeNextNumber() {
+            console.log('🔢 computeNextNumber: Calculando siguiente número...');
+            console.log('🔢 computeNextNumber: ajustes disponibles:', ajustes.length);
+            console.log('🔢 computeNextNumber: ajustes:', ajustes);
+            
             if (!Array.isArray(ajustes) || !ajustes.length) {
+                console.log('🔢 computeNextNumber: No hay ajustes, retornando 1');
                 return 1;
             }
-            const max = ajustes.reduce((acc, item) => Math.max(acc, Number(item.numero) || 0), 0);
-            return max + 1;
+            
+            const numeros = ajustes.map(item => Number(item.numero) || 0).filter(num => num > 0);
+            console.log('🔢 computeNextNumber: números válidos encontrados:', numeros);
+            
+            if (numeros.length === 0) {
+                console.log('🔢 computeNextNumber: No hay números válidos, retornando 1');
+                return 1;
+            }
+            
+            const max = Math.max(...numeros);
+            const nextNumber = max + 1;
+            console.log('🔢 computeNextNumber: número máximo:', max, 'siguiente número:', nextNumber);
+            
+            return nextNumber;
         }
 
         function getNoteAuthorName(note) {
@@ -2623,6 +2753,12 @@ function updateNumeroField() {
             const map = new Map();
 
             ajustes.forEach((ajuste) => {
+                // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                if (ajuste.tipo === 'no-registrado-hecho') {
+                    console.log('🔄 Ignorando ajuste "No registrado" para cálculo de cuentas:', ajuste.numero);
+                    return;
+                }
+
                 (ajuste.detalles || []).forEach((detail) => {
                     if (detail.type !== 'account') return;
 

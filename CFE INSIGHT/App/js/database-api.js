@@ -306,7 +306,10 @@ async function saveFinancialAdjustment(adjustmentData) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
+                'user-id': getCurrentUserId(),
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify({
                 id: adjustmentData.id || adjustmentData.adjustmentId || null,
@@ -559,7 +562,10 @@ async function getFinancialAdjustments(datasetId) {
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${datasetId}`, {
             method: 'GET',
             headers: {
-                'user-id': getCurrentUserId()
+                'user-id': getCurrentUserId(),
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 

@@ -1901,17 +1901,17 @@
                             <span>Nuevo ajuste</span>
                         </button>
                         <div class="adjustments-filters">
-                            <button type="button" class="adjustments-btn" data-filter="type">
-                                <span>Todo tipo</span>
-                                <i class="bi bi-chevron-down"></i>
+                            <button type="button" class="adjustments-btn" data-filter="impact" data-value="all">
+                                <span>Todos los ajustes</span>
+                                <i class="bi bi-funnel"></i>
                             </button>
-                            <button type="button" class="adjustments-btn" data-filter="indicator">
-                                <span>Indicadores</span>
-                                <i class="bi bi-chevron-down"></i>
+                            <button type="button" class="adjustments-btn" data-filter="impact" data-value="affects">
+                                <span>Afectan cuentas</span>
+                                <i class="bi bi-check-circle"></i>
                             </button>
-                            <button type="button" class="adjustments-btn" data-filter="year">
-                                <span>Años</span>
-                                <i class="bi bi-chevron-down"></i>
+                            <button type="button" class="adjustments-btn" data-filter="impact" data-value="no-affects">
+                                <span>No afectan cuentas</span>
+                                <i class="bi bi-x-circle"></i>
                             </button>
                         </div>
                     </div>
@@ -4810,6 +4810,12 @@
                         // Convertir ajustes de BD a mapa usando la misma lógica que formularios-ajustes.js
                         adjustmentsMap = new Map();
                         dbAdjustments.forEach(ajuste => {
+                            // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                            if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                                console.log('🔄 Ignorando ajuste "No registrado" en carga inicial de Cuentas:', ajuste.numero);
+                                return;
+                            }
+                            
                             // Obtener detalles del ajuste desde meta
                             const detalles = ajuste.meta?.detalles || [];
                             console.log(`🔧 Procesando ajuste ${ajuste.id} con ${detalles.length} detalles`);
@@ -4868,6 +4874,12 @@
                             // Reconstruir mapa de ajustes
                             const newAdjustmentsMap = new Map();
                             dbAdjustments.forEach(ajuste => {
+                                // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                                if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                                    console.log('🔄 Ignorando ajuste "No registrado" en sección Cuentas:', ajuste.numero);
+                                    return;
+                                }
+                                
                                 const detalles = ajuste.meta?.detalles || [];
                                 detalles.forEach(detail => {
                                     if (detail.type !== 'account') return;
@@ -5763,6 +5775,12 @@
                     // Convertir ajustes a mapa
                     const adjustmentsMap = new Map();
                     dbAdjustments.forEach(ajuste => {
+                        // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                        if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                            console.log('🔄 Ignorando ajuste "No registrado" en carga de grupos financieros:', ajuste.numero);
+                            return;
+                        }
+                        
                         const detalles = ajuste.meta?.detalles || [];
                         detalles.forEach(detail => {
                             if (detail.type !== 'account') return;
@@ -5937,6 +5955,12 @@
                             
                             // Convertir ajustes de BD a mapa por nombre para Grupos Financieros
                             dbAdjustments.forEach(ajuste => {
+                                // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                                if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                                    console.log('🔄 Ignorando ajuste "No registrado" en grupos financieros por nombre:', ajuste.numero);
+                                    return;
+                                }
+                                
                                 const detalles = ajuste.meta?.detalles || [];
                                 console.log(`🔧 Procesando ajuste ${ajuste.id} con ${detalles.length} detalles para Grupos Financieros`);
                                 
@@ -6023,6 +6047,12 @@
                             const newAdjustmentsMap = new Map();
                             const adjustmentsByName = new Map(); // Declarar para este listener
                             dbAdjustments.forEach(ajuste => {
+                                // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                                if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                                    console.log('🔄 Ignorando ajuste "No registrado" en Grupos Financieros:', ajuste.numero);
+                                    return;
+                                }
+                                
                                 const detalles = ajuste.meta?.detalles || [];
                                 detalles.forEach(detail => {
                                     if (detail.type !== 'account') return;
@@ -18266,6 +18296,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Convertir ajustes a mapa
                 const adjustmentsMap = new Map();
                 dbAdjustments.forEach(ajuste => {
+                    // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
+                    if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
+                        console.log('🔄 Ignorando ajuste "No registrado" en actualizarGruposFinancierosConAjustes:', ajuste.numero);
+                        return;
+                    }
+                    
                     const detalles = ajuste.meta?.detalles || [];
                     detalles.forEach(detail => {
                         if (detail.type !== 'account') return;

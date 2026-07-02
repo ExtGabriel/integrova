@@ -5400,6 +5400,13 @@ app.post('/api/adjustments/save', async (req, res) => {
         
         const userId = req.headers['user-id'];
         
+        // Prevenir cacheo para asegurar respuestas frescas
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
         console.log('🔍 DEBUG saveFinancialAdjustment - REQUEST BODY:', req.body);
         console.log('🔍 DEBUG saveFinancialAdjustment - HEADERS:', req.headers);
         console.log('🔍 DEBUG saveFinancialAdjustment:', { 
@@ -5490,6 +5497,13 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
+        
+        // Prevenir cacheo para asegurar datos frescos
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         
         const { data, error } = await supabase
             .from('ajustes_financieros')
