@@ -8273,6 +8273,198 @@ app.post('/api/subdocuments/upload', async (req, res) => {
     }
 });
 
+// Obtener un subdocumento específico por ID
+app.get('/api/subdocuments/document/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        console.log(`🔍 Buscando documento: ${documentId} para usuario: ${userId}`);
+        
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            console.error('❌ ID de documento no proporcionado');
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            console.error('❌ Documento no encontrado en BD');
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        console.log(`✅ Documento encontrado:`, document);
+        res.json({
+            success: true,
+            document: document
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/document:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Descargar archivo de subdocumento
+app.get('/api/subdocuments/download/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        console.log(`🔍 Buscando documento para descarga: ${documentId} para usuario: ${userId}`);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .eq('user_id', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento para descarga:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            console.error('❌ Documento no encontrado para descarga');
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        if (document.tipo !== 'archivo') {
+            return res.status(400).json({ success: false, error: 'El documento no es un archivo' });
+        }
+        
+        const metadata = parseMetadata(document.metadata);
+        if (!metadata || !metadata.fileData) {
+            console.error('❌ Datos del archivo no encontrados en metadata');
+            return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
+        }
+        
+        // Para PDFs, validar que tenga el header correcto
+        const fileName = metadata.fileName || 'archivo';
+        const fileExtension = fileName.toLowerCase().split('.').pop();
+        let fileBuffer;
+        
+        if (fileExtension === 'pdf') {
+            try {
+                console.log(`🔍 Procesando PDF descarga: ${fileName}`);
+                console.log(`🔍 Base64 original longitud: ${metadata.fileData.length} caracteres`);
+                console.log(`🔍 Primeros 50 caracteres del base64: ${metadata.fileData.substring(0, 50)}`);
+                
+                // Validar y limpiar base64 para PDFs
+                const cleanBase64 = metadata.fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+                console.log(`🔍 Base64 limpio longitud: ${cleanBase64.length} caracteres`);
+                
+                if (cleanBase64.length === 0) {
+                    console.error('❌ Base64 limpio está vacío');
+                    return res.status(400).json({ success: false, error: 'Datos base64 inválidos' });
+                }
+                
+                // Convertir a buffer
+                fileBuffer = Buffer.from(cleanBase64, 'base64');
+                console.log(`🔍 Buffer creado, tamaño: ${fileBuffer.length} bytes`);
+                
+                // Validar que sea un PDF válido (header %PDF)
+                if (fileBuffer.length < 4) {
+                    console.error('❌ Buffer demasiado pequeño para ser PDF');
+                    return res.status(400).json({ success: false, error: 'Archivo PDF demasiado pequeño' });
+                }
+                
+                const header = fileBuffer.toString('ascii', 0, 4);
+                console.log(`🔍 Header del PDF: "${header}"`);
+                
+                if (header !== '%PDF') {
+                    console.error(`❌ Archivo PDF inválido o corrupto. Header esperado: %PDF, obtenido: ${header}`);
+                    return res.status(400).json({ success: false, error: 'Archivo PDF inválido o corrupto' });
+                }
+                
+                // Validar footer del PDF (%%EOF)
+                const footerStart = Math.max(0, fileBuffer.length - 10);
+                const footer = fileBuffer.toString('ascii', footerStart);
+                console.log(`🔍 Footer del PDF: "${footer}"`);
+                
+                if (!footer.includes('%%EOF')) {
+                    console.warn('⚠️ PDF sin footer %%EOF, pero continuando...');
+                }
+                
+                console.log(`✅ PDF validado exitosamente: ${fileBuffer.length} bytes`);
+            } catch (error) {
+                console.error('❌ Error procesando PDF:', error);
+                console.error('❌ Stack trace:', error.stack);
+                return res.status(400).json({ success: false, error: 'Error procesando archivo PDF' });
+            }
+        } else {
+            // Para otros archivos, usar conversión normal
+            try {
+                fileBuffer = Buffer.from(metadata.fileData, 'base64');
+            } catch (error) {
+                console.error('❌ Error convirtiendo base64 a buffer:', error);
+                return res.status(400).json({ success: false, error: 'Error decodificando archivo' });
+            }
+        }
+        
+        // Determinar Content-Type específico según el tipo de archivo
+        let contentType = 'application/octet-stream';
+        
+        // Content-Type específicos para formatos comunes
+        const contentTypes = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed'
+        };
+        
+        if (contentTypes[fileExtension]) {
+            contentType = contentTypes[fileExtension];
+        }
+        
+        // Set headers para descarga
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', fileBuffer.length);
+        
+        console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
+        res.send(fileBuffer);
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/download:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
@@ -8318,48 +8510,6 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     }
 });
 
-// Obtener un subdocumento específico por ID
-app.get('/api/subdocuments/document/:documentId', async (req, res) => {
-    try {
-        const userId = req.user?.id || req.headers['user-id'];
-        const { documentId } = req.params;
-        
-        if (!userId) {
-            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
-        }
-        
-        if (!documentId) {
-            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
-        }
-        
-        const { data: document, error } = await supabase
-            .from('subdocumentos')
-            .select('*')
-            .eq('id', documentId)
-            .eq('user_id', userId)
-            .single();
-            
-        if (error) {
-            console.error('❌ Error al obtener documento:', error);
-            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
-        }
-        
-        if (!document) {
-            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
-        }
-        
-        console.log(`✅ Documento ${documentId} encontrado`);
-        res.json({
-            success: true,
-            document: document
-        });
-        
-    } catch (error) {
-        console.error('❌ Error en endpoint /api/subdocuments/document:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor' });
-    }
-});
-
 // Descargar archivo de subdocumento
 app.get('/api/subdocuments/download/:documentId', async (req, res) => {
     try {
@@ -8395,16 +8545,107 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
         }
         
         const metadata = parseMetadata(document.metadata);
-        if (!metadata || !metadata.fileContent) {
+        if (!metadata || !metadata.fileData) {
             return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
         }
         
-        // Convertir base64 a buffer
-        const fileBuffer = Buffer.from(metadata.fileContent, 'base64');
+        // Validar integridad de los datos base64
+        if (!metadata.fileData || typeof metadata.fileData !== 'string') {
+            console.error('❌ Datos base64 inválidos');
+            return res.status(400).json({ success: false, error: 'Datos del archivo corruptos' });
+        }
+        
+        // Para PDFs, validar que tenga el header correcto
+        const fileExtension = (metadata.fileName || 'archivo').toLowerCase().split('.').pop();
+        let fileBuffer;
+        
+        if (fileExtension === 'pdf') {
+            try {
+                console.log(`🔍 Procesando PDF descarga: ${fileName}`);
+                console.log(`🔍 Base64 original longitud: ${metadata.fileData.length} caracteres`);
+                console.log(`🔍 Primeros 50 caracteres del base64: ${metadata.fileData.substring(0, 50)}`);
+                
+                // Validar y limpiar base64 para PDFs
+                const cleanBase64 = metadata.fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+                console.log(`🔍 Base64 limpio longitud: ${cleanBase64.length} caracteres`);
+                
+                if (cleanBase64.length === 0) {
+                    console.error('❌ Base64 limpio está vacío');
+                    return res.status(400).json({ success: false, error: 'Datos base64 inválidos' });
+                }
+                
+                // Convertir a buffer
+                fileBuffer = Buffer.from(cleanBase64, 'base64');
+                console.log(`🔍 Buffer creado, tamaño: ${fileBuffer.length} bytes`);
+                
+                // Validar que sea un PDF válido (header %PDF)
+                if (fileBuffer.length < 4) {
+                    console.error('❌ Buffer demasiado pequeño para ser PDF');
+                    return res.status(400).json({ success: false, error: 'Archivo PDF demasiado pequeño' });
+                }
+                
+                const header = fileBuffer.toString('ascii', 0, 4);
+                console.log(`🔍 Header del PDF: "${header}"`);
+                
+                if (header !== '%PDF') {
+                    console.error(`❌ Archivo PDF inválido o corrupto. Header esperado: %PDF, obtenido: ${header}`);
+                    return res.status(400).json({ success: false, error: 'Archivo PDF inválido o corrupto' });
+                }
+                
+                // Validar footer del PDF (%%EOF)
+                const footerStart = Math.max(0, fileBuffer.length - 10);
+                const footer = fileBuffer.toString('ascii', footerStart);
+                console.log(`🔍 Footer del PDF: "${footer}"`);
+                
+                if (!footer.includes('%%EOF')) {
+                    console.warn('⚠️ PDF sin footer %%EOF, pero continuando...');
+                }
+                
+                console.log(`✅ PDF validado exitosamente: ${fileBuffer.length} bytes`);
+            } catch (error) {
+                console.error('❌ Error procesando PDF:', error);
+                console.error('❌ Stack trace:', error.stack);
+                return res.status(400).json({ success: false, error: 'Error procesando archivo PDF' });
+            }
+        } else {
+            // Para otros archivos, usar conversión normal
+            try {
+                fileBuffer = Buffer.from(metadata.fileData, 'base64');
+            } catch (error) {
+                console.error('❌ Error convirtiendo base64 a buffer:', error);
+                return res.status(400).json({ success: false, error: 'Error decodificando archivo' });
+            }
+        }
+        
+        // Determinar Content-Type específico según el tipo de archivo
+        let contentType = 'application/octet-stream';
+        const fileName = metadata.fileName || 'archivo';
+        
+        // Content-Type específicos para formatos comunes
+        const contentTypes = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed'
+        };
+        
+        if (contentTypes[fileExtension]) {
+            contentType = contentTypes[fileExtension];
+        }
         
         // Set headers para descarga
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${metadata.fileName || 'archivo'}"`);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.setHeader('Content-Length', fileBuffer.length);
         
         console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
