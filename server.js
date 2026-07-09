@@ -7597,70 +7597,80 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id || req.headers['user-id'];
     
+    console.log(`🔍 Mark notification as read - ID: ${id}, User: ${userId}`);
+    
     if (!userId) {
+        console.log('❌ User ID missing');
         return res.status(401).json({ success: false, error: 'User ID required' });
     }
     
     try {
-        console.log(`🔍 Marking notification ${id} as read for user ${userId}`);
+        console.log(`🔍 Starting notification ${id} as read for user ${userId}`);
 
-        // 1) Try to update by real ID first
-        console.log(`🔍 Attempting to update notification by ID: ${id} for user: ${userId}`);
-        const { data: updatedById, error: updateByIdError } = await supabase
-            .from('notifications')
-            .update({
-                read: true,
-                read_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .eq('user_id', userId)
-            .select()
-            .single();
+        // Check if ID is a virtual ID (contains prefix) or real UUID
+        const isVirtualId = !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+        
+        if (isVirtualId) {
+            console.log(`🔍 Detected virtual ID: ${id}, skipping UUID lookup`);
+        } else {
+            // 1) Try to update by real UUID first
+            console.log(`🔍 Attempting to update notification by UUID: ${id} for user: ${userId}`);
+            const { data: updatedById, error: updateByIdError } = await supabase
+                .from('notifications')
+                .update({
+                    read: true,
+                    read_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select()
+                .single();
 
-        console.log(`📊 Update by ID result:`, { updatedById, updateByIdError });
+            console.log(`📊 Update by UUID result:`, { updatedById, updateByIdError });
 
-        if (updateByIdError && updateByIdError.code !== 'PGRST116') { // PGRST116 = no rows
-            console.error('❌ Error updating notification by ID:', updateByIdError);
-            return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
-        }
-
-        if (updatedById) {
-            console.log('✅ Notification marked as read by ID:', updatedById.id);
-
-            // Also mark any sibling notifications (legacy duplicates) for same user
-            const virtualId = updatedById.metadata?.virtual_id;
-            const commitmentId = updatedById.metadata?.commitment_id;
-            try {
-                if (virtualId || commitmentId) {
-                    const siblingFilter = [];
-                    if (virtualId) siblingFilter.push(`metadata->>virtual_id.eq.${virtualId}`);
-                    if (commitmentId) siblingFilter.push(`metadata->>commitment_id.eq.${commitmentId}`);
-
-                    if (siblingFilter.length > 0) {
-                        const { error: siblingError } = await supabase
-                            .from('notifications')
-                            .update({
-                                read: true,
-                                read_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            })
-                            .eq('user_id', userId)
-                            .neq('id', updatedById.id)
-                            .or(siblingFilter.join(','));
-
-                        if (siblingError) {
-                            console.warn('⚠️ Could not mark sibling notifications as read:', siblingError);
-                        } else {
-                            console.log('✅ Sibling notifications (duplicates) marked as read');
-                        }
-                    }
-                }
-            } catch (dupError) {
-                console.warn('⚠️ Error marking sibling notifications as read:', dupError);
+            if (updateByIdError && updateByIdError.code !== 'PGRST116') { // PGRST116 = no rows
+                console.error('❌ Error updating notification by UUID:', updateByIdError);
+                return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
             }
 
-            return res.json({ success: true, data: updatedById });
+            if (updatedById) {
+                console.log('✅ Notification marked as read by UUID:', updatedById.id);
+
+                // Also mark any sibling notifications (legacy duplicates) for same user
+                const virtualId = updatedById.metadata?.virtual_id;
+                const commitmentId = updatedById.metadata?.commitment_id;
+                try {
+                    if (virtualId || commitmentId) {
+                        const siblingFilter = [];
+                        if (virtualId) siblingFilter.push(`metadata->>virtual_id.eq.${virtualId}`);
+                        if (commitmentId) siblingFilter.push(`metadata->>commitment_id.eq.${commitmentId}`);
+
+                        if (siblingFilter.length > 0) {
+                            const { error: siblingError } = await supabase
+                                .from('notifications')
+                                .update({
+                                    read: true,
+                                    read_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('user_id', userId)
+                                .neq('id', updatedById.id)
+                                .or(siblingFilter.join(','));
+
+                            if (siblingError) {
+                                console.warn('⚠️ Could not mark sibling notifications as read:', siblingError);
+                            } else {
+                                console.log('✅ Sibling notifications (duplicates) marked as read');
+                            }
+                        }
+                    }
+                } catch (dupError) {
+                    console.warn('⚠️ Error marking sibling notifications as read:', dupError);
+                }
+
+                return res.json({ success: true, data: updatedById });
+            }
         }
 
         // 2) Fallback: check if this ID is a virtual_id stored in metadata
@@ -7747,6 +7757,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
         return res.json({ success: true, data: newNotification });
     } catch (error) {
         console.error('❌ Error marking notification as read:', error);
+        console.error('❌ Full error details:', JSON.stringify(error, null, 2));
         res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
     }
 });

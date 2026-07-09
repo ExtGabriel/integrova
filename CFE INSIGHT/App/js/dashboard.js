@@ -945,7 +945,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`${API_BASE}/api/notifications`, {
+                        const createResponse = await fetch(`/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1030,7 +1030,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`${API_BASE}/api/notifications`, {
+                        const createResponse = await fetch(`/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1088,6 +1088,11 @@ async function generateRealNotifications() {
                 return hoursDiff <= 24;
             });
 
+            // Get virtual IDs of notifications already marked as read in DB
+            const readVirtualIds = existingNotifications
+                .filter(n => n.metadata && n.metadata.virtual_id && n.read)
+                .map(n => n.metadata.virtual_id);
+
             recentEntities.forEach(entity => {
                 const updatedDate = new Date(entity.updated_at);
                 const hoursDiff = Math.floor((now - updatedDate) / (1000 * 60 * 60));
@@ -1099,7 +1104,7 @@ async function generateRealNotifications() {
                     text: `Entidad actualizada: "${entity.name}"`,
                     time: `Hace ${hoursDiff} hora${hoursDiff !== 1 ? 's' : ''}`,
                     type: 'activity',
-                    read: readNotifications.includes(notificationId)
+                    read: readVirtualIds.includes(notificationId)
                 });
             });
         }
@@ -1156,7 +1161,10 @@ async function markNotificationAsRead(notificationId, event) {
 
     // Refresh badge after sync to reflect DB state
     if (synced) {
+        console.log('✅ Sync successful, updating notification badge and list');
         updateNotificationBadge();
+    } else {
+        console.warn('⚠️ Sync failed, but UI was already updated');
     }
 }
 
@@ -1173,7 +1181,7 @@ async function syncNotificationAsRead(notificationId) {
 
         console.log(`📡 Enviando PUT a /api/notifications/${notificationId}/read con user-id: ${userId}`);
 
-        const response = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
+        const response = await fetch(`/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
