@@ -1607,11 +1607,18 @@
             // Determinar relationship_type (siempre 'none' ya que se eliminaron las opciones de grupo)
             const relationshipType = 'none';
 
+            // Generar entity_id único basado en timestamp y nombre
+            const generateEntityId = (name) => {
+                const timestamp = Date.now().toString(36);
+                const nameHash = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 8);
+                return `ENT_${timestamp}_${nameHash}`.toUpperCase();
+            };
+
             // Crear nueva entidad con COLUMNAS EXPLÍCITAS + METADATA SINCRONIZADO
             const newEntity = {
                 // Columnas principales
                 name: commercial,
-                entity_id: commercial || '',
+                entity_id: generateEntityId(commercial),
                 description: businessName || '',
                 status: 'activa',
 

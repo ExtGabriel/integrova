@@ -7976,11 +7976,7 @@
         function formatEntityLabel(entidad) {
             if (!entidad) return 'Entidad sin nombre';
             const name = (entidad.name || '').trim();
-            const commercial = (entidad.entity_id || '').trim();
-            if (name && commercial) {
-                return `${name} (${commercial})`;
-            }
-            return name || commercial || 'Entidad sin nombre';
+            return name || 'Entidad sin nombre';
         }
 
         function getPlaceholderText() {
@@ -8004,9 +8000,6 @@
 
         // Inicializar menús desplegables
         function initializeCustomSelects() {
-            // 📂 CARGAR SELECCIONES GUARDADAS AL INICIALIZAR
-            loadEntitySelectionsFromStorage();
-
             // Menú desplegable Entidad
             const entitySelect = document.getElementById('entidadSelect');
             const entitySelected = document.getElementById('entidadSelected');
@@ -8524,8 +8517,14 @@
                 console.log('📂 Cargando selecciones guardadas:', selections);
 
                 const entidadValue = selections.entidad?.value || '';
-                const entidadText = reapply ? null : (selections.entidad?.text || null);
-                applySelection('simple', entidadValue, entidadText, { skipAutoMatch: false });
+                let entidadText = selections.entidad?.text || null;
+
+                // Si se solicita reaplicar o no hay texto guardado, recalcular etiqueta a partir del catálogo
+                if (!entidadText || reapply) {
+                    entidadText = entidadValue ? getEntityLabelByValue(entidadValue) : getPlaceholderText();
+                }
+
+                applySelection(entidadValue, entidadText);
 
                 return true;
             } catch (error) {
