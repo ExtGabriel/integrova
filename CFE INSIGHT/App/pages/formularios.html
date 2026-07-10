@@ -3153,6 +3153,14 @@
                     throw new Error('Por favor selecciona todos los campos obligatorios');
                 }
                 
+                // Obtener contexto actual de entidad/compromiso
+                const currentEntity = commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                console.log('📌 Contexto al guardar datos temporales:', {
+                    currentEntity,
+                    currentCommitment
+                });
+
                 // Mostrar indicador de carga
                 const saveBtn = event.target;
                 const originalText = saveBtn.innerHTML;
@@ -3165,11 +3173,17 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'user-id': getCurrentUserId()
+                        'user-id': getCurrentUserId(),
+                        // Pasar también el contexto en headers para diagnóstico
+                        ...(currentEntity ? { 'entity-id': currentEntity } : {}),
+                        ...(currentCommitment ? { 'commitment-id': currentCommitment } : {})
                     },
                     body: JSON.stringify({
                         files: tempExcelData,
-                        mappings: mappingData
+                        mappings: mappingData,
+                        entity_id: currentEntity,
+                        commitment_id: currentCommitment,
+                        upload_section: 'conjunto-datos'
                     })
                 });
                 
@@ -4316,11 +4330,11 @@
             }
         }
 
-        async function getLedgerDataFromLatestExcel() {
+        async function getLedgerDataFromLatestExcel(datasetId = null, entityId = null, commitmentId = null) {
             try {
-                // Obtener contexto actual de entidad/compromiso
-                const currentEntity = commitmentDropdownState.currentEntityId;
-                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                // Usar parámetros de contexto o valores globales como fallback
+                const currentEntity = entityId || commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentId || commitmentDropdownState.selectedCommitmentId;
                 
                 // Construir URL con contexto
                 let apiUrl = `${API_BASE_URL}/api/excel/latest`;
@@ -4341,9 +4355,15 @@
                 console.log(`📊 Obteniendo datos Excel para entidad: ${currentEntity}, compromiso: ${currentCommitment}`);
                 console.log(`📊 URL completa: ${apiUrl}`);
                 
+                const userId = getCurrentUserId();
+                if (!userId) {
+                    console.error('❌ No se pudo obtener el userId para la llamada a la API');
+                    throw new Error('Usuario no autenticado');
+                }
+                
                 const response = await fetch(apiUrl, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': userId
                     }
                 });
                 
@@ -4418,7 +4438,11 @@
 
         async function loadLedgerIntegrityFromLatestExcel() {
             try {
-                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                // Obtener contexto actual
+                const context = formDataManager.getContext();
+                console.log('🔍 Cargando integridad del libro con contexto:', context);
+                
+                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel(null, context.entityId, context.commitmentId);
                 const rows = buildLedgerIntegrityRows(ledgerMap, ledgerAvailable);
                 renderLedgerIntegrity(rows, meta);
                 
@@ -4583,6 +4607,10 @@
             try {
                 const userId = getCurrentUserId();
                 
+                // Obtener contexto actual
+                const context = formDataManager.getContext();
+                console.log('🔍 Cargando cuentas con contexto:', context);
+                
                 console.log('🌐 Cargando cuentas desde la base de datos...');
                 
                 // Mostrar indicador de carga
@@ -4620,8 +4648,8 @@
                 console.log('🔍 accounts es array:', Array.isArray(accounts));
                 console.log('🔍 accounts.length:', accounts.length);
 
-                // Cargar datos del ledger desde la API
-                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                // Cargar datos del ledger desde la API con contexto
+                const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel(null, context.entityId, context.commitmentId);
                 
                 // Cargar ajustes desde la base de datos
                 let adjustmentsMap = new Map();
@@ -4956,7 +4984,7 @@
             // SOLO usar base de datos - eliminar localStorage para evitar duplicados
             try {
                 if (typeof window.getAccountAssignments === 'function') {
-                    const assignments = await window.getAccountAssignments(resolvedDatasetId);
+                    const assignments = await window.getAccountAssignments(resolvedDatasetId, context.entityId, context.commitmentId);
 
                     if (Array.isArray(assignments) && assignments.length > 0) {
                         console.log('✅ Asignaciones cargadas desde la BD:', assignments.length);
@@ -5573,6 +5601,10 @@
             console.log('🔍 currentDatasetId:', currentDatasetId);
             console.log('🔍 window.currentDatasetId:', window.currentDatasetId);
             
+            // Obtener contexto actual
+            const context = formDataManager.getContext();
+            console.log('🔍 Cargando grupos financieros con contexto:', context);
+            
             const resolvedDatasetId = await ensureCurrentDatasetContext();
             console.log('🔍 resolvedDatasetId:', resolvedDatasetId);
             
@@ -5604,7 +5636,7 @@
                 console.log('🔍 DIAGNÓSTICO: Llamando a getFinancialGroups con datasetId:', resolvedDatasetId);
                 
                 // Cargar grupos financieros guardados en la base de datos
-                const financialGroups = await getFinancialGroups(resolvedDatasetId);
+                const financialGroups = await getFinancialGroups(resolvedDatasetId, context.entityId, context.commitmentId);
                 console.log('📊 Grupos financieros cargados:', financialGroups);
                 console.log('🔍 DIAGNÓSTICO: Resultados de BD:', {
                     isArray: Array.isArray(financialGroups),
@@ -5622,7 +5654,7 @@
         if (cleanedFinancialGroups && cleanedFinancialGroups.length > 0) {
                     // Cargar ajustes actuales desde la base de datos
                     console.log('🔍 Cargando ajustes actuales para aplicar a grupos financieros...');
-                    const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId);
+                    const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId, context.entityId, context.commitmentId);
                     console.log('🔍 Ajustes cargados:', dbAdjustments.length);
                     
                     // Convertir ajustes a mapa
@@ -5745,7 +5777,7 @@
                     console.log('🔍 DIAGNÓSTICO: Iniciando construcción desde libro mayor...');
                     
                     initializeStaticAccounts();
-                    const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel();
+                    const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel(null, context.entityId, context.commitmentId);
                     console.log('🔍 DIAGNÓSTICO: Ledger data:', {
                         ledgerMapSize: ledgerMap?.size || 0,
                         ledgerAvailable,
@@ -18193,6 +18225,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const fallbackUser = sessionUser || getCurrentSession();
             // Priorizar el UUID real (id) sobre otros campos
             const userId = fallbackUser?.id || fallbackUser?.user_id || fallbackUser?.uid || '';
+            
+            // Validar que tengamos un userId válido
+            if (!userId || userId === 'undefined' || userId === 'null') {
+                console.error('❌ getCurrentUserId: No se pudo obtener un userId válido', { sessionUser, fallbackUser });
+                return null;
+            }
+            
             console.log('🔍 getCurrentUserId devolviendo:', userId, 'de usuario:', fallbackUser);
             return userId;
         }
@@ -19557,7 +19596,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         try {
             // Intentar cargar desde la base de datos primero (producción)
             if (window.getAccountAssignments) {
-                const dbAssignments = await window.getAccountAssignments(datasetId);
+                // Obtener contexto actual para el aislamiento
+                const currentEntity = window.commitmentDropdownState?.currentEntityId || null;
+                const currentCommitment = window.commitmentDropdownState?.selectedCommitmentId || null;
+                const dbAssignments = await window.getAccountAssignments(datasetId, currentEntity, currentCommitment);
                 assignments = dbAssignments || [];
                 console.log('✅ Cargadas', assignments.length, 'asignaciones desde base de datos');
                 console.log('📋 Muestra de asignaciones:', assignments.slice(0, 3));
@@ -31629,7 +31671,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                 });
             }
-            
+        }
+        
+        // Función para crear tarjeta de ajuste
+        function createAdjustmentCard(ajuste) {
+            // ... código existente para crear tarjeta ...
             return card;
         }
         

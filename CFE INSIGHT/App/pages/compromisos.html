@@ -865,7 +865,14 @@
                     const entity = allEntities[key];
                     const option = document.createElement('option');
                     option.value = key; // Usar el UUID real como value
-                    option.textContent = `${entity.name} (${entity.id || entity.code || 'N/A'})`;
+
+                    // Mostrar solo el nombre legible al usuario
+                    const label =
+                        (entity.name || entity.entity_name || entity.commercial_name || '').trim() ||
+                        (entity.code ? String(entity.code).trim() : '') ||
+                        'Entidad sin nombre';
+
+                    option.textContent = label;
                     select.appendChild(option);
                     console.log('📋 Agregada entidad:', option.textContent);
                 });
@@ -1922,9 +1929,14 @@
                 const entity = allEntities[key];
                 const option = document.createElement('option');
                 option.value = String(key);
-                option.textContent = `${
-                    entity.name || entity.entity_name || 'Entidad sin nombre'
-                } (${entity.id || entity.code || key})`;
+
+                // Mostrar solo el nombre legible al usuario
+                const label =
+                    (entity.name || entity.entity_name || entity.commercial_name || '').trim() ||
+                    (entity.code ? String(entity.code).trim() : '') ||
+                    'Entidad sin nombre';
+
+                option.textContent = label;
                 select.appendChild(option);
             });
         }
