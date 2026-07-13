@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A300 - Estrategia General de Auditoría</title>
+    <title>A300 - Análisis de Planificación del Equipo</title>
     <link rel="icon" href="assets/logoinsightdorado.png" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -13,7 +13,7 @@
 
 <body>
     <header class="header">
-        <h2 class="welcome-text">A300 - Estrategia General de Auditoría</h2>
+        <h2 class="welcome-text">A300</h2>
         <button class="btn-logout" onclick="logout()">
             <i class="bi bi-box-arrow-right"></i> Salir
         </button>
@@ -21,331 +21,31 @@
 
     <div class="main-container">
         <div class="form-container">
-            <h3>Estrategia General de Auditoría <span id="statusMessage"></span></h3>
+            <h3>Formulario A300 <span id="statusMessage"></span></h3>
             <div id="autoSaveIndicator" class="alert alert-info" style="display: none;">Guardando...</div>
 
             <form id="a300Form">
+                <p style="text-align: center; font-style: italic;">
+                    Documentar el análisis de planificación efectuado por el equipo, incluyendo conocimiento actualizado de la entidad, riesgos de incorrección material por fraude o error, decisiones clave, potenciales eficiencias y comunicación interna del enfoque de auditoría.
+                </p>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>1. Características del compromiso</strong>
+                <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;">
+                        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Antecedentes de la entidad incluyendo cambios en períodos anteriores</h3>
                     </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="caracteristicas" rows="3"
-                            placeholder="Describa las características..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_caracteristicas" class="review-checkbox" disabled>
-                        <div id="review_caracteristicas_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>2. Documentación preferida</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref1" id="doc_pref1_si" value="si"
-                                required>
-                            <label class="form-check-label" for="doc_pref1_si">Sí</label>
+                    <div style="padding: 20px; background: white;">
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <label for="a300_objetivo" style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Objetivo</label>
+                                <button type="button" onclick="toggleTooltip('a300_objetivo_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                    <i class="bi bi-lightbulb"></i>
+                                </button>
+                            </div>
+                            <div id="a300_objetivo_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                Documentar el conocimiento general de la entidad y los cambios relevantes que puedan impactar la estrategia, alcance, riesgos y procedimientos de auditoría.
+                            </div>
+                            <textarea id="a300_objetivo" name="a300_objetivo" class="form-control" rows="3" placeholder=""></textarea>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref1" id="doc_pref1_no" value="no"
-                                required>
-                            <label class="form-check-label" for="doc_pref1_no">No</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_doc_pref1" class="review-checkbox" disabled>
-                        <div id="review_doc_pref1_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>3. Factores a considerar en la auditoría</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditoria"
-                                id="factores_auditoria_sin_excep" value="sin_excepciones">
-                            <label class="form-check-label" for="factores_auditoria_sin_excep">Completado sin
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditoria"
-                                id="factores_auditoria_con_excep" value="con_excepciones">
-                            <label class="form-check-label" for="factores_auditoria_con_excep">Completado con
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditoria"
-                                id="factores_auditoria_na" value="na">
-                            <label class="form-check-label" for="factores_auditoria_na">N/A</label>
-                        </div>
-                        <textarea class="form-control mt-2" id="factores_auditoria_nota" rows="2"
-                            placeholder="Agregar nota (opcional)"></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_factores_auditoria" class="review-checkbox" disabled>
-                        <div id="review_factores_auditoria_info" class="review-info"></div>
-                    </div>
-                </div>
-                <!-- Container para formularios relacionados con factores_auditoria -->
-                <div id="related_forms_factores" class="row mb-3"></div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>4. Documentación preferida</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref2" id="doc_pref2_si" value="si"
-                                required>
-                            <label class="form-check-label" for="doc_pref2_si">Sí</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref2" id="doc_pref2_no" value="no"
-                                required>
-                            <label class="form-check-label" for="doc_pref2_no">No</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_doc_pref2" class="review-checkbox" disabled>
-                        <div id="review_doc_pref2_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>5. Momento de realización del compromiso</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="momento_realizacion" rows="3"
-                            placeholder="Describa el momento..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_momento_realizacion" class="review-checkbox" disabled>
-                        <div id="review_momento_realizacion_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>6. Documentación preferida</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref3" id="doc_pref3_si" value="si"
-                                required>
-                            <label class="form-check-label" for="doc_pref3_si">Sí</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref3" id="doc_pref3_no" value="no"
-                                required>
-                            <label class="form-check-label" for="doc_pref3_no">No</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_doc_pref3" class="review-checkbox" disabled>
-                        <div id="review_doc_pref3_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>7. Pendientes de compromisos anteriores</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="asuntos_anteriores" rows="3"
-                            placeholder="Describa pendientes..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_asuntos_anteriores" class="review-checkbox" disabled>
-                        <div id="review_asuntos_anteriores_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>8. Factores de compromisos anteriores</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_anteriores"
-                                id="factores_anteriores_sin_excep" value="sin_excepciones">
-                            <label class="form-check-label" for="factores_anteriores_sin_excep">Completado sin
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_anteriores"
-                                id="factores_anteriores_con_excep" value="con_excepciones">
-                            <label class="form-check-label" for="factores_anteriores_con_excep">Completado con
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_anteriores"
-                                id="factores_anteriores_na" value="na">
-                            <label class="form-check-label" for="factores_anteriores_na">N/A</label>
-                        </div>
-                        <textarea class="form-control mt-2" id="factores_anteriores_nota" rows="2"
-                            placeholder="Agregar nota (opcional)"></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_factores_anteriores" class="review-checkbox" disabled>
-                        <div id="review_factores_anteriores_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>9. Nombres y naturaleza de las partes relacionadas</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="partes_relacionadas" rows="2"
-                            placeholder="Liste las partes..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_partes_relacionadas" class="review-checkbox" disabled>
-                        <div id="review_partes_relacionadas_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>10. Documentación preferida</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref4" id="doc_pref4_si" value="si"
-                                required>
-                            <label class="form-check-label" for="doc_pref4_si">Sí</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="doc_pref4" id="doc_pref4_no" value="no"
-                                required>
-                            <label class="form-check-label" for="doc_pref4_no">No</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_doc_pref4" class="review-checkbox" disabled>
-                        <div id="review_doc_pref4_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>11. Procedimientos de evaluación de riesgo</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="procedimientos_evaluacion"
-                                id="procedimientos_evaluacion_sin_excep" value="sin_excepciones">
-                            <label class="form-check-label" for="procedimientos_evaluacion_sin_excep">Completado sin
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="procedimientos_evaluacion"
-                                id="procedimientos_evaluacion_con_excep" value="con_excepciones">
-                            <label class="form-check-label" for="procedimientos_evaluacion_con_excep">Completado con
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="procedimientos_evaluacion"
-                                id="procedimientos_evaluacion_na" value="na">
-                            <label class="form-check-label" for="procedimientos_evaluacion_na">N/A</label>
-                        </div>
-                        <textarea class="form-control mt-2" id="procedimientos_evaluacion_nota" rows="2"
-                            placeholder="Agregar nota (opcional)"></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_procedimientos_evaluacion" class="review-checkbox" disabled>
-                        <div id="review_procedimientos_evaluacion_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>12. Uso de una organización de servicios</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="uso_servicio" rows="2" placeholder="Describa..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_uso_servicio" class="review-checkbox" disabled>
-                        <div id="review_uso_servicio_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>13. Recursos y presupuestos del equipo</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="recursos_presupuesto" rows="3"
-                            placeholder="Detalle recursos..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_recursos_presupuesto" class="review-checkbox" disabled>
-                        <div id="review_recursos_presupuesto_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>14. Uso de un experto de auditoría</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="uso_experto" rows="2" placeholder="Describa..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_uso_experto" class="review-checkbox" disabled>
-                        <div id="review_uso_experto_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>15. Uso del trabajo de auditores internos</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="uso_auditores_internos" rows="2"
-                            placeholder="Describa..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_uso_auditores_internos" class="review-checkbox" disabled>
-                        <div id="review_uso_auditores_internos_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>16. Factores relacionados con auditores internos</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditores_internos"
-                                id="factores_auditores_internos_sin_excep" value="sin_excepciones">
-                            <label class="form-check-label" for="factores_auditores_internos_sin_excep">Completado sin
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditores_internos"
-                                id="factores_auditores_internos_con_excep" value="con_excepciones">
-                            <label class="form-check-label" for="factores_auditores_internos_con_excep">Completado con
-                                excepciones</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="factores_auditores_internos"
-                                id="factores_auditores_internos_na" value="na">
-                            <label class="form-check-label" for="factores_auditores_internos_na">N/A</label>
-                        </div>
-                        <textarea class="form-control mt-2" id="factores_auditores_internos_nota" rows="2"
-                            placeholder="Agregar nota (opcional)"></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_factores_auditores_internos" class="review-checkbox" disabled>
-                        <div id="review_factores_auditores_internos_info" class="review-info"></div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>17. Comunicación de la estrategia general</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <textarea class="form-control" id="comunicacion_estrategia" rows="3"
-                            placeholder="Describa..."></textarea>
-                    </div>
-                    <div class="col-md-2 text-center">
-                        <input type="checkbox" id="review_comunicacion_estrategia" class="review-checkbox" disabled>
-                        <div id="review_comunicacion_estrategia_info" class="review-info"></div>
                     </div>
                 </div>
 
@@ -438,60 +138,13 @@
 
                 if (response && response.success && response.data) {
                     currentFormId = response.data.id;
-                    const data = response.data.data;
-
-                    setFieldValue('caracteristicas', data.caracteristicas);
-                    setFieldValue('doc_pref1', data.doc_pref1);
-                    setFieldValue('factores_auditoria', data.factores_auditoria);
-                    setFieldValue('doc_pref2', data.doc_pref2);
-                    setFieldValue('momento_realizacion', data.momento_realizacion);
-                    setFieldValue('doc_pref3', data.doc_pref3);
-                    setFieldValue('asuntos_anteriores', data.asuntos_anteriores);
-                    setFieldValue('factores_anteriores', data.factores_anteriores);
-                    setFieldValue('partes_relacionadas', data.partes_relacionadas);
-                    setFieldValue('doc_pref4', data.doc_pref4);
-                    setFieldValue('procedimientos_evaluacion', data.procedimientos_evaluacion);
-                    setFieldValue('uso_servicio', data.uso_servicio);
-                    setFieldValue('recursos_presupuesto', data.recursos_presupuesto);
-                    setFieldValue('uso_experto', data.uso_experto);
-                    setFieldValue('uso_auditores_internos', data.uso_auditores_internos);
-                    setFieldValue('factores_auditores_internos', data.factores_auditores_internos);
-                    setFieldValue('comunicacion_estrategia', data.comunicacion_estrategia);
-
-                    if (isAdmin && response.data.reviews) {
-                        loadReviewStatus(response.data.reviews);
-                    }
+                    // Formulario simplificado - no hay datos que cargar
                 }
 
                 updateStatus();
 
             } catch (error) {
                 console.error('Error loading form data:', error);
-                loadFromLocalStorage();
-            }
-        }
-
-        function loadFromLocalStorage() {
-            const savedData = localStorage.getItem(`form_${FORM_TYPE}_commitment_${commitmentId}`);
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                setFieldValue('caracteristicas', data.caracteristicas);
-                setFieldValue('doc_pref1', data.doc_pref1);
-                setFieldValue('factores_auditoria', data.factores_auditoria);
-                setFieldValue('doc_pref2', data.doc_pref2);
-                setFieldValue('momento_realizacion', data.momento_realizacion);
-                setFieldValue('doc_pref3', data.doc_pref3);
-                setFieldValue('asuntos_anteriores', data.asuntos_anteriores);
-                setFieldValue('factores_anteriores', data.factores_anteriores);
-                setFieldValue('partes_relacionadas', data.partes_relacionadas);
-                setFieldValue('doc_pref4', data.doc_pref4);
-                setFieldValue('procedimientos_evaluacion', data.procedimientos_evaluacion);
-                setFieldValue('uso_servicio', data.uso_servicio);
-                setFieldValue('recursos_presupuesto', data.recursos_presupuesto);
-                setFieldValue('uso_experto', data.uso_experto);
-                setFieldValue('uso_auditores_internos', data.uso_auditores_internos);
-                setFieldValue('factores_auditores_internos', data.factores_auditores_internos);
-                setFieldValue('comunicacion_estrategia', data.comunicacion_estrategia);
                 updateStatus();
             }
         }
@@ -517,23 +170,8 @@
 
             try {
                 const data = {
-                    caracteristicas: getFieldValue('caracteristicas'),
-                    doc_pref1: getFieldValue('doc_pref1'),
-                    factores_auditoria: getFieldValue('factores_auditoria'),
-                    doc_pref2: getFieldValue('doc_pref2'),
-                    momento_realizacion: getFieldValue('momento_realizacion'),
-                    doc_pref3: getFieldValue('doc_pref3'),
-                    asuntos_anteriores: getFieldValue('asuntos_anteriores'),
-                    factores_anteriores: getFieldValue('factores_anteriores'),
-                    partes_relacionadas: getFieldValue('partes_relacionadas'),
-                    doc_pref4: getFieldValue('doc_pref4'),
-                    procedimientos_evaluacion: getFieldValue('procedimientos_evaluacion'),
-                    uso_servicio: getFieldValue('uso_servicio'),
-                    recursos_presupuesto: getFieldValue('recursos_presupuesto'),
-                    uso_experto: getFieldValue('uso_experto'),
-                    uso_auditores_internos: getFieldValue('uso_auditores_internos'),
-                    factores_auditores_internos: getFieldValue('factores_auditores_internos'),
-                    comunicacion_estrategia: getFieldValue('comunicacion_estrategia'),
+                    simplified: true,
+                    message: 'Formulario simplificado - sin preguntas'
                 };
 
                 const response = await apiClient.post('/api/audit/forms', {
@@ -558,7 +196,7 @@
                 updateStatus();
 
                 const user = getCurrentSession();
-                logAction(user.username, 'guardo_formulario', 'A300', 'Estrategia General de Auditoría', new Date().toISOString().slice(0, 16).replace('T', ' '));
+                logAction(user.username, 'guardo_formulario', 'A300', 'Análisis de Planificación del Equipo', new Date().toISOString().slice(0, 16).replace('T', ' '));
 
             } catch (error) {
                 console.error('Error auto-saving:', error);
@@ -607,7 +245,7 @@
             statusEl.className = isComplete ? 'text-success' : 'text-warning';
 
             if (typeof updateFormStatus === 'function') {
-                updateFormStatus('A300 - Estrategia General de Auditoría', isComplete);
+                updateFormStatus('A300 - Análisis de Planificación del Equipo', isComplete);
             }
         }
 
