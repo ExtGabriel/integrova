@@ -704,6 +704,26 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('MATRIZ_A300')">
+                                    <div class="form-codigo">MATRIZ</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Matriz de riesgos por área / ciclo</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'MATRIZ_A300')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'MATRIZ_A300')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'MATRIZ_A300')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                        <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'MATRIZ_A300')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
+                                        <div class="more-options-dropdown">
+                                            <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'MATRIZ_A300')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
+                                            <div class="dropdown-content" id="dropdown-MATRIZ_A300">
+                                                <a href="#" onclick="sendMessage(event, 'MATRIZ_A300')">Mensaje</a>
+                                                <a href="#" onclick="confirmForm(event, 'MATRIZ_A300')">Confirmar</a>
+                                                <a href="#" onclick="editForm(event, 'MATRIZ_A300')">Editar</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div class="form-item-lista" onclick="abrirFormulario('A360')">
                                     <div class="form-codigo">A360</div>
@@ -13296,6 +13316,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioA200();
             } else if (formId === 'A300') {
                 mostrarFormularioA300();
+            } else if (formId === 'MATRIZ_A300') {
+                mostrarMatrizA300();
             } else if (formId === 'A360') {
                 mostrarFormularioA360();
             } else if (formId === 'A400') {
@@ -15389,6 +15411,426 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
         
+        // Función para mostrar la matriz de riesgos vinculada al A300
+        function mostrarMatrizA300() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal de la matriz
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <style>
+                    .matriz-a300-container {
+                        max-height: 70vh;
+                        overflow-y: auto;
+                        padding: 20px;
+                    }
+                    .matriz-table {
+                        background: white;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        width: 100%;
+                        min-width: 1400px;
+                    }
+                    .matriz-table thead th {
+                        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+                        color: white;
+                        padding: 12px 8px;
+                        font-weight: 600;
+                        font-size: 0.85rem;
+                        text-align: center;
+                        border: none;
+                        white-space: nowrap;
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    }
+                    .matriz-table tbody tr {
+                        transition: all 0.3s ease;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+                    .matriz-table tbody tr:hover {
+                        background-color: #f7fafc;
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                    }
+                    .matriz-table tbody td {
+                        padding: 10px 8px;
+                        border: 1px solid #e2e8f0;
+                        font-size: 0.8rem;
+                        vertical-align: middle;
+                        min-width: 80px;
+                        max-width: 150px;
+                    }
+                    .matriz-table tbody td[contenteditable="true"] {
+                        cursor: text;
+                        transition: all 0.2s ease;
+                    }
+                    .matriz-table tbody td[contenteditable="true"]:hover {
+                        background-color: #edf2f7;
+                        border-color: #cbd5e0;
+                    }
+                    .matriz-table tbody td[contenteditable="true"]:focus {
+                        outline: 2px solid #2563eb;
+                        background-color: white;
+                        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                    }
+                    .area-column {
+                        background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+                        font-weight: 600;
+                        color: #2d3748;
+                        min-width: 120px !important;
+                    }
+                    .saldo-column {
+                        background-color: #f8f9fa;
+                        text-align: right;
+                        font-family: 'Courier New', monospace;
+                    }
+                    .material-column {
+                        text-align: center;
+                        min-width: 100px !important;
+                    }
+                    .riesgo-column {
+                        background-color: #fef5e7;
+                        min-width: 120px !important;
+                    }
+                    .especialista-column {
+                        background-color: #e8f5e8;
+                        text-align: center;
+                        min-width: 100px !important;
+                    }
+                    .responsable-column {
+                        background-color: #e3f2fd;
+                        min-width: 120px !important;
+                    }
+                    .fecha-column {
+                        text-align: center;
+                        min-width: 100px !important;
+                    }
+                    .matriz-header-info {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 8px 8px 0 0;
+                        margin: -20px -20px 20px -20px;
+                        text-align: center;
+                    }
+                    .matriz-header-info h3 {
+                        margin: 0;
+                        font-size: 1.2rem;
+                        font-weight: 600;
+                    }
+                    .matriz-header-info p {
+                        margin: 5px 0 0 0;
+                        font-size: 0.85rem;
+                        opacity: 0.9;
+                    }
+                </style>
+                <div class="formulario-modal-content" style="max-height: 85vh; overflow: hidden;">
+                    <div class="formulario-header" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+                        <div class="header-left">
+                            <div>
+                                <h2 style="color: white; margin: 0;">Matriz de Riesgos - A300</h2>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioA300()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body matriz-a300-container">
+                        <div style="overflow-x: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <table class="matriz-table">
+                                <thead>
+                                    <tr>
+                                        <th>Área / Ciclo</th>
+                                        <th>Saldo</th>
+                                        <th>Material</th>
+                                        <th>Riesgo Identificado</th>
+                                        <th>Riesgo Inherente</th>
+                                        <th>Riesgo de Control</th>
+                                        <th>Aseveraciones</th>
+                                        <th>Enfoque Auditoría</th>
+                                        <th>Tipo Pruebas</th>
+                                        <th>Especialista</th>
+                                        <th>Responsable</th>
+                                        <th>Fecha</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Ingresos</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Cuentas por Cobrar</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Inventarios</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Activos Fijos</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Proveedores</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Gastos</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Bancos</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Nómina</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Impuestos</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Partes Relacionadas</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Estimaciones</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="area-column" contenteditable="true">Cierre Financiero</td>
+                                        <td class="saldo-column" contenteditable="true"></td>
+                                        <td class="material-column">
+                                            <select class="form-select form-select-sm" style="border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem;">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="si">Sí</option>
+                                                <option value="no">No</option>
+                                            </select>
+                                        </td>
+                                        <td class="riesgo-column" contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td contenteditable="true"></td>
+                                        <td class="especialista-column" contenteditable="true"></td>
+                                        <td class="responsable-column" contenteditable="true"></td>
+                                        <td class="fecha-column" contenteditable="true"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="formulario-footer" style="background: #f8f9fa; padding: 15px 20px; border-top: 1px solid #e9ecef;">
+                        <div class="formulario-info" style="color: #6c757d; font-size: 0.85rem;">
+                            <i class="bi bi-info-circle"></i> Matriz de riesgos vinculada al formulario A300
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA300()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 500;">
+                                <i class="bi bi-x-circle"></i> Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+        }
+
         // Función para guardar el formulario A300
         function guardarFormularioA300() {
             // Recopilar todas las respuestas de las preguntas
