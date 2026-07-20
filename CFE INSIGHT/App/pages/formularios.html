@@ -14481,6 +14481,147 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             }
         }
+
+        // Función para vincular documentos a un campo
+        async function vincularDocumento(campoId) {
+            try {
+                const currentUser = await waitForCurrentUser();
+                if (!currentUser?.id) {
+                    alert('No hay usuario disponible');
+                    return;
+                }
+
+                // Crear modal para seleccionar documento
+                const modal = document.createElement('div');
+                modal.id = 'documento-selector-modal';
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+                    z-index: 10000;
+                `;
+
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = `
+                    background: white; padding: 20px; border-radius: 12px; max-width: 600px;
+                    width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                `;
+
+                modalContent.innerHTML = `
+                    <h3 style="margin-top: 0; color: #37474F;">Seleccionar Documento</h3>
+                    <p style="color: #6c757d; margin-bottom: 15px;">Seleccione un documento de la sección de Documentos para vincularlo a este campo</p>
+                    <div id="documento-list" style="margin-bottom: 20px;">
+                        <p style="color: #6c757d;">Cargando documentos...</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="cancelar-doc-btn" style="padding: 8px 16px; border: 1px solid #dee2e6; background: white; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                    </div>
+                `;
+
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+                // Cerrar modal
+                document.getElementById('cancelar-doc-btn').onclick = () => {
+                    document.body.removeChild(modal);
+                };
+                modal.onclick = (e) => {
+                    if (e.target === modal) document.body.removeChild(modal);
+                };
+
+                // Cargar documentos de todas las secciones
+                const secciones = [
+                    { categoria: 'planificacion', subcategoria: 'general', nombre: 'Planificación' },
+                    { categoria: 'evaluacion-riesgo', subcategoria: 'general', nombre: 'Evaluación de Riesgo' },
+                    { categoria: 'respuesta', subcategoria: 'general', nombre: 'Respuesta al Riesgo' },
+                    { categoria: 'planes-accion', subcategoria: 'general', nombre: 'Planes de Acción' },
+                    { categoria: 'cierre', subcategoria: 'general', nombre: 'Cierre' }
+                ];
+
+                const documentoList = document.getElementById('documento-list');
+                let todosDocumentos = [];
+
+                for (const seccion of secciones) {
+                    try {
+                        const response = await fetch(`/api/subdocuments/${seccion.categoria}/${seccion.subcategoria}`, {
+                            headers: { 'user-id': currentUser.id }
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            if (result.success && result.documents) {
+                                result.documents.forEach(doc => {
+                                    if (doc.tipo === 'archivo' && doc.metadata && doc.metadata.fileName) {
+                                        todosDocumentos.push({
+                                            id: doc.id,
+                                            titulo: doc.titulo,
+                                            fileName: doc.metadata.fileName,
+                                            seccion: seccion.nombre
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error cargando documentos de ${seccion.nombre}:`, error);
+                    }
+                }
+
+                // Mostrar documentos
+                if (todosDocumentos.length === 0) {
+                    documentoList.innerHTML = '<p style="color: #6c757d;">No hay documentos disponibles en la sección de Documentos</p>';
+                } else {
+                    documentoList.innerHTML = '';
+                    todosDocumentos.forEach(doc => {
+                        const docItem = document.createElement('div');
+                        docItem.style.cssText = `
+                            padding: 12px; margin-bottom: 8px; border: 1px solid #e9ecef;
+                            border-radius: 6px; cursor: pointer; transition: all 0.2s;
+                            display: flex; align-items: center; gap: 10px;
+                        `;
+                        docItem.innerHTML = `
+                            <i class="bi bi-file-earmark-text" style="color: #6c757d; font-size: 1.2rem;"></i>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 500; color: #37474F;">${doc.titulo}</div>
+                                <div style="font-size: 0.85rem; color: #6c757d;">${doc.fileName}</div>
+                                <div style="font-size: 0.75rem; color: #adb5bd;">${doc.seccion}</div>
+                            </div>
+                        `;
+                        docItem.onmouseover = () => docItem.style.background = '#f8f9fa';
+                        docItem.onmouseout = () => docItem.style.background = 'white';
+                        docItem.onclick = () => {
+                            // Vincular documento seleccionado
+                            const campo = document.getElementById(campoId);
+                            if (campo) {
+                                campo.dataset.documentoVinculado = doc.id;
+                                campo.dataset.documentoNombre = doc.titulo;
+                                
+                                // Mostrar indicador visual clickeable
+                                const indicador = document.getElementById(campoId + '_documento_indicador');
+                                if (indicador) {
+                                    indicador.innerHTML = `📎 <strong>${doc.titulo}</strong> <span style="color: #6c757d;">(${doc.seccion})</span>`;
+                                    indicador.style.display = 'block';
+                                    indicador.style.cursor = 'pointer';
+                                    indicador.onclick = () => openUploadedDocument(doc.id);
+                                } else {
+                                    const nuevoIndicador = document.createElement('div');
+                                    nuevoIndicador.id = campoId + '_documento_indicador';
+                                    nuevoIndicador.style.cssText = 'margin-top: 5px; font-size: 0.85rem; color: #28a745; display: block; cursor: pointer;';
+                                    nuevoIndicador.innerHTML = `📎 <strong>${doc.titulo}</strong> <span style="color: #6c757d;">(${doc.seccion})</span>`;
+                                    nuevoIndicador.onclick = () => openUploadedDocument(doc.id);
+                                    campo.parentNode.insertBefore(nuevoIndicador, campo.nextSibling);
+                                }
+                            }
+                            document.body.removeChild(modal);
+                        };
+                        documentoList.appendChild(docItem);
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error en vincularDocumento:', error);
+                alert('Error al cargar documentos: ' + error.message);
+            }
+        }
         
         // Función para guardar el formulario A200
         function guardarFormularioA200() {
@@ -14611,6 +14752,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <button type="button" onclick="toggleTooltip('a300_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
                                             <i class="bi bi-lightbulb"></i>
                                         </button>
+                                        <button type="button" onclick="vincularDocumento('a300_q2_estructura')" style="background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; font-size: 0.9rem; margin-left: 4px;" title="Vincular Documento">
+                                            <i class="bi bi-paperclip"></i>
+                                        </button>
                                     </div>
                                     <div id="a300_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
                                         <strong>Referencia:</strong> (Escritura y modificaciones, nombramiento de representante legal, patentes y RTU)<br><br>
@@ -14623,6 +14767,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">3. Estructura operativa</label>
                                         <button type="button" onclick="toggleTooltip('a300_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
                                             <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                        <button type="button" onclick="vincularDocumento('a300_q3_operativa')" style="background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; font-size: 0.9rem; margin-left: 4px;" title="Vincular Documento">
+                                            <i class="bi bi-paperclip"></i>
                                         </button>
                                     </div>
                                     <div id="a300_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
@@ -15283,6 +15430,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">10. Visitas</label>
                                         <button type="button" onclick="toggleTooltip('a300_visitas_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
                                             <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                        <button type="button" onclick="vincularDocumento('a300_visitas')" style="background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; font-size: 0.9rem; margin-left: 4px;" title="Vincular Documento">
+                                            <i class="bi bi-paperclip"></i>
                                         </button>
                                     </div>
                                     <div id="a300_visitas_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
