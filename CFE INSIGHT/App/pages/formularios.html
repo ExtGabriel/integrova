@@ -773,6 +773,15 @@
                                         <button class="action-btn" title="Abrir tabla" onclick="abrirFormulario('A400_TABLA'); event.stopPropagation();"><i class="bi bi-grid"></i></button>
                                     </div>
                                 </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('A400_TABLA_AUDITORIA')">
+                                    <div class="form-codigo">TABLA</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Tabla Auditoria Grupo</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn" title="Abrir tabla" onclick="abrirFormulario('A400_TABLA_AUDITORIA'); event.stopPropagation();"><i class="bi bi-grid"></i></button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -13309,6 +13318,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioA400();
             } else if (formId === 'A400_TABLA') {
                 mostrarFormularioA400Tabla();
+            } else if (formId === 'A400_TABLA_AUDITORIA') {
+                mostrarFormularioA400TablaAuditoria();
             } else if (formId === 'A500') {
                 mostrarFormularioA500();
             } else if (formId === 'B100') {
@@ -23462,6 +23473,240 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const filas = document.querySelectorAll('#a400_tabla_partes_body tr');
             filas.forEach((fila, index) => {
                 const numeroCell = fila.querySelector('.a400-tabla-numero');
+                if (numeroCell) {
+                    numeroCell.textContent = index + 1;
+                }
+            });
+        }
+
+        // Función para mostrar el formulario de Tabla Auditoria Grupo
+        function mostrarFormularioA400TablaAuditoria() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal de la tabla
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <style>
+                    .a400-tabla-auditoria-container {
+                        max-height: 70vh;
+                        overflow-y: auto;
+                        padding: 20px;
+                    }
+                    .a400-tabla-auditoria-table {
+                        background: white;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        overflow: hidden;
+                        border-collapse: separate;
+                        border-spacing: 0;
+                        width: 100%;
+                        min-width: 1200px;
+                    }
+                    .a400-tabla-auditoria-table thead th {
+                        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+                        color: white;
+                        padding: 12px 10px;
+                        font-weight: 600;
+                        font-size: 0.85rem;
+                        text-align: center;
+                        border: none;
+                        white-space: nowrap;
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    }
+                    .a400-tabla-auditoria-table tbody tr {
+                        transition: all 0.3s ease;
+                        border-bottom: 1px solid #e2e8f0;
+                    }
+                    .a400-tabla-auditoria-table tbody tr:hover {
+                        background-color: #f7fafc;
+                        transform: translateY(-1px);
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                    }
+                    .a400-tabla-auditoria-table tbody td {
+                        padding: 10px;
+                        border: 1px solid #e2e8f0;
+                        font-size: 0.85rem;
+                        vertical-align: middle;
+                    }
+                    .a400-tabla-auditoria-table tbody td input {
+                        width: 100%;
+                        padding: 8px 10px;
+                        border: 1px solid #d1d5db;
+                        border-radius: 6px;
+                        font-size: 0.85rem;
+                        box-sizing: border-box;
+                    }
+                    .a400-tabla-auditoria-table tbody td input:focus {
+                        outline: 2px solid #2563eb;
+                        border-color: #2563eb;
+                    }
+                    .a400-tabla-auditoria-numero {
+                        text-align: center;
+                        font-weight: 600;
+                        color: #2d3748;
+                        width: 50px;
+                    }
+                    .a400-tabla-auditoria-btn-container {
+                        display: flex;
+                        gap: 10px;
+                        margin-top: 15px;
+                        justify-content: flex-end;
+                    }
+                    .a400-tabla-auditoria-btn {
+                        padding: 8px 16px;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 0.9rem;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        transition: all 0.3s ease;
+                    }
+                    .a400-tabla-auditoria-btn-primary {
+                        background: #2563eb;
+                        color: white;
+                    }
+                    .a400-tabla-auditoria-btn-primary:hover {
+                        background: #1d4ed8;
+                    }
+                    .a400-tabla-auditoria-btn-danger {
+                        background: #dc2626;
+                        color: white;
+                    }
+                    .a400-tabla-auditoria-btn-danger:hover {
+                        background: #b91c1c;
+                    }
+                </style>
+                <div class="formulario-modal-content" style="max-height: 85vh; overflow: hidden;">
+                    <div class="formulario-header" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+                        <div class="header-left">
+                            <div>
+                                <h2 style="color: white; margin: 0;">Tabla Auditoria Grupo</h2>
+                            </div>
+                        </div>
+                        <button class="close-formulario" onclick="cerrarFormularioA400()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body a400-tabla-auditoria-container">
+                        <div style="overflow-x: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <table class="a400-tabla-auditoria-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">No</th>
+                                        <th>Componente del grupo</th>
+                                        <th>% de propiedad cuando aplique</th>
+                                        <th>Ingresos y % del grupo</th>
+                                        <th>Utilidad y % del grupo</th>
+                                        <th>Activos y % del grupo</th>
+                                        <th>Financieramente Significativo? Si/No</th>
+                                        <th>Factores de riesgo identificados</th>
+                                        <th>Existen riesgos significativos?</th>
+                                        <th>¿Quién es el auditor?</th>
+                                        <th>Trabajo de auditoría requerido</th>
+                                        <th colspan="2">Participación del auditor del grupo<br>(planificación, evaluación de riesgos y revisión de P/T)</th>
+                                    </tr>
+                                    <tr>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th></th>
+                                        <th>Materialidad</th>
+                                        <th>Ref. P/T</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="a400_tabla_auditoria_body">
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="a400-tabla-auditoria-btn-container">
+                            <button class="a400-tabla-auditoria-btn a400-tabla-auditoria-btn-primary" onclick="agregarFilaA400TablaAuditoria()">
+                                <i class="bi bi-plus"></i> Agregar fila
+                            </button>
+                            <button class="a400-tabla-auditoria-btn a400-tabla-auditoria-btn-danger" onclick="eliminarUltimaFilaA400TablaAuditoria()">
+                                <i class="bi bi-trash"></i> Eliminar última fila
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Agregar el modal al body
+            document.body.appendChild(modal);
+            
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight;
+            modal.classList.add('show');
+            
+            // Agregar una fila inicial
+            agregarFilaA400TablaAuditoria();
+        }
+
+        // Función para agregar una fila a la tabla A400 Auditoria
+        function agregarFilaA400TablaAuditoria() {
+            const tbody = document.getElementById('a400_tabla_auditoria_body');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const rowId = 'a400_tabla_auditoria_row_' + rowCount;
+            
+            const fila = document.createElement('tr');
+            fila.id = rowId;
+            fila.innerHTML = `
+                <td class="a400-tabla-auditoria-numero" style="border: 1px solid #dfe3e8; padding: 10px; text-align: center;">${rowCount}</td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Componente del grupo" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="% de propiedad" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Ingresos y %" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Utilidad y %" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Activos y %" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">
+                    <select style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;">
+                        <option value="">Seleccionar</option>
+                        <option value="Si">Si</option>
+                        <option value="No">No</option>
+                    </select>
+                </td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Factores de riesgo" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Riesgos significativos?" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Auditor" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Trabajo requerido" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Materialidad" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+                <td style="border: 1px solid #dfe3e8; padding: 8px 10px;"><input type="text" placeholder="Ref. P/T" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.88rem;"></td>
+            `;
+            
+            tbody.appendChild(fila);
+        }
+
+        // Función para eliminar la última fila de la tabla Auditoria
+        function eliminarUltimaFilaA400TablaAuditoria() {
+            const tbody = document.getElementById('a400_tabla_auditoria_body');
+            const filas = tbody.querySelectorAll('tr');
+            if (filas.length > 0) {
+                filas[filas.length - 1].remove();
+                renumerarTablaA400Auditoria();
+            }
+        }
+
+        // Función para renumerar las filas de la tabla Auditoria
+        function renumerarTablaA400Auditoria() {
+            const filas = document.querySelectorAll('#a400_tabla_auditoria_body tr');
+            filas.forEach((fila, index) => {
+                const numeroCell = fila.querySelector('.a400-tabla-auditoria-numero');
                 if (numeroCell) {
                     numeroCell.textContent = index + 1;
                 }
