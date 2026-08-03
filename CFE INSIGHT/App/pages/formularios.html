@@ -752,16 +752,8 @@
                                     <div class="form-actions">
                                         <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'A400')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
                                         <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A400')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'A400')" title="Socio"><i class="bi bi-person-badge"></i></button>
                                         <button class="action-btn observations-btn" onclick="showObservations(event, 'A400')" title="Observaciones"><i class="bi bi-flag"></i></button>
-                                        <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'A400')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                        <div class="more-options-dropdown">
-                                            <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'A400')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                            <div class="dropdown-content" id="dropdown-A400">
-                                                <a href="#" onclick="sendMessage(event, 'A400')">Mensaje</a>
-                                                <a href="#" onclick="confirmForm(event, 'A400')">Confirmar</a>
-                                                <a href="#" onclick="editForm(event, 'A400')">Editar</a>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-item-lista" onclick="abrirFormulario('A400_TABLA')">
@@ -770,7 +762,10 @@
                                         <div class="form-nombre">Tabla Relacionada</div>
                                     </div>
                                     <div class="form-actions">
-                                        <button class="action-btn" title="Abrir tabla" onclick="abrirFormulario('A400_TABLA'); event.stopPropagation();"><i class="bi bi-grid"></i></button>
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'A400_TABLA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A400_TABLA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'A400_TABLA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'A400_TABLA')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                     </div>
                                 </div>
                                 <div class="form-item-lista" onclick="abrirFormulario('A400_TABLA_AUDITORIA')">
@@ -779,7 +774,10 @@
                                         <div class="form-nombre">Tabla Auditoria Grupo</div>
                                     </div>
                                     <div class="form-actions">
-                                        <button class="action-btn" title="Abrir tabla" onclick="abrirFormulario('A400_TABLA_AUDITORIA'); event.stopPropagation();"><i class="bi bi-grid"></i></button>
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'A400_TABLA_AUDITORIA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A400_TABLA_AUDITORIA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'A400_TABLA_AUDITORIA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'A400_TABLA_AUDITORIA')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                     </div>
                                 </div>
                                 <div class="form-item-lista" onclick="abrirFormulario('A400_COMPRENSION_ENTIDAD')">
@@ -788,7 +786,10 @@
                                         <div class="form-nombre">Comprensión de la entidad y su ambiente</div>
                                     </div>
                                     <div class="form-actions">
-                                        <button class="action-btn" title="Abrir formulario" onclick="abrirFormulario('A400_COMPRENSION_ENTIDAD'); event.stopPropagation();"><i class="bi bi-file-text"></i></button>
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'A400_COMPRENSION_ENTIDAD')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'A400_COMPRENSION_ENTIDAD')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'A400_COMPRENSION_ENTIDAD')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'A400_COMPRENSION_ENTIDAD')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                     </div>
                                 </div>
                                 <div class="form-item-lista" onclick="abrirFormulario('A500')">
@@ -13366,6 +13367,101 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Aquí puedes agregar la lógica para guardar
             showNotification('Datos guardados correctamente', 'success');
             closeReviewedModal();
+        }
+
+        // Función para mostrar "Socio"
+        function showPartner(event, formId) {
+            event.stopPropagation();
+            
+            // Obtener datos guardados o usar datos de ejemplo
+            const savedData = localStorage.getItem(`partner_${formId}`);
+            let data;
+            
+            if (savedData) {
+                data = JSON.parse(savedData);
+            } else {
+                // Datos de ejemplo para todos los formularios
+                const exampleData = {
+                    'A400': { name: 'Roberto Méndez', position: 'Socio del Encargo', date: '2026-01-20 16:00:00' },
+                    'A500': { name: 'Roberto Méndez', position: 'Socio del Encargo', date: '2026-01-20 16:30:00' },
+                    'A400_TABLA': { name: 'Roberto Méndez', position: 'Socio del Encargo', date: '2026-01-20 17:00:00' },
+                    'A400_TABLA_AUDITORIA': { name: 'Roberto Méndez', position: 'Socio del Encargo', date: '2026-01-20 17:30:00' },
+                    'A400_COMPRENSION_ENTIDAD': { name: 'Roberto Méndez', position: 'Socio del Encargo', date: '2026-01-20 18:00:00' }
+                };
+                data = exampleData[formId] || { name: 'Socio no asignado', position: 'Posición por defecto', date: new Date().toISOString().slice(0, 19).replace('T', ' ') };
+            }
+            
+            // Formatear fecha y hora
+            const dateTime = new Date(data.date);
+            const formattedDate = dateTime.toLocaleDateString('es-ES', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+            const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.className = 'partner-modal';
+            modal.innerHTML = `
+                <div class="partner-content">
+                    <div class="partner-header">
+                        <h4><i class="bi bi-person-badge"></i> Socio - ${formId}</h4>
+                        <button class="close-btn" onclick="closePartnerModal()">&times;</button>
+                    </div>
+                    <div class="partner-body">
+                        <div class="partner-info">
+                            <div class="info-row">
+                                <i class="bi bi-person-fill"></i>
+                                <div class="info-content">
+                                    <strong>Nombre:</strong> ${data.name}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-briefcase-fill"></i>
+                                <div class="info-content">
+                                    <strong>Cargo:</strong> ${data.position}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-calendar-fill"></i>
+                                <div class="info-content">
+                                    <strong>Fecha:</strong> ${formattedDate}
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="bi bi-clock-fill"></i>
+                                <div class="info-content">
+                                    <strong>Hora:</strong> ${formattedTime}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar modal al body
+            document.body.appendChild(modal);
+            
+            // Mostrar modal con animación
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        // Función para cerrar modal de "Socio"
+        function closePartnerModal() {
+            const modal = document.querySelector('.partner-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
         }
 
         // ----- FUNCIONES PARA FORMULARIOS -----
@@ -28314,11 +28410,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             
                             <div class="usuarios-table-container">
                                 <div class="usuarios-table" id="usuariosTable">
+                                    <div class="usuarios-header-row">
+                                        <div class="usuarios-header-col">Usuarios principales de los estados financieros</div>
+                                        <div class="usuarios-header-col">Factores a considerar</div>
+                                    </div>
                                     <div class="usuario-row">
-                                        <input type="text" class="usuario-input" placeholder="Usuario">
-                                        <input type="text" class="usuario-input" placeholder="Necesidades">
+                                        <input type="text" class="usuario-input" placeholder="DATOS 1">
+                                        <input type="text" class="usuario-input" placeholder="DATOS 1">
                                         <button class="btn-eliminar-usuario" onclick="eliminarUsuario(this)">
-                                            <i class="bi bi-trash"></i>
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                    <div class="usuario-row">
+                                        <input type="text" class="usuario-input" placeholder="DATOS 2">
+                                        <input type="text" class="usuario-input" placeholder="DATOS 2">
+                                        <button class="btn-eliminar-usuario" onclick="eliminarUsuario(this)">
+                                            <i class="bi bi-x"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -28333,214 +28440,165 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <div class="seccion-header">
                                 <h3>Materialidad general</h3>
                             </div>
-                            
-                            <div class="materialidad-table-container">
-                                <table class="materialidad-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Base</th>
-                                            <th>Importe</th>
-                                            <th>Período anterior</th>
-                                            <th>% de referencia aplicado</th>
-                                            <th>Posible materialidad de planificación</th>
-                                            <th>Conclusiones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>Activos no corrientes</td>
-                                            <td><input type="text" class="materialidad-input" id="activos_no_corrientes_importe"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_no_corrientes_periodo_anterior"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_no_corrientes_porcentaje"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_no_corrientes_materialidad"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_no_corrientes_conclusiones"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Activos corrientes</td>
-                                            <td><input type="text" class="materialidad-input" id="activos_corrientes_importe"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_corrientes_periodo_anterior"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_corrientes_porcentaje"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_corrientes_materialidad"></td>
-                                            <td><input type="text" class="materialidad-input" id="activos_corrientes_conclusiones"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Ingresos</td>
-                                            <td><input type="text" class="materialidad-input" id="ingresos_importe"></td>
-                                            <td><input type="text" class="materialidad-input" id="ingresos_periodo_anterior"></td>
-                                            <td><input type="text" class="materialidad-input" id="ingresos_porcentaje"></td>
-                                            <td><input type="text" class="materialidad-input" id="ingresos_materialidad"></td>
-                                            <td><input type="text" class="materialidad-input" id="ingresos_conclusiones"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
 
-                            <!-- Sección de bases adicionales -->
-                            <div class="bases-adicionales">
-                                <div class="base-row">
-                                    <input type="text" class="base-input" placeholder="Base adicional 1">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="base-input">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="base-input">
-                                </div>
-                                <div class="base-row">
-                                    <input type="text" class="base-input" placeholder="Base adicional 2">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="base-input">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="base-input">
-                                </div>
-                            </div>
+                            <div class="materialidad-general-layout">
+                                <div class="materialidad-general-main">
+                                    <div class="materialidad-table-container">
+                                        <table class="materialidad-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Base</th>
+                                                    <th>Importado</th>
+                                                    <th>Período anterior</th>
+                                                    <th>% de referencia aplicado</th>
+                                                    <th>Posible materialidad de planificación</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Activos no corrientes</td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_no_corrientes_importe"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_no_corrientes_periodo_anterior"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_no_corrientes_porcentaje"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_no_corrientes_materialidad"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Activos corrientes</td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_corrientes_importe"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_corrientes_periodo_anterior"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_corrientes_porcentaje"></td>
+                                                    <td><input type="text" class="materialidad-input" id="activos_corrientes_materialidad"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Ingresos</td>
+                                                    <td><input type="text" class="materialidad-input" id="ingresos_importe"></td>
+                                                    <td><input type="text" class="materialidad-input" id="ingresos_periodo_anterior"></td>
+                                                    <td><input type="text" class="materialidad-input" id="ingresos_porcentaje"></td>
+                                                    <td><input type="text" class="materialidad-input" id="ingresos_materialidad"></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
 
-                            <!-- Botones de bases -->
-                            <div class="bases-buttons">
-                                <button class="btn-base" onclick="baseMaterialidadFinanciera()">
-                                    Base de materialidad financiera
-                                </button>
-                                <button class="btn-base" onclick="formulaPersonalizada()">
-                                    Fórmula personalizada
-                                </button>
-                                <button class="btn-base" onclick="otrasBases()">
-                                    Otras bases
-                                </button>
-                            </div>
+                                    <!-- Botones de bases -->
+                                    <div class="bases-buttons">
+                                        <button class="btn-base" onclick="baseMaterialidadFinanciera()">
+                                            Base de materialidad financiera
+                                        </button>
+                                        <button class="btn-base" onclick="formulaPersonalizada()">
+                                            Fórmula personalizada
+                                        </button>
+                                    </div>
 
-                            <!-- Sección de conclusiones finales -->
-                            <div class="conclusiones-finales-simple">
-                                <h4>Conclusiones</h4>
-                                <textarea class="conclusion-textarea-simple" id="conclusiones_finales" placeholder="Ingrese sus conclusiones aquí..."></textarea>
-                            </div>
-                        </div>
+                                    <div class="materialidad-comentarios">
+                                        <label for="materialidad_comentarios">Comentarios</label>
+                                        <textarea id="materialidad_comentarios" class="materialidad-comentarios-textarea"></textarea>
+                                    </div>
 
-                        <!-- Sección 3: Trivial misstatement -->
-                        <div class="formulario-seccion">
-                            <div class="seccion-header">
-                                <h3>Trivial misstatement</h3>
-                            </div>
-                            
-                            <div class="trivial-misstatement-container">
-                                <div class="misstatement-row">
-                                    <label>Amount:</label>
-                                    <input type="text" class="misstatement-input" id="trivial_amount">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="misstatement-input" id="trivial_amount_calculated">
-                                </div>
-                                <div class="misstatement-row">
-                                    <label>Percentage:</label>
-                                    <input type="text" class="misstatement-input" id="trivial_percentage">
-                                    <span class="fx-label">fx</span>
-                                    <input type="text" class="misstatement-input" id="trivial_percentage_calculated">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección 4: Materiality for specific circumstances -->
-                        <div class="formulario-seccion">
-                            <div class="seccion-header">
-                                <h3>Materiality for specific circumstances</h3>
-                            </div>
-                            
-                            <div class="materiality-specific-container">
-                                <table class="materiality-specific-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Account</th>
-                                            <th>Balance</th>
-                                            <th>Materiality</th>
-                                            <th>Performance materiality</th>
-                                            <th>Clearly trivial threshold</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="account1_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account1_materiality"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account1_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account1_trivial"></td>
-                                        </tr>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="account2_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account2_materiality"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account2_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account2_trivial"></td>
-                                        </tr>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="account3_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account3_materiality"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account3_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="account3_trivial"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                
-                                <div class="add-account-row">
-                                    <button class="btn-add-account" onclick="addAccountRow()">
-                                        <i class="bi bi-plus"></i> Add account
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección 5: Performance materiality for specific circumstances -->
-                        <div class="formulario-seccion">
-                            <div class="seccion-header">
-                                <h3>Performance materiality for specific circumstances</h3>
-                            </div>
-                            
-                            <div class="performance-materiality-container">
-                                <table class="performance-materiality-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Account</th>
-                                            <th>Balance</th>
-                                            <th>Performance materiality</th>
-                                            <th>Clearly trivial threshold</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="perf_account1_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account1_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account1_trivial"></td>
-                                        </tr>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="perf_account2_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account2_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account2_trivial"></td>
-                                        </tr>
-                                        <tr>
-                                            <td><input type="text" class="account-input" placeholder="Account name"></td>
-                                            <td><input type="text" class="balance-input" id="perf_account3_balance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account3_performance"></td>
-                                            <td><input type="text" class="materiality-input-small" id="perf_account3_trivial"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                
-                                <div class="add-account-row">
-                                    <button class="btn-add-account" onclick="addPerformanceAccountRow()">
-                                        <i class="bi bi-plus"></i> Add account
-                                    </button>
+                                    <div class="divulgaciones-cualitativas">
+                                        <label for="divulgaciones_cualitativas">Divulgaciones cualitativas</label>
+                                        <p class="divulgaciones-descripcion">Describa los factores que podrían dar lugar a una declaración errónea material en las divulgaciones cualitativas.</p>
+                                        <div id="divulgaciones_container">
+                                            <div class="divulgaciones-row" style="display: flex; gap: 8px;">
+                                                <textarea id="divulgaciones_cualitativas" class="divulgaciones-textarea" style="flex: 1; min-height: 60px;"></textarea>
+                                                <button type="button" class="btn-eliminar-divulgacion" onclick="eliminarFilaDivulgacion(this)">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn-agregar-fila-divulgaciones" onclick="agregarFilaDivulgaciones()">
+                                            <span>+</span> Agregar fila
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <!-- Sección de Conclusiones separada -->
-                                <div class="conclusiones-separadas-container">
+                                <div class="materialidad-conclusiones-panel">
                                     <h4>Conclusiones</h4>
-                                    <div class="conclusiones-row">
-                                        <div class="conclusion-item">
-                                            <label>Prior Year:</label>
-                                            <input type="text" class="conclusion-input" id="performance_prior_year" placeholder="-">
-                                        </div>
-                                        <div class="conclusion-item">
-                                            <label>Planning:</label>
-                                            <input type="text" class="conclusion-input" id="performance_planning" placeholder="-">
-                                        </div>
+                                    <div class="materialidad-conclusion-row">
+                                        <span class="materialidad-conclusion-label">Año anterior</span>
+                                        <input type="text" id="materialidad_conclusion_anio_anterior" class="materialidad-conclusion-input" readonly>
+                                    </div>
+                                    <div class="materialidad-conclusion-row">
+                                        <span class="materialidad-conclusion-label">Planificación</span>
+                                        <input type="text" id="materialidad_conclusion_planificacion" class="materialidad-conclusion-input" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección 3: Materialidad de desempeño -->
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Materialidad de desempeño</h3>
+                            </div>
+
+                            <div class="materialidad-general-layout">
+                                <div class="materialidad-general-main">
+                                    <div class="materialidad-table-container">
+                                        <table class="materialidad-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Materialidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>% de referencia aplicado</th>
+                                                    <th>Materialidad posible</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Materialidad de la planificación general</td>
+                                                    <td><input type="text" class="materialidad-input" id="desempeno_cantidad"></td>
+                                                    <td><input type="text" class="materialidad-input" id="desempeno_porcentaje"></td>
+                                                    <td><input type="text" class="materialidad-input" id="desempeno_materialidad_posible"></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="materialidad-comentarios">
+                                        <label for="desempeno_comentarios">Comentarios</label>
+                                        <textarea id="desempeno_comentarios" class="materialidad-comentarios-textarea"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="materialidad-conclusiones-panel">
+                                    <h4>Conclusiones</h4>
+                                    <div class="materialidad-conclusion-row">
+                                        <span class="materialidad-conclusion-label">Año anterior</span>
+                                        <input type="text" id="desempeno_conclusion_anio_anterior" class="materialidad-conclusion-input" readonly>
+                                    </div>
+                                    <div class="materialidad-conclusion-row">
+                                        <span class="materialidad-conclusion-label">Planificación</span>
+                                        <input type="text" id="desempeno_conclusion_planificacion" class="materialidad-conclusion-input" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección 4: Declaración errónea trivial -->
+                        <div class="formulario-seccion">
+                            <div class="seccion-header">
+                                <h3>Declaración errónea trivial</h3>
+                            </div>
+
+                            <div class="materialidad-general-layout">
+                                <div class="materialidad-general-main">
+                                    <div class="materialidad-trivial-importe-row">
+                                        <label for="trivial_importe" class="materialidad-trivial-label">Importe por debajo de la cual las incorrecciones serían claramente triviales:</label>
+                                        <input type="text" class="materialidad-input materialidad-trivial-input" id="trivial_importe">
+                                    </div>
+
+                                    <div class="materialidad-comentarios">
+                                        <label for="trivial_comentarios">Comentarios</label>
+                                        <textarea id="trivial_comentarios" class="materialidad-comentarios-textarea"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="materialidad-conclusiones-panel">
+                                    <h4>Conclusiones</h4>
+                                    <div class="materialidad-conclusion-row">
+                                        <span class="materialidad-conclusion-label">Claramente trivial</span>
+                                        <input type="text" id="trivial_conclusion_importe" class="materialidad-conclusion-input" readonly>
                                     </div>
                                 </div>
                             </div>
@@ -28584,10 +28642,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const newRow = document.createElement('div');
             newRow.className = 'usuario-row';
             newRow.innerHTML = `
-                <input type="text" class="usuario-input" placeholder="Usuario">
-                <input type="text" class="usuario-input" placeholder="Necesidades">
+                <input type="text" class="usuario-input" placeholder="DATOS">
+                <input type="text" class="usuario-input" placeholder="DATOS">
                 <button class="btn-eliminar-usuario" onclick="eliminarUsuario(this)">
-                    <i class="bi bi-trash"></i>
+                    <i class="bi bi-x"></i>
                 </button>
             `;
             usuariosTable.appendChild(newRow);
@@ -28595,6 +28653,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para eliminar usuario
         function eliminarUsuario(button) {
+            const row = button.parentElement;
+            row.remove();
+        }
+
+        // Función para agregar fila en Divulgaciones cualitativas
+        function agregarFilaDivulgaciones() {
+            const container = document.getElementById('divulgaciones_container');
+            const newRow = document.createElement('div');
+            newRow.className = 'divulgaciones-row';
+            newRow.style.display = 'flex';
+            newRow.style.gap = '8px';
+            newRow.style.marginTop = '8px';
+            newRow.innerHTML = `
+                <textarea class="divulgaciones-textarea" style="flex: 1; min-height: 60px;"></textarea>
+                <button type="button" class="btn-eliminar-divulgacion" onclick="eliminarFilaDivulgacion(this)">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        // Función para eliminar fila de Divulgaciones cualitativas
+        function eliminarFilaDivulgacion(button) {
             const row = button.parentElement;
             row.remove();
         }
@@ -28620,79 +28701,50 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     importe: document.getElementById('activos_no_corrientes_importe')?.value || '',
                     periodo_anterior: document.getElementById('activos_no_corrientes_periodo_anterior')?.value || '',
                     porcentaje: document.getElementById('activos_no_corrientes_porcentaje')?.value || '',
-                    materialidad: document.getElementById('activos_no_corrientes_materialidad')?.value || '',
-                    conclusiones: document.getElementById('activos_no_corrientes_conclusiones')?.value || ''
+                    materialidad: document.getElementById('activos_no_corrientes_materialidad')?.value || ''
                 },
                 activos_corrientes: {
                     importe: document.getElementById('activos_corrientes_importe')?.value || '',
                     periodo_anterior: document.getElementById('activos_corrientes_periodo_anterior')?.value || '',
                     porcentaje: document.getElementById('activos_corrientes_porcentaje')?.value || '',
-                    materialidad: document.getElementById('activos_corrientes_materialidad')?.value || '',
-                    conclusiones: document.getElementById('activos_corrientes_conclusiones')?.value || ''
+                    materialidad: document.getElementById('activos_corrientes_materialidad')?.value || ''
                 },
                 ingresos: {
                     importe: document.getElementById('ingresos_importe')?.value || '',
                     periodo_anterior: document.getElementById('ingresos_periodo_anterior')?.value || '',
                     porcentaje: document.getElementById('ingresos_porcentaje')?.value || '',
-                    materialidad: document.getElementById('ingresos_materialidad')?.value || '',
-                    conclusiones: document.getElementById('ingresos_conclusiones')?.value || ''
+                    materialidad: document.getElementById('ingresos_materialidad')?.value || ''
                 },
-                conclusiones_finales: document.getElementById('conclusiones_finales')?.value || ''
-            };
-
-            // Recopilar datos de Trivial misstatement
-            const trivialMisstatement = {
-                amount: document.getElementById('trivial_amount')?.value || '',
-                amount_calculated: document.getElementById('trivial_amount_calculated')?.value || '',
-                percentage: document.getElementById('trivial_percentage')?.value || '',
-                percentage_calculated: document.getElementById('trivial_percentage_calculated')?.value || ''
-            };
-
-            // Recopilar datos de Materiality for specific circumstances
-            const materialitySpecific = [];
-            const materialityRows = document.querySelectorAll('.materiality-specific-table tbody tr');
-            materialityRows.forEach((row, index) => {
-                const inputs = row.querySelectorAll('input');
-                if (inputs[0].value || inputs[1].value) {
-                    materialitySpecific.push({
-                        account: inputs[0].value,
-                        balance: inputs[1].value,
-                        materiality: inputs[2].value,
-                        performance: inputs[3].value,
-                        trivial: inputs[4].value
-                    });
-                }
-            });
-
-            // Recopilar datos de Performance materiality for specific circumstances
-            const performanceMateriality = [];
-            const performanceRows = document.querySelectorAll('.performance-materiality-table tbody tr');
-            performanceRows.forEach((row, index) => {
-                const inputs = row.querySelectorAll('input');
-                if (inputs[0].value || inputs[1].value) {
-                    performanceMateriality.push({
-                        account: inputs[0].value,
-                        balance: inputs[1].value,
-                        performance: inputs[2].value,
-                        trivial: inputs[3].value
-                    });
-                }
-            });
-
-            // Recopilar datos de conclusiones separadas de performance materiality
-            const performanceConclusiones = {
-                prior_year: document.getElementById('performance_prior_year')?.value || '',
-                planning: document.getElementById('performance_planning')?.value || ''
+                conclusiones_panel: {
+                    anio_anterior: document.getElementById('materialidad_conclusion_anio_anterior')?.value || '',
+                    planificacion: document.getElementById('materialidad_conclusion_planificacion')?.value || ''
+                },
+                desempeno: {
+                    cantidad: document.getElementById('desempeno_cantidad')?.value || '',
+                    porcentaje: document.getElementById('desempeno_porcentaje')?.value || '',
+                    materialidad_posible: document.getElementById('desempeno_materialidad_posible')?.value || '',
+                    comentarios: document.getElementById('desempeno_comentarios')?.value || '',
+                    conclusiones: {
+                        anio_anterior: document.getElementById('desempeno_conclusion_anio_anterior')?.value || '',
+                        planificacion: document.getElementById('desempeno_conclusion_planificacion')?.value || ''
+                    }
+                },
+                trivial: {
+                    importe: document.getElementById('trivial_importe')?.value || '',
+                    comentarios: document.getElementById('trivial_comentarios')?.value || '',
+                    conclusiones: {
+                        claramente_trivial: document.getElementById('trivial_conclusion_importe')?.value || ''
+                    }
+                },
+                conclusiones_finales: document.getElementById('materialidad_comentarios')?.value || '',
+                divulgaciones_cualitativas: document.getElementById('divulgaciones_cualitativas')?.value || ''
             };
             
             const datosFormulario = {
                 usuarios: usuarios,
                 materialidad: materialidad,
-                conclusiones_finales: document.getElementById('conclusiones_finales')?.value || '',
-                trivialMisstatement: trivialMisstatement,
-                materialitySpecific: materialitySpecific,
-                performanceMateriality: performanceMateriality,
-                performanceConclusiones: performanceConclusiones
+                conclusiones_finales: document.getElementById('materialidad_comentarios')?.value || '',
+                divulgaciones_cualitativas: document.getElementById('divulgaciones_cualitativas')?.value || ''
             };
             
             console.log('Datos del formulario A500:', datosFormulario);
@@ -28716,47 +28768,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             showNotification('Fórmula personalizada seleccionada', 'info');
         }
 
-        function otrasBases() {
-            showNotification('Otras bases seleccionadas', 'info');
-        }
-
-        // Función para agregar fila de cuenta en Materiality for specific circumstances
-        function addAccountRow() {
-            const tbody = document.querySelector('.materiality-specific-table tbody');
-            const rowCount = tbody.children.length;
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td><input type="text" class="account-input" placeholder="Account name"></td>
-                <td><input type="text" class="balance-input" id="account${rowCount + 1}_balance"></td>
-                <td><input type="text" class="materiality-input-small" id="account${rowCount + 1}_materiality"></td>
-                <td><input type="text" class="materiality-input-small" id="account${rowCount + 1}_performance"></td>
-                <td><input type="text" class="materiality-input-small" id="account${rowCount + 1}_trivial"></td>
-            `;
-            tbody.appendChild(newRow);
-        }
-
-        // Función para agregar fila de cuenta en Performance materiality for specific circumstances
-        function addPerformanceAccountRow() {
-            const tbody = document.querySelector('.performance-materiality-table tbody');
-            const rowCount = tbody.children.length;
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td><input type="text" class="account-input" placeholder="Account name"></td>
-                <td><input type="text" class="balance-input" id="perf_account${rowCount + 1}_balance"></td>
-                <td><input type="text" class="materiality-input-small" id="perf_account${rowCount + 1}_performance"></td>
-                <td><input type="text" class="materiality-input-small" id="perf_account${rowCount + 1}_trivial"></td>
-            `;
-            tbody.appendChild(newRow);
-        }
-
         // Función para mostrar el formulario B300
         function mostrarFormularioB300() {
-            // Eliminar cualquier modal existente
-            const existingModal = document.querySelector('.formulario-modal');
-            if (existingModal) {
-                document.body.removeChild(existingModal);
-            }
-
             const modal = document.createElement('div');
             modal.className = 'formulario-modal';
             modal.innerHTML = `
