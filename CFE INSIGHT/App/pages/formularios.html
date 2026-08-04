@@ -7129,8 +7129,30 @@
                 return cleanedRow;
             });
             
+            // Eliminar filas duplicadas (mismo rowId o misma combinación cuenta + padre + nivel)
+            const seenKeys = new Set();
+            const dedupedRows = [];
+            cleanedRows.forEach(row => {
+                const key = row.rowId
+                    ? `id:${row.rowId}`
+                    : `code:${row.accountCode || ''}|name:${row.accountName || ''}|parent:${row.parentId || ''}|level:${row.level ?? ''}`;
+                if (seenKeys.has(key)) {
+                    console.log('  🧹 Eliminando fila duplicada de grupos financieros:', {
+                        accountCode: row.accountCode,
+                        accountName: row.accountName,
+                        parentId: row.parentId,
+                        level: row.level
+                    });
+                    return;
+                }
+                seenKeys.add(key);
+                dedupedRows.push(row);
+            });
+
+            console.log(`  🔍 Filas después de eliminar duplicados: ${dedupedRows.length}`);
+
             // Recalcular totales para grupos padre
-            const recalculatedRows = recalculateGroupTotals(cleanedRows);
+            const recalculatedRows = recalculateGroupTotals(dedupedRows);
             
             console.log(`  ✅ Limpieza completada: ${rows.length} -> ${recalculatedRows.length} filas`);
             return recalculatedRows;
@@ -22102,6 +22124,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 selectedAccount = null;
                 document.querySelectorAll('.unassigned-accounts-list .account-item.selected')
                     .forEach(item => item.classList.remove('selected'));
+                
+                // Limpiar asignaciones existentes para evitar duplicación al recargar
+                const existingAssignments = document.querySelectorAll('.assigned-account');
+                if (existingAssignments.length > 0) {
+                    console.log('🔄 Limpiando asignaciones existentes antes de cargar cuentas...');
+                    existingAssignments.forEach(el => el.remove());
+                }
+                
                 const container = document.querySelector('.unassigned-accounts-list');
                 const shouldShowLoading = container
                     ? !container.querySelector('.account-item')
