@@ -5295,9 +5295,28 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
         
-        console.log('🔍 DEBUG getAssignments:', { datasetId, userId });
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getAssignments:');
+        console.log('  datasetId:', datasetId);
+        console.log('  userId:', userId);
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId es requerido' 
+            });
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR: datasetId es null/undefined');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'datasetId es requerido' 
+            });
+        }
         
         // Primero verificar si hay asignaciones para este usuario sin importar dataset
+        console.log('🔍 Consultando todas las asignaciones del usuario...');
         const { data: allAssignments, error: allError } = await supabase
             .from('account_assignments')
             .select(`
@@ -5307,13 +5326,16 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             `)
             .eq('user_id', userId);
 
-        console.log('🔍 DEBUG Todas las asignaciones del usuario:', {
+        console.log('🔍 Todas las asignaciones del usuario:', {
             totalCount: allAssignments?.length || 0,
             datasetIds: [...new Set(allAssignments?.map(a => a.dataset_id) || [])],
-            firstAssignment: allAssignments?.[0]
+            firstAssignment: allAssignments?.[0],
+            hasError: !!allError,
+            error: allError?.message
         });
         
         // Ahora filtrar por dataset_id específico
+        console.log('🔍 Filtrando asignaciones por datasetId:', datasetId);
         const { data, error } = await supabase
             .from('account_assignments')
             .select(`
@@ -5325,26 +5347,33 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             .eq('user_id', userId)
             .order('position');
 
-        console.log('🔍 DEBUG Asignaciones filtradas:', {
+        console.log('🔍 Asignaciones filtradas:', {
             datasetId,
             filteredCount: data?.length || 0,
             hasError: !!error,
             error: error?.message,
-            firstFiltered: data?.[0]
+            firstFiltered: data?.[0],
+            sampleData: data?.slice(0, 3)
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error en consulta de asignaciones:', error);
+            throw error;
+        }
 
+        console.log('✅ Retornando', data?.length || 0, 'asignaciones');
         res.json({ 
             success: true, 
             assignments: data || [] 
         });
 
     } catch (error) {
-        console.error('Error obteniendo asignaciones:', error);
+        console.error('❌ Error obteniendo asignaciones:', error);
+        console.error('❌ Stack trace:', error.stack);
         res.status(500).json({ 
             success: false, 
-            error: 'Error obteniendo asignaciones' 
+            error: 'Error obteniendo asignaciones',
+            details: error.message
         });
     }
 });
@@ -5868,26 +5897,69 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
         const { datasetId, results, status, entityId, commitmentId } = req.body;
         const userId = req.headers['user-id'];
         
-        console.log('🔍 DEBUG saveFinancialGroupsResults:', {
-            datasetId,
-            resultsCount: results?.length || 0,
-            status,
-            entityId,
-            commitmentId,
-            userId,
-            hasResults: !!results,
-            firstResult: results?.[0]
-        });
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveFinancialGroupsResults:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  status:', status);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  hasResults:', !!results);
         
-        if (!userId || !datasetId || !results) {
-            console.log('❌ ERROR: Faltan datos requeridos:', { userId, datasetId, hasResults: !!results });
+        // Verificar datos requeridos
+        if (!userId) {
+            console.error('❌ ERROR CRÍTICO: userId es null/undefined en el servidor');
             return res.status(400).json({ 
                 success: false, 
-                error: 'Faltan datos requeridos' 
+                error: 'userId es requerido' 
             });
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR CRÍTICO: datasetId es null/undefined en el servidor');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'datasetId es requerido' 
+            });
+        }
+        
+        if (!results || results.length === 0) {
+            console.error('❌ ERROR CRÍTICO: results está vacío o es null en el servidor');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'results es requerido y no puede estar vacío' 
+            });
+        }
+        
+        // Mostrar muestra de datos recibidos
+        console.log('🔍 Muestra de datos recibidos en servidor (primeros 3):');
+        results.slice(0, 3).forEach((row, i) => {
+            console.log(`  Row ${i}:`, {
+                accountName: row.accountName,
+                accountCode: row.accountCode,
+                preliminary: row.preliminary,
+                adjustments: row.adjustments,
+                finalCurrent: row.finalCurrent,
+                finalPrevious: row.finalPrevious
+            });
+        });
+        
+        // Verificar si todos los valores son 0
+        const allZeros = results.every(row => 
+            (row.preliminary === 0 || row.preliminary === undefined || row.preliminary === null) &&
+            (row.adjustments === 0 || row.adjustments === undefined || row.adjustments === null) &&
+            (row.finalCurrent === 0 || row.finalCurrent === undefined || row.finalCurrent === null) &&
+            (row.finalPrevious === 0 || row.finalPrevious === undefined || row.finalPrevious === null)
+        );
+        
+        console.log('🔍 ¿Todos los valores son 0?', allZeros);
+        
+        if (allZeros) {
+            console.warn('⚠️ ADVERTENCIA: Todos los valores de grupos financieros son 0');
         }
 
         // Crear el snapshot principal
+        console.log('🔍 Creando snapshot en financial_group_snapshots...');
         const { data: snapshot, error: snapshotError } = await supabase
             .from('financial_group_snapshots')
             .insert({
@@ -5899,7 +5971,8 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                     generatedAt: new Date().toISOString(),
                     status: status || 'completed',
                     entityId: entityId || null,
-                    commitmentId: commitmentId || null
+                    commitmentId: commitmentId || null,
+                    allZeros: allZeros
                 }
             })
             .select('id, meta, generated_at')
@@ -5907,6 +5980,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 
         if (snapshotError) {
             console.error('❌ ERROR creando snapshot:', snapshotError);
+            console.error('❌ Detalles del error:', JSON.stringify(snapshotError, null, 2));
             throw snapshotError;
         }
 
@@ -5917,8 +5991,10 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
         
         const filteredResults = results.filter((result, index) => {
             // Criterios de inclusión
-            const hasFinancialData = (result.preliminary !== 0 || result.adjustments !== 0 || 
-                                    result.finalCurrent !== 0 || result.finalPrevious !== 0);
+            const hasFinancialData = (result.preliminary !== 0 && result.preliminary !== undefined && result.preliminary !== null) || 
+                                    (result.adjustments !== 0 && result.adjustments !== undefined && result.adjustments !== null) || 
+                                    (result.finalCurrent !== 0 && result.finalCurrent !== undefined && result.finalCurrent !== null) || 
+                                    (result.finalPrevious !== 0 && result.finalPrevious !== undefined && result.finalPrevious !== null);
             const isMainStructuralGroup = (result.isParent && result.hasChildren && 
                                          result.accountName && result.accountName.trim() !== '' && 
                                          !result.accountName.startsWith('-'));
@@ -5935,6 +6011,9 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                     accountName: result.accountName,
                     accountCode: result.accountCode,
                     preliminary: result.preliminary,
+                    adjustments: result.adjustments,
+                    finalCurrent: result.finalCurrent,
+                    finalPrevious: result.finalPrevious,
                     hasFinancialData,
                     isMainStructuralGroup,
                     hasValidCodeAndData,
@@ -6001,6 +6080,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
             }))
         };
 
+        console.log('🔍 Actualizando snapshot con grupos financieros...');
         const { data: updatedSnapshot, error: updateError } = await supabase
             .from('financial_group_snapshots')
             .update({ meta: updatedMeta })
@@ -6010,6 +6090,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 
         if (updateError) {
             console.error('❌ ERROR actualizando snapshot con grupos:', updateError);
+            console.error('❌ Detalles del error:', JSON.stringify(updateError, null, 2));
             throw updateError;
         }
 
@@ -6026,10 +6107,12 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error guardando resultados de grupos financieros:', error);
+        console.error('❌ Error guardando resultados de grupos financieros:', error);
+        console.error('❌ Stack trace:', error.stack);
         res.status(500).json({ 
             success: false, 
-            error: 'Error guardando resultados de grupos financieros' 
+            error: 'Error guardando resultados de grupos financieros',
+            details: error.message
         });
     }
 });

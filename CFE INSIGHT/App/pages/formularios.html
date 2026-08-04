@@ -2478,7 +2478,10 @@
                                 <h3><i class="fas fa-folder-tree"></i> Grupos Financieros</h3>
                             </div>
                             <div class="right-header">
-                                <button id="saveBGResultsBtn" class="btn btn-primary" onclick="saveBGResults()" style="margin-left: 10px;">
+                                <button id="saveFinancialGroupsBtn" class="btn btn-success" onclick="saveFinancialGroupsManual()" style="display: none;">
+                                    <i class="bi bi-database"></i> Guardar Grupos Financieros
+                                </button>
+                                <button id="saveBGResultsBtn" class="btn btn-primary" onclick="saveBGResults()" style="display: none;">
                                     <i class="bi bi-cloud-upload"></i> Guardar resultados para BG
                                 </button>
                             </div>
@@ -5049,26 +5052,59 @@
         async function loadAssignmentsForDataset(datasetId) {
             const resolvedDatasetId = (datasetId || currentDatasetId || '').toString().trim();
 
+            console.log('🔍🔍🔍 DIAGNÓSTICO loadAssignmentsForDataset:');
+            console.log('  datasetId recibido:', datasetId);
+            console.log('  currentDatasetId:', currentDatasetId);
+            console.log('  resolvedDatasetId:', resolvedDatasetId);
+
+            // Obtener contexto de forma segura
+            let currentContext = null;
+            try {
+                if (typeof formDataManager !== 'undefined' && typeof formDataManager.getContext === 'function') {
+                    currentContext = formDataManager.getContext();
+                } else if (typeof context !== 'undefined') {
+                    currentContext = context;
+                }
+            } catch (e) {
+                console.warn('⚠️ No se pudo obtener el contexto:', e);
+            }
+
+            console.log('  context:', currentContext);
+
             if (!resolvedDatasetId) {
-                console.warn('loadAssignmentsForDataset: datasetId vacío');
+                console.warn('❌ loadAssignmentsForDataset: datasetId vacío');
                 return [];
             }
 
             // SOLO usar base de datos - eliminar localStorage para evitar duplicados
             try {
+                console.log('  Verificando si getAccountAssignments está disponible:', typeof window.getAccountAssignments);
                 if (typeof window.getAccountAssignments === 'function') {
-                    const assignments = await window.getAccountAssignments(resolvedDatasetId, context.entityId, context.commitmentId);
+                    const entityId = currentContext?.entityId || commitmentDropdownState?.currentEntityId || null;
+                    const commitmentId = currentContext?.commitmentId || commitmentDropdownState?.selectedCommitmentId || null;
+                    
+                    console.log('  Llamando a getAccountAssignments con:', resolvedDatasetId, entityId, commitmentId);
+                    const assignments = await window.getAccountAssignments(resolvedDatasetId, entityId, commitmentId);
+                    console.log('  Resultado de getAccountAssignments:', {
+                        isArray: Array.isArray(assignments),
+                        length: assignments?.length || 0,
+                        firstAssignment: assignments?.[0]
+                    });
 
                     if (Array.isArray(assignments) && assignments.length > 0) {
                         console.log('✅ Asignaciones cargadas desde la BD:', assignments.length);
+                        console.log('  Muestra de primeras 3 asignaciones:', assignments.slice(0, 3));
                         return assignments;
                     } else {
                         console.log('📊 No hay asignaciones en la BD para el dataset:', resolvedDatasetId);
                         return [];
                     }
+                } else {
+                    console.log('❌ getAccountAssignments no está disponible como función');
                 }
             } catch (error) {
                 console.warn('⚠️ Error cargando asignaciones desde BD:', error);
+                console.warn('⚠️ Stack trace:', error.stack);
             }
 
             // Si no hay BD, retornar vacío (no usar localStorage)
@@ -5095,13 +5131,23 @@
                 const resolvedDatasetId = (datasetId || currentDatasetId || '').toString().trim();
                 if (!resolvedDatasetId) return;
 
+                console.log('🔍🔍🔍 DIAGNÓSTICO syncAssignmentsCacheAndRebuild:');
+                console.log('  resolvedDatasetId:', resolvedDatasetId);
+                console.log('  assignmentsArray.length:', assignmentsArray.length);
+                console.log('  cachedFinancialGroupStructure:', !!cachedFinancialGroupStructure);
+                console.log('  cachedLedgerMap.size:', cachedLedgerMap?.size || 0);
+                console.log('  cachedLedgerAvailable:', cachedLedgerAvailable);
+
                 const normalized = (assignmentsArray || [])
                     .map(assignment => normalizeAssignmentForCache(assignment, resolvedDatasetId))
                     .filter(Boolean);
 
+                console.log('  normalized assignments:', normalized.length);
                 cachedAssignments = normalized;
 
                 const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
+                console.log('  localAdjustmentsMap.size:', localAdjustmentsMap.size);
+                
                 const rows = buildGruposFinancierosRows(
                     cachedFinancialGroupStructure,
                     cachedAssignments,
@@ -5110,14 +5156,27 @@
                     localAdjustmentsMap
                 );
 
+                console.log('  rows generadas:', rows.length);
+                console.log('  Muestra de primeras 3 rows:', rows.slice(0, 3).map(r => ({
+                    accountName: r.accountName,
+                    preliminary: r.preliminary,
+                    adjustments: r.adjustments,
+                    finalCurrent: r.finalCurrent
+                })));
+
                 cachedGruposFinancierosRows = rows;
                 renderGruposFinancieros(rows, cachedLedgerMeta);
                 refreshGroupPanelTotals(normalized);
                 
                 // Guardar automáticamente los grupos financieros actualizados en la base de datos
+                console.log('🔍 Verificando condiciones para guardado automático:');
+                console.log('  window.saveFinancialGroupsResults disponible:', typeof window.saveFinancialGroupsResults);
+                console.log('  rows.length > 0:', rows.length > 0);
+                console.log('  rows.length:', rows.length);
+                
                 if (window.saveFinancialGroupsResults && rows.length > 0) {
                     try {
-                        console.log('💾 Guardando grupos financieros actualizados tras asignación...');
+                        console.log('💾💾💾 Guardando grupos financieros actualizados tras asignación...');
                         const currentEntity = commitmentDropdownState.currentEntityId;
                         const currentCommitment = commitmentDropdownState.selectedCommitmentId;
                         const convertedRows = rows.map(row => ({
@@ -5135,15 +5194,26 @@
                             ledgerMissing: row.ledgerMissing || false
                         }));
                         
+                        console.log('🔍 Enviando', convertedRows.length, 'filas a guardar');
+                        console.log('🔍 Muestra de datos a guardar (primeras 3):', convertedRows.slice(0, 3));
+                        
                         window.saveFinancialGroupsResults(resolvedDatasetId, convertedRows, 'completed', currentEntity, currentCommitment)
                             .then(result => {
-                                console.log('✅ Grupos financieros guardados automáticamente tras asignación:', result);
+                                console.log('✅✅✅ Grupos financieros guardados automáticamente tras asignación:', result);
                             })
                             .catch(error => {
                                 console.warn('⚠️ Error guardando grupos financieros tras asignación:', error);
                             });
                     } catch (error) {
                         console.warn('⚠️ Error en proceso de guardado automático de grupos financieros:', error);
+                    }
+                } else {
+                    console.log('⚠️ No se cumplen condiciones para guardado automático');
+                    if (!window.saveFinancialGroupsResults) {
+                        console.log('  ❌ window.saveFinancialGroupsResults no está disponible');
+                    }
+                    if (rows.length === 0) {
+                        console.log('  ❌ rows.length es 0');
                     }
                 }
 
@@ -5888,6 +5958,9 @@
                     if (!cachedAssignments || cachedAssignments.length === 0) {
                         console.log('⚠️ Asignaciones vacías - no se usará localStorage, solo base de datos');
                         cachedAssignments = [];
+                    } else {
+                        console.log('✅ Asignaciones cargadas exitosamente, cantidad:', cachedAssignments.length);
+                        console.log('🔍 Muestra de primeras 3 asignaciones:', cachedAssignments.slice(0, 3));
                     }
                     
                     // Cargar ajustes desde la base de datos para Grupos Financieros
@@ -5984,6 +6057,49 @@
                     console.log('  rows length:', rows.length);
                     console.log('  rows sample:', rows.slice(0, 3));
                     console.log('  meta:', meta);
+                    
+                    // Guardar automáticamente los grupos financieros en la base de datos después de construirlos
+                    console.log('🔍 Verificando condiciones para guardado automático tras construcción:');
+                    console.log('  window.saveFinancialGroupsResults disponible:', typeof window.saveFinancialGroupsResults);
+                    console.log('  rows.length > 0:', rows.length > 0);
+                    console.log('  rows.length:', rows.length);
+                    
+                    if (window.saveFinancialGroupsResults && rows.length > 0) {
+                        try {
+                            console.log('💾💾💾 Guardando grupos financieros tras construcción inicial...');
+                            const currentEntity = commitmentDropdownState.currentEntityId;
+                            const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                            const convertedRows = rows.map(row => ({
+                                accountName: row.accountName || '',
+                                accountCode: row.accountCode || '',
+                                preliminary: row.preliminary || 0,
+                                adjustments: row.adjustments || 0,
+                                finalCurrent: row.finalCurrent || 0,
+                                finalPrevious: row.finalPrevious || 0,
+                                level: row.level || 0,
+                                isParent: row.isParent || false,
+                                rowId: row.rowId || '',
+                                parentId: row.parentId || '',
+                                hasChildren: row.hasChildren || false,
+                                ledgerMissing: row.ledgerMissing || false
+                            }));
+                            
+                            console.log('🔍 Enviando', convertedRows.length, 'filas a guardar tras construcción');
+                            console.log('🔍 Muestra de datos a guardar (primeras 3):', convertedRows.slice(0, 3));
+                            
+                            window.saveFinancialGroupsResults(resolvedDatasetId, convertedRows, 'completed', currentEntity, currentCommitment)
+                                .then(result => {
+                                    console.log('✅✅✅ Grupos financieros guardados tras construcción inicial:', result);
+                                })
+                                .catch(error => {
+                                    console.warn('⚠️ Error guardando grupos financieros tras construcción:', error);
+                                });
+                        } catch (error) {
+                            console.warn('⚠️ Error en proceso de guardado automático tras construcción:', error);
+                        }
+                    } else {
+                        console.log('⚠️ No se cumplen condiciones para guardado automático tras construcción');
+                    }
                     
                     renderGruposFinancieros(rows, meta);
                     initializeGruposFinancierosToggles();
@@ -6318,6 +6434,13 @@
                 const codeKey = (assignment.code || assignment.accountCode || '').toString().trim();
                 const nameKey = (assignment.name || assignment.accountName || '').toString().trim();
 
+                console.log('🔍🔍🔍 DIAGNÓSTICO summarizeAssignment:');
+                console.log('  codeKey:', codeKey);
+                console.log('  nameKey:', nameKey);
+                console.log('  assignment completo:', assignment);
+                console.log('  ledgerAvailable:', ledgerAvailable);
+                console.log('  ledgerMap.size:', ledgerMap?.size || 0);
+
                 // PRIORIZAR LEDGER: Tomar valores del libro mayor si están disponibles
                 let preliminary = 0;
                 let finalPrevious = 0;
@@ -6325,6 +6448,8 @@
 
                 if (ledgerAvailable && ledgerMap && ledgerMap.size > 0) {
                     const ledgerEntry = getLedgerValueForAccount(ledgerMap, codeKey, nameKey);
+                    
+                    console.log('  ledgerEntry:', ledgerEntry);
                     
                     if (ledgerEntry !== null && ledgerEntry !== undefined) {
                         if (typeof ledgerEntry === 'object' && ledgerEntry !== null) {
@@ -6341,12 +6466,18 @@
                         }
                     } else {
                         // Fallback a valores de asignación si no hay ledger
+                        console.log('  No se encontró ledgerEntry, usando valores de asignación');
+                        console.log('  assignment.prevValue:', assignment.prevValue);
+                        console.log('  assignment.value:', assignment.value);
                         preliminary = parseAccountValue(assignment.prevValue || 0);
                         finalPrevious = parseAccountValue(assignment.value || 0);
                         console.log(`🔍 Assignment no ledger data for ${codeKey}/${nameKey}, using assignment values:`, { preliminary, finalPrevious });
                     }
                 } else {
                     // Sin ledger, usar valores de asignación
+                    console.log('  Sin ledger disponible, usando valores de asignación');
+                    console.log('  assignment.prevValue:', assignment.prevValue);
+                    console.log('  assignment.value:', assignment.value);
                     preliminary = parseAccountValue(assignment.prevValue || 0);
                     finalPrevious = parseAccountValue(assignment.value || 0);
                     console.log(`🔍 Assignment no ledger available for ${codeKey}/${nameKey}, using assignment values:`, { preliminary, finalPrevious });
@@ -6357,8 +6488,11 @@
                 if (codeKey && adjustmentMap.has(codeKey)) localAdj = adjustmentMap.get(codeKey) || 0;
                 else if (nameKey && adjustmentMap.has(nameKey)) localAdj = adjustmentMap.get(nameKey) || 0;
 
+                console.log('  localAdj:', localAdj);
                 adjustments += localAdj;
                 const finalCurrent = preliminary + adjustments;
+
+                console.log('  Resultado final:', { preliminary, adjustments, finalPrevious, finalCurrent });
 
                 return {
                     preliminary,
@@ -6725,6 +6859,81 @@
             })));
 
             return rows;
+        }
+
+        // Función para guardar grupos financieros manualmente
+        async function saveFinancialGroupsManual() {
+            try {
+                console.log('🔍 DIAGNÓSTICO: Iniciando guardado manual de grupos financieros...');
+                
+                // Verificar disponibilidad de funciones
+                console.log('🔍 Disponibilidad de funciones:', {
+                    saveFinancialGroupsResults: typeof window.saveFinancialGroupsResults,
+                    getCurrentUserId: typeof window.getCurrentUserId,
+                    currentDatasetId: currentDatasetId,
+                    cachedGruposFinancierosRows: cachedGruposFinancierosRows?.length || 0
+                });
+
+                if (!currentDatasetId) {
+                    alert('No hay un dataset activo. Por favor carga un archivo Excel primero.');
+                    return;
+                }
+
+                if (!cachedGruposFinancierosRows || cachedGruposFinancierosRows.length === 0) {
+                    alert('No hay datos de grupos financieros para guardar. Por favor asigna cuentas primero.');
+                    return;
+                }
+
+                if (typeof window.saveFinancialGroupsResults === 'undefined') {
+                    alert('La función saveFinancialGroupsResults no está disponible. Recarga la página.');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveFinancialGroupsBtn');
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando...';
+                saveBtn.disabled = true;
+
+                // Transformar datos al formato que el servidor espera
+                const financialGroups = cachedGruposFinancierosRows.map(row => ({
+                    accountName: row.accountName || '',
+                    accountCode: row.accountCode || '',
+                    preliminary: row.preliminary || 0,
+                    adjustments: row.adjustments || 0,
+                    finalCurrent: row.finalCurrent || 0,
+                    finalPrevious: row.finalPrevious || 0,
+                    level: row.level || 0,
+                    isParent: row.isParent || false,
+                    rowId: row.rowId || '',
+                    parentId: row.parentId || '',
+                    hasChildren: row.hasChildren || false,
+                    ledgerMissing: row.ledgerMissing || false
+                }));
+
+                // Debug: mostrar qué se va a enviar
+                console.log('📤 Enviando grupos financieros al servidor:', {
+                    datasetId: currentDatasetId,
+                    resultsCount: financialGroups.length,
+                    sampleRow: financialGroups[0],
+                    userId: window.getCurrentUserId ? window.getCurrentUserId() : 'no disponible'
+                });
+
+                // Guardar usando el sistema existente
+                const currentEntity = commitmentDropdownState.currentEntityId;
+                const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+                const result = await window.saveFinancialGroupsResults(currentDatasetId, financialGroups, 'completed', currentEntity, currentCommitment);
+                
+                console.log('✅ Grupos financieros guardados exitosamente:', result);
+                alert('Grupos financieros guardados exitosamente en la base de datos.');
+                
+            } catch (error) {
+                console.error('❌ Error guardando grupos financieros:', error);
+                alert('Error al guardar grupos financieros: ' + error.message);
+            } finally {
+                const saveBtn = document.getElementById('saveFinancialGroupsBtn');
+                saveBtn.innerHTML = '<i class="bi bi-database"></i> Guardar Grupos Financieros';
+                saveBtn.disabled = false;
+            }
         }
 
         // Función para guardar resultados de grupos financieros en formato para BG

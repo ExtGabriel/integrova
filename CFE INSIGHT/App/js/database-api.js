@@ -70,31 +70,58 @@ async function saveAccountAssignment(assignmentData) {
 /**
  * Obtiene todas las asignaciones de un dataset
  * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Array>} Array de asignaciones
  */
-async function getAccountAssignments(datasetId) {
+async function getAccountAssignments(datasetId, entityId = null, commitmentId = null) {
     try {
-        console.log('Loading assignments from database for dataset:', datasetId);
+        console.log('🔍🔍🔍 DIAGNÓSTICO getAccountAssignments:');
+        console.log('  datasetId:', datasetId);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  userId:', getCurrentUserId());
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/${datasetId}`, {
+        let url = `${DATABASE_API_BASE_URL}/api/assignments/${datasetId}`;
+        const params = new URLSearchParams();
+        
+        if (entityId) {
+            params.append('entity_id', entityId);
+        }
+        if (commitmentId) {
+            params.append('commitment_id', commitmentId);
+        }
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        console.log('  URL completa:', url);
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId()
             }
         });
 
+        console.log('  Response status:', response.status);
         const result = await response.json();
+        console.log('  Response result:', result);
         
         if (!result.success) {
+            console.error('❌ Error en respuesta:', result.error);
             throw new Error(result.error || 'Error obteniendo asignaciones');
         }
 
         const assignments = (result.assignments || []).map(convertDatabaseAssignmentToLocalStorage);
-        console.log('Assignments loaded:', assignments.length);
+        console.log('✅ Assignments loaded:', assignments.length);
+        console.log('🔍 Muestra de primeras 3 asignaciones:', assignments.slice(0, 3));
         return assignments;
 
     } catch (error) {
-        console.error('Error in getAccountAssignments:', error);
+        console.error('❌ Error in getAccountAssignments:', error);
+        console.error('❌ Stack trace:', error.stack);
         return [];
     }
 }
@@ -507,7 +534,43 @@ if (typeof window !== 'undefined') {
  */
 async function saveFinancialGroupsResults(datasetId, results, status = 'completed', entityId, commitmentId) {
     try {
-        console.log('Saving financial groups results:', { datasetId, resultsCount: results.length, entityId, commitmentId });
+        const userId = getCurrentUserId();
+        console.log('🔍 DIAGNÓSTICO COMPLETO saveFinancialGroupsResults:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  status:', status);
+        
+        // Verificar datos requeridos
+        if (!userId) {
+            console.error('❌ ERROR CRÍTICO: userId es null/undefined');
+            throw new Error('Usuario no autenticado - userId es null');
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR CRÍTICO: datasetId es null/undefined');
+            throw new Error('DatasetId es null - no se puede guardar sin dataset');
+        }
+        
+        if (!results || results.length === 0) {
+            console.error('❌ ERROR CRÍTICO: results está vacío o es null');
+            throw new Error('No hay resultados para guardar - results está vacío');
+        }
+        
+        // Mostrar muestra de datos para verificar que no son todos 0
+        console.log('🔍 Muestra de datos a guardar (primeros 3):');
+        results.slice(0, 3).forEach((row, i) => {
+            console.log(`  Row ${i}:`, {
+                accountName: row.accountName,
+                accountCode: row.accountCode,
+                preliminary: row.preliminary,
+                adjustments: row.adjustments,
+                finalCurrent: row.finalCurrent,
+                finalPrevious: row.finalPrevious
+            });
+        });
         
         const requestBody = {
             datasetId,
@@ -526,18 +589,23 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
+                'user-id': userId
             },
             body: requestBodyString
         });
 
+        console.log('🔍 Response status:', response.status);
+        console.log('🔍 Response ok:', response.ok);
+        
         const result = await response.json();
+        console.log('🔍 Response result:', result);
         
         if (!result.success) {
+            console.error('❌ Error del servidor:', result.error);
             throw new Error(result.error || 'Error guardando resultados de grupos financieros');
         }
 
-        console.log('Financial groups results saved successfully:', { 
+        console.log('✅ Financial groups results saved successfully:', { 
             snapshotId: result.snapshot?.id, 
             groupsCount: result.groupsCount || 0 
         });
@@ -545,7 +613,8 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
         return result;
 
     } catch (error) {
-        console.error('Error in saveFinancialGroupsResults:', error);
+        console.error('❌ Error in saveFinancialGroupsResults:', error);
+        console.error('❌ Stack trace:', error.stack);
         throw error;
     }
 }
@@ -759,54 +828,8 @@ async function saveAccountDual(accountData) {
 }
 
 // ============================================
-// FUNCIONES LOCALSTORAGE PARA GRUPOS Y CUENTAS
+// FUNCIONES LOCALSTORAGE PARA CUENTAS
 // ============================================
-
-/**
- * Guarda un grupo financiero en localStorage
- * @param {Object} groupData - Datos del grupo financiero
- * @returns {Object} Resultado del guardado local
- */
-function saveStoredFinancialGroup(groupData) {
-    try {
-        const datasetId = groupData.datasetId || currentDatasetId;
-        const userId = getCurrentUserId();
-        
-        if (!datasetId || !userId) {
-            console.warn('Missing datasetId or userId for localStorage save');
-            return null;
-        }
-        
-        const storageKey = `financial_groups_v1_${userId}_${datasetId}`;
-        const existingGroups = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        
-        // Remove existing group for same ID if exists
-        const filteredGroups = existingGroups.filter(g => g.id !== groupData.id);
-        
-        // Add new group
-        const newGroup = {
-            id: groupData.id || `local_${Date.now()}`,
-            name: groupData.name,
-            type: groupData.type || 'group',
-            parentLabel: groupData.parentLabel || null,
-            value: groupData.value || 0,
-            meta: groupData.meta || {},
-            datasetId: datasetId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        
-        filteredGroups.push(newGroup);
-        localStorage.setItem(storageKey, JSON.stringify(filteredGroups));
-        
-        console.log('Financial group saved to localStorage:', newGroup);
-        return newGroup;
-        
-    } catch (error) {
-        console.error('Error saving financial group to localStorage:', error);
-        return null;
-    }
-}
 
 /**
  * Guarda una cuenta contable en localStorage
@@ -1657,7 +1680,6 @@ window.saveAccountsBatch = saveAccountsBatch;
 // Funciones duales (localStorage + base de datos)
 window.saveFinancialGroupDual = saveFinancialGroupDual;
 window.saveAccountDual = saveAccountDual;
-window.saveStoredFinancialGroup = saveStoredFinancialGroup;
 window.saveStoredAccount = saveStoredAccount;
 window.saveStoredAssignment = saveStoredAssignment;
 window.getStoredAssignments = getStoredAssignments;
