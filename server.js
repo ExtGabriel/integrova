@@ -2829,7 +2829,16 @@ app.get('/api/excel/latest', async (req, res) => {
         const userId = req.user?.id || req.headers['user-id'];
         const { entity_id, commitment_id } = req.query;
         
-        console.log('🔍 /api/excel/latest called with:', { userId, entity_id, commitment_id });
+        console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/latest:');
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+        console.log('  req.headers:', Object.keys(req.headers));
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
         
         let query = supabase
             .from('conjuntos_datos')
@@ -2857,6 +2866,7 @@ app.get('/api/excel/latest', async (req, res) => {
         console.log('🔍 Query result:', { 
             dataCount: data?.length || 0, 
             error: error?.message,
+            errorDetails: error,
             firstRecord: data?.[0] ? {
                 id: data[0].id,
                 nombre: data[0].nombre,
@@ -2867,12 +2877,15 @@ app.get('/api/excel/latest', async (req, res) => {
         });
 
         if (error) {
-            console.error('Error al obtener el último conjunto de datos:', error);
+            console.error('❌ Error al obtener el último conjunto de datos:', error);
+            console.error('❌ Error details:', JSON.stringify(error, null, 2));
             return res.status(500).json({ success: false, error: error.message });
         }
 
         if (data && data.length > 0) {
             const conjunto = data[0];
+            
+            console.log('✅ Conjunto encontrado, procesando datos...');
             
             // Convertir al formato que espera el frontend
             const responseData = {
@@ -2893,16 +2906,20 @@ app.get('/api/excel/latest', async (req, res) => {
                 totalSheets: conjunto.data?.totalSheets || 0
             };
             
+            console.log('✅ Datos procesados exitosamente, sheets_count:', responseData.sheets_data.length);
+            
             res.json({
                 success: true,
                 data: responseData
             });
         } else {
+            console.log('⚠️ No se encontraron conjuntos de datos para el usuario:', userId);
             res.status(404).json({ success: false, message: 'No se encontraron conjuntos de datos.' });
         }
     } catch (error) {
-        console.error('Error en /api/excel/latest:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+        console.error('❌❌❌ Error en /api/excel/latest:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({ success: false, error: 'Error interno del servidor.', details: error.message });
     }
 });
 
@@ -4054,8 +4071,19 @@ function generateFinancialStatements(accounts, classifications) {
 app.get('/api/excel/datasets', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id } = req.query;
+        
+        console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/datasets:');
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
         
         // Primero obtener los conjuntos de datos
+        console.log('🔍 Consultando conjuntos_datos...');
         const { data: datasets, error: datasetsError } = await supabase
             .from('conjuntos_datos')
             .select(`
@@ -4073,7 +4101,11 @@ app.get('/api/excel/datasets', async (req, res) => {
             .order('fecha_importacion', { ascending: false })
             .limit(1);
 
-        if (datasetsError) throw datasetsError;
+        if (datasetsError) {
+            console.error('❌ Error consultando conjuntos_datos:', datasetsError);
+            console.error('❌ Error details:', JSON.stringify(datasetsError, null, 2));
+            throw datasetsError;
+        }
 
         console.log('📊 Datasets obtenidos:', datasets?.length || 0);
         if (datasets && datasets.length > 0) {
