@@ -15652,6 +15652,294 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
         
+        // Función para aprobar / deshacer aprobación de secciones del formulario Comprensión de la entidad
+        function aprobarSeccionComprensionEntidad(seccionId, boton) {
+            console.log('aprobarSeccionComprensionEntidad llamada con:', seccionId);
+            
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+            
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.user_id;
+                }
+            }
+            
+            // Fallback a window.currentUser si getUserUI no funciona
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.user_id;
+            }
+            
+            console.log('Usuario actual:', usuarioActual, 'ID:', userId);
+            
+            // Si aún no hay usuario, mostrar error
+            if (!usuarioActual) {
+                showNotification('Error: No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.', 'error');
+                return;
+            }
+            
+            // Cargar aprobaciones actuales
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesComprensionEntidad') || '{}');
+            const aprobacionExistente = aprobaciones[seccionId];
+            
+            console.log('Aprobación existente:', aprobacionExistente);
+            
+            // Si ya hay una aprobación, intentar eliminarla
+            if (aprobacionExistente) {
+                console.log('Comparando usuarios...');
+                console.log('Aprobación userId:', aprobacionExistente.userId);
+                console.log('Aprobación usuario:', aprobacionExistente.usuario);
+                console.log('Actual userId:', userId);
+                console.log('Actual usuario:', usuarioActual);
+                
+                // Si no hay userId en la aprobación guardada, permitir eliminación (aprobación antigua)
+                if (!aprobacionExistente.userId) {
+                    console.log('Aprobación sin userId, permitiendo eliminación');
+                } else {
+                    // Si hay userId, comparar por userId primero
+                    if (aprobacionExistente.userId !== userId) {
+                        console.log('UserIds no coinciden');
+                        showNotification('Solo la persona que aprobó esta sección puede quitar la aprobación.', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Usuario coincide o aprobación sin userId, eliminando...');
+                // Eliminar aprobación
+                delete aprobaciones[seccionId];
+                localStorage.setItem('aprobacionesComprensionEntidad', JSON.stringify(aprobaciones));
+                
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+                
+                // Restaurar todos los botones de esa sección a estado "Aprobar"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionComprensionEntidad('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    btn.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                    btn.style.cursor = 'pointer';
+                });
+                
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+            
+            console.log('Aprobando sección...');
+            // Si no hay aprobación previa, aprobar la sección
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia de todos los botones de esa sección a "Aprobado"
+            const botones = document.querySelectorAll(`button[onclick="aprobarSeccionComprensionEntidad('${seccionId}', this)"]`);
+            botones.forEach(btn => {
+                btn.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+                btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.style.cursor = 'pointer';
+            });
+
+            // Guardar en localStorage con información completa
+            aprobaciones[seccionId] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aprobacionesComprensionEntidad', JSON.stringify(aprobaciones));
+
+            // Mostrar notificación
+            showNotification(`Sección aprobada por ${usuarioActual}`, 'success');
+        }
+        
+        // Función para cargar aprobaciones guardadas del formulario Comprensión de la entidad
+        function cargarAprobacionesComprensionEntidad() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesComprensionEntidad') || '{}');
+            
+            for (const seccionId in aprobaciones) {
+                const aprobacion = aprobaciones[seccionId];
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón correspondiente en estado "Aprobado" pero sin deshabilitarlo
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionComprensionEntidad('${seccionId}', this)"]`);
+                botones.forEach(boton => {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                });
+            }
+        }
+        
+        // Función para aprobar / deshacer aprobación del formulario Comprensión de los controles de la entidad
+        function aprobarFormularioControlesEntidad(boton) {
+            console.log('aprobarFormularioControlesEntidad llamada');
+            
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+            
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.user_id;
+                }
+            }
+            
+            // Fallback a window.currentUser si getUserUI no funciona
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.user_id;
+            }
+            
+            console.log('Usuario actual:', usuarioActual, 'ID:', userId);
+            
+            // Si aún no hay usuario, mostrar error
+            if (!usuarioActual) {
+                showNotification('Error: No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.', 'error');
+                return;
+            }
+            
+            // Cargar aprobaciones actuales
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesControlesEntidad') || '{}');
+            const aprobacionExistente = aprobaciones['formulario'];
+            
+            console.log('Aprobación existente:', aprobacionExistente);
+            
+            // Si ya hay una aprobación, intentar eliminarla
+            if (aprobacionExistente) {
+                console.log('Comparando usuarios...');
+                console.log('Aprobación userId:', aprobacionExistente.userId);
+                console.log('Aprobación usuario:', aprobacionExistente.usuario);
+                console.log('Actual userId:', userId);
+                console.log('Actual usuario:', usuarioActual);
+                
+                // Si no hay userId en la aprobación guardada, permitir eliminación (aprobación antigua)
+                if (!aprobacionExistente.userId) {
+                    console.log('Aprobación sin userId, permitiendo eliminación');
+                } else {
+                    // Si hay userId, comparar por userId primero
+                    if (aprobacionExistente.userId !== userId) {
+                        console.log('UserIds no coinciden');
+                        showNotification('Solo la persona que aprobó este formulario puede quitar la aprobación.', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Usuario coincide o aprobación sin userId, eliminando...');
+                // Eliminar aprobación
+                delete aprobaciones['formulario'];
+                localStorage.setItem('aprobacionesControlesEntidad', JSON.stringify(aprobaciones));
+                
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-controles-entidad');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+                
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+                
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+            
+            console.log('Aprobando formulario...');
+            // Si no hay aprobación previa, aprobar el formulario
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-controles-entidad');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            // Guardar en localStorage con información completa
+            aprobaciones['formulario'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aprobacionesControlesEntidad', JSON.stringify(aprobaciones));
+
+            // Mostrar notificación
+            showNotification(`Formulario aprobado por ${usuarioActual}`, 'success');
+        }
+        
+        // Función para cargar aprobaciones guardadas del formulario Comprensión de los controles de la entidad
+        function cargarAprobacionesControlesEntidad() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesControlesEntidad') || '{}');
+            const aprobacion = aprobaciones['formulario'];
+            
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-controles-entidad');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón en estado "Aprobado" pero sin deshabilitarlo
+                const boton = document.querySelector('button[onclick="aprobarFormularioControlesEntidad(this)"]');
+                if (boton) {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
+            }
+        }
+        
         // Función para mostrar/ocultar tooltips de ayuda
         function toggleTooltip(helpId) {
             const helpElement = document.getElementById(helpId);
@@ -25318,6 +25606,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                         <textarea id="a400_comprension_q5_externos" name="a400_comprension_q5_externos" rows="4" placeholder="Describa los factores externos relevantes..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                                     </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-industria-entes-reguladores" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('industria-entes-reguladores', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -25396,6 +25691,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                             Documente los cambios significativos ocurridos durante el período en la estructura, operaciones, estrategia, administración, financiamiento o modelo de negocio, evaluando su impacto en los estados financieros y en la planificación de la auditoría.
                                         </div>
                                         <textarea id="a400_comprension_q10_cambios" name="a400_comprension_q10_cambios" rows="4" placeholder="Documente los cambios significativos ocurridos..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                    </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-naturaleza-entidad" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('naturaleza-entidad', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -25476,6 +25778,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                         <textarea id="a400_comprension_q15_cumplimiento" name="a400_comprension_q15_cumplimiento" rows="4" placeholder="Documente la evaluación del cumplimiento del marco..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                                     </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-politicas-contables" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('politicas-contables', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -25554,6 +25863,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                             Documente los cambios relevantes ocurridos durante el período en la estrategia, modelo de negocio, estructura organizacional, condiciones del mercado o entorno económico, evaluando su impacto en la identificación de riesgos y en la planificación de la auditoría.
                                         </div>
                                         <textarea id="a400_comprension_q20_cambios_estrategicos" name="a400_comprension_q20_cambios_estrategicos" rows="4" placeholder="Documente los cambios estratégicos y del entorno..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                    </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-objetivos-estrategias" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('objetivos-estrategias', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -25634,6 +25950,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                         <textarea id="a400_comprension_q25_riesgos_auditoria" name="a400_comprension_q25_riesgos_auditoria" rows="4" placeholder="Documente los aspectos que representan riesgos..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                                     </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-medidas-desempeno" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('medidas-desempeno', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -25712,6 +26035,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                             Documente la relación entre los indicadores analizados y los riesgos identificados, indicando cómo los resultados obtenidos afectan la estrategia, el enfoque y el alcance de la auditoría.
                                         </div>
                                         <textarea id="a400_comprension_q30_relacion_riesgos" name="a400_comprension_q30_relacion_riesgos" rows="4" placeholder="Documente la relación entre indicadores y riesgos..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                    </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-indicadores-desempeno" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('indicadores-desempeno', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -25792,6 +26122,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                         <textarea id="a400_comprension_q35_informes" name="a400_comprension_q35_informes" rows="4" placeholder="Documente los informes internos o externos..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                                     </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-documentos-clave" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('documentos-clave', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -25871,6 +26208,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                         <textarea id="a400_comprension_q40_impacto_estrategia" name="a400_comprension_q40_impacto_estrategia" rows="4" placeholder="Documente el impacto de los resultados en la estrategia..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                                     </div>
+                                    <!-- Botón de aprobar sección -->
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                        <div id="aprobado-revision-analitica" style="font-size: 0.85rem; color: #64748b;"></div>
+                                        <button type="button" onclick="aprobarSeccionComprensionEntidad('revision-analitica', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle"></i> Aprobar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -25893,6 +26237,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Forzar reflow y mostrar el modal
             modal.offsetHeight;
             modal.classList.add('show');
+            
+            // Cargar aprobaciones guardadas
+            setTimeout(() => cargarAprobacionesComprensionEntidad(), 100);
         }
 
         // Función para mostrar el formulario de Comprensión de los controles de la entidad
@@ -26073,8 +26420,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <textarea id="controles_q10_impacto" name="controles_q10_impacto" rows="4" placeholder="Documente el impacto sobre la auditoría..." style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
                         </div>
 
+                        <!-- Botón de aprobar formulario -->
+                        <div style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between;">
+                            <div id="aprobado-controles-entidad" style="font-size: 0.9rem; color: #64748b;"></div>
+                            <button type="button" onclick="aprobarFormularioControlesEntidad(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
+                        </div>
+
                         <!-- Botones de acción -->
-                        <div class="formulario-acciones">
+                        <div class="formulario-acciones formulario-acciones-sin-borde">
                             <button class="btn-guardar" onclick="guardarFormularioControlesEntidad()">
                                 <i class="bi bi-save"></i> Guardar
                             </button>
@@ -26091,6 +26446,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Forzar reflow y mostrar el modal
             modal.offsetHeight;
             modal.classList.add('show');
+            
+            // Cargar aprobaciones guardadas
+            setTimeout(() => cargarAprobacionesControlesEntidad(), 100);
         }
 
         // Función para cerrar el formulario de Comprensión de los controles de la entidad
@@ -26507,8 +26865,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             </div>
                         </div>
 
+                        <!-- Botón de aprobar formulario -->
+                        <div style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between;">
+                            <div id="aprobado-componentes-control-interno" style="font-size: 0.9rem; color: #64748b;"></div>
+                            <button type="button" onclick="aprobarFormularioComponentesControlInterno(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
+                        </div>
+
                         <!-- Botones de acción -->
-                        <div class="formulario-acciones">
+                        <div class="formulario-acciones formulario-acciones-sin-borde">
                             <button class="btn-cancelar" onclick="cerrarFormularioComponentesControlInterno()">
                                 <i class="bi bi-x"></i> Cancelar
                             </button>
@@ -26525,6 +26891,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Forzar reflow y mostrar el modal
             modal.offsetHeight;
             modal.classList.add('show');
+            
+            // Cargar aprobaciones guardadas
+            setTimeout(() => cargarAprobacionesComponentesControlInterno(), 100);
         }
 
         // Función para cerrar el formulario de Componentes control interno
@@ -26542,6 +26911,146 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function guardarFormularioComponentesControlInterno() {
             showNotification('Formulario guardado correctamente', 'success');
             cerrarFormularioComponentesControlInterno();
+        }
+
+        // Función para aprobar / deshacer aprobación del formulario Componentes control interno
+        function aprobarFormularioComponentesControlInterno(boton) {
+            console.log('aprobarFormularioComponentesControlInterno llamada');
+            
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+            
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.user_id;
+                }
+            }
+            
+            // Fallback a window.currentUser si getUserUI no funciona
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.user_id;
+            }
+            
+            console.log('Usuario actual:', usuarioActual, 'ID:', userId);
+            
+            // Si aún no hay usuario, mostrar error
+            if (!usuarioActual) {
+                showNotification('Error: No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.', 'error');
+                return;
+            }
+            
+            // Cargar aprobaciones actuales
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesComponentesControlInterno') || '{}');
+            const aprobacionExistente = aprobaciones['formulario'];
+            
+            console.log('Aprobación existente:', aprobacionExistente);
+            
+            // Si ya hay una aprobación, intentar eliminarla
+            if (aprobacionExistente) {
+                console.log('Comparando usuarios...');
+                console.log('Aprobación userId:', aprobacionExistente.userId);
+                console.log('Aprobación usuario:', aprobacionExistente.usuario);
+                console.log('Actual userId:', userId);
+                console.log('Actual usuario:', usuarioActual);
+                
+                // Si no hay userId en la aprobación guardada, permitir eliminación (aprobación antigua)
+                if (!aprobacionExistente.userId) {
+                    console.log('Aprobación sin userId, permitiendo eliminación');
+                } else {
+                    // Si hay userId, comparar por userId primero
+                    if (aprobacionExistente.userId !== userId) {
+                        console.log('UserIds no coinciden');
+                        showNotification('Solo la persona que aprobó este formulario puede quitar la aprobación.', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Usuario coincide o aprobación sin userId, eliminando...');
+                // Eliminar aprobación
+                delete aprobaciones['formulario'];
+                localStorage.setItem('aprobacionesComponentesControlInterno', JSON.stringify(aprobaciones));
+                
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-componentes-control-interno');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+                
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+                
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+            
+            console.log('Aprobando formulario...');
+            // Si no hay aprobación previa, aprobar el formulario
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-componentes-control-interno');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            // Guardar en localStorage con información completa
+            aprobaciones['formulario'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aprobacionesComponentesControlInterno', JSON.stringify(aprobaciones));
+
+            // Mostrar notificación
+            showNotification(`Formulario aprobado por ${usuarioActual}`, 'success');
+        }
+        
+        // Función para cargar aprobaciones guardadas del formulario Componentes control interno
+        function cargarAprobacionesComponentesControlInterno() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesComponentesControlInterno') || '{}');
+            const aprobacion = aprobaciones['formulario'];
+            
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-componentes-control-interno');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+                
+                // Actualizar el botón
+                const boton = document.querySelector('button[onclick="aprobarFormularioComponentesControlInterno(this)"]');
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
+            }
         }
 
         // Función para mostrar el formulario de Auditoria interna
@@ -26955,6 +27464,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <textarea name="conclusion_adicional" rows="3" style="width: 100%; border: 1px solid #ccc; padding: 8px; font-size: 0.9rem; resize: vertical;" placeholder="Proporcione la conclusión adicional..."></textarea>
                             </div>
                         </div>
+
+                        <!-- Botón de aprobar formulario -->
+                        <div style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between;">
+                            <div id="aprobado-auditoria-interna" style="font-size: 0.9rem; color: #64748b;"></div>
+                            <button type="button" onclick="aprobarFormularioAuditoriaInterna(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
+                        </div>
                     </div>
 
                     <div class="formulario-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -26969,6 +27486,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Forzar reflow y mostrar el modal
             modal.offsetHeight;
             modal.classList.add('show');
+            
+            // Cargar aprobaciones guardadas
+            setTimeout(() => cargarAprobacionesAuditoriaInterna(), 100);
         }
 
         // Función para cerrar el formulario de Auditoria interna
@@ -26986,6 +27506,146 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function guardarFormularioAuditoriaInterna() {
             showNotification('Formulario guardado correctamente', 'success');
             cerrarFormularioAuditoriaInterna();
+        }
+
+        // Función para aprobar / deshacer aprobación del formulario Auditoria interna
+        function aprobarFormularioAuditoriaInterna(boton) {
+            console.log('aprobarFormularioAuditoriaInterna llamada');
+            
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+            
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.user_id;
+                }
+            }
+            
+            // Fallback a window.currentUser si getUserUI no funciona
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.user_id;
+            }
+            
+            console.log('Usuario actual:', usuarioActual, 'ID:', userId);
+            
+            // Si aún no hay usuario, mostrar error
+            if (!usuarioActual) {
+                showNotification('Error: No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.', 'error');
+                return;
+            }
+            
+            // Cargar aprobaciones actuales
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesAuditoriaInterna') || '{}');
+            const aprobacionExistente = aprobaciones['formulario'];
+            
+            console.log('Aprobación existente:', aprobacionExistente);
+            
+            // Si ya hay una aprobación, intentar eliminarla
+            if (aprobacionExistente) {
+                console.log('Comparando usuarios...');
+                console.log('Aprobación userId:', aprobacionExistente.userId);
+                console.log('Aprobación usuario:', aprobacionExistente.usuario);
+                console.log('Actual userId:', userId);
+                console.log('Actual usuario:', usuarioActual);
+                
+                // Si no hay userId en la aprobación guardada, permitir eliminación (aprobación antigua)
+                if (!aprobacionExistente.userId) {
+                    console.log('Aprobación sin userId, permitiendo eliminación');
+                } else {
+                    // Si hay userId, comparar por userId primero
+                    if (aprobacionExistente.userId !== userId) {
+                        console.log('UserIds no coinciden');
+                        showNotification('Solo la persona que aprobó este formulario puede quitar la aprobación.', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Usuario coincide o aprobación sin userId, eliminando...');
+                // Eliminar aprobación
+                delete aprobaciones['formulario'];
+                localStorage.setItem('aprobacionesAuditoriaInterna', JSON.stringify(aprobaciones));
+                
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-auditoria-interna');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+                
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+                
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+            
+            console.log('Aprobando formulario...');
+            // Si no hay aprobación previa, aprobar el formulario
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-auditoria-interna');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            // Guardar en localStorage con información completa
+            aprobaciones['formulario'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aprobacionesAuditoriaInterna', JSON.stringify(aprobaciones));
+
+            // Mostrar notificación
+            showNotification(`Formulario aprobado por ${usuarioActual}`, 'success');
+        }
+        
+        // Función para cargar aprobaciones guardadas del formulario Auditoria interna
+        function cargarAprobacionesAuditoriaInterna() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesAuditoriaInterna') || '{}');
+            const aprobacion = aprobaciones['formulario'];
+            
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-auditoria-interna');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+                
+                // Actualizar el botón
+                const boton = document.querySelector('button[onclick="aprobarFormularioAuditoriaInterna(this)"]');
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
+            }
         }
 
         // Función para mostrar el formulario de Evaluación de riesgos de incorrección material
@@ -27653,6 +28313,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Botón de aprobar formulario -->
+                        <div style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between;">
+                            <div id="aprobado-evaluacion-riesgos-incorreccion" style="font-size: 0.9rem; color: #64748b;"></div>
+                            <button type="button" onclick="aprobarFormularioEvaluacionRiesgosIncorreccion(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
+                        </div>
                     </div>
 
                     <div class="formulario-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -27668,6 +28336,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 modal.classList.add('show');
             }, 10);
+            
+            // Cargar aprobaciones guardadas
+            setTimeout(() => cargarAprobacionesEvaluacionRiesgosIncorreccion(), 100);
         }
 
         // Función para cerrar el formulario de Evaluación de riesgos de incorrección material
@@ -27685,6 +28356,146 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function guardarFormularioEvaluacionRiesgosIncorreccion() {
             showNotification('Formulario guardado correctamente', 'success');
             cerrarFormularioEvaluacionRiesgosIncorreccion();
+        }
+
+        // Función para aprobar / deshacer aprobación del formulario Evaluación de riesgos de incorrección material
+        function aprobarFormularioEvaluacionRiesgosIncorreccion(boton) {
+            console.log('aprobarFormularioEvaluacionRiesgosIncorreccion llamada');
+            
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+            
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.user_id;
+                }
+            }
+            
+            // Fallback a window.currentUser si getUserUI no funciona
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.user_id;
+            }
+            
+            console.log('Usuario actual:', usuarioActual, 'ID:', userId);
+            
+            // Si aún no hay usuario, mostrar error
+            if (!usuarioActual) {
+                showNotification('Error: No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.', 'error');
+                return;
+            }
+            
+            // Cargar aprobaciones actuales
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionRiesgosIncorreccion') || '{}');
+            const aprobacionExistente = aprobaciones['formulario'];
+            
+            console.log('Aprobación existente:', aprobacionExistente);
+            
+            // Si ya hay una aprobación, intentar eliminarla
+            if (aprobacionExistente) {
+                console.log('Comparando usuarios...');
+                console.log('Aprobación userId:', aprobacionExistente.userId);
+                console.log('Aprobación usuario:', aprobacionExistente.usuario);
+                console.log('Actual userId:', userId);
+                console.log('Actual usuario:', usuarioActual);
+                
+                // Si no hay userId en la aprobación guardada, permitir eliminación (aprobación antigua)
+                if (!aprobacionExistente.userId) {
+                    console.log('Aprobación sin userId, permitiendo eliminación');
+                } else {
+                    // Si hay userId, comparar por userId primero
+                    if (aprobacionExistente.userId !== userId) {
+                        console.log('UserIds no coinciden');
+                        showNotification('Solo la persona que aprobó este formulario puede quitar la aprobación.', 'error');
+                        return;
+                    }
+                }
+                
+                console.log('Usuario coincide o aprobación sin userId, eliminando...');
+                // Eliminar aprobación
+                delete aprobaciones['formulario'];
+                localStorage.setItem('aprobacionesEvaluacionRiesgosIncorreccion', JSON.stringify(aprobaciones));
+                
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-evaluacion-riesgos-incorreccion');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+                
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+                
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+            
+            console.log('Aprobando formulario...');
+            // Si no hay aprobación previa, aprobar el formulario
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-evaluacion-riesgos-incorreccion');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            // Guardar en localStorage con información completa
+            aprobaciones['formulario'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('aprobacionesEvaluacionRiesgosIncorreccion', JSON.stringify(aprobaciones));
+
+            // Mostrar notificación
+            showNotification(`Formulario aprobado por ${usuarioActual}`, 'success');
+        }
+        
+        // Función para cargar aprobaciones guardadas del formulario Evaluación de riesgos de incorrección material
+        function cargarAprobacionesEvaluacionRiesgosIncorreccion() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionRiesgosIncorreccion') || '{}');
+            const aprobacion = aprobaciones['formulario'];
+            
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-evaluacion-riesgos-incorreccion');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+                
+                // Actualizar el botón
+                const boton = document.querySelector('button[onclick="aprobarFormularioEvaluacionRiesgosIncorreccion(this)"]');
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
+            }
         }
 
         // Función para mostrar el formulario de Áreas específicas
