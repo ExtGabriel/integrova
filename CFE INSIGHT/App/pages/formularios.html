@@ -16547,6 +16547,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         Considerar asientos manuales, ajustes al cierre, reclasificaciones, estimaciones sesgadas, transacciones con partes relacionadas, autorizaciones excepcionales, eliminación de controles o soporte insuficiente.
                                     </div>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-propension-estados-financieros" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionA300('propension-estados-financieros', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -16653,6 +16660,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         Evaluar y documentar el riesgo de apropiación indebida de activos, considerando la exposición de la entidad a sustracción de efectivo, inventarios u otros bienes, la segregación de funciones, los controles implementados e indicar cómo la Administración de la compañía administra o cubre este riesgo (controles o acciones). De confirmarse el riesgo, documentar con qué procedimientos de auditoría se cubrirá este riesgo en el desarrollo de la auditoría.
                                     </div>
                                     <textarea id="a300_apropiacion_activos" name="a300_apropiacion_activos" rows="3" placeholder="" style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-posibilidad-fraude" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionA300('posibilidad-fraude', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -16771,6 +16785,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         Describir las dependencias que puedan afectar el desarrollo oportuno de la auditoría, incluyendo información pendiente, participación de terceros, disponibilidad de recursos o cualquier otro factor relevante para la ejecución del encargo
                                     </div>
                                     <textarea id="a300_dependencias" name="a300_dependencias" rows="3" placeholder="" style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-potenciales-eficiencias" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionA300('potenciales-eficiencias', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -17099,7 +17120,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.classList.add('show');
             
             // Cargar aprobaciones guardadas
-            setTimeout(() => cargarAprobacionesA300(), 100);
+            setTimeout(() => cargarAprobacionesA300Secciones(), 100);
         }
         
         // Función para cerrar el formulario A300
@@ -17127,7 +17148,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.innerHTML = `
                 <style>
                     .matriz-a300-container {
-                        max-height: 70vh;
+                        max-height: 60vh;
                         overflow-y: auto;
                         padding: 20px;
                     }
@@ -17790,8 +17811,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <i class="bi bi-info-circle"></i> Matriz de riesgos vinculada al formulario A300
                         </div>
                         <div class="formulario-acciones">
-                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioA300()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 500;">
-                                <i class="bi bi-x-circle"></i> Cerrar
+                            <div id="aprobado-matriz-riesgos" style="font-size: 0.85rem; color: #64748b; margin-right: 15px;"></div>
+                            <button type="button" onclick="aprobarMatrizRiesgos(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; margin-right: 10px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
+                            <button type="button" onclick="guardarMatrizA300()" style="background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                <i class="bi bi-save"></i> Guardar
                             </button>
                         </div>
                     </div>
@@ -17806,7 +17831,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.classList.add('show');
             
             // Cargar aprobaciones guardadas
-            setTimeout(() => cargarAprobacionesA400(), 100);
+            setTimeout(() => {
+                cargarAprobacionesA400();
+                cargarAprobacionesMatrizRiesgos();
+            }, 100);
         }
 
         // Función para guardar el formulario A300
@@ -17840,7 +17868,246 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } else {
                 console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
                 showNotification('Formulario A300 guardado localmente', 'warning');
-                cerrarFormularioA300();
+            }
+        }
+
+        // Función para guardar solo la matriz A300
+        function guardarMatrizA300() {
+            // Por ahora solo mostramos una notificación de guardado exitoso.
+            // Si más adelante se requiere persistir la matriz en BD, aquí se puede hacer.
+            showNotification('Matriz de riesgos guardada correctamente', 'success');
+        }
+
+        // Función para aprobar / deshacer aprobación de secciones del formulario A300
+        function aprobarSeccionA300(seccionId, boton) {
+            console.log('aprobarSeccionA300 llamada con:', seccionId);
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Obtener aprobaciones guardadas del localStorage
+            let aprobaciones = JSON.parse(localStorage.getItem('aprobacionesA300Secciones') || '{}');
+
+            // Verificar si ya está aprobado
+            if (aprobaciones[seccionId]) {
+                // Desaprobar
+                delete aprobaciones[seccionId];
+                localStorage.setItem('aprobacionesA300Secciones', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar todos los botones de esa sección a estado "Aprobar"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionA300('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    btn.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                    btn.style.cursor = 'pointer';
+                });
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+
+            // Aprobar
+            aprobaciones[seccionId] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('aprobacionesA300Secciones', JSON.stringify(aprobaciones));
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia de todos los botones de esa sección a "Aprobado"
+            const botones = document.querySelectorAll(`button[onclick="aprobarSeccionA300('${seccionId}', this)"]`);
+            botones.forEach(btn => {
+                btn.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+                btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.style.cursor = 'pointer';
+            });
+
+            showNotification('Sección aprobada correctamente.', 'success');
+        }
+
+        // Función para cargar aprobaciones guardadas del formulario A300
+        function cargarAprobacionesA300Secciones() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesA300Secciones') || '{}');
+            for (const seccionId in aprobaciones) {
+                const aprobacion = aprobaciones[seccionId];
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón correspondiente en estado "Aprobado" pero sin deshabilitarlo
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionA300('${seccionId}', this)"]`);
+                botones.forEach(boton => {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                });
+            }
+        }
+
+        // Función para aprobar / deshacer aprobación del formulario A500
+        function aprobarFormularioA500(boton) {
+            console.log('aprobarFormularioA500 llamada');
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Obtener aprobaciones guardadas del localStorage
+            let aprobaciones = JSON.parse(localStorage.getItem('aprobacionesA500') || '{}');
+
+            // Verificar si ya está aprobado
+            if (aprobaciones['materialidad']) {
+                // Desaprobar
+                delete aprobaciones['materialidad'];
+                localStorage.setItem('aprobacionesA500', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-materialidad');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+
+            // Aprobar
+            aprobaciones['materialidad'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('aprobacionesA500', JSON.stringify(aprobaciones));
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-materialidad');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            showNotification('Formulario de Materialidad aprobado correctamente.', 'success');
+        }
+
+        // Función para cargar aprobaciones guardadas del formulario A500
+        function cargarAprobacionesA500() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesA500') || '{}');
+            const aprobacion = aprobaciones['materialidad'];
+
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-materialidad');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón en estado "Aprobado" pero sin deshabilitarlo
+                const boton = document.querySelector('button[onclick="aprobarFormularioA500(this)"]');
+                if (boton) {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
             }
         }
         
@@ -17904,7 +18171,121 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Cerrar el modal
             cerrarFormularioA300();
         }
-        
+
+        // Función para aprobar / deshacer aprobación de la matriz de riesgos
+        function aprobarMatrizRiesgos(boton) {
+            console.log('aprobarMatrizRiesgos llamada');
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Obtener aprobaciones guardadas del localStorage
+            let aprobaciones = JSON.parse(localStorage.getItem('aprobacionesMatrizRiesgos') || '{}');
+
+            // Verificar si ya está aprobado
+            if (aprobaciones['matriz']) {
+                // Desaprobar
+                delete aprobaciones['matriz'];
+                localStorage.setItem('aprobacionesMatrizRiesgos', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById('aprobado-matriz-riesgos');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar el botón a estado "Aprobar"
+                boton.disabled = false;
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                boton.style.cursor = 'pointer';
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+
+            // Aprobar
+            aprobaciones['matriz'] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('aprobacionesMatrizRiesgos', JSON.stringify(aprobaciones));
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById('aprobado-matriz-riesgos');
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia del botón a "Aprobado"
+            boton.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+            boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+            boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+            boton.style.cursor = 'pointer';
+
+            showNotification('Matriz de riesgos aprobada correctamente.', 'success');
+        }
+
+        // Función para cargar aprobaciones guardadas de la matriz de riesgos
+        function cargarAprobacionesMatrizRiesgos() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesMatrizRiesgos') || '{}');
+            const aprobacion = aprobaciones['matriz'];
+
+            if (aprobacion) {
+                const aprobadoDiv = document.getElementById('aprobado-matriz-riesgos');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón en estado "Aprobado" pero sin deshabilitarlo
+                const boton = document.querySelector('button[onclick="aprobarMatrizRiesgos(this)"]');
+                if (boton) {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                }
+            }
+        }
+
         // Función para cambiar de pestaña
         function openTab(evt, tabName) {
             var i, tabcontent, tabbuttons;
@@ -27791,6 +28172,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Ingrese el impacto en la estrategia general de auditoría..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-nivel-estados-financieros" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('nivel-estados-financieros', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -27919,6 +28307,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Ingrese la justificación de la valoración del riesgo..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-nivel-afirmacion" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('nivel-afirmacion', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -27986,6 +28381,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
                                         placeholder="Ingrese los controles generales de TI identificados..."
                                     ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-entorno-ti" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('entorno-ti', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -28115,6 +28517,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Ingrese la conclusión sobre la respuesta al riesgo..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-riesgos-controles" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('riesgos-controles', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -28243,6 +28652,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Ingrese la conclusión sobre el riesgo de fraude en ingresos..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-fraude-ingresos" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('fraude-ingresos', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -28311,15 +28727,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Ingrese los controles relevantes..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-fraude-elusion" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('fraude-elusion', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Botón de aprobar formulario -->
-                        <div style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between;">
-                            <div id="aprobado-evaluacion-riesgos-incorreccion" style="font-size: 0.9rem; color: #64748b;"></div>
-                            <button type="button" onclick="aprobarFormularioEvaluacionRiesgosIncorreccion(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;">
-                                <i class="bi bi-check-circle"></i> Aprobar
-                            </button>
                         </div>
                     </div>
 
@@ -28338,7 +28753,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }, 10);
             
             // Cargar aprobaciones guardadas
-            setTimeout(() => cargarAprobacionesEvaluacionRiesgosIncorreccion(), 100);
+            setTimeout(() => {
+                cargarAprobacionesEvaluacionRiesgosIncorreccionSecciones();
+            }, 100);
         }
 
         // Función para cerrar el formulario de Evaluación de riesgos de incorrección material
@@ -28354,8 +28771,128 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Evaluación de riesgos de incorrección material
         function guardarFormularioEvaluacionRiesgosIncorreccion() {
+            // Las aprobaciones ya se guardan automáticamente en localStorage al aprobar/desaprobar
             showNotification('Formulario guardado correctamente', 'success');
             cerrarFormularioEvaluacionRiesgosIncorreccion();
+        }
+
+        // Función para aprobar / deshacer aprobación de secciones del formulario Evaluación de riesgos de incorrección material
+        function aprobarSeccionEvaluacionRiesgosIncorreccion(seccionId, boton) {
+            console.log('aprobarSeccionEvaluacionRiesgosIncorreccion llamada con:', seccionId);
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Obtener aprobaciones guardadas del localStorage
+            let aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionRiesgosIncorreccionSecciones') || '{}');
+
+            // Verificar si ya está aprobado
+            if (aprobaciones[seccionId]) {
+                // Desaprobar
+                delete aprobaciones[seccionId];
+                localStorage.setItem('aprobacionesEvaluacionRiesgosIncorreccionSecciones', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar todos los botones de esa sección a estado "Aprobar"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    btn.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                    btn.style.cursor = 'pointer';
+                });
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+
+            // Aprobar
+            aprobaciones[seccionId] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('aprobacionesEvaluacionRiesgosIncorreccionSecciones', JSON.stringify(aprobaciones));
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia de todos los botones de esa sección a "Aprobado"
+            const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('${seccionId}', this)"]`);
+            botones.forEach(btn => {
+                btn.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+                btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.style.cursor = 'pointer';
+            });
+
+            showNotification('Sección aprobada correctamente.', 'success');
+        }
+
+        // Función para cargar aprobaciones guardadas del formulario Evaluación de riesgos de incorrección material
+        function cargarAprobacionesEvaluacionRiesgosIncorreccionSecciones() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionRiesgosIncorreccionSecciones') || '{}');
+            for (const seccionId in aprobaciones) {
+                const aprobacion = aprobaciones[seccionId];
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón correspondiente en estado "Aprobado" pero sin deshabilitarlo
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionRiesgosIncorreccion('${seccionId}', this)"]`);
+                botones.forEach(boton => {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                });
+            }
         }
 
         // Función para aprobar / deshacer aprobación del formulario Evaluación de riesgos de incorrección material
@@ -28632,6 +29169,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Conclusión del auditor a cerca de los riesgos."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-estimaciones-contables" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('estimaciones-contables', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -28894,6 +29438,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         style="width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
                                         placeholder="Detalles adicionales..."
                                     ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-sesgo-administracion" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('sesgo-administracion', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -29378,6 +29929,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Detalles adicionales..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-juicios-significativos" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('juicios-significativos', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -29834,6 +30392,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         ></textarea>
                                     </div>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-negocio-marcha" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('negocio-marcha', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -29919,6 +30484,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Proporcione su conclusión sobre el incumplimiento..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-leyes-regulaciones" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('leyes-regulaciones', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -29986,6 +30558,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </button>
                                     </div>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-concordancia-eeff" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionAreasEspecificas('concordancia-eeff', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -30012,6 +30591,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Forzar reflow y mostrar el modal
             modal.offsetHeight;
             modal.classList.add('show');
+
+            // Cargar aprobaciones guardadas
+            cargarAprobacionesAreasEspecificas();
         }
 
         // Función para cerrar el formulario de Áreas específicas
@@ -30027,8 +30609,128 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Áreas específicas
         function guardarFormularioAreasEspecificas() {
+            // Las aprobaciones ya se guardan automáticamente en localStorage al aprobar/desaprobar
             showNotification('Formulario guardado correctamente', 'success');
             cerrarFormularioAreasEspecificas();
+        }
+
+        // Función para aprobar / deshacer aprobación de secciones del formulario Áreas específicas
+        function aprobarSeccionAreasEspecificas(seccionId, boton) {
+            console.log('aprobarSeccionAreasEspecificas llamada con:', seccionId);
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Obtener aprobaciones guardadas del localStorage
+            let aprobaciones = JSON.parse(localStorage.getItem('aprobacionesAreasEspecificas') || '{}');
+
+            // Verificar si ya está aprobado
+            if (aprobaciones[seccionId]) {
+                // Desaprobar
+                delete aprobaciones[seccionId];
+                localStorage.setItem('aprobacionesAreasEspecificas', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                    aprobadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar todos los botones de esa sección a estado "Aprobar"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionAreasEspecificas('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    btn.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                    btn.style.cursor = 'pointer';
+                });
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+                return;
+            }
+
+            // Aprobar
+            aprobaciones[seccionId] = {
+                usuario: usuarioActual,
+                userId: userId,
+                fecha: fechaActual,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('aprobacionesAreasEspecificas', JSON.stringify(aprobaciones));
+
+            // Actualizar el div de aprobación
+            const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+            if (aprobadoDiv) {
+                aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                aprobadoDiv.style.color = '#1e3a8a';
+                aprobadoDiv.style.fontWeight = '500';
+            }
+
+            // Cambiar apariencia de todos los botones de esa sección a "Aprobado"
+            const botones = document.querySelectorAll(`button[onclick="aprobarSeccionAreasEspecificas('${seccionId}', this)"]`);
+            botones.forEach(btn => {
+                btn.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+                btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.style.cursor = 'pointer';
+            });
+
+            showNotification('Sección aprobada correctamente.', 'success');
+        }
+
+        // Función para cargar aprobaciones guardadas del formulario Áreas específicas
+        function cargarAprobacionesAreasEspecificas() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesAreasEspecificas') || '{}');
+            for (const seccionId in aprobaciones) {
+                const aprobacion = aprobaciones[seccionId];
+                const aprobadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${aprobacion.usuario} - ${aprobacion.fecha}`;
+                    aprobadoDiv.style.color = '#1e3a8a';
+                    aprobadoDiv.style.fontWeight = '500';
+                }
+
+                // Poner el botón correspondiente en estado "Aprobado" pero sin deshabilitarlo
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionAreasEspecificas('${seccionId}', this)"]`);
+                botones.forEach(boton => {
+                    boton.disabled = false;
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    boton.style.cursor = 'pointer';
+                });
+            }
         }
 
         // Función para toggle de secciones del formulario
@@ -32182,11 +32884,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                         <!-- Botones de acción -->
                         <div class="formulario-acciones">
+                            <div id="aprobado-materialidad" style="font-size: 0.85rem; color: #64748b; margin-right: 15px;"></div>
+                            <button type="button" onclick="aprobarFormularioA500(this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; margin-right: 10px;">
+                                <i class="bi bi-check-circle"></i> Aprobar
+                            </button>
                             <button class="btn-guardar" onclick="guardarFormularioA500()">
                                 <i class="bi bi-save"></i> Guardar
-                            </button>
-                            <button class="btn-cancelar" onclick="cerrarFormularioA500()">
-                                <i class="bi bi-x"></i> Cancelar
                             </button>
                         </div>
                     </div>
@@ -32201,7 +32904,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.classList.add('show');
             
             // Cargar aprobaciones guardadas
-            setTimeout(() => cargarAprobacionesA400(), 100);
+            setTimeout(() => cargarAprobacionesA500(), 100);
         }
 
         // Función para cerrar el formulario A500
