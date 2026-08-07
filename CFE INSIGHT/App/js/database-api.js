@@ -1240,6 +1240,12 @@ async function getExcelData(datasetId = null, entityId = null, commitmentId = nu
             throw new Error(result.error || 'Error obteniendo datos del Excel');
         }
 
+        // Manejar caso de datos vacíos (sin Excel para esta entidad/compromiso)
+        if (result.data && result.data.status === 'empty') {
+            console.log('📊 No hay datos de Excel para esta entidad y compromiso');
+            return result.data; // Devolver el objeto con status 'empty'
+        }
+
         console.log('Excel data retrieved successfully:', result.data);
         return result.data;
 

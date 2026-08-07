@@ -4429,44 +4429,52 @@
                 let meta = '';
 
                 if (response.ok && result.success && result.data) {
-                    const sheetsData = result.data.sheets_data || [];
-                    console.log('🔍 Buscando hojas disponibles:', sheetsData.map(s => s.name || s.sheetName || 'Sin nombre'));
-                    
-                    // PRIMERO: Intentar con balance de prueba (más común)
-                    let trialBalanceSheet = getTrialBalanceSheetData(sheetsData);
-                    if (trialBalanceSheet) {
-                        console.log('✅ Usando balance de prueba:', trialBalanceSheet.name);
-                        console.log('🔍 Estructura del balance de prueba:', {
-                            hasHeaders: !!trialBalanceSheet.headers,
-                            hasRows: !!trialBalanceSheet.rows,
-                            headersCount: trialBalanceSheet.headers?.length || 0,
-                            rowsCount: trialBalanceSheet.rows?.length || 0,
-                            firstHeader: trialBalanceSheet.headers?.[0],
-                            firstRow: trialBalanceSheet.rows?.[0]
-                        });
-                        // Convertir balance de prueba a formato de ledger map
-                        ledgerMap = buildTrialBalanceMap(trialBalanceSheet);
-                        ledgerAvailable = ledgerMap.size > 0;
-                        meta = trialBalanceSheet.name ? `Balance: ${trialBalanceSheet.name}` : '';
-                        console.log('🔍 Después de buildTrialBalanceMap:', {
-                            ledgerMapSize: ledgerMap.size,
-                            ledgerAvailable,
-                            meta
-                        });
+                    // Manejar caso de datos vacíos (sin Excel para esta entidad/compromiso)
+                    if (result.data.status === 'empty' || !result.data.sheets_data || result.data.sheets_data.length === 0) {
+                        console.log('📊 No hay datos de Excel para esta entidad y compromiso (estado vacío)');
+                        ledgerAvailable = false;
+                        ledgerMap = new Map();
+                        meta = result.data.message || 'No se encontraron conjuntos de datos para esta entidad y compromiso.';
                     } else {
-                        // SEGUNDO: Intentar con libro mayor (fallback)
-                        console.log('⚠️ No se encontró balance de prueba, buscando libro mayor...');
-                        const ledgerSheet = getLedgerSheetData(sheetsData);
-                        if (ledgerSheet) {
-                            console.log('✅ Usando libro mayor:', ledgerSheet.name);
-                            const ledgerTotals = extractLedgerTotalsAndDiffs(ledgerSheet);
-                            ledgerMap = buildLedgerDiffMap(ledgerTotals.diffs);
+                        const sheetsData = result.data.sheets_data || [];
+                        console.log('🔍 Buscando hojas disponibles:', sheetsData.map(s => s.name || s.sheetName || 'Sin nombre'));
+                        
+                        // PRIMERO: Intentar con balance de prueba (más común)
+                        let trialBalanceSheet = getTrialBalanceSheetData(sheetsData);
+                        if (trialBalanceSheet) {
+                            console.log('✅ Usando balance de prueba:', trialBalanceSheet.name);
+                            console.log('🔍 Estructura del balance de prueba:', {
+                                hasHeaders: !!trialBalanceSheet.headers,
+                                hasRows: !!trialBalanceSheet.rows,
+                                headersCount: trialBalanceSheet.headers?.length || 0,
+                                rowsCount: trialBalanceSheet.rows?.length || 0,
+                                firstHeader: trialBalanceSheet.headers?.[0],
+                                firstRow: trialBalanceSheet.rows?.[0]
+                            });
+                            // Convertir balance de prueba a formato de ledger map
+                            ledgerMap = buildTrialBalanceMap(trialBalanceSheet);
                             ledgerAvailable = ledgerMap.size > 0;
-                            meta = ledgerSheet.name ? `Libro Mayor: ${ledgerSheet.name}` : '';
+                            meta = trialBalanceSheet.name ? `Balance: ${trialBalanceSheet.name}` : '';
+                            console.log('🔍 Después de buildTrialBalanceMap:', {
+                                ledgerMapSize: ledgerMap.size,
+                                ledgerAvailable,
+                                meta
+                            });
+                        } else {
+                            // SEGUNDO: Intentar con libro mayor (fallback)
+                            console.log('⚠️ No se encontró balance de prueba, buscando libro mayor...');
+                            const ledgerSheet = getLedgerSheetData(sheetsData);
+                            if (ledgerSheet) {
+                                console.log('✅ Usando libro mayor:', ledgerSheet.name);
+                                const ledgerTotals = extractLedgerTotalsAndDiffs(ledgerSheet);
+                                ledgerMap = buildLedgerDiffMap(ledgerTotals.diffs);
+                                ledgerAvailable = ledgerMap.size > 0;
+                                meta = ledgerSheet.name ? `Libro Mayor: ${ledgerSheet.name}` : '';
+                            }
                         }
+                        
+                        console.log(`🔍 Resultado - ledgerMap size: ${ledgerMap.size}, ledgerAvailable: ${ledgerAvailable}`);
                     }
-                    
-                    console.log(`🔍 Resultado - ledgerMap size: ${ledgerMap.size}, ledgerAvailable: ${ledgerAvailable}`);
                 }
 
                 cachedLedgerMap = ledgerMap;
@@ -4658,6 +4666,34 @@
                 // Obtener contexto actual
                 const context = formDataManager.getContext();
                 console.log('🔍 Cargando cuentas con contexto:', context);
+                
+                // Primero verificar si hay un dataset válido para esta entidad/compromiso
+                if (context.entityId && context.commitmentId) {
+                    console.log('🔍 Verificando si hay dataset para entidad:', context.entityId, 'compromiso:', context.commitmentId);
+                    const datasetCheck = await fetch(`${API_BASE_URL}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
+                        headers: {
+                            'user-id': userId
+                        }
+                    });
+                    const datasetResult = await datasetCheck.json();
+                    
+                    if (datasetResult.success && datasetResult.data && datasetResult.data.status === 'empty') {
+                        console.log('📊 No hay dataset para esta entidad y compromiso');
+                        const cuentasSection = document.getElementById('cuentasSection');
+                        if (cuentasSection) {
+                            const tableContainer = cuentasSection.querySelector('.table-responsive');
+                            if (tableContainer) {
+                                tableContainer.innerHTML = `
+                                    <div class="text-center my-4">
+                                        <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                                        <p class="mt-2" style="color: #6c757d;">No hay datos de Excel para esta entidad y compromiso</p>
+                                    </div>
+                                `;
+                            }
+                        }
+                        return;
+                    }
+                }
                 
                 console.log('🌐 Cargando cuentas desde la base de datos...');
                 
@@ -5720,12 +5756,30 @@
             const context = formDataManager.getContext();
             console.log('🔍 Cargando grupos financieros con contexto:', context);
             
+            // Verificar si hay dataset para esta entidad/compromiso
+            if (context.entityId && context.commitmentId) {
+                console.log('🔍 Verificando si hay dataset para entidad:', context.entityId, 'compromiso:', context.commitmentId);
+                const userId = getCurrentUserId();
+                const datasetCheck = await fetch(`${API_BASE_URL}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
+                    headers: {
+                        'user-id': userId
+                    }
+                });
+                const datasetResult = await datasetCheck.json();
+                
+                if (datasetResult.success && datasetResult.data && datasetResult.data.status === 'empty') {
+                    console.log('📊 No hay dataset para esta entidad y compromiso');
+                    renderGruposFinancieros([], 'No hay datos de Excel para esta entidad y compromiso');
+                    return;
+                }
+            }
+            
             const resolvedDatasetId = await ensureCurrentDatasetContext();
             console.log('🔍 resolvedDatasetId:', resolvedDatasetId);
             
             if (!resolvedDatasetId) {
                 console.log('❌ DIAGNÓSTICO: No hay dataset activo, abortando carga');
-                renderGruposFinancieros([], '');
+                renderGruposFinancieros([], 'No hay datos de Excel para esta entidad y compromiso');
                 return;
             }
 
@@ -7207,6 +7261,19 @@
         function renderGruposFinancieros(rows, meta) {
             const tbody = document.getElementById('gruposFinancierosTableBody');
             if (!tbody) return;
+
+            // Manejar caso de mensaje de estado vacío (cuando no hay Excel para esta entidad/compromiso)
+            if (typeof meta === 'string' && meta.includes('No hay datos')) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
+                            <div>${meta}</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
 
             // Función para clasificar el tipo de grupo financiero
             function getGroupType(accountName, groupContentId, accountCode) {
@@ -10616,6 +10683,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 Object.keys(dataLoadState).forEach(key => {
                     // Solo reseteamos las secciones vinculadas a Excel/formularios
                     if ([
+                        'datasetHistory',
                         'asignarCuentas',
                         'ledgerIntegrity',
                         'gruposFinancieros',
@@ -10652,6 +10720,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (document.getElementById('cuentasSection')?.style.display !== 'none') {
                     visibleSections.push('cuentas');
                 }
+                // Si la vista principal de datos (Conjuntos de datos) está visible, recargar historial
+                if (document.getElementById('dataMainContent')?.style.display !== 'none') {
+                    visibleSections.push('dataset-history');
+                }
                 
                 // Recargar cada sección visible
                 visibleSections.forEach(section => {
@@ -10675,6 +10747,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         break;
                     case 'cuentas':
                         this.reloadCuentas();
+                        break;
+                    case 'dataset-history':
+                        dataLoadState.datasetHistory = false;
+                        if (typeof loadDatasetHistory === 'function') {
+                            loadDatasetHistory();
+                        }
                         break;
                 }
             },
@@ -20643,6 +20721,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const result = await response.json();
                     console.log('📊 Respuesta Excel:', result);
                     
+                    // Manejar caso de datos vacíos (sin Excel para esta entidad/compromiso)
+                    if (result.success && result.data && result.data.status === 'empty') {
+                        console.log('📊 No hay datos de Excel para esta entidad y compromiso');
+                        // Mostrar mensaje indicando que no hay datos
+                        const yearsDisplay = document.getElementById('yearsDisplay');
+                        if (yearsDisplay) {
+                            yearsDisplay.innerHTML = '<span style="color: #6c757d; font-style: italic;">No hay datos de Excel para esta entidad y compromiso</span>';
+                        }
+                        return;
+                    }
+                    
                     if (result.success && result.data && result.data.sheets_data) {
                         const sheetsData = result.data.sheets_data;
                         console.log('📋 Hojas encontradas:', sheetsData.length);
@@ -21846,12 +21935,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const latestResult = await latestResponse.json();
                     
                     if (latestResponse.ok && latestResult.success && latestResult.data) {
+                        // Manejar caso de datos vacíos
+                        if (latestResult.data.status === 'empty') {
+                            console.log('📊 No hay dataset para esta entidad y compromiso');
+                            currentDatasetId = null;
+                            window.currentDatasetId = null;
+                            currentDatasetName = null;
+                            return;
+                        }
                         currentDatasetId = latestResult.data.id;
                         window.currentDatasetId = latestResult.data.id;
                         currentDatasetName = latestResult.data.original_filename || 'Dataset';
                         console.log('✅ Dataset actual obtenido:', currentDatasetId);
                     } else {
                         console.warn('⚠️ No se encontró ningún dataset actual');
+                        currentDatasetId = null;
+                        window.currentDatasetId = null;
+                        currentDatasetName = null;
                         return;
                     }
                 } catch (error) {
@@ -23874,6 +23974,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('🔍 latestResult.data:', latestResult.data);
                 
                 if (latestResponse.ok && latestResult.success && latestResult.data) {
+                    // Manejar caso de datos vacíos
+                    if (latestResult.data.status === 'empty') {
+                        console.log('📊 No hay dataset para esta entidad y compromiso');
+                        currentDatasetId = null;
+                        window.currentDatasetId = null;
+                        // Mostrar mensaje de estado vacío
+                        const container = document.querySelector('.unassigned-accounts-list');
+                        if (container) {
+                            container.innerHTML = `
+                                <div class="empty-state">
+                                    <i class="bi bi-inbox"></i>
+                                    <p>No hay datos de Excel para esta entidad y compromiso</p>
+                                </div>
+                            `;
+                        }
+                        return;
+                    }
                     currentDatasetId = latestResult.data.id;
                     window.currentDatasetId = latestResult.data.id;
                     console.log('✅ Dataset actual establecido (sin localStorage):', currentDatasetId);
@@ -23886,6 +24003,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     console.warn('🔍 latestResult.data:', latestResult.data);
                     currentDatasetId = null;
                     window.currentDatasetId = null;
+                    // Mostrar mensaje de estado vacío
+                    const container = document.querySelector('.unassigned-accounts-list');
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p>No hay datos de Excel para esta entidad y compromiso</p>
+                            </div>
+                        `;
+                    }
                 }
 
                 // Cargar cuentas desde la base de datos
@@ -24840,11 +24967,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
 
+                // Obtener contexto actual de entidad y compromiso
+                const context = formDataManager.getContext();
+                const entityId = context.entityId || document.getElementById('entidad')?.value || '';
+                const commitmentId = context.commitmentId || commitmentDropdownState.selectedCommitmentId || '';
+
+                console.log('🔍 Upload - Contexto:', { entityId, commitmentId });
+
                 const response = await fetch(`${API_BASE_URL}/api/excel/process-temp`, {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'user-id': userId
+                        'user-id': userId,
+                        'entity-id': entityId,
+                        'commitment-id': commitmentId
                     }
                 });
 

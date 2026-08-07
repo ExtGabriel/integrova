@@ -2914,7 +2914,19 @@ app.get('/api/excel/latest', async (req, res) => {
             });
         } else {
             console.log('⚠️ No se encontraron conjuntos de datos para el usuario:', userId);
-            res.status(404).json({ success: false, message: 'No se encontraron conjuntos de datos.' });
+            // Devolver 200 con datos vacíos en lugar de 404 para mejor manejo en el frontend
+            res.json({
+                success: true,
+                data: {
+                    id: null,
+                    filename: null,
+                    status: 'empty',
+                    sheets_data: [],
+                    uploadedAt: null,
+                    totalSheets: 0,
+                    message: 'No se encontraron conjuntos de datos para esta entidad y compromiso.'
+                }
+            });
         }
     } catch (error) {
         console.error('❌❌❌ Error en /api/excel/latest:', error);
@@ -2927,9 +2939,9 @@ app.get('/api/excel/latest', async (req, res) => {
 app.post('/api/excel/save-temp-data', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { files, mappings } = req.body;
+        const { files, mappings, entity_id, commitment_id } = req.body;
         
-        console.log('💾 Save temp data request - User ID:', userId);
+        console.log('💾 Save temp data request - User ID:', userId, 'Entity ID:', entity_id, 'Commitment ID:', commitment_id);
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -2939,11 +2951,18 @@ app.post('/api/excel/save-temp-data', async (req, res) => {
             return res.status(400).json({ success: false, error: 'No hay archivos para guardar' });
         }
 
-        // Desactivar datasets anteriores del usuario
-        const { error: deactivateError } = await supabase
+        // Desactivar datasets anteriores del usuario para esta entidad/compromiso específicos
+        let deactivateQuery = supabase
             .from('conjuntos_datos')
             .update({ is_active: false })
             .eq('user_id', userId);
+
+        // Si se proporciona entidad y compromiso, desactivar solo para ese contexto
+        if (entity_id && commitment_id) {
+            deactivateQuery = deactivateQuery.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        }
+
+        const { error: deactivateError } = await deactivateQuery;
 
         if (deactivateError) {
             console.error('Error desactivando datasets anteriores:', deactivateError);
@@ -2953,28 +2972,39 @@ app.post('/api/excel/save-temp-data', async (req, res) => {
 
         for (const file of files) {
             try {
-                console.log('💾 Guardando archivo:', file.filename);
+                console.log('💾 Guardando archivo:', file.filename, 'con contexto:', { entity_id, commitment_id });
                 
+                // Preparar datos del dataset con contexto
+                const datasetData = {
+                    nombre: file.filename,
+                    tipo: 'balance_comprobacion',
+                    fecha_importacion: new Date().toISOString(),
+                    total_debitos: 0, // Se calculará después del mapeo
+                    total_creditos: 0, // Se calculará después del mapeo
+                    estado: 'subido',
+                    user_id: userId,
+                    archivo_original: file.filename,
+                    is_active: true,
+                    data: {
+                        sheets: file.sheets,
+                        totalSheets: file.totalSheets,
+                        totalRows: file.totalRows,
+                        filename: file.filename
+                    }
+                };
+
+                // Agregar entity_id y commitment_id si están disponibles
+                if (entity_id) {
+                    datasetData.entity_id = entity_id;
+                }
+                if (commitment_id) {
+                    datasetData.commitment_id = commitment_id;
+                }
+
                 // Guardar directamente en la base de datos
                 const { data: dataset, error: datasetError } = await supabase
                     .from('conjuntos_datos')
-                    .insert([{
-                        nombre: file.filename,
-                        tipo: 'balance_comprobacion',
-                        fecha_importacion: new Date().toISOString(),
-                        total_debitos: 0, // Se calculará después del mapeo
-                        total_creditos: 0, // Se calculará después del mapeo
-                        estado: 'subido',
-                        user_id: userId,
-                        archivo_original: file.filename,
-                        is_active: true,
-                        data: {
-                            sheets: file.sheets,
-                            totalSheets: file.totalSheets,
-                            totalRows: file.totalRows,
-                            filename: file.filename
-                        }
-                    }])
+                    .insert([datasetData])
                     .select()
                     .single();
 
@@ -4071,11 +4101,12 @@ function generateFinancialStatements(accounts, classifications) {
 app.get('/api/excel/datasets', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { entity_id } = req.query;
+        const { entity_id, commitment_id } = req.query;
         
         console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/datasets:');
         console.log('  userId:', userId);
         console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
         
         if (!userId) {
             console.error('❌ ERROR: userId es null/undefined');
@@ -4084,7 +4115,7 @@ app.get('/api/excel/datasets', async (req, res) => {
         
         // Primero obtener los conjuntos de datos
         console.log('🔍 Consultando conjuntos_datos...');
-        const { data: datasets, error: datasetsError } = await supabase
+        let query = supabase
             .from('conjuntos_datos')
             .select(`
                 *,
@@ -4097,7 +4128,19 @@ app.get('/api/excel/datasets', async (req, res) => {
                 )
             `)
             .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true)
+            .eq('is_active', true);
+
+        // Aplicar filtros de entidad/compromiso si llegan en la query
+        if (entity_id) {
+            console.log('🔍 Filtrando por entity_id en /api/excel/datasets:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando por commitment_id en /api/excel/datasets:', commitment_id);
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { data: datasets, error: datasetsError } = await query
             .order('fecha_importacion', { ascending: false })
             .limit(1);
 
@@ -4361,8 +4404,10 @@ app.post('/api/excel/process-temp', upload.array('files', 5), async (req, res) =
     try {
         const files = req.files || [];
         const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.headers['entity-id'];
+        const commitmentId = req.headers['commitment-id'];
         
-        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId);
+        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId, 'Entity ID:', entityId, 'Commitment ID:', commitmentId);
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
@@ -4465,8 +4510,10 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
     try {
         const files = req.files || [];
         const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.body.entity_id || req.headers['entity-id'];
+        const commitmentId = req.body.commitment_id || req.headers['commitment-id'];
         
-        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId);
+        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId, 'Entity ID:', entityId, 'Commitment ID:', commitmentId);
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
@@ -4479,12 +4526,19 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
         const processedFiles = [];
 
-        // Desactivar datasets anteriores del usuario
+        // Desactivar datasets anteriores del usuario para esta entidad/compromiso específicos
         if (userId) {
-            const { error: deactivateError } = await supabase
+            let deactivateQuery = supabase
                 .from('conjuntos_datos')
                 .update({ is_active: false })
                 .eq('user_id', userId);
+
+            // Si se proporciona entidad y compromiso, desactivar solo para ese contexto
+            if (entityId && commitmentId) {
+                deactivateQuery = deactivateQuery.eq('entity_id', entityId).eq('commitment_id', commitmentId);
+            }
+
+            const { error: deactivateError } = await deactivateQuery;
 
             if (deactivateError) {
                 console.error('Error desactivando datasets anteriores:', deactivateError);
@@ -4528,26 +4582,36 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                     }
                 }
 
-                // Guardar directamente en la base de datos
+                // Guardar directamente en la base de datos con contexto de entidad/compromiso
+                const datasetData = {
+                    nombre: file.originalname,
+                    tipo: 'balance_comprobacion',
+                    fecha_importacion: new Date().toISOString(),
+                    total_debitos: 0, // Se calculará después del mapeo
+                    total_creditos: 0, // Se calculará después del mapeo
+                    estado: 'subido',
+                    user_id: userId,
+                    archivo_original: file.originalname,
+                    is_active: true,
+                    data: {
+                        sheets: sheetsData,
+                        totalSheets: sheetsData.length,
+                        totalRows: totalRows,
+                        filename: file.originalname
+                    }
+                };
+
+                // Agregar entity_id y commitment_id si están disponibles
+                if (entityId) {
+                    datasetData.entity_id = entityId;
+                }
+                if (commitmentId) {
+                    datasetData.commitment_id = commitmentId;
+                }
+
                 const { data: dataset, error: datasetError } = await supabase
                     .from('conjuntos_datos')
-                    .insert([{
-                        nombre: file.originalname,
-                        tipo: 'balance_comprobacion',
-                        fecha_importacion: new Date().toISOString(),
-                        total_debitos: 0, // Se calculará después del mapeo
-                        total_creditos: 0, // Se calculará después del mapeo
-                        estado: 'subido',
-                        user_id: userId,
-                        archivo_original: file.originalname,
-                        is_active: true,
-                        data: {
-                            sheets: sheetsData,
-                            totalSheets: sheetsData.length,
-                            totalRows: totalRows,
-                            filename: file.originalname
-                        }
-                    }])
+                    .insert([datasetData])
                     .select()
                     .single();
 
