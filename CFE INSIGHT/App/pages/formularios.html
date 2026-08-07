@@ -7894,6 +7894,17 @@
                 setTimeout(() => {
                     entityDataManager.reloadAllSections();
                 }, 500);
+                
+                // Recargar observaciones del nuevo contexto
+                try {
+                    if (typeof loadStoredObservations === 'function') {
+                        const observations = await loadStoredObservations();
+                        window.currentObservations = observations;
+                        console.log('🔄 Observaciones recargadas para nuevo contexto:', observations);
+                    }
+                } catch (obsError) {
+                    console.warn('⚠️ Error recargando observaciones (no bloquea cambio de entidad):', obsError);
+                }
             },
             
             // Inicializar auto-guardado
@@ -8470,7 +8481,7 @@
             // Actualizar opciones visibles con eventos onclick directos
             if (filteredOptions.length > 0) {
                 items.innerHTML = filteredOptions.map(option =>
-                    `<div data-value="${option.value}" onclick="selectOption('${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
+                    `<div data-value="${option.value}" onclick="selectOption('entidad', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
                 ).join('');
             } else {
                 items.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No se encontraron resultados</div>';
@@ -8921,6 +8932,7 @@
         window.saveEntitySelectionsToStorage = saveEntitySelectionsToStorage;
         window.loadEntitySelectionsFromStorage = loadEntitySelectionsFromStorage;
         window.clearEntitySelectionsFromStorage = clearEntitySelectionsFromStorage;
+        window.loadStoredObservations = loadStoredObservations;
 
         // Función para toggle de categorías
         function toggleCategoriaDropdown(categoriaId) {
@@ -18493,12 +18505,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
 
         // Función para mostrar observaciones
-        function showObservations(event, formId) {
+        async function showObservations(event, formId) {
             if (event) {
                 event.stopPropagation();
             }
 
-            const observations = loadStoredObservations();
+            const observations = await loadStoredObservations();
             const existingObservation = observations.find(obs => obs.formId === formId && obs.status === 'pendiente');
 
             openObservationModal(formId, existingObservation || null);
@@ -18524,13 +18536,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <i class="bi bi-pencil-square"></i> Agregar observación:
                             </label>
                             <div class="editor-toolbar">
-                                <button type="button" class="toolbar-btn" onclick="formatText('bold')" title="Negrita">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('bold')" title="Negrita">
                                     <i class="bi bi-type-bold"></i>
                                 </button>
-                                <button type="button" class="toolbar-btn" onclick="formatText('italic')" title="Cursiva">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('italic')" title="Cursiva">
                                     <i class="bi bi-type-italic"></i>
                                 </button>
-                                <button type="button" class="toolbar-btn" onclick="formatText('underline')" title="Subrayado">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('underline')" title="Subrayado">
                                     <i class="bi bi-type-underline"></i>
                                 </button>
                                 <div class="toolbar-separator"></div>
@@ -18547,20 +18559,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                     <i class="bi bi-omega"></i>
                                 </button>
                                 <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn" onclick="formatText('insertUnorderedList')" title="Lista con viñetas">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('insertUnorderedList')" title="Lista con viñetas">
                                     <i class="bi bi-list-ul"></i>
                                 </button>
-                                <button type="button" class="toolbar-btn" onclick="formatText('insertOrderedList')" title="Lista numerada">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('insertOrderedList')" title="Lista numerada">
                                     <i class="bi bi-list-ol"></i>
                                 </button>
                                 <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn" onclick="formatText('justifyLeft')" title="Alinear a la izquierda">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('justifyLeft')" title="Alinear a la izquierda">
                                     <i class="bi bi-text-left"></i>
                                 </button>
-                                <button type="button" class="toolbar-btn" onclick="formatText('justifyCenter')" title="Centrar">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('justifyCenter')" title="Centrar">
                                     <i class="bi bi-text-center"></i>
                                 </button>
-                                <button type="button" class="toolbar-btn" onclick="formatText('justifyRight')" title="Alinear a la derecha">
+                                <button type="button" class="toolbar-btn" onclick="formatTextObservations('justifyRight')" title="Alinear a la derecha">
                                     <i class="bi bi-text-right"></i>
                                 </button>
                                 <div class="toolbar-separator"></div>
@@ -18594,14 +18606,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <span class="classification-icon error">❌</span>
                                         <span class="classification-text">Error</span>
                                     </div>
-                                    <div class="dropdown-item" onclick="selectClassification('carta')">
-                                        <span class="classification-icon carta">📧</span>
-                                        <span class="classification-text">Carta</span>
-                                    </div>
-                                    <div class="dropdown-item" onclick="selectClassification('deficiencia')">
-                                        <span class="classification-icon deficiencia">⚠️</span>
-                                        <span class="classification-text">Deficiencia</span>
-                                    </div>
                                     <div class="dropdown-item" onclick="selectClassification('revision')">
                                         <span class="classification-icon revision">🔍</span>
                                         <span class="classification-text">Revisión</span>
@@ -18610,17 +18614,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <span class="classification-icon nota">📝</span>
                                         <span class="classification-text">Nota</span>
                                     </div>
-                                    <div class="dropdown-item" onclick="selectClassification('consideracion')">
-                                        <span class="classification-icon consideracion">💭</span>
-                                        <span class="classification-text">Consideración</span>
-                                    </div>
-                                    <div class="dropdown-item" onclick="selectClassification('consideracion-proximo-anio')">
-                                        <span class="classification-icon consideracion-proximo-anio">📅</span>
-                                        <span class="classification-text">Consideración para el próximo año</span>
-                                    </div>
-                                    <div class="dropdown-item" onclick="selectClassification('comentario-contacto')">
-                                        <span class="classification-icon comentario-contacto">💬</span>
-                                        <span class="classification-text">Comentario de contacto</span>
+                                    <div class="dropdown-item" onclick="selectClassification('deficiencia')">
+                                        <span class="classification-icon deficiencia">⚠️</span>
+                                        <span class="classification-text">Deficiencia</span>
                                     </div>
                                 </div>
                             </div>
@@ -18676,33 +18672,153 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
-        // Función para formatear texto
-        function formatText(command) {
-            document.execCommand(command, false, null);
-            document.getElementById('observationText').focus();
+        // Función para formatear texto en observaciones
+        function formatTextObservations(command) {
+            const editor = document.getElementById('observationText');
+            if (!editor) return;
+
+            editor.focus();
+
+            // Intentar usar execCommand como fallback
+            try {
+                document.execCommand(command, false, null);
+            } catch (e) {
+                console.warn('execCommand no soportado, usando alternativa:', e);
+                // Alternativa moderna para comandos básicos
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const selectedText = range.toString();
+
+                    if (selectedText) {
+                        let newElement;
+                        switch(command) {
+                            case 'bold':
+                                newElement = document.createElement('strong');
+                                break;
+                            case 'italic':
+                                newElement = document.createElement('em');
+                                break;
+                            case 'underline':
+                                newElement = document.createElement('u');
+                                break;
+                            case 'strikeThrough':
+                                newElement = document.createElement('s');
+                                break;
+                            case 'insertUnorderedList':
+                                const ul = document.createElement('ul');
+                                const li = document.createElement('li');
+                                li.textContent = selectedText;
+                                ul.appendChild(li);
+                                newElement = ul;
+                                break;
+                            case 'insertOrderedList':
+                                const ol = document.createElement('ol');
+                                const oli = document.createElement('li');
+                                oli.textContent = selectedText;
+                                ol.appendChild(oli);
+                                newElement = ol;
+                                break;
+                            case 'justifyLeft':
+                            case 'justifyCenter':
+                            case 'justifyRight':
+                                // Para alineación, necesitamos aplicar al bloque padre
+                                const block = range.commonAncestorContainer.nodeType === 3 ?
+                                    range.commonAncestorContainer.parentElement :
+                                    range.commonAncestorContainer;
+                                if (block.nodeType === 1) {
+                                    block.style.textAlign = command.replace('justify', '').toLowerCase();
+                                }
+                                return;
+                            default:
+                                return;
+                        }
+
+                        if (newElement) {
+                            newElement.textContent = selectedText;
+                            range.deleteContents();
+                            range.insertNode(newElement);
+                        }
+                    }
+                }
+            }
         }
 
         // Función para limpiar formato
         function clearFormatting() {
-            document.execCommand('removeFormat', false, null);
-            document.getElementById('observationText').focus();
+            const editor = document.getElementById('observationText');
+            if (!editor) return;
+
+            editor.focus();
+
+            try {
+                document.execCommand('removeFormat', false, null);
+            } catch (e) {
+                console.warn('removeFormat no soportado');
+                // Alternativa: eliminar todos los estilos inline
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const text = range.toString();
+                    if (text) {
+                        range.deleteContents();
+                        range.insertNode(document.createTextNode(text));
+                    }
+                }
+            }
         }
 
         // Función para insertar enlace
         function insertLink() {
+            const editor = document.getElementById('observationText');
+            if (!editor) return;
+
             const url = prompt('Ingrese la URL del enlace:');
             if (url) {
-                document.execCommand('createLink', false, url);
-                document.getElementById('observationText').focus();
+                editor.focus();
+
+                try {
+                    document.execCommand('createLink', false, url);
+                } catch (e) {
+                    console.warn('createLink no soportado');
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const selectedText = range.toString() || url;
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.textContent = selectedText;
+                        link.target = '_blank';
+                        range.deleteContents();
+                        range.insertNode(link);
+                    }
+                }
             }
         }
 
         // Función para insertar mención
         function insertMention() {
+            const editor = document.getElementById('observationText');
+            if (!editor) return;
+
             const mention = prompt('Ingrese el nombre de la persona a mencionar:');
             if (mention) {
-                document.execCommand('insertText', false, '@' + mention);
-                document.getElementById('observationText').focus();
+                editor.focus();
+
+                try {
+                    document.execCommand('insertText', false, '@' + mention);
+                } catch (e) {
+                    console.warn('insertText no soportado');
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const mentionSpan = document.createElement('span');
+                        mentionSpan.textContent = '@' + mention;
+                        mentionSpan.style.color = '#1e3a8a';
+                        mentionSpan.style.fontWeight = 'bold';
+                        range.insertNode(mentionSpan);
+                    }
+                }
             }
         }
 
@@ -19303,9 +19419,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             try {
                 const userId = getCurrentUserId();
                 const context = formDataManager.getContext();
-                
+
                 console.log('🔍 Cargando observaciones desde BD para userId:', userId, 'contexto:', context);
-                
+
                 if (!userId) {
                     console.warn('🔍 No hay userId, retornando array vacío');
                     return [];
@@ -19314,21 +19430,24 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Construir URL con parámetros de contexto
                 let url = `/api/observations/${userId}`;
                 const params = new URLSearchParams();
-                
+
                 if (context.entityId) {
                     params.append('entity_id', context.entityId);
                 }
+                // Solo enviar commitment_id si tiene un valor (no null)
                 if (context.commitmentId) {
                     params.append('commitment_id', context.commitmentId);
                 }
-                
+
                 if (params.toString()) {
                     url += '?' + params.toString();
                 }
 
+                console.log('🔍 URL de consulta de observaciones:', url);
+
                 const response = await fetch(url);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log('🔍 Observaciones cargadas desde BD para contexto:', data.observations);
                     // Convertir formato de BD al formato esperado por el frontend
@@ -19447,7 +19566,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 console.log('🔍 Observación guardada en BD');
 
-                updateObservationBadge(formId);
+                await updateObservationBadge(formId);
                 console.log('🔍 Llamando a updateIssuesSection...');
                 await updateIssuesSection();
 
@@ -19461,7 +19580,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para actualizar el indicador (badge) en la banderita
-        function updateObservationBadge(formId, hasObservation) {
+        async function updateObservationBadge(formId, hasObservation) {
             const observationBtn = document.querySelector(`.observations-btn[onclick*="${formId}"]`);
             if (observationBtn) {
                 // Remover badge existente si lo hay
@@ -19469,12 +19588,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (existingBadge) {
                     existingBadge.remove();
                 }
-                
+
                 // Agregar nuevo badge si hay observación
                 let shouldShowBadge = !!hasObservation;
 
                 if (typeof hasObservation === 'undefined') {
-                    const observations = loadStoredObservations();
+                    const observations = await loadStoredObservations();
                     const currentUserId = getCurrentUserId();
                     shouldShowBadge = observations.some(obs => {
                         if (obs.formId !== formId || obs.status !== 'pendiente') {
@@ -19669,7 +19788,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const observations = await loadStoredObservations();
                     const observation = observations.find(obs => obs.id === observationId);
                     if (observation && observation.formId) {
-                        updateObservationBadge(observation.formId);
+                        await updateObservationBadge(observation.formId);
                     }
 
                     await updateIssuesSection();
@@ -19713,9 +19832,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const observations = await loadStoredObservations();
                     const observation = observations.find(obs => obs.id === observationId);
                     if (observation && observation.formId) {
-                        updateObservationBadge(observation.formId);
+                        await updateObservationBadge(observation.formId);
                     }
-                    
+
                     // Actualizar sección de pendientes
                     await updateIssuesSection();
                     
@@ -24794,25 +24913,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cargar entidades desde la API
         async function cargarEntidades() {
+            // Wrapper para mantener compatibilidad con código antiguo.
+            // Delegamos en el nuevo flujo de carga con selects personalizados
+            // para evitar condiciones de carrera y opciones sin manejador de clic.
             try {
-                // Cargar entidades para el selector principal
-                const entidadesResponse = await API.Entities.getAll();
-                if (entidadesResponse.success && entidadesResponse.data) {
-                    const entidadItems = document.getElementById('entidadItems');
-                    entidadItems.innerHTML = '<div data-value="">Seleccionar entidad...</div>';
-                    
-                    entidadesResponse.data.forEach(entidad => {
-                        const option = document.createElement('div');
-                        option.setAttribute('data-value', entidad.id);
-                        option.textContent = entidad.name;
-                        entidadItems.appendChild(option);
-                    });
+                if (typeof cargarEntidadesConCustomSelects === 'function') {
+                    await cargarEntidadesConCustomSelects();
+                } else {
+                    console.warn('cargarEntidadesConCustomSelects no está disponible; no se cargaron entidades.');
                 }
-
             } catch (error) {
-                console.error('Error cargando entidades:', error);
-                // Si hay error, mantener las opciones por defecto
-                console.log('Usando entidades por defecto');
+                console.error('Error cargando entidades (wrapper):', error);
             }
         }
 
@@ -37840,6 +37951,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
 
         async function initializeObservations() {
+            console.log('🔍 initializeObservations iniciado');
             try {
                 if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
                     await window.currentUserReady;
@@ -37848,21 +37960,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('No se pudo esperar a currentUserReady para observaciones:', err);
             }
 
-            const observations = loadStoredObservations();
+            const observations = await loadStoredObservations();
+            console.log('🔍 Observaciones cargadas en initializeObservations:', observations);
 
             // Validar que observations sea un array antes de usar forEach
             if (Array.isArray(observations)) {
+                console.log('🔍 Cantidad de observaciones:', observations.length);
                 // Actualizar badges para formularios con observaciones
-                observations.forEach(observation => {
+                for (const observation of observations) {
+                    console.log('🔍 Procesando observación:', observation.formId, observation.status);
                     if (observation.status === 'pendiente') {
-                        updateObservationBadge(observation.formId, true);
+                        await updateObservationBadge(observation.formId, true);
                     }
-                });
+                }
             } else {
                 console.warn('⚠️ loadStoredObservations no devolvió un array:', observations);
             }
 
             await updateIssuesSection();
+            console.log('🔍 initializeObservations completado');
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
