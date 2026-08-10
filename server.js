@@ -5055,13 +5055,18 @@ app.post('/api/assignments/save', async (req, res) => {
             meta 
         } = req.body;
         
+        const entityId = req.headers['entity-id'] || req.body.entity_id;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id;
+        
         console.log('Parsed data:', {
             datasetId,
             accountId,
             groupContentId,
             parentAccountId,
             position,
-            meta
+            meta,
+            entityId,
+            commitmentId
         });
         
         const userId = req.headers['user-id'];
@@ -5159,8 +5164,8 @@ app.post('/api/assignments/save', async (req, res) => {
                     cuenta_padre_id: null,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
-                    entity_id: null,
-                    commitment_id: null,
+                    entity_id: entityId || null,
+                    commitment_id: commitmentId || null,
                     meta: meta || {}
                 })
                 .select()
@@ -5192,8 +5197,8 @@ app.post('/api/assignments/save', async (req, res) => {
             meta: meta || {},
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            entity_id: null,
-            commitment_id: null
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null
         };
         
         console.log('Datos a insertar:', insertData);
@@ -5390,10 +5395,13 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
         
         console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getAssignments:');
         console.log('  datasetId:', datasetId);
         console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
         
         if (!userId) {
             console.error('❌ ERROR: userId es null/undefined');
@@ -5411,28 +5419,8 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             });
         }
         
-        // Primero verificar si hay asignaciones para este usuario sin importar dataset
-        console.log('🔍 Consultando todas las asignaciones del usuario...');
-        const { data: allAssignments, error: allError } = await supabase
-            .from('account_assignments')
-            .select(`
-                *,
-                cuentas_contables(id, numero_cuenta, nombre_cuenta),
-                users(id, email)
-            `)
-            .eq('user_id', userId);
-
-        console.log('🔍 Todas las asignaciones del usuario:', {
-            totalCount: allAssignments?.length || 0,
-            datasetIds: [...new Set(allAssignments?.map(a => a.dataset_id) || [])],
-            firstAssignment: allAssignments?.[0],
-            hasError: !!allError,
-            error: allError?.message
-        });
-        
-        // Ahora filtrar por dataset_id específico
-        console.log('🔍 Filtrando asignaciones por datasetId:', datasetId);
-        const { data, error } = await supabase
+        // Construir query base
+        let query = supabase
             .from('account_assignments')
             .select(`
                 *,
@@ -5440,11 +5428,24 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
                 users(id, email)
             `)
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
-            .order('position');
+            .eq('user_id', userId);
+        
+        // Aplicar filtros de entidad/compromiso si están disponibles
+        if (entity_id) {
+            console.log('🔍 Filtrando asignaciones por entity_id:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando asignaciones por commitment_id:', commitment_id);
+            query = query.eq('commitment_id', commitment_id);
+        }
+        
+        const { data, error } = await query.order('position');
 
         console.log('🔍 Asignaciones filtradas:', {
             datasetId,
+            entity_id,
+            commitment_id,
             filteredCount: data?.length || 0,
             hasError: !!error,
             error: error?.message,
@@ -8065,6 +8066,8 @@ app.post('/api/subdocuments/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria, tipo, titulo, contenido, metadata, parent_folder_id } = req.body;
+        const entityId = req.headers['entity-id'] || req.body.entity_id;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -8075,6 +8078,7 @@ app.post('/api/subdocuments/save', async (req, res) => {
         }
         
         console.log(`💾 Guardando subdocumento: ${titulo} (${tipo}) en ${categoria}/${subcategoria}`);
+        console.log(`📌 Contexto - entity_id: ${entityId}, commitment_id: ${commitmentId}`);
         
         const { data: document, error } = await supabase
             .from('subdocumentos')
@@ -8087,6 +8091,8 @@ app.post('/api/subdocuments/save', async (req, res) => {
                 parent_folder_id: parent_folder_id || null,
                 metadata: metadata || {},
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -8439,6 +8445,8 @@ app.post('/api/subdocuments/upload', async (req, res) => {
                 parent_folder_id: null,
                 metadata,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -8660,26 +8668,39 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria } = req.params;
+        const { entity_id, commitment_id } = req.query;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
         
         console.log(`🔍 Obteniendo subdocumentos de ${categoria}/${subcategoria}`);
+        console.log(`🔍 Contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
         
-        const { data: documents, error } = await supabase
+        let query = supabase
             .from('subdocumentos')
             .select('*')
             .eq('categoria', categoria)
             .eq('subcategoria', subcategoria)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .eq('user_id', userId);
+        
+        // Aplicar filtros de entidad/compromiso si están disponibles
+        if (entity_id) {
+            console.log('🔍 Filtrando subdocumentos por entity_id:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando subdocumentos por commitment_id:', commitment_id);
+            query = query.eq('commitment_id', commitment_id);
+        }
+        
+        const { data: documents, error } = await query.order('created_at', { ascending: false });
             
         // Log para depuración - verificar created_by
         if (documents && documents.length > 0) {
             console.log('🔍 Documentos encontrados con created_by:');
             documents.forEach(doc => {
-                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}`);
+                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}, entity_id: ${doc.entity_id}, commitment_id: ${doc.commitment_id}`);
             });
         }
             

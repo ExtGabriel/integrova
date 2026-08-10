@@ -20,12 +20,31 @@ async function saveAccountAssignment(assignmentData) {
         const finalDatasetId = assignmentData.datasetId || currentDatasetId;
         const userId = getCurrentUserId();
         
+        // Obtener contexto actual de entidad y compromiso de múltiples fuentes
+        let entityId = assignmentData.entity_id || 
+                      window.commitmentDropdownState?.currentEntityId || 
+                      document.getElementById('entidad')?.value || 
+                      '';
+        
+        let commitmentId = assignmentData.commitment_id || 
+                          window.commitmentDropdownState?.selectedCommitmentId || 
+                          '';
+        
+        console.log('🔍 Contexto obtenido para saveAccountAssignment:');
+        console.log('  - assignmentData.entity_id:', assignmentData.entity_id);
+        console.log('  - window.commitmentDropdownState?.currentEntityId:', window.commitmentDropdownState?.currentEntityId);
+        console.log('  - document.getElementById("entidad")?.value:', document.getElementById('entidad')?.value);
+        console.log('  - entityId final:', entityId);
+        console.log('  - commitmentId final:', commitmentId);
+        
         console.log('Valores finales:', {
             datasetId: finalDatasetId,
             accountId: assignmentData.accountId,
             groupContentId: assignmentData.groupContentId,
             userId: userId,
-            currentDatasetId: currentDatasetId
+            currentDatasetId: currentDatasetId,
+            entityId,
+            commitmentId
         });
         
         const payload = {
@@ -34,7 +53,9 @@ async function saveAccountAssignment(assignmentData) {
             groupContentId: assignmentData.groupContentId,
             parentAccountId: assignmentData.parentAccountId || null,
             position: assignmentData.position || 0,
-            meta: assignmentData.meta || {}
+            meta: assignmentData.meta || {},
+            entity_id: entityId,
+            commitment_id: commitmentId
         };
         
         console.log('Payload a enviar:', payload);
@@ -43,7 +64,9 @@ async function saveAccountAssignment(assignmentData) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': userId
+                'user-id': userId,
+                'entity-id': entityId,
+                'commitment-id': commitmentId
             },
             body: JSON.stringify(payload)
         });
@@ -82,14 +105,18 @@ async function getAccountAssignments(datasetId, entityId = null, commitmentId = 
         console.log('  commitmentId:', commitmentId);
         console.log('  userId:', getCurrentUserId());
         
+        // Si no se proporcionan entityId/commitmentId, usar el contexto actual
+        const contextEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+        const contextCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+        
         let url = `${DATABASE_API_BASE_URL}/api/assignments/${datasetId}`;
         const params = new URLSearchParams();
         
-        if (entityId) {
-            params.append('entity_id', entityId);
+        if (contextEntityId) {
+            params.append('entity_id', contextEntityId);
         }
-        if (commitmentId) {
-            params.append('commitment_id', commitmentId);
+        if (contextCommitmentId) {
+            params.append('commitment_id', contextCommitmentId);
         }
         
         if (params.toString()) {
@@ -98,11 +125,20 @@ async function getAccountAssignments(datasetId, entityId = null, commitmentId = 
         
         console.log('  URL completa:', url);
         
+        const headers = {
+            'user-id': getCurrentUserId()
+        };
+        
+        if (contextEntityId) {
+            headers['entity-id'] = contextEntityId;
+        }
+        if (contextCommitmentId) {
+            headers['commitment-id'] = contextCommitmentId;
+        }
+        
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'user-id': getCurrentUserId()
-            }
+            headers
         });
 
         console.log('  Response status:', response.status);

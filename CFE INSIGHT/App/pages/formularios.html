@@ -888,6 +888,37 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Subcategoría: Evaluación del trabajo ejecutado por otros involucrados en la auditoría -->
+                        <div class="subcategoria-section">
+                            <div class="subcategoria-header" onclick="toggleSubcategoriaDropdown('evaluacion-trabajo-otros')">
+                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="evaluacion-trabajo-otros-arrow"></i> Evaluación del trabajo ejecutado por otros involucrados en la auditoría</h4>
+                                <div class="plus-dropdown">
+                                    <i class="bi bi-plus-circle subcategoria-plus-icon" onclick="togglePlusMenu(event, 'evaluacion-trabajo-otros-menu')"></i>
+                                    <div class="plus-dropdown-content" id="evaluacion-trabajo-otros-menu">
+                                        <a href="#" onclick="openSubFolderModal(event, 'evaluacion-trabajo-otros')"><i class="bi bi-folder"></i> Subcarpeta</a>
+                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', 'evaluacion-trabajo-otros')"><i class="bi bi-file-earmark-spreadsheet"></i> Hoja de trabajo</a>
+                                        <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-question-circle"></i> Consulta</a>
+                                        <a href="#" onclick="openEnlaceModal(event, 'planificacion')"><i class="bi bi-link"></i> Enlace</a>
+                                        <a href="#" onclick="uploadFileDirect(event, 'planificacion')"><i class="bi bi-upload"></i> Cargar</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="subcategoria-lista" id="evaluacion-trabajo-otros-content">
+                                <div class="form-item-lista" onclick="abrirFormulario('EVALUACION_TRABAJO_OTROS')">
+                                    <div class="form-codigo">ETO</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Evaluación del trabajo ejecutado por otros involucrados en la auditoría</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'EVALUACION_TRABAJO_OTROS')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'EVALUACION_TRABAJO_OTROS')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'EVALUACION_TRABAJO_OTROS')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'EVALUACION_TRABAJO_OTROS')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -10698,6 +10729,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 cachedFinancialGroupStructure = null;
                 cachedAssignments = new Map();
                 
+                // Limpiar cache de subdocumentos por contexto
+                if (window.clearSubdocumentContextCache) {
+                    window.clearSubdocumentContextCache();
+                }
+                
                 console.log(`🗑️ Cache limpiado para nuevo contexto: ${currentKey}`);
             },
             
@@ -14103,6 +14139,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioEvaluacionRiesgosIncorreccion();
             } else if (formId === 'AREAS_ESPECIFICAS') {
                 mostrarFormularioAreasEspecificas();
+            } else if (formId === 'EVALUACION_TRABAJO_OTROS') {
+                mostrarFormularioEvaluacionTrabajoOtros();
             } else if (formId === 'A500') {
                 mostrarFormularioA500();
             } else if (formId === 'B100') {
@@ -21388,12 +21426,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const proceedWithAssignment = async () => {
                 try {
                     const accountUuid = await getAccountUuidFromCode(accountData?.code || accountKey).catch(() => null);
+                    
+                    // Obtener contexto actual de entidad y compromiso
+                    const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                    const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                    
                     const assignmentData = {
                         accountId: accountUuid || accountData?.code || accountKey,
                         groupContentId: groupId,
                         parentAccountId: parentAccountId || null,
                         position: assignments.length - 1,
                         datasetId: datasetId,
+                        entity_id: entityId,
+                        commitment_id: commitmentId,
                         meta: {
                             accountKey,
                             code: accountData?.code || '',
@@ -21405,6 +21450,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     };
                 
                     console.log(' - assignmentData:', assignmentData);
+                    console.log(' - Contexto - entityId:', entityId, 'commitmentId:', commitmentId);
                     
                     try {
                         await saveAccountAssignment(assignmentData);
@@ -30841,6 +30887,1016 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Cargar aprobaciones guardadas
             cargarAprobacionesAreasEspecificas();
+        }
+
+        // Función para mostrar el formulario de Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+        function mostrarFormularioEvaluacionTrabajoOtros() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2 style="text-align: center;">Evaluación del trabajo ejecutado por otros involucrados en la auditoría</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioEvaluacionTrabajoOtros()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body">
+                        <div style="margin-bottom: 25px; color: #37474F; font-size: 0.95rem;">
+                            <strong>Objetivo:</strong> Documentar la evaluación realizada sobre el trabajo efectuado por otros involucrados en la auditoría para determinar si puede utilizarse como evidencia suficiente y adecuada.
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Referencia técnica</label>
+                                <button type="button" onclick="toggleTooltip('eto_referencia_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                    <i class="bi bi-lightbulb"></i>
+                                </button>
+                            </div>
+                            <div id="eto_referencia_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                NIA 220 (Revisada) - Gestión de la calidad de la auditoría de estados financieros (consultas, diferencias de opinión, dirección, supervisión y revisión). NIA 230 - Documentación de auditoría. NIA 402 - Consideraciones de auditoría relativas a una entidad que utiliza una organización de servicios. NIA 600 (Revisada) - Consideraciones especiales: auditorías de estados financieros de grupos (incluido el trabajo de los auditores de componentes). NIA 610 (Revisada 2013) - Utilización del trabajo de los auditores internos. NIA 620 - Utilización del trabajo de un experto del auditor.
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Identificación de otros involucrados</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 1 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">1. ¿La entidad utiliza una organización que provee servicios relevantes?</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q1_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q1_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Indicar si utiliza una organización de servicios cuyos procesos afecten la información financiera o los controles relevantes, anotar concretamente qué tipo de servicios.
+                                    </div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="eto_q1" value="si" style="cursor: pointer;"> Sí
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="eto_q1" value="no" style="cursor: pointer;"> No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 2 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">2. Organización de servicios utilizada</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Nombre de la organización, reconocimiento de la organización en el medio según sea posible, servicios prestados y procesos afectados.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q2" 
+                                        name="eto_q2" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la organización de servicios utilizada..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 3 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">3. Evaluación realizada</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Naturaleza de los servicios, indagar con la Administración sobre cumplimiento y satisfacción con el servicio, riesgos identificados y efecto en la estrategia de auditoría.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q3" 
+                                        name="eto_q3" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la evaluación realizada..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 4 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">4. Evidencia obtenida</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q4_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q4_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Contratos u otra documentación.
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                        <div style="flex: 1; position: relative;">
+                                            <input 
+                                                type="file" 
+                                                id="eto_q4" 
+                                                name="eto_q4" 
+                                                style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;"
+                                                onchange="document.getElementById('eto_q4_label').querySelector('span').textContent = this.files[0] ? this.files[0].name : 'Seleccionar archivo...'; document.getElementById('eto_q4_clear').style.display = this.files[0] ? 'block' : 'none';"
+                                            />
+                                            <div 
+                                                id="eto_q4_label"
+                                                style="padding: 12px 16px; border: 2px dashed #2563eb; border-radius: 8px; background: #f8f9ff; color: #2563eb; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;"
+                                            >
+                                                <i class="bi bi-cloud-upload" style="font-size: 1.2rem;"></i>
+                                                <span>Seleccionar archivo...</span>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            id="eto_q4_clear"
+                                            onclick="document.getElementById('eto_q4').value = ''; document.getElementById('eto_q4_label').querySelector('span').textContent = 'Seleccionar archivo...'; this.style.display = 'none';"
+                                            style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0; font-size: 1.2rem; display: none;" 
+                                            title="Eliminar archivo"
+                                        >
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 5 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">5. Conclusión</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q5_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q5_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Concluir si el trabajo de la organización de servicios proporciona evidencia suficiente o requiere procedimientos adicionales.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q5" 
+                                        name="eto_q5" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Concluir sobre la evidencia obtenida..."
+                                    ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-identificacion-otros" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionTrabajoOtros('identificacion-otros', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Auditoría interna</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 6 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">6. ¿La entidad cuenta con función de auditoría interna?</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q6_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q6_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Indicar si existe una función formal de auditoría interna.
+                                    </div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="eto_q6" value="si" style="cursor: pointer;"> Sí
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="eto_q6" value="no" style="cursor: pointer;"> No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 7 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">7. Evaluación de objetividad y competencia</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q7_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q7_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Evaluación de independencia, competencia técnica y calidad del trabajo. Documentar el enfoque de la Auditoría Interna, hacia qué área(s) enfoca más su trabajo y tipo de procedimientos. Si se decide utilizar algún trabajo, indicar las pruebas del auditor sobre el trabajo a utilizar para concluir que lo utilizará.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q7" 
+                                        name="eto_q7" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la evaluación de objetividad y competencia..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 8 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">8. Trabajo utilizado</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q8_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q8_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Describir el trabajo de auditoría interna considerado para ser tomado en cuenta. Procedimientos realizados.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q8" 
+                                        name="eto_q8" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa el trabajo de auditoría interna considerado..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 9 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">9. Pruebas efectuadas para validar la suficiencia del trabajo</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q9_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q9_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Pruebas efectuadas para validar la suficiencia del trabajo:<br><br>
+                                        Revisión del programa de trabajo de auditoría interna.<br>
+                                        Revisión de la documentación del trabajo.<br>
+                                        Indagación con el personal de auditoría interna.<br>
+                                        Revisión de las conclusiones e informes emitidos.<br>
+                                        Verificación del seguimiento de hallazgos con la Administración y efectividad de las recomendaciones.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q9" 
+                                        name="eto_q9" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa las pruebas efectuadas..."
+                                    ></textarea>
+                                    <div style="margin-top: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                            <div style="flex: 1; position: relative;">
+                                                <input 
+                                                    type="file" 
+                                                    id="eto_q9_file" 
+                                                    name="eto_q9_file" 
+                                                    style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;"
+                                                    onchange="document.getElementById('eto_q9_file_label').querySelector('span').textContent = this.files[0] ? this.files[0].name : 'Seleccionar archivo...'; document.getElementById('eto_q9_file_clear').style.display = this.files[0] ? 'block' : 'none';"
+                                                />
+                                                <div 
+                                                    id="eto_q9_file_label"
+                                                    style="padding: 12px 16px; border: 2px dashed #2563eb; border-radius: 8px; background: #f8f9ff; color: #2563eb; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;"
+                                                >
+                                                    <i class="bi bi-cloud-upload" style="font-size: 1.2rem;"></i>
+                                                    <span>Seleccionar archivo...</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                id="eto_q9_file_clear"
+                                                onclick="document.getElementById('eto_q9_file').value = ''; document.getElementById('eto_q9_file_label').querySelector('span').textContent = 'Seleccionar archivo...'; this.style.display = 'none';"
+                                                style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0; font-size: 1.2rem; display: none;" 
+                                                title="Eliminar archivo"
+                                            >
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">
+                                            Cargar archivo de evidencia (opcional)
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pregunta 10 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">10. Conclusión</label>
+                                        <button type="button" onclick="toggleTooltip('eto_q10_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_q10_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Concluir si el trabajo de auditoría interna puede utilizarse.
+                                    </div>
+                                    <textarea 
+                                        id="eto_q10" 
+                                        name="eto_q10" 
+                                        rows="6" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Concluir si el trabajo de auditoría interna puede utilizarse."
+                                    ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-auditoria-interna" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionTrabajoOtros('auditoria-interna', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nuevo bloque - Trabajo de experto -->
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Trabajo de experto</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- ¿Fue necesario utilizar el trabajo de un experto? -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">¿Fue necesario utilizar el trabajo de un experto?</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q1_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q1_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Indicar si fue necesario utilizar un experto.
+                                    </div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="experto-necesario" value="si" style="cursor: pointer;"> Sí
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="experto-necesario" value="no" style="cursor: pointer;" checked> No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Área de especialización -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Área de especialización</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Materia objeto de evaluación.
+                                    </div>
+                                    <textarea 
+                                        id="eto_experto_area" 
+                                        name="eto_experto_area" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Materia objeto de evaluación."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Evaluación del experto -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Evaluación del experto</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Competencia, reconocimiento en el medio, capacidad, objetividad e independencia.
+                                    </div>
+                                    <textarea 
+                                        id="eto_experto_evaluacion" 
+                                        name="eto_experto_evaluacion" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Competencia, reconocimiento en el medio, capacidad, objetividad e independencia."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Evaluación del trabajo -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Evaluación del trabajo</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q4_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q4_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Revisión de métodos: métodos actuariales, técnicas de valuación, modelos financieros, etc.<br>
+                                        Evaluación de supuestos: Que los supuestos utilizados sean razonables, consistentes con la industria, la normativa aplicable y la información disponible de la entidad.
+                                    </div>
+                                    <textarea 
+                                        id="eto_experto_trabajo" 
+                                        name="eto_experto_trabajo" 
+                                        rows="4" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Revisión de métodos y evaluación de supuestos..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Evidencia obtenida -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Evidencia obtenida</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q5_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q5_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Revisión de evidencia y conclusiones.
+                                    </div>
+                                    <textarea 
+                                        id="eto_experto_evidencia" 
+                                        name="eto_experto_evidencia" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Revisión de evidencia y conclusiones."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Conclusión -->
+                                <div style="margin-bottom: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Conclusión</label>
+                                        <button type="button" onclick="toggleTooltip('eto_experto_q6_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_experto_q6_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Concluir si el trabajo del experto constituye evidencia suficiente.
+                                    </div>
+                                    <textarea 
+                                        id="eto_experto_conclusion" 
+                                        name="eto_experto_conclusion" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Concluir si el trabajo del experto constituye evidencia suficiente."
+                                    ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-trabajo-experto" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionTrabajoOtros('trabajo-experto', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nuevo bloque - Auditor del grupo o componente -->
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Auditor del grupo o componente</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- ¿Participó un auditor del grupo o componente? -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">¿Participó un auditor del grupo o componente?</label>
+                                        <button type="button" onclick="toggleTooltip('eto_grupo_q1_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_grupo_q1_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Indicar si participaron auditores de componentes.
+                                    </div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="grupo-participacion" value="si" style="cursor: pointer;"> Sí
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="grupo-participacion" value="no" style="cursor: pointer;" checked> No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Componentes involucrados -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Componentes involucrados</label>
+                                        <button type="button" onclick="toggleTooltip('eto_grupo_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_grupo_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Identificar componentes y auditores.
+                                    </div>
+                                    <textarea 
+                                        id="eto_grupo_componentes" 
+                                        name="eto_grupo_componentes" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Identificar componentes y auditores."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Instrucciones y comunicación -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Instrucciones y comunicación</label>
+                                        <button type="button" onclick="toggleTooltip('eto_grupo_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_grupo_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documentar instrucciones y coordinación.
+                                    </div>
+                                    <textarea 
+                                        id="eto_grupo_instrucciones" 
+                                        name="eto_grupo_instrucciones" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Documentar instrucciones y coordinación."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Evaluación del trabajo recibido -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Evaluación del trabajo recibido</label>
+                                        <button type="button" onclick="toggleTooltip('eto_grupo_q4_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_grupo_q4_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Revisión del trabajo y evidencia obtenida.
+                                    </div>
+                                    <textarea 
+                                        id="eto_grupo_evaluacion" 
+                                        name="eto_grupo_evaluacion" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Revisión del trabajo y evidencia obtenida."
+                                    ></textarea>
+                                    <div style="margin-top: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                            <div style="flex: 1; position: relative;">
+                                                <input 
+                                                    type="file" 
+                                                    id="eto_grupo_file" 
+                                                    name="eto_grupo_file" 
+                                                    style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;"
+                                                    onchange="document.getElementById('eto_grupo_file_label').querySelector('span').textContent = this.files[0] ? this.files[0].name : 'Seleccionar archivo...'; document.getElementById('eto_grupo_file_clear').style.display = this.files[0] ? 'block' : 'none';"
+                                                />
+                                                <div 
+                                                    id="eto_grupo_file_label"
+                                                    style="padding: 12px 16px; border: 2px dashed #2563eb; border-radius: 8px; background: #f8f9ff; color: #2563eb; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;"
+                                                >
+                                                    <i class="bi bi-cloud-upload" style="font-size: 1.2rem;"></i>
+                                                    <span>Seleccionar archivo...</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                id="eto_grupo_file_clear"
+                                                onclick="document.getElementById('eto_grupo_file').value = ''; document.getElementById('eto_grupo_file_label').querySelector('span').textContent = 'Seleccionar archivo...'; this.style.display = 'none';"
+                                                style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0; font-size: 1.2rem; display: none;" 
+                                                title="Eliminar archivo"
+                                            >
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">
+                                            Cargar archivo de evidencia
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Conclusión -->
+                                <div style="margin-bottom: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Conclusión</label>
+                                        <button type="button" onclick="toggleTooltip('eto_grupo_q5_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_grupo_q5_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Concluir si el trabajo soporta la opinión.
+                                    </div>
+                                    <textarea 
+                                        id="eto_grupo_conclusion" 
+                                        name="eto_grupo_conclusion" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Concluir si el trabajo soporta la opinión."
+                                    ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-auditor-grupo" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionTrabajoOtros('auditor-grupo', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nuevo bloque - Consultas durante la auditoría -->
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Consultas durante la auditoría</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- ¿Se realizaron consultas durante la auditoría? -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">¿Se realizaron consultas durante la auditoría?</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q1_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q1_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Indicar si fue necesario realizar consultas técnicas.
+                                    </div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="consultas-realizadas" value="si" style="cursor: pointer;"> Sí
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; color: #495057;">
+                                            <input type="radio" name="consultas-realizadas" value="no" style="cursor: pointer;" checked> No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Naturaleza de las consultas -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Naturaleza de las consultas</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Asunto consultado y motivo.
+                                    </div>
+                                    <textarea 
+                                        id="eto_consultas_naturaleza" 
+                                        name="eto_consultas_naturaleza" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Asunto consultado y motivo."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Personas consultadas -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Personas consultadas</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Identificar especialistas o personas consultadas.
+                                    </div>
+                                    <textarea 
+                                        id="eto_consultas_personas" 
+                                        name="eto_consultas_personas" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Identificar especialistas o personas consultadas."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Resultados obtenidos -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Resultados obtenidos</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q4_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q4_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Conclusiones alcanzadas.
+                                    </div>
+                                    <textarea 
+                                        id="eto_consultas_resultados" 
+                                        name="eto_consultas_resultados" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Conclusiones alcanzadas."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Evidencia -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Evidencia</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q5_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q5_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Correos, memorandos u opiniones.
+                                    </div>
+                                    <div style="margin-top: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                            <div style="flex: 1; position: relative;">
+                                                <input 
+                                                    type="file" 
+                                                    id="eto_consultas_file" 
+                                                    name="eto_consultas_file" 
+                                                    style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;"
+                                                    onchange="document.getElementById('eto_consultas_file_label').querySelector('span').textContent = this.files[0] ? this.files[0].name : 'Seleccionar archivo...'; document.getElementById('eto_consultas_file_clear').style.display = this.files[0] ? 'block' : 'none';"
+                                                />
+                                                <div 
+                                                    id="eto_consultas_file_label"
+                                                    style="padding: 12px 16px; border: 2px dashed #2563eb; border-radius: 8px; background: #f8f9ff; color: #2563eb; font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;"
+                                                >
+                                                    <i class="bi bi-cloud-upload" style="font-size: 1.2rem;"></i>
+                                                    <span>Seleccionar archivo...</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                id="eto_consultas_file_clear"
+                                                onclick="document.getElementById('eto_consultas_file').value = ''; document.getElementById('eto_consultas_file_label').querySelector('span').textContent = 'Seleccionar archivo...'; this.style.display = 'none';"
+                                                style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0; font-size: 1.2rem; display: none;" 
+                                                title="Eliminar archivo"
+                                            >
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #6b7280; margin-top: 4px;">
+                                            Cargar archivo de evidencia
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Conclusión -->
+                                <div style="margin-bottom: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Conclusión</label>
+                                        <button type="button" onclick="toggleTooltip('eto_consultas_q6_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="eto_consultas_q6_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Concluir si las consultas fueron adecuadas e incorporadas.
+                                    </div>
+                                    <textarea 
+                                        id="eto_consultas_conclusion" 
+                                        name="eto_consultas_conclusion" 
+                                        rows="3" 
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Concluir si las consultas fueron adecuadas e incorporadas."
+                                    ></textarea>
+                                </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-consultas-auditoria" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionTrabajoOtros('consultas-auditoria', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="formulario-footer" style="margin-top: 30px;">
+                        <div class="formulario-info">
+                            Formulario ETO - Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioEvaluacionTrabajoOtros()">
+                                Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioEvaluacionTrabajoOtros()">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight;
+            modal.classList.add('show');
+
+            // Cargar aprobaciones guardadas
+            cargarAprobacionesEvaluacionTrabajoOtros();
+        }
+
+        // Función para cerrar el formulario de Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+        function cerrarFormularioEvaluacionTrabajoOtros() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario de Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+        function guardarFormularioEvaluacionTrabajoOtros() {
+            const formData = {
+                q1: document.querySelector('input[name="eto_q1"]:checked')?.value || '',
+                q2: document.getElementById('eto_q2')?.value || '',
+                q3: document.getElementById('eto_q3')?.value || '',
+                q4: document.getElementById('eto_q4')?.files[0]?.name || '',
+                q5: document.getElementById('eto_q5')?.value || '',
+                q6: document.querySelector('input[name="eto_q6"]:checked')?.value || '',
+                q7: document.getElementById('eto_q7')?.value || '',
+                q8: document.getElementById('eto_q8')?.value || '',
+                q9: document.getElementById('eto_q9')?.value || '',
+                q9_file: document.getElementById('eto_q9_file')?.files[0]?.name || '',
+                // Campos de la sección de trabajo de experto
+                experto_naturaleza: document.getElementById('eto_experto_naturaleza')?.value || '',
+                experto_objetivo: document.getElementById('eto_experto_objetivo')?.value || '',
+                experto_organismo: document.getElementById('eto_experto_organismo')?.value || '',
+                experto_competencia: document.getElementById('eto_experto_competencia')?.value || '',
+                experto_capacidad: document.getElementById('eto_experto_capacidad')?.value || '',
+                experto_conclusion: document.getElementById('eto_experto_conclusion')?.value || '',
+                // Campos de la sección de auditor del grupo o componente
+                grupo_organismo: document.getElementById('eto_grupo_organismo')?.value || '',
+                grupo_ubicacion: document.getElementById('eto_grupo_ubicacion')?.value || '',
+                grupo_objetivo: document.getElementById('eto_grupo_objetivo')?.value || '',
+                grupo_riesgos: document.getElementById('eto_grupo_riesgos')?.value || '',
+                grupo_conclusion: document.getElementById('eto_grupo_conclusion')?.value || '',
+                // Campos de la sección de consultas durante la auditoría
+                consultas_asunto: document.getElementById('eto_consultas_asunto')?.value || '',
+                consultas_organismo: document.getElementById('eto_consultas_organismo')?.value || '',
+                consultas_objetivo: document.getElementById('eto_consultas_objetivo')?.value || '',
+                consultas_resultado: document.getElementById('eto_consultas_resultado')?.value || '',
+                consultas_conclusion: document.getElementById('eto_consultas_conclusion')?.value || ''
+            };
+
+            localStorage.setItem('evaluacionTrabajoOtros', JSON.stringify(formData));
+            showNotification('Formulario guardado correctamente', 'success');
+            cerrarFormularioEvaluacionTrabajoOtros();
+        }
+
+        // Función para aprobar / deshacer aprobación de secciones del formulario Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+        function aprobarSeccionEvaluacionTrabajoOtros(seccionId, boton) {
+            console.log('aprobarSeccionEvaluacionTrabajoOtros llamada con:', seccionId);
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                    userId = userUI.id || userUI.userId || null;
+                }
+            }
+
+            // Si no hay usuario del sistema, usar currentUser global
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+                userId = window.currentUser.id || window.currentUser.userId || null;
+            }
+
+            // Si aún no hay usuario, usar un valor por defecto
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+
+            // Obtener fecha actual
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionTrabajoOtros') || '{}');
+            const estadoDiv = document.getElementById(`aprobado-${seccionId}`);
+
+            if (aprobaciones[seccionId]) {
+                // Desaprobar
+                delete aprobaciones[seccionId];
+                localStorage.setItem('aprobacionesEvaluacionTrabajoOtros', JSON.stringify(aprobaciones));
+
+                // Limpiar el div de aprobación
+                if (estadoDiv) {
+                    estadoDiv.innerHTML = '';
+                    estadoDiv.style.color = '#64748b';
+                    estadoDiv.style.fontWeight = '400';
+                }
+
+                // Restaurar todos los botones de esa sección a estado "Aprobar"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionTrabajoOtros('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    btn.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                    btn.style.cursor = 'pointer';
+                });
+
+                showNotification('Tu aprobación ha sido eliminada.', 'info');
+            } else {
+                // Aprobar
+                aprobaciones[seccionId] = {
+                    usuario: usuarioActual,
+                    userId: userId,
+                    fecha: fechaActual,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('aprobacionesEvaluacionTrabajoOtros', JSON.stringify(aprobaciones));
+
+                // Actualizar el div de aprobación
+                if (estadoDiv) {
+                    estadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuarioActual} - ${fechaActual}`;
+                    estadoDiv.style.color = '#1e3a8a';
+                    estadoDiv.style.fontWeight = '500';
+                }
+
+                // Cambiar apariencia de todos los botones de esa sección a "Aprobado"
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionTrabajoOtros('${seccionId}', this)"]`);
+                botones.forEach(btn => {
+                    btn.disabled = false; // debe seguir siendo clickable para poder quitar la aprobación
+                    btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    btn.style.cursor = 'pointer';
+                });
+
+                showNotification('Sección aprobada correctamente.', 'success');
+            }
+        }
+
+        // Función para cargar aprobaciones guardadas del formulario Evaluación del trabajo ejecutado por otros involucrados en la auditoría
+        function cargarAprobacionesEvaluacionTrabajoOtros() {
+            const aprobaciones = JSON.parse(localStorage.getItem('aprobacionesEvaluacionTrabajoOtros') || '{}');
+            for (const seccionId in aprobaciones) {
+                const estadoDiv = document.getElementById(`aprobado-${seccionId}`);
+                const botones = document.querySelectorAll(`button[onclick="aprobarSeccionEvaluacionTrabajoOtros('${seccionId}', this)"]`);
+
+                if (estadoDiv && aprobaciones[seccionId].usuario) {
+                    const usuario = aprobaciones[seccionId].usuario;
+                    const fecha = aprobaciones[seccionId].fecha;
+                    estadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #1e3a8a;"></i> Aprobado por: ${usuario} - ${fecha}`;
+                    estadoDiv.style.color = '#1e3a8a';
+                    estadoDiv.style.fontWeight = '500';
+                }
+
+                if (botones.length > 0 && aprobaciones[seccionId].usuario) {
+                    botones.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                        btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                        btn.style.cursor = 'pointer';
+                    });
+                }
+            }
+
+            // Cargar datos del formulario
+            const formData = JSON.parse(localStorage.getItem('evaluacionTrabajoOtros') || '{}');
+            if (formData.q1) {
+                const radio = document.querySelector(`input[name="eto_q1"][value="${formData.q1}"]`);
+                if (radio) radio.checked = true;
+            }
+            if (formData.q2) document.getElementById('eto_q2').value = formData.q2;
+            if (formData.q3) document.getElementById('eto_q3').value = formData.q3;
+            if (formData.q4) {
+                const fileInput = document.getElementById('eto_q4');
+                if (fileInput) {
+                    const label = document.createElement('div');
+                    label.style.marginTop = '8px';
+                    label.style.fontSize = '0.85rem';
+                    label.style.color = '#64748b';
+                    label.textContent = `Archivo cargado: ${formData.q4}`;
+                    fileInput.parentNode.appendChild(label);
+                }
+            }
+            if (formData.q5) document.getElementById('eto_q5').value = formData.q5;
+            if (formData.q6) {
+                const radio = document.querySelector(`input[name="eto_q6"][value="${formData.q6}"]`);
+                if (radio) radio.checked = true;
+            }
+            if (formData.q7) document.getElementById('eto_q7').value = formData.q7;
+            if (formData.q8) document.getElementById('eto_q8').value = formData.q8;
+            if (formData.q9) document.getElementById('eto_q9').value = formData.q9;
+            if (formData.q9_file) {
+                const fileInput = document.getElementById('eto_q9_file');
+                if (fileInput) {
+                    const label = document.createElement('div');
+                    label.style.marginTop = '8px';
+                    label.style.fontSize = '0.85rem';
+                    label.style.color = '#64748b';
+                    label.textContent = `Archivo cargado: ${formData.q9_file}`;
+                    fileInput.parentNode.appendChild(label);
+                }
+            }
         }
 
         // Función para cerrar el formulario de Áreas específicas

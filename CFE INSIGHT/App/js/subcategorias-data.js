@@ -137,11 +137,17 @@
                     throw new Error('Usuario no autenticado');
                 }
 
+                // Obtener contexto actual de entidad y compromiso
+                const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+
                 const response = await fetch(buildApiUrl('/api/subdocuments/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': entityId,
+                        'commitment-id': commitmentId
                     },
                     body: JSON.stringify({
                         categoria,
@@ -149,7 +155,11 @@
                         tipo,
                         titulo,
                         contenido,
-                        metadata,
+                        metadata: {
+                            ...metadata,
+                            entity_id: entityId,
+                            commitment_id: commitmentId
+                        },
                         parent_folder_id: parentFolderId
                     })
                 });
@@ -236,9 +246,22 @@
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`), {
+                // Obtener contexto actual de entidad y compromiso
+                const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                // Construir URL con parámetros de contexto
+                let apiUrl = buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`);
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) apiUrl += `?${params.toString()}`;
+
+                const response = await fetch(apiUrl, {
                     headers: {
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': entityId,
+                        'commitment-id': commitmentId
                     }
                 });
 
