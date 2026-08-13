@@ -919,6 +919,61 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Subcategoría: Evaluación de declaraciones incorrectas identificadas -->
+                        <div class="subcategoria-section">
+                            <div class="subcategoria-header" onclick="toggleSubcategoriaDropdown('evaluacion-declaraciones-incorrectas')">
+                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="evaluacion-declaraciones-incorrectas-arrow"></i> Evaluación de declaraciones incorrectas identificadas</h4>
+                                <div class="plus-dropdown">
+                                    <i class="bi bi-plus-circle subcategoria-plus-icon" onclick="togglePlusMenu(event, 'evaluacion-declaraciones-incorrectas-menu')"></i>
+                                    <div class="plus-dropdown-content" id="evaluacion-declaraciones-incorrectas-menu">
+                                        <a href="#" onclick="openSubFolderModal(event, 'evaluacion-declaraciones-incorrectas')"><i class="bi bi-folder"></i> Subcarpeta</a>
+                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', 'evaluacion-declaraciones-incorrectas')"><i class="bi bi-file-earmark-spreadsheet"></i> Hoja de trabajo</a>
+                                        <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-question-circle"></i> Consulta</a>
+                                        <a href="#" onclick="openEnlaceModal(event, 'planificacion')"><i class="bi bi-link"></i> Enlace</a>
+                                        <a href="#" onclick="uploadFileDirect(event, 'planificacion')"><i class="bi bi-upload"></i> Cargar</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="subcategoria-lista" id="evaluacion-declaraciones-incorrectas-content">
+                                <div class="form-item-lista" onclick="abrirFormulario('EVALUACION_DECLARACIONES_INCORRECTAS')">
+                                    <div class="form-codigo">EDI</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Evaluación de declaraciones incorrectas identificadas</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'EVALUACION_DECLARACIONES_INCORRECTAS')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'EVALUACION_DECLARACIONES_INCORRECTAS')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'EVALUACION_DECLARACIONES_INCORRECTAS')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'EVALUACION_DECLARACIONES_INCORRECTAS')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('CAMBIOS_MATERIALIDAD')">
+                                    <div class="form-codigo">CM</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Cambios de materialidad</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'CAMBIOS_MATERIALIDAD')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'CAMBIOS_MATERIALIDAD')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'CAMBIOS_MATERIALIDAD')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'CAMBIOS_MATERIALIDAD')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('RESUMEN_INCORRECCIONES')">
+                                    <div class="form-codigo">RI</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Resumen de incorrecciones</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'RESUMEN_INCORRECCIONES')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'RESUMEN_INCORRECCIONES')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'RESUMEN_INCORRECCIONES')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'RESUMEN_INCORRECCIONES')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -14141,6 +14196,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioAreasEspecificas();
             } else if (formId === 'EVALUACION_TRABAJO_OTROS') {
                 mostrarFormularioEvaluacionTrabajoOtros();
+            } else if (formId === 'EVALUACION_DECLARACIONES_INCORRECTAS') {
+                mostrarFormularioEvaluacionDeclaracionesIncorrectas();
+            } else if (formId === 'CAMBIOS_MATERIALIDAD') {
+                mostrarFormularioCambiosMaterialidad();
+            } else if (formId === 'RESUMEN_INCORRECCIONES') {
+                mostrarFormularioResumenIncorrecciones();
             } else if (formId === 'A500') {
                 mostrarFormularioA500();
             } else if (formId === 'B100') {
@@ -31896,6 +31957,1182 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     label.textContent = `Archivo cargado: ${formData.q9_file}`;
                     fileInput.parentNode.appendChild(label);
                 }
+            }
+        }
+
+        // Función para mostrar el formulario de Evaluación de declaraciones incorrectas identificadas
+        function mostrarFormularioEvaluacionDeclaracionesIncorrectas() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2 style="text-align: center;">Evaluación de declaraciones incorrectas identificadas</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioEvaluacionDeclaracionesIncorrectas()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body">
+                        <div style="margin-bottom: 25px; color: #37474F; font-size: 0.95rem;">
+                            <strong>Objetivo:</strong> Documentar la evaluación de las incorrecciones identificadas durante la auditoría, considerando su efecto individual y acumulado, la vigencia de la materialidad determinada, las correcciones efectuadas por la administración y el impacto de las incorrecciones no corregidas sobre los estados financieros y la opinión del auditor.
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Referencia técnica</label>
+                                <button type="button" onclick="toggleTooltip('edi_referencia_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                    <i class="bi bi-lightbulb"></i>
+                                </button>
+                            </div>
+                            <div id="edi_referencia_help" style="display: none; font-size: 0.9rem; color: #495057; margin-top: 8px;">
+                                NIA 320, NIA 260, NIA 580, NIA 700 y NIA 705
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Cambios en la materialidad debido a cualquier revisión requerida</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 1 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">1. Revisión y actualización de la materialidad</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q1_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q1_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente si la materialidad determinada durante la planificación continúa siendo apropiada con base en la información obtenida durante la auditoría y los resultados financieros actualizados. Compare los importes iniciales con los recalculados y explique cualquier variación relevante. Si corresponde modificar la materialidad, indique el fundamento del cambio y evalúe su efecto sobre los procedimientos de auditoría ejecutados y pendientes.
+                                    </div>
+                                    <textarea
+                                        id="edi_q1"
+                                        name="edi_q1"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la revisión y actualización de la materialidad..."
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Resumen de incorrecciones identificadas</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 1 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">1. Cédula de resumen</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q2_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q2_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Llenar el resumen con las incorrecciones identificadas
+                                    </div>
+                                    <textarea
+                                        id="edi_q2"
+                                        name="edi_q2"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa el resumen de incorrecciones identificadas..."
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Evaluación de incorrecciones identificadas e impacto, de existir, sobre la opinión de auditoría</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 1 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">1. Incorrecciones no corregidas</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q3_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q3_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente las incorrecciones que permanecen sin corregir al cierre de la auditoría, considerando su naturaleza, importe y efecto sobre las cuentas, afirmaciones y revelaciones afectadas, con referencia a la cédula de resumen de incorrecciones.
+                                    </div>
+                                    <textarea
+                                        id="edi_q3"
+                                        name="edi_q3"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa las incorrecciones no corregidas..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 2 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">2. Evaluación individual y agregada</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q4_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q4_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la evaluación de las incorrecciones no corregidas, individualmente y de forma agregada, comparándolas con la materialidad vigente y considerando su efecto acumulado sobre los estados financieros.
+                                    </div>
+                                    <div style="margin-bottom: 10px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; margin: 0;">Referencia al Resumen de Incorrecciones</label>
+                                    </div>
+                                    <textarea
+                                        id="edi_q4"
+                                        name="edi_q4"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la evaluación individual y agregada..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 3 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">3. Factores cualitativos</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q5_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q5_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente los factores cualitativos asociados a las incorrecciones no corregidas que puedan influir en su evaluación, considerando su naturaleza, circunstancias, efecto en tendencias, cumplimiento contractual o regulatorio y cualquier indicio de fraude.
+                                    </div>
+                                    <textarea
+                                        id="edi_q5"
+                                        name="edi_q5"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa los factores cualitativos..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 4 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">4. Efecto sobre los estados financieros</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q6_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q6_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la conclusión respecto de si las incorrecciones no corregidas, individualmente o en conjunto, provocan que los estados financieros contengan una incorrección material, considerando tanto aspectos cuantitativos como cualitativos.
+                                    </div>
+                                    <textarea
+                                        id="edi_q6"
+                                        name="edi_q6"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa el efecto sobre los estados financieros..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 5 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">5. Impacto sobre la opinión de auditoría</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q7_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q7_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente el efecto de las incorrecciones materiales no corregidas sobre la opinión del auditor, evaluando su materialidad y generalización, y concluya si corresponde una opinión no modificada, con salvedades o adversa.
+                                    </div>
+                                    <textarea
+                                        id="edi_q7"
+                                        name="edi_q7"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa el impacto sobre la opinión de auditoría..."
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Comunicación de incorrecciones</h3>
+                                <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                            </div>
+                            <div style="padding: 20px; background: white; display: block;">
+                                <!-- Pregunta 1 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">1. Comunicación a la administración</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q8_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q8_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente las incorrecciones comunicadas oportunamente al nivel apropiado de la administración, indicando la fecha, responsables involucrados y referencia a la documentación donde se detallan las diferencias identificadas.
+                                    </div>
+                                    <textarea
+                                        id="edi_q8"
+                                        name="edi_q8"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la comunicación a la administración..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 2 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">2. Solicitud y seguimiento de correcciones</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q9_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q9_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la solicitud efectuada a la administración para corregir las incorrecciones identificadas, indicando los ajustes aceptados, rechazados o pendientes y el seguimiento realizado por el equipo de auditoría.
+                                    </div>
+                                    <textarea
+                                        id="edi_q9"
+                                        name="edi_q9"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la solicitud y seguimiento de correcciones..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 3 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">3. Respuesta de la administración</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q10_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q10_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la respuesta de la administración respecto de las incorrecciones comunicadas y, cuando decida no corregirlas, las razones proporcionadas y la evaluación realizada por el auditor sobre dichas razones.
+                                    </div>
+                                    <textarea
+                                        id="edi_q10"
+                                        name="edi_q10"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la respuesta de la administración..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 4 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">4. Comunicación a los responsables del gobierno de la entidad</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q11_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q11_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la comunicación de las incorrecciones no corregidas a los responsables del gobierno de la entidad, indicando su efecto individual y agregado y cualquier implicación relevante para los estados financieros.
+                                    </div>
+                                    <textarea
+                                        id="edi_q11"
+                                        name="edi_q11"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa la comunicación a los responsables del gobierno..."
+                                    ></textarea>
+                                </div>
+
+                                <!-- Pregunta 5 -->
+                                <div style="margin-bottom: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">5. Manifestaciones escritas</label>
+                                        <button type="button" onclick="toggleTooltip('edi_q12_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                            <i class="bi bi-lightbulb"></i>
+                                        </button>
+                                    </div>
+                                    <div id="edi_q12_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
+                                        Documente la obtención de manifestaciones escritas de la administración y, cuando corresponda, de los responsables del gobierno, respecto de si consideran que los efectos de las incorrecciones no corregidas son inmateriales para los estados financieros en su conjunto.
+                                    </div>
+                                    <textarea
+                                        id="edi_q12"
+                                        name="edi_q12"
+                                        rows="6"
+                                        style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                        placeholder="Describa las manifestaciones escritas..."
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="formulario-footer" style="margin-top: 30px;">
+                        <div class="formulario-info">
+                            Formulario EDI - Evaluación de declaraciones incorrectas identificadas
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioEvaluacionDeclaracionesIncorrectas()">
+                                Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioEvaluacionDeclaracionesIncorrectas()">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight;
+            modal.classList.add('show');
+
+            // Cargar datos guardados
+            cargarDatosEvaluacionDeclaracionesIncorrectas();
+        }
+
+        // Función para cerrar el formulario de Evaluación de declaraciones incorrectas identificadas
+        function cerrarFormularioEvaluacionDeclaracionesIncorrectas() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario de Evaluación de declaraciones incorrectas identificadas
+        function guardarFormularioEvaluacionDeclaracionesIncorrectas() {
+            const formData = {
+                q1: document.getElementById('edi_q1')?.value || '',
+                q2: document.getElementById('edi_q2')?.value || '',
+                q3: document.getElementById('edi_q3')?.value || '',
+                q4: document.getElementById('edi_q4')?.value || '',
+                q5: document.getElementById('edi_q5')?.value || '',
+                q6: document.getElementById('edi_q6')?.value || '',
+                q7: document.getElementById('edi_q7')?.value || '',
+                q8: document.getElementById('edi_q8')?.value || '',
+                q9: document.getElementById('edi_q9')?.value || '',
+                q10: document.getElementById('edi_q10')?.value || '',
+                q11: document.getElementById('edi_q11')?.value || '',
+                q12: document.getElementById('edi_q12')?.value || ''
+            };
+            localStorage.setItem('evaluacionDeclaracionesIncorrectas', JSON.stringify(formData));
+            showNotification('Formulario guardado correctamente', 'success');
+            cerrarFormularioEvaluacionDeclaracionesIncorrectas();
+        }
+
+        // Función para cargar datos guardados del formulario de Evaluación de declaraciones incorrectas identificadas
+        function cargarDatosEvaluacionDeclaracionesIncorrectas() {
+            const formData = JSON.parse(localStorage.getItem('evaluacionDeclaracionesIncorrectas') || '{}');
+            if (formData.q1) {
+                document.getElementById('edi_q1').value = formData.q1;
+            }
+            if (formData.q2) {
+                document.getElementById('edi_q2').value = formData.q2;
+            }
+            if (formData.q3) {
+                document.getElementById('edi_q3').value = formData.q3;
+            }
+            if (formData.q4) {
+                document.getElementById('edi_q4').value = formData.q4;
+            }
+            if (formData.q5) {
+                document.getElementById('edi_q5').value = formData.q5;
+            }
+            if (formData.q6) {
+                document.getElementById('edi_q6').value = formData.q6;
+            }
+            if (formData.q7) {
+                document.getElementById('edi_q7').value = formData.q7;
+            }
+            if (formData.q8) {
+                document.getElementById('edi_q8').value = formData.q8;
+            }
+            if (formData.q9) {
+                document.getElementById('edi_q9').value = formData.q9;
+            }
+            if (formData.q10) {
+                document.getElementById('edi_q10').value = formData.q10;
+            }
+            if (formData.q11) {
+                document.getElementById('edi_q11').value = formData.q11;
+            }
+            if (formData.q12) {
+                document.getElementById('edi_q12').value = formData.q12;
+            }
+        }
+
+        // Función para mostrar el formulario de Cambios de materialidad
+        function mostrarFormularioCambiosMaterialidad() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2 style="text-align: center;">Cambios de materialidad</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioCambiosMaterialidad()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body">
+                        <div style="margin-bottom: 25px; color: #37474F; font-size: 0.95rem;">
+                            <strong>Objetivo:</strong> Documentar los cambios en la materialidad determinada durante la auditoría, considerando la revisión y actualización de los importes iniciales con base en la información obtenida y los resultados financieros actualizados.
+                        </div>
+
+                        <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                            <div style="width: 300px;">
+                                <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 4px;">Nombre de la compañía</label>
+                                <input type="text" id="cm_compania" name="cm_compania" placeholder="Ingrese el nombre de la compañía" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.9rem; color: #111827; box-sizing: border-box;" />
+                            </div>
+                            <div style="width: 300px;">
+                                <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 4px;">Periodo de auditoría</label>
+                                <input type="text" id="cm_periodo" name="cm_periodo" placeholder="Ej. 1 enero 20XX - 31 diciembre 20XX" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 10px; font-size: 0.9rem; color: #111827; box-sizing: border-box;" />
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">Referencia técnica</label>
+                                <button type="button" onclick="toggleTooltip('cm_referencia_help')" style="background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;" title="Mostrar ayuda">
+                                    <i class="bi bi-lightbulb"></i>
+                                </button>
+                            </div>
+                            <div id="cm_referencia_help" style="display: none; font-size: 0.9rem; color: #495057; margin-top: 8px;">
+                                Referencia: (NIA 320.12, NIA 320.13, NIA 320.14, NIA 450.10)
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px;">
+                            <div style="color: #37474F; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px;">
+                                Evaluaciones de materialidad final
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; color: #37474F; table-layout: fixed;">
+                                    <thead>
+                                        <tr style="background: #1e3a8a; color: #ffffff;">
+                                            <th style="padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left; width: 35%;">Revisiones de la materialidad</th>
+                                            <th style="padding: 8px 10px; border: 1px solid #dfe3e8; text-align: center; width: 8%;">Sí/No</th>
+                                            <th style="padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left; width: 42%;">Comentarios</th>
+                                            <th style="padding: 8px 10px; border: 1px solid #dfe3e8; text-align: center; width: 15%;">Ref. P/T</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="vertical-align: top; border: 1px solid #dfe3e8; padding: 8px 10px;">
+                                                1. ¿Se han registrado las revisiones (de existir) a la materialidad general y a la materialidad de desempeño relacionadas y se ha tomado nota de las razones? Considere los cambios en las operaciones/resultados, nueva información obtenida e incorrecciones identificadas durante la auditoría.
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px; text-align: center;">
+                                                <select id="cm_rev1_si_no" name="cm_rev1_si_no" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 6px; font-size: 0.85rem; box-sizing: border-box;">
+                                                    <option value=""></option>
+                                                    <option value="si">Sí</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 0;">
+                                                <textarea id="cm_rev1_comentarios" name="cm_rev1_comentarios" rows="3" style="width: 100%; border: none; padding: 8px 10px; font-size: 0.88rem; resize: vertical; box-sizing: border-box;"></textarea>
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px; text-align: center;">
+                                                <input type="text" id="cm_rev1_ref" name="cm_rev1_ref" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="vertical-align: top; border: 1px solid #dfe3e8; padding: 8px 10px;">
+                                                2. ¿Ha sido abordado el impacto de todas las revisiones en la materialidad general y en la materialidad de desempeño en las evaluaciones de riesgo y en la naturaleza, alcance y oportunidad de los procedimientos de auditoría adicionales requeridos?
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px; text-align: center;">
+                                                <select id="cm_rev2_si_no" name="cm_rev2_si_no" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 6px; font-size: 0.85rem; box-sizing: border-box;">
+                                                    <option value=""></option>
+                                                    <option value="si">Sí</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 0;">
+                                                <textarea id="cm_rev2_comentarios" name="cm_rev2_comentarios" rows="3" style="width: 100%; border: none; padding: 8px 10px; font-size: 0.88rem; resize: vertical; box-sizing: border-box;"></textarea>
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px; text-align: center;">
+                                                <input type="text" id="cm_rev2_ref" name="cm_rev2_ref" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px;">
+                            <div style="color: #37474F; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px;">
+                                Niveles de materialidad preliminares
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; color: #37474F; table-layout: fixed;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 35%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;"></th>
+                                            <th style="width: 40%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;">Nombre</th>
+                                            <th style="width: 25%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Prelim. compl.</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_prelim_compl_nombre" name="cm_prelim_compl_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_prelim_compl_fecha" name="cm_prelim_compl_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Prelim. rev.</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_prelim_rev_nombre" name="cm_prelim_rev_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_prelim_rev_fecha" name="cm_prelim_rev_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Prelim. Socio</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_prelim_socio_nombre" name="cm_prelim_socio_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_prelim_socio_fecha" name="cm_prelim_socio_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Prelim. EQCR</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_prelim_eqcr_nombre" name="cm_prelim_eqcr_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_prelim_eqcr_fecha" name="cm_prelim_eqcr_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px;">
+                            <div style="color: #37474F; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px;">
+                                Actualizar para niveles de materialidad finales
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; color: #37474F; table-layout: fixed;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 35%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;"></th>
+                                            <th style="width: 40%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;">Nombre</th>
+                                            <th style="width: 25%; padding: 8px 10px; border: 1px solid #dfe3e8; text-align: left;">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Final compl.</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_final_compl_nombre" name="cm_final_compl_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_final_compl_fecha" name="cm_final_compl_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Final rev.</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_final_rev_nombre" name="cm_final_rev_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_final_rev_fecha" name="cm_final_rev_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Final Socio</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_final_socio_nombre" name="cm_final_socio_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_final_socio_fecha" name="cm_final_socio_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #dfe3e8; padding: 8px 10px;">Final EQCR</td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="text" id="cm_final_eqcr_nombre" name="cm_final_eqcr_nombre" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #dfe3e8; padding: 4px 6px;">
+                                                <input type="date" id="cm_final_eqcr_fecha" name="cm_final_eqcr_fecha" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="formulario-footer" style="margin-top: 30px;">
+                        <div class="formulario-info">
+                            Formulario CM - Cambios de materialidad
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioCambiosMaterialidad()">
+                                Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioCambiosMaterialidad()">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight;
+            modal.classList.add('show');
+
+            // Cargar datos guardados si existen
+            cargarDatosCambiosMaterialidad();
+        }
+
+        // Función para cerrar el formulario de Cambios de materialidad
+        function cerrarFormularioCambiosMaterialidad() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario de Cambios de materialidad
+        function guardarFormularioCambiosMaterialidad() {
+            const formData = {
+                compania: document.getElementById('cm_compania')?.value || '',
+                periodo: document.getElementById('cm_periodo')?.value || '',
+                rev1_si_no: document.getElementById('cm_rev1_si_no')?.value || '',
+                rev1_comentarios: document.getElementById('cm_rev1_comentarios')?.value || '',
+                rev1_ref: document.getElementById('cm_rev1_ref')?.value || '',
+                rev2_si_no: document.getElementById('cm_rev2_si_no')?.value || '',
+                rev2_comentarios: document.getElementById('cm_rev2_comentarios')?.value || '',
+                rev2_ref: document.getElementById('cm_rev2_ref')?.value || '',
+                prelim_compl_nombre: document.getElementById('cm_prelim_compl_nombre')?.value || '',
+                prelim_compl_fecha: document.getElementById('cm_prelim_compl_fecha')?.value || '',
+                prelim_rev_nombre: document.getElementById('cm_prelim_rev_nombre')?.value || '',
+                prelim_rev_fecha: document.getElementById('cm_prelim_rev_fecha')?.value || '',
+                prelim_socio_nombre: document.getElementById('cm_prelim_socio_nombre')?.value || '',
+                prelim_socio_fecha: document.getElementById('cm_prelim_socio_fecha')?.value || '',
+                prelim_eqcr_nombre: document.getElementById('cm_prelim_eqcr_nombre')?.value || '',
+                prelim_eqcr_fecha: document.getElementById('cm_prelim_eqcr_fecha')?.value || '',
+                final_compl_nombre: document.getElementById('cm_final_compl_nombre')?.value || '',
+                final_compl_fecha: document.getElementById('cm_final_compl_fecha')?.value || '',
+                final_rev_nombre: document.getElementById('cm_final_rev_nombre')?.value || '',
+                final_rev_fecha: document.getElementById('cm_final_rev_fecha')?.value || '',
+                final_socio_nombre: document.getElementById('cm_final_socio_nombre')?.value || '',
+                final_socio_fecha: document.getElementById('cm_final_socio_fecha')?.value || '',
+                final_eqcr_nombre: document.getElementById('cm_final_eqcr_nombre')?.value || '',
+                final_eqcr_fecha: document.getElementById('cm_final_eqcr_fecha')?.value || ''
+            };
+            localStorage.setItem('cambiosMaterialidad', JSON.stringify(formData));
+            showNotification('Formulario guardado correctamente', 'success');
+            cerrarFormularioCambiosMaterialidad();
+        }
+
+        // Función para cargar datos guardados del formulario de Cambios de materialidad
+        function cargarDatosCambiosMaterialidad() {
+            const formData = JSON.parse(localStorage.getItem('cambiosMaterialidad') || '{}');
+            if (formData.compania) {
+                const inputCompania = document.getElementById('cm_compania');
+                if (inputCompania) inputCompania.value = formData.compania;
+            }
+            if (formData.periodo) {
+                const inputPeriodo = document.getElementById('cm_periodo');
+                if (inputPeriodo) inputPeriodo.value = formData.periodo;
+            }
+            if (formData.rev1_si_no) {
+                const sel1 = document.getElementById('cm_rev1_si_no');
+                if (sel1) sel1.value = formData.rev1_si_no;
+            }
+            if (formData.rev1_comentarios) {
+                const txt1 = document.getElementById('cm_rev1_comentarios');
+                if (txt1) txt1.value = formData.rev1_comentarios;
+            }
+            if (formData.rev1_ref) {
+                const ref1 = document.getElementById('cm_rev1_ref');
+                if (ref1) ref1.value = formData.rev1_ref;
+            }
+            if (formData.rev2_si_no) {
+                const sel2 = document.getElementById('cm_rev2_si_no');
+                if (sel2) sel2.value = formData.rev2_si_no;
+            }
+            if (formData.rev2_comentarios) {
+                const txt2 = document.getElementById('cm_rev2_comentarios');
+                if (txt2) txt2.value = formData.rev2_comentarios;
+            }
+            if (formData.rev2_ref) {
+                const ref2 = document.getElementById('cm_rev2_ref');
+                if (ref2) ref2.value = formData.rev2_ref;
+            }
+            if (formData.prelim_compl_nombre) {
+                const i1 = document.getElementById('cm_prelim_compl_nombre');
+                if (i1) i1.value = formData.prelim_compl_nombre;
+            }
+            if (formData.prelim_compl_fecha) {
+                const i2 = document.getElementById('cm_prelim_compl_fecha');
+                if (i2) i2.value = formData.prelim_compl_fecha;
+            }
+            if (formData.prelim_rev_nombre) {
+                const i3 = document.getElementById('cm_prelim_rev_nombre');
+                if (i3) i3.value = formData.prelim_rev_nombre;
+            }
+            if (formData.prelim_rev_fecha) {
+                const i4 = document.getElementById('cm_prelim_rev_fecha');
+                if (i4) i4.value = formData.prelim_rev_fecha;
+            }
+            if (formData.prelim_socio_nombre) {
+                const i5 = document.getElementById('cm_prelim_socio_nombre');
+                if (i5) i5.value = formData.prelim_socio_nombre;
+            }
+            if (formData.prelim_socio_fecha) {
+                const i6 = document.getElementById('cm_prelim_socio_fecha');
+                if (i6) i6.value = formData.prelim_socio_fecha;
+            }
+            if (formData.prelim_eqcr_nombre) {
+                const i7 = document.getElementById('cm_prelim_eqcr_nombre');
+                if (i7) i7.value = formData.prelim_eqcr_nombre;
+            }
+            if (formData.prelim_eqcr_fecha) {
+                const i8 = document.getElementById('cm_prelim_eqcr_fecha');
+                if (i8) i8.value = formData.prelim_eqcr_fecha;
+            }
+            if (formData.final_compl_nombre) {
+                const f1 = document.getElementById('cm_final_compl_nombre');
+                if (f1) f1.value = formData.final_compl_nombre;
+            }
+            if (formData.final_compl_fecha) {
+                const f2 = document.getElementById('cm_final_compl_fecha');
+                if (f2) f2.value = formData.final_compl_fecha;
+            }
+            if (formData.final_rev_nombre) {
+                const f3 = document.getElementById('cm_final_rev_nombre');
+                if (f3) f3.value = formData.final_rev_nombre;
+            }
+            if (formData.final_rev_fecha) {
+                const f4 = document.getElementById('cm_final_rev_fecha');
+                if (f4) f4.value = formData.final_rev_fecha;
+            }
+            if (formData.final_socio_nombre) {
+                const f5 = document.getElementById('cm_final_socio_nombre');
+                if (f5) f5.value = formData.final_socio_nombre;
+            }
+            if (formData.final_socio_fecha) {
+                const f6 = document.getElementById('cm_final_socio_fecha');
+                if (f6) f6.value = formData.final_socio_fecha;
+            }
+            if (formData.final_eqcr_nombre) {
+                const f7 = document.getElementById('cm_final_eqcr_nombre');
+                if (f7) f7.value = formData.final_eqcr_nombre;
+            }
+            if (formData.final_eqcr_fecha) {
+                const f8 = document.getElementById('cm_final_eqcr_fecha');
+                if (f8) f8.value = formData.final_eqcr_fecha;
+            }
+        }
+
+        // Función para mostrar el formulario de Resumen de incorrecciones
+        function mostrarFormularioResumenIncorrecciones() {
+            // Eliminar cualquier modal existente
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) {
+                document.body.removeChild(modalExistente);
+            }
+
+            // Crear el modal del formulario
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class="formulario-modal-content">
+                    <div class="formulario-header">
+                        <h2 style="text-align: center;">Resumen de incorrecciones</h2>
+                        <button class="btn-cerrar" onclick="cerrarFormularioResumenIncorrecciones()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="formulario-body">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+                                <div>
+                                    <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">Compañía</label>
+                                    <input
+                                        type="text"
+                                        id="ri_compania"
+                                        name="ri_compania"
+                                        placeholder="Nombre de la compañía"
+                                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; box-sizing: border-box;"
+                                    />
+                                </div>
+                                <div>
+                                    <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">Fecha de auditoría</label>
+                                    <input
+                                        type="date"
+                                        id="ri_fecha_auditoria"
+                                        name="ri_fecha_auditoria"
+                                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; box-sizing: border-box;"
+                                    />
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                                <div>
+                                    <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">Materialidad general</label>
+                                    <input
+                                        type="text"
+                                        id="ri_mat_general"
+                                        name="ri_mat_general"
+                                        placeholder="Monto"
+                                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; box-sizing: border-box;"
+                                    />
+                                </div>
+                                <div>
+                                    <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">Materialidad de desempeño</label>
+                                    <input
+                                        type="text"
+                                        id="ri_mat_desempeno"
+                                        name="ri_mat_desempeno"
+                                        placeholder="Monto"
+                                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; box-sizing: border-box;"
+                                    />
+                                </div>
+                                <div>
+                                    <label style="color: #37474F; font-weight: 500; font-size: 0.9rem; display: block; margin-bottom: 6px;">Materialidad trivial</label>
+                                    <input
+                                        type="text"
+                                        id="ri_mat_trivial"
+                                        name="ri_mat_trivial"
+                                        placeholder="Monto"
+                                        style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; box-sizing: border-box;"
+                                    />
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 24px; overflow-x: auto;">
+                                <table id="ri_tabla_incorrecciones" style="width: 2000px; border-collapse: collapse; font-size: 0.8rem; color: #37474F; table-layout: fixed;">
+                                    <thead>
+                                        <tr style="background: #1e3a8a; color: #ffffff;">
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; width: 5%;">No.</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; width: 25%;">Descripción del ajuste</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 8px; text-align: center; width: 6%;">Ref.</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Activos corrientes</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Activos No corrientes</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Pasivos corrientes</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Pasivos No corrientes</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Patrimonio</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Ingresos</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Costos</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Gastos</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 10%;">Otros productos y gastos</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 10%;">Impuesto sobre la renta</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 6%;">Corregida</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 10%;">Respuesta administración</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 10%;">Comunicado a la administración</th>
+                                            <th style="border: 1px solid #d1d5db; padding: 6px 4px; text-align: center; width: 8%;">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${Array.from({ length: 10 }).map((_, index) => `
+                                        <tr>
+                                            <td style="border: 1px solid #e5e7eb; padding: 4px; text-align: center;">
+                                                <input type="text" value="${index + 1}" style="width: 100%; border: none; text-align: center; font-size: 0.8rem; background: transparent;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 6px; font-size: 0.8rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: center;" />
+                                            </td>
+                                            ${Array.from({ length: 10 }).map(() => `
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            `).join('')}
+                                            <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center;">
+                                                <select style="width: 100%; border: none; padding: 4px 2px; font-size: 0.8rem; box-sizing: border-box; background: transparent;">
+                                                    <option value=""></option>
+                                                    <option value="si">Sí</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0; text-align: center;">
+                                                <select style="width: 100%; border: none; padding: 4px 2px; font-size: 0.8rem; box-sizing: border-box; background: transparent;">
+                                                    <option value=""></option>
+                                                    <option value="si">Sí</option>
+                                                    <option value="no">No</option>
+                                                </select>
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="date" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box;" />
+                                            </td>
+                                        </tr>
+                                        `).join('')}
+                                        <tr>
+                                            <td colspan="3" style="border: 1px solid #e5e7eb; padding: 4px 6px; font-size: 0.8rem; font-weight: 600; background: white;">
+                                                Totales de ajustes no registrados
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" style="border: 1px solid #e5e7eb; padding: 4px 6px; font-size: 0.8rem; font-weight: 600; background: white;">
+                                                Total de rubros según estados financieros
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="3" style="border: 1px solid #e5e7eb; padding: 4px 6px; font-size: 0.8rem; font-weight: 600; background: white; color: #37474F;">
+                                                Efecto sobre los estados financieros
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                            <td style="border: 1px solid #e5e7eb; padding: 0;">
+                                                <input type="text" style="width: 100%; border: none; padding: 4px 4px; font-size: 0.8rem; box-sizing: border-box; text-align: right;" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div style="margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;">
+                                <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i').style.transform = this.nextElementSibling.style.display === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';">
+                                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600;">Conclusión</h3>
+                                    <i class="bi bi-chevron-down" style="transition: transform 0.3s ease;"></i>
+                                </div>
+                                <div style="padding: 20px; background: white; display: block;">
+                                    <div style="margin-bottom: 20px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;">¿Son materiales?</label>
+                                        </div>
+                                        <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                <input type="radio" name="ri_materiales" value="no" onchange="actualizarConclusion(this.value)" style="cursor: pointer;">
+                                                <span style="font-size: 0.9rem;">No</span>
+                                            </label>
+                                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                <input type="radio" name="ri_materiales" value="si" onchange="actualizarConclusion(this.value)" style="cursor: pointer;">
+                                                <span style="font-size: 0.9rem;">Sí</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom: 20px;">
+                                        <label style="color: #37474F; font-weight: 500; font-size: 0.95rem; display: block; margin-bottom: 8px;">Detallar la conclusión</label>
+                                        <textarea
+                                            id="ri_conclusion"
+                                            name="ri_conclusion"
+                                            rows="6"
+                                            style="width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;"
+                                            placeholder="Seleccione si las incorrecciones son materiales para generar la conclusión automáticamente..."
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                    </div>
+
+                    <div class="formulario-footer" style="margin-top: 30px;">
+                        <div class="formulario-info">
+                            Formulario RI - Resumen de incorrecciones
+                        </div>
+                        <div class="formulario-acciones">
+                            <button class="btn-formulario btn-cancelar" onclick="cerrarFormularioResumenIncorrecciones()">
+                                Cancelar
+                            </button>
+                            <button class="btn-formulario btn-guardar" onclick="guardarFormularioResumenIncorrecciones()">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Forzar reflow y mostrar el modal
+            modal.offsetHeight;
+            modal.classList.add('show');
+
+            // Cargar datos guardados si existen
+            cargarDatosResumenIncorrecciones();
+        }
+
+        // Función para cerrar el formulario de Resumen de incorrecciones
+        function cerrarFormularioResumenIncorrecciones() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario de Resumen de incorrecciones
+        function guardarFormularioResumenIncorrecciones() {
+            const formData = {
+                compania: document.getElementById('ri_compania')?.value || '',
+                fecha_auditoria: document.getElementById('ri_fecha_auditoria')?.value || '',
+                materialidad_general: document.getElementById('ri_mat_general')?.value || '',
+                materialidad_desempeno: document.getElementById('ri_mat_desempeno')?.value || '',
+                materialidad_trivial: document.getElementById('ri_mat_trivial')?.value || '',
+                materiales: document.querySelector('input[name="ri_materiales"]:checked')?.value || '',
+                conclusion: document.getElementById('ri_conclusion')?.value || ''
+            };
+            localStorage.setItem('resumenIncorrecciones', JSON.stringify(formData));
+            showNotification('Formulario guardado correctamente', 'success');
+            cerrarFormularioResumenIncorrecciones();
+        }
+
+        // Función para cargar datos guardados del formulario de Resumen de incorrecciones
+        function cargarDatosResumenIncorrecciones() {
+            const formData = JSON.parse(localStorage.getItem('resumenIncorrecciones') || '{}');
+            if (formData.compania) {
+                const i1 = document.getElementById('ri_compania');
+                if (i1) i1.value = formData.compania;
+            }
+            if (formData.fecha_auditoria) {
+                const i2 = document.getElementById('ri_fecha_auditoria');
+                if (i2) i2.value = formData.fecha_auditoria;
+            }
+            if (formData.materialidad_general) {
+                const i3 = document.getElementById('ri_mat_general');
+                if (i3) i3.value = formData.materialidad_general;
+            }
+            if (formData.materialidad_desempeno) {
+                const i4 = document.getElementById('ri_mat_desempeno');
+                if (i4) i4.value = formData.materialidad_desempeno;
+            }
+            if (formData.materialidad_trivial) {
+                const i5 = document.getElementById('ri_mat_trivial');
+                if (i5) i5.value = formData.materialidad_trivial;
+            }
+            if (formData.materiales) {
+                const radioMateriales = document.querySelector(`input[name="ri_materiales"][value="${formData.materiales}"]`);
+                if (radioMateriales) radioMateriales.checked = true;
+            }
+            if (formData.conclusion) {
+                const conclusion = document.getElementById('ri_conclusion');
+                if (conclusion) conclusion.value = formData.conclusion;
+            }
+        }
+
+        // Función para actualizar la conclusión basada en si las incorrecciones son materiales
+        function actualizarConclusion(valor) {
+            const conclusionTextarea = document.getElementById('ri_conclusion');
+            if (valor === 'no') {
+                conclusionTextarea.value = 'Las incorrecciones no corregidas fueron evaluadas individualmente y de forma agregada, considerando su magnitud, naturaleza y circunstancias. Con base en la materialidad vigente y los factores cualitativos considerados, concluimos que no son materiales para los estados financieros en su conjunto y, por consiguiente, no afectan la opinión de auditoría.';
+            } else if (valor === 'si') {
+                conclusionTextarea.value = 'Las incorrecciones no corregidas fueron evaluadas individualmente y de forma agregada y se determinó que su efecto es material para los estados financieros. Considerando la naturaleza y generalización de sus efectos, se evaluó su impacto sobre la opinión del auditor de conformidad con la NIA 705.';
             }
         }
 
