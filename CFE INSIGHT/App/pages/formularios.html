@@ -32165,6 +32165,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Describa el impacto sobre la opinión de auditoría..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-evaluacion-incorrecciones-impacto" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionDeclaracionesIncorrectas('evaluacion-incorrecciones-impacto', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -32288,6 +32295,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         placeholder="Describa las manifestaciones escritas..."
                                     ></textarea>
                                 </div>
+                                <!-- Botón de aprobar sección -->
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;">
+                                    <div id="aprobado-comunicacion-incorrecciones" style="font-size: 0.85rem; color: #64748b;"></div>
+                                    <button type="button" onclick="aprobarSeccionEvaluacionDeclaracionesIncorrectas('comunicacion-incorrecciones', this)" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-check-circle"></i> Aprobar
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -32389,6 +32403,108 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (formData.q12) {
                 document.getElementById('edi_q12').value = formData.q12;
             }
+
+            // Cargar estado de aprobaciones
+            const aprobaciones = JSON.parse(localStorage.getItem('evaluacionDeclaracionesIncorrectas_aprobaciones') || '{}');
+            Object.keys(aprobaciones).forEach(seccionId => {
+                const aprobacion = aprobaciones[seccionId];
+                const infoDiv = document.getElementById(`aprobado-${seccionId}`);
+                const boton = document.querySelector(`button[onclick="aprobarSeccionEvaluacionDeclaracionesIncorrectas('${seccionId}', this)"]`);
+                
+                if (infoDiv && aprobacion.aprobado) {
+                    infoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #10b981;"></i> Aprobado por ${aprobacion.usuario} el ${new Date(aprobacion.fecha).toLocaleDateString()}`;
+                }
+                
+                if (boton && aprobacion.aprobado) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                }
+            });
+        }
+
+        // Función para aprobar / deshacer aprobación de secciones del formulario Evaluación de declaraciones incorrectas identificadas
+        function aprobarSeccionEvaluacionDeclaracionesIncorrectas(seccionId, boton) {
+            console.log('aprobarSeccionEvaluacionDeclaracionesIncorrectas llamada con:', seccionId);
+
+            // Obtener usuario autenticado del sistema existente
+            let usuarioActual = null;
+            let userId = null;
+
+            // Intentar obtener usuario del sistema de autenticación
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.name || userUI.username || 'Usuario';
+                    userId = userUI.id || userUI.username;
+                }
+            }
+
+            // Fallback a localStorage si no hay sistema de autenticación
+            if (!usuarioActual) {
+                const storedUser = localStorage.getItem('currentUser');
+                if (storedUser) {
+                    try {
+                        const user = JSON.parse(storedUser);
+                        usuarioActual = user.name || user.username || 'Usuario';
+                        userId = user.id || user.username;
+                    } catch (e) {
+                        console.error('Error parsing stored user:', e);
+                    }
+                }
+            }
+
+            // Último fallback
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+                userId = 'usuario_' + Date.now();
+            }
+
+            // Obtener aprobaciones existentes
+            const aprobaciones = JSON.parse(localStorage.getItem('evaluacionDeclaracionesIncorrectas_aprobaciones') || '{}');
+            const aprobacionExistente = aprobaciones[seccionId];
+
+            if (aprobacionExistente && aprobacionExistente.aprobado) {
+                // Desaprobar
+                aprobaciones[seccionId] = {
+                    aprobado: false,
+                    usuario: null,
+                    fecha: null,
+                    userId: null
+                };
+
+                // Actualizar UI
+                const infoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (infoDiv) {
+                    infoDiv.innerHTML = '';
+                }
+
+                boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+
+                showNotification('Aprobación deshecha', 'info');
+            } else {
+                // Aprobar
+                aprobaciones[seccionId] = {
+                    aprobado: true,
+                    usuario: usuarioActual,
+                    fecha: new Date().toISOString(),
+                    userId: userId
+                };
+
+                // Actualizar UI
+                const infoDiv = document.getElementById(`aprobado-${seccionId}`);
+                if (infoDiv) {
+                    infoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #10b981;"></i> Aprobado por ${usuarioActual} el ${new Date().toLocaleDateString()}`;
+                }
+
+                boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+
+                showNotification('Sección aprobada correctamente', 'success');
+            }
+
+            // Guardar en localStorage
+            localStorage.setItem('evaluacionDeclaracionesIncorrectas_aprobaciones', JSON.stringify(aprobaciones));
         }
 
         // Función para mostrar el formulario de Cambios de materialidad
