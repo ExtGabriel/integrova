@@ -4607,9 +4607,13 @@
                             orderIndex: row.orderIndex || 0,
                             flags: row.flags || null
                         }));
-                        
-                        await saveLedgerIntegrityResults(currentDatasetId, convertedRows, 'completed');
-                        console.log(' Resultados de ledger integrity guardados en base de datos');
+
+                        // Obtener contexto actual de entidad y compromiso
+                        const currentEntity = commitmentDropdownState.currentEntityId;
+                        const currentCommitment = commitmentDropdownState.selectedCommitmentId;
+
+                        await saveLedgerIntegrityResults(currentDatasetId, convertedRows, 'completed', currentEntity, currentCommitment);
+                        console.log(' Resultados de ledger integrity guardados en base de datos con contexto:', { currentEntity, currentCommitment });
                     } catch (dbError) {
                         console.warn(' Error guardando ledger integrity en base de datos:', dbError);
                     }
@@ -4803,7 +4807,9 @@
                 // Cargar cuentas desde la API
                 const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {
-                        'user-id': userId
+                        'user-id': userId,
+                        ...(context.entityId ? { 'entity-id': context.entityId } : {}),
+                        ...(context.commitmentId ? { 'commitment-id': context.commitmentId } : {})
                     }
                 });
                 const result = await response.json();
@@ -8321,12 +8327,34 @@
                 const entityValue = commitmentDropdownState.currentEntityId;
                 console.log('🔄 Cambiando a compromiso:', { commitmentId, entityValue });
                 formDataManager.switchTo(entityValue, commitmentId);
+                
+                // Recargar asignaciones con el nuevo contexto
+                reloadAssignmentsForContext();
+
+                // Recargar Cuentas y Grupos Financieros para el nuevo contexto
+                if (typeof formDataManager.reloadCuentas === 'function') {
+                    formDataManager.reloadCuentas();
+                }
+                if (typeof formDataManager.reloadGruposFinancieros === 'function') {
+                    formDataManager.reloadGruposFinancieros();
+                }
             } else {
                 // Si no hay compromiso, usar la entidad actual
                 const entityValue = commitmentDropdownState.currentEntityId;
                 if (entityValue) {
                     console.log('🔄 Volviendo a entidad:', entityValue);
                     formDataManager.switchTo(entityValue);
+                    
+                    // Recargar asignaciones con el nuevo contexto
+                    reloadAssignmentsForContext();
+
+                    // Recargar Cuentas y Grupos Financieros para el nuevo contexto
+                    if (typeof formDataManager.reloadCuentas === 'function') {
+                        formDataManager.reloadCuentas();
+                    }
+                    if (typeof formDataManager.reloadGruposFinancieros === 'function') {
+                        formDataManager.reloadGruposFinancieros();
+                    }
                 }
             }
 
@@ -8342,6 +8370,62 @@
             }
 
             closeCommitmentDropdownMenu();
+        }
+
+        // Función para recargar asignaciones cuando cambia el contexto de entidad/compromiso
+        async function reloadAssignmentsForContext() {
+            try {
+                const currentEntityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const currentCommitmentId = commitmentDropdownState?.selectedCommitmentId || '';
+                
+                console.log('🔄 Recargando asignaciones para nuevo contexto:', {
+                    entity_id: currentEntityId,
+                    commitment_id: currentCommitmentId
+                });
+                
+                if (window.loadAndSyncAssignments && currentDatasetId) {
+                    const syncedAssignments = await window.loadAndSyncAssignments(currentDatasetId, currentEntityId, currentCommitmentId);
+
+                    // Limpiar asignaciones actuales en la UI
+                    if (typeof restoreAssignedAccounts === 'function') {
+                        // Primero limpiar las asignaciones existentes
+                        clearAssignedAccounts();
+
+                        // Luego restaurar solo las filtradas, pasándolas como parámetro
+                        if (syncedAssignments.length > 0) {
+                            restoreAssignedAccounts(syncedAssignments);
+                            updateAllGroupCounts();
+                            updateRemainingCount();
+                            console.log('✅ Asignaciones recargadas y filtradas:', syncedAssignments.length);
+                        } else {
+                            console.log('ℹ️ No hay asignaciones para este contexto');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error recargando asignaciones:', error);
+            }
+        }
+
+        // Función para limpiar asignaciones actuales en la UI
+        function clearAssignedAccounts() {
+            try {
+                // Eliminar todos los elementos de cuentas asignadas (usar ambos selectores para asegurar limpieza completa)
+                const assignedElements = document.querySelectorAll('.assigned-account, .assigned-account-item');
+                assignedElements.forEach(el => el.remove());
+
+                // Resetear contadores
+                if (typeof updateAllGroupCounts === 'function') {
+                    updateAllGroupCounts();
+                }
+                if (typeof updateRemainingCount === 'function') {
+                    updateRemainingCount();
+                }
+
+                console.log('✅ Asignaciones limpiadas de la UI');
+            } catch (error) {
+                console.error('❌ Error limpiando asignaciones:', error);
+            }
         }
 
         function setupCommitmentDropdown() {
@@ -8428,6 +8512,9 @@
             if (previousEntityId !== normalizedId) {
                 commitmentDropdownState.selectedCommitmentId = null;
                 commitmentDropdownState.selectedCommitmentName = '';
+                
+                // Recargar asignaciones cuando cambia la entidad
+                reloadAssignmentsForContext();
             }
 
             label.textContent = 'Cargando...';
@@ -8700,6 +8787,17 @@
                     loading.className = 'commitment-dropdown-empty';
                     loading.textContent = 'Cargando compromisos...';
                     commitMenu.appendChild(loading);
+                }
+
+                // Recargar asignaciones con el nuevo contexto de entidad
+                reloadAssignmentsForContext();
+
+                // Recargar Cuentas y Grupos Financieros para el nuevo contexto de entidad
+                if (typeof formDataManager.reloadCuentas === 'function') {
+                    formDataManager.reloadCuentas();
+                }
+                if (typeof formDataManager.reloadGruposFinancieros === 'function') {
+                    formDataManager.reloadGruposFinancieros();
                 }
 
                 // Forzar recarga inmediata del dropdown de compromisos
@@ -21489,9 +21587,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const accountUuid = await getAccountUuidFromCode(accountData?.code || accountKey).catch(() => null);
                     
                     // Obtener contexto actual de entidad y compromiso
-                    const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
-                    const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
-                    
+                    const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+                    const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
                     const assignmentData = {
                         accountId: accountUuid || accountData?.code || accountKey,
                         groupContentId: groupId,
@@ -21621,42 +21719,49 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         return filtered;
     }
 
-    async function restoreAssignedAccounts() {
+    async function restoreAssignedAccounts(filteredAssignments = null) {
         const datasetId = normalizeDatasetId(currentDatasetId);
         if (!datasetId) return;
-        
-        console.log('🔄 Iniciando restoreAssignedAccounts para dataset:', datasetId);
-        
+
+        console.log('🔄 Iniciando restoreAssignedAccounts para dataset:', datasetId, 'con asignaciones filtradas:', filteredAssignments?.length || 'usará carga automática');
+
         // Evitar restauración múltiple - limpiar primero
-        const existingAssignments = document.querySelectorAll('.assigned-account');
+        const existingAssignments = document.querySelectorAll('.assigned-account, .assigned-account-item');
         if (existingAssignments.length > 0) {
             console.log('🔄 Ya existen asignaciones en la UI, limpiando antes de restaurar...');
             existingAssignments.forEach(el => el.remove());
         }
-        
+
         let assignments = [];
-        
-        try {
-            // Intentar cargar desde la base de datos primero (producción)
-            if (window.getAccountAssignments) {
-                // Obtener contexto actual para el aislamiento
-                const currentEntity = window.commitmentDropdownState?.currentEntityId || null;
-                const currentCommitment = window.commitmentDropdownState?.selectedCommitmentId || null;
-                const dbAssignments = await window.getAccountAssignments(datasetId, currentEntity, currentCommitment);
-                assignments = dbAssignments || [];
-                console.log('✅ Cargadas', assignments.length, 'asignaciones desde base de datos');
-                console.log('📋 Muestra de asignaciones:', assignments.slice(0, 3));
+
+        // Si se proporcionan asignaciones filtradas, usarlas directamente
+        if (filteredAssignments && Array.isArray(filteredAssignments)) {
+            assignments = filteredAssignments;
+            console.log('✅ Usando asignaciones filtradas proporcionadas:', assignments.length);
+        } else {
+            // De lo contrario, cargar desde la base de datos con filtros
+            try {
+                // Intentar cargar desde la base de datos primero (producción)
+                if (window.getAccountAssignments) {
+                    // Obtener contexto actual para el aislamiento
+                    const currentEntity = window.commitmentDropdownState?.currentEntityId || null;
+                    const currentCommitment = window.commitmentDropdownState?.selectedCommitmentId || null;
+                    const dbAssignments = await window.getAccountAssignments(datasetId, currentEntity, currentCommitment);
+                    assignments = dbAssignments || [];
+                    console.log('✅ Cargadas', assignments.length, 'asignaciones desde base de datos con filtros:', { currentEntity, currentCommitment });
+                    console.log('📋 Muestra de asignaciones:', assignments.slice(0, 3));
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cargando desde BD, usando localStorage:', error);
             }
-        } catch (error) {
-            console.warn('⚠️ Error cargando desde BD, usando localStorage:', error);
+
+            // Si no hay datos de BD, usar localStorage como fallback
+            if (!assignments.length) {
+                assignments = getStoredAssignments(datasetId) || [];
+                console.log('📦 Cargadas', assignments.length, 'asignaciones desde localStorage');
+            }
         }
-        
-        // Si no hay datos de BD, usar localStorage como fallback
-        if (!assignments.length) {
-            assignments = getStoredAssignments(datasetId) || [];
-            console.log('📦 Cargadas', assignments.length, 'asignaciones desde localStorage');
-        }
-        
+
         if (!assignments.length) {
             console.log('❌ No hay asignaciones para restaurar');
             return;
@@ -22782,13 +22887,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
                 
-                // Cargar y sincronizar asignaciones
-                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId);
+                // Obtener contexto actual de entidad y compromiso
+                const currentEntityId = window.commitmentDropdownState?.currentEntityId || 
+                                      document.getElementById('entidad')?.value || '';
+                const currentCommitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                
+                console.log('Contexto actual para cargar asignaciones:', {
+                    entity_id: currentEntityId,
+                    commitment_id: currentCommitmentId
+                });
+                
+                // Cargar y sincronizar asignaciones con filtros
+                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId, currentEntityId, currentCommitmentId);
                 console.log(' Asignaciones sincronizadas:', syncedAssignments.length);
                 
                 // Actualizar la UI si hay asignaciones cargadas
                 if (syncedAssignments.length > 0) {
-                    restoreAssignedAccounts();
+                    restoreAssignedAccounts(syncedAssignments);
                     updateAllGroupCounts();
                     updateRemainingCount();
                     console.log(' UI actualizada con asignaciones sincronizadas');
@@ -22910,11 +23025,21 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             let syncCount = 0;
             
-            // 1. Sincronizar asignaciones
+            // Obtener contexto actual de entidad y compromiso
+            const currentEntityId = window.commitmentDropdownState?.currentEntityId || 
+                                  document.getElementById('entidad')?.value || '';
+            const currentCommitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+            
+            console.log('Contexto actual para sincronizar asignaciones:', {
+                entity_id: currentEntityId,
+                commitment_id: currentCommitmentId
+            });
+            
+            // 1. Sincronizar asignaciones con filtros
             try {
-                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId);
+                const syncedAssignments = await loadAndSyncAssignments(currentDatasetId, currentEntityId, currentCommitmentId);
                 if (syncedAssignments.length > 0) {
-                    restoreAssignedAccounts();
+                    restoreAssignedAccounts(syncedAssignments);
                     updateAllGroupCounts();
                     updateRemainingCount();
                     syncCount += syncedAssignments.length;
@@ -24068,9 +24193,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Primero obtener el último dataset para establecer currentDatasetId
                 console.log('📡 Obteniendo último dataset...');
-                const latestResponse = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                const entityId = commitmentDropdownState.currentEntityId;
+                const commitmentId = commitmentDropdownState.selectedCommitmentId;
+
+                // Construir URL con filtros de contexto
+                let latestUrl = `${API_BASE_URL}/api/excel/latest`;
+                const latestParams = new URLSearchParams();
+                if (entityId) latestParams.append('entity_id', entityId);
+                if (commitmentId) latestParams.append('commitment_id', commitmentId);
+                if (latestParams.toString()) {
+                    latestUrl += `?${latestParams.toString()}`;
+                }
+
+                const latestResponse = await fetch(latestUrl, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': getCurrentUserId(),
+                        ...(entityId ? { 'entity-id': entityId } : {}),
+                        ...(commitmentId ? { 'commitment-id': commitmentId } : {})
                     }
                 });
                 const latestResult = await latestResponse.json();
@@ -24124,9 +24263,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Cargar cuentas desde la base de datos
                 console.log('📡 Cargando cuentas desde API...');
+                const entityIdForAccounts = commitmentDropdownState.currentEntityId;
+                const commitmentIdForAccounts = commitmentDropdownState.selectedCommitmentId;
+
                 const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': getCurrentUserId(),
+                        ...(entityIdForAccounts ? { 'entity-id': entityIdForAccounts } : {}),
+                        ...(commitmentIdForAccounts ? { 'commitment-id': commitmentIdForAccounts } : {})
                     }
                 });
                 const result = await response.json();

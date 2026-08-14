@@ -21,14 +21,20 @@ async function saveAccountAssignment(assignmentData) {
         const userId = getCurrentUserId();
         
         // Obtener contexto actual de entidad y compromiso de múltiples fuentes
-        let entityId = assignmentData.entity_id || 
-                      window.commitmentDropdownState?.currentEntityId || 
-                      document.getElementById('entidad')?.value || 
+        let entityId = assignmentData.entity_id ||
+                      document.getElementById('entidad')?.value ||
                       '';
-        
-        let commitmentId = assignmentData.commitment_id || 
-                          window.commitmentDropdownState?.selectedCommitmentId || 
-                          '';
+
+        let commitmentId = assignmentData.commitment_id || '';
+
+        // Si no viene en assignmentData, buscar en el dropdown de compromisos
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            if (selectedItem) {
+                commitmentId = selectedItem.dataset.commitmentId || '';
+            }
+        }
         
         console.log('🔍 Contexto obtenido para saveAccountAssignment:');
         console.log('  - assignmentData.entity_id:', assignmentData.entity_id);
@@ -59,15 +65,22 @@ async function saveAccountAssignment(assignmentData) {
         };
         
         console.log('Payload a enviar:', payload);
-        
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': userId
+        };
+        // Solo enviar headers de contexto si tienen valor real
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
+
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/save`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'user-id': userId,
-                'entity-id': entityId,
-                'commitment-id': commitmentId
-            },
+            headers,
             body: JSON.stringify(payload)
         });
 
@@ -731,12 +744,33 @@ async function deleteFinancialAdjustment(adjustmentId, datasetId) {
  * @param {string} datasetId - ID del dataset
  * @param {Array} results - Resultados de la validación
  * @param {string} status - Estado de la validación
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function saveLedgerIntegrityResults(datasetId, results, status = 'completed') {
+async function saveLedgerIntegrityResults(datasetId, results, status = 'completed', entityId = null, commitmentId = null) {
     try {
-        console.log('Saving ledger integrity results:', { datasetId, resultsCount: results.length });
-        
+        // Obtener contexto actual de entidad y compromiso si no se proporcionan
+        let contextEntityId = entityId || '';
+        let contextCommitmentId = commitmentId || '';
+
+        // Si no se proporcionan, obtener del DOM
+        if (!entityId) {
+            contextEntityId = document.getElementById('entidad')?.value || '';
+        }
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            contextCommitmentId = selectedItem?.dataset.commitmentId || '';
+        }
+
+        console.log('Saving ledger integrity results:', {
+            datasetId,
+            resultsCount: results.length,
+            entity_id: contextEntityId,
+            commitment_id: contextCommitmentId
+        });
+
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/ledger-integrity/save`, {
             method: 'POST',
             headers: {
@@ -746,25 +780,96 @@ async function saveLedgerIntegrityResults(datasetId, results, status = 'complete
             body: JSON.stringify({
                 datasetId,
                 results,
-                status
+                status,
+                entityId: contextEntityId,
+                commitmentId: contextCommitmentId
             })
         });
 
         const result = await response.json();
-        
+
         if (!result.success) {
             throw new Error(result.error || 'Error guardando validación');
         }
 
-        console.log('Ledger integrity saved successfully:', { 
-            runId: result.run.id, 
-            rowsCount: result.rows.length 
+        console.log('Ledger integrity saved successfully:', {
+            runId: result.run.id,
+            rowsCount: result.rows.length
         });
-        
+
         return result;
 
     } catch (error) {
         console.error('Error in saveLedgerIntegrityResults:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene validaciones de libro mayor filtradas
+ * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function getLedgerIntegrityResults(datasetId, entityId = null, commitmentId = null) {
+    try {
+        // Obtener contexto actual de entidad y compromiso si no se proporcionan
+        let contextEntityId = entityId || '';
+        let contextCommitmentId = commitmentId || '';
+
+        // Si no se proporcionan, obtener del DOM
+        if (!entityId) {
+            contextEntityId = document.getElementById('entidad')?.value || '';
+        }
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            contextCommitmentId = selectedItem?.dataset.commitmentId || '';
+        }
+
+        console.log('Getting ledger integrity results:', {
+            datasetId,
+            entity_id: contextEntityId,
+            commitment_id: contextCommitmentId
+        });
+
+        let url = `${DATABASE_API_BASE_URL}/api/ledger-integrity/${datasetId}`;
+        const params = new URLSearchParams();
+
+        if (contextEntityId) {
+            params.append('entity_id', contextEntityId);
+        }
+        if (contextCommitmentId) {
+            params.append('commitment_id', contextCommitmentId);
+        }
+
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo validaciones de ledger integrity');
+        }
+
+        console.log('Ledger integrity results loaded successfully:', {
+            runId: result.run?.id,
+            rowsCount: result.rows?.length || 0
+        });
+
+        return result;
+
+    } catch (error) {
+        console.error('Error in getLedgerIntegrityResults:', error);
         throw error;
     }
 }
@@ -968,17 +1073,25 @@ async function saveAssignmentDual(assignmentData) {
 /**
  * Carga asignaciones desde la base de datos y las sincroniza con localStorage
  * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Array>} Array de asignaciones sincronizadas
  */
-async function loadAndSyncAssignments(datasetId) {
+async function loadAndSyncAssignments(datasetId, entityId = null, commitmentId = null) {
     try {
         console.log('Loading and syncing assignments for dataset:', datasetId);
+        console.log('Filtering by entity_id:', entityId, 'and commitment_id:', commitmentId);
         
-        // 1. Cargar desde base de datos
-        const databaseAssignments = await getAccountAssignments(datasetId);
+        // 1. Cargar desde base de datos con filtros
+        const databaseAssignments = await getAccountAssignments(datasetId, entityId, commitmentId);
         
-        // 2. Cargar desde localStorage
-        const localStorageAssignments = getStoredAssignments(datasetId);
+        // 2. Cargar desde localStorage (también filtrar)
+        const localStorageAssignments = getStoredAssignments(datasetId).filter(assignment => {
+            // Filtrar por entity_id y commitment_id si están presentes
+            if (entityId && assignment.entity_id !== entityId) return false;
+            if (commitmentId && assignment.commitment_id !== commitmentId) return false;
+            return true;
+        });
         
         // 3. Sincronizar (priorizar base de datos)
         const mergedAssignments = mergeAssignments(databaseAssignments, localStorageAssignments);
@@ -996,7 +1109,8 @@ async function loadAndSyncAssignments(datasetId) {
         console.log('Assignments synced:', {
             database: databaseAssignments.length,
             localStorage: localStorageAssignments.length,
-            merged: mergedAssignments.length
+            merged: mergedAssignments.length,
+            filtered_by: { entity_id: entityId, commitment_id: commitmentId }
         });
         
         return mergedAssignments;
@@ -1004,8 +1118,12 @@ async function loadAndSyncAssignments(datasetId) {
     } catch (error) {
         console.error('Error in loadAndSyncAssignments:', error);
         
-        // Si falla la base de datos, usar localStorage como fallback
-        const localStorageAssignments = getStoredAssignments(datasetId);
+        // Si falla la base de datos, usar localStorage como fallback con filtros
+        const localStorageAssignments = getStoredAssignments(datasetId).filter(assignment => {
+            if (entityId && assignment.entity_id !== entityId) return false;
+            if (commitmentId && assignment.commitment_id !== commitmentId) return false;
+            return true;
+        });
         console.warn('Database load failed, using localStorage fallback:', localStorageAssignments.length);
         
         return localStorageAssignments;
@@ -1096,6 +1214,13 @@ function saveStoredAssignment(assignmentData) {
             return null;
         }
         
+        // Obtener contexto de entidad y compromiso
+        const entityId = assignmentData.entity_id || 
+                        window.commitmentDropdownState?.currentEntityId || 
+                        document.getElementById('entidad')?.value || '';
+        const commitmentId = assignmentData.commitment_id || 
+                          window.commitmentDropdownState?.selectedCommitmentId || '';
+        
         const storageKey = `assigned_accounts_v1_${userId}_${datasetId}`;
         const existingAssignments = JSON.parse(localStorage.getItem(storageKey) || '[]');
         
@@ -1111,6 +1236,8 @@ function saveStoredAssignment(assignmentData) {
             position: assignmentData.position || 0,
             datasetId: datasetId,
             meta: assignmentData.meta || {},
+            entity_id: entityId,
+            commitment_id: commitmentId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
@@ -1692,6 +1819,7 @@ window.deleteFinancialAdjustment = deleteFinancialAdjustment;
 window.saveAccountAdjustments = saveAccountAdjustments;
 window.saveFinancialGroupsResults = saveFinancialGroupsResults;
 window.saveLedgerIntegrityResults = saveLedgerIntegrityResults;
+window.getLedgerIntegrityResults = getLedgerIntegrityResults;
 window.saveAssignmentDual = saveAssignmentDual;
 window.getFinancialGroups = getFinancialGroups;
 window.getLatestFinancialGroupResults = getLatestFinancialGroupResults;
@@ -1740,6 +1868,7 @@ console.log('Funciones disponibles:', {
     getLatestFinancialGroupResults: !!window.getLatestFinancialGroupResults,
     getFinancialGroupSnapshots: !!window.getFinancialGroupSnapshots,
     saveLedgerIntegrityResults: !!window.saveLedgerIntegrityResults,
+    getLedgerIntegrityResults: !!window.getLedgerIntegrityResults,
     getExcelData: !!window.getExcelData,
     saveExcelData: !!window.saveExcelData,
     syncAllDataToDatabase: !!window.syncAllDataToDatabase,

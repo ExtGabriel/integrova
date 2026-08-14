@@ -3099,6 +3099,8 @@ app.post('/api/excel/process-mapping', async (req, res) => {
                 debito_anterior: account.previousYearDebit || 0,
                 credito_anterior: account.previousYearCredit || 0,
                 clasificado: false,
+                entity_id: conjunto.entity_id || null,
+                commitment_id: conjunto.commitment_id || null,
                 meta: {
                     ...(account.meta || {}),
                     ls: account.ls ? account.ls.toString().trim() : '',
@@ -3974,6 +3976,8 @@ app.post('/api/excel/save-accounts', async (req, res) => {
             debito_anterior: account.previousYearDebit,
             credito_anterior: account.previousYearCredit,
             saldo: account.currentYearDebit - account.currentYearCredit,
+            entity_id: dataset.entity_id || null,
+            commitment_id: dataset.commitment_id || null,
             fecha_creacion: new Date().toISOString()
         }));
 
@@ -4824,9 +4828,18 @@ const accountsCache = new Map();
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const cacheKey = `accounts_${userId}`;
+        const entityId = req.headers['entity-id'] || req.query.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.query.commitment_id || null;
+        const cacheKey = `accounts_${userId}_${entityId || 'none'}_${commitmentId || 'none'}`;
         const now = Date.now();
         const cacheTimeout = 15 * 60 * 1000; // 15 minutos
+        
+        console.log('🌐 /api/accounts/unassigned contexto:', {
+            userId,
+            entityId,
+            commitmentId,
+            cacheKey
+        });
         
         // Verificar cache en memoria primero
         if (accountsCache.has(cacheKey)) {
@@ -4846,12 +4859,21 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         
         console.log('🌐 Generando cuentas desde base de datos (sin cache)');
         
-        // Obtener el conjunto de datos activo del usuario actual
-        const { data: conjuntoData, error: conjuntoError } = await supabase
+        // Obtener el conjunto de datos activo del usuario actual y contexto
+        let conjuntosQuery = supabase
             .from('conjuntos_datos')
             .select('*')
             .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true) // <- Solo datasets activos
+            .eq('is_active', true); // <- Solo datasets activos
+        
+        if (entityId) {
+            conjuntosQuery = conjuntosQuery.eq('entity_id', entityId);
+        }
+        if (commitmentId) {
+            conjuntosQuery = conjuntosQuery.eq('commitment_id', commitmentId);
+        }
+        
+        const { data: conjuntoData, error: conjuntoError } = await conjuntosQuery
             .order('fecha_importacion', { ascending: false })
             .limit(1);
 
@@ -5015,11 +5037,13 @@ app.get('/api/accounts/unassigned', async (req, res) => {
 app.post('/api/accounts/clear-cache', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const cacheKey = `accounts_${userId}`;
+        const entityId = req.headers['entity-id'] || req.body?.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body?.commitment_id || null;
+        const cacheKey = `accounts_${userId}_${entityId || 'none'}_${commitmentId || 'none'}`;
         
         if (accountsCache.has(cacheKey)) {
             accountsCache.delete(cacheKey);
-            console.log('🗑️ Cache de cuentas eliminado para usuario:', userId);
+            console.log('🗑️ Cache de cuentas eliminado para usuario y contexto:', { userId, entityId, commitmentId });
         }
         
         res.json({ 
@@ -5045,18 +5069,18 @@ app.post('/api/assignments/save', async (req, res) => {
     try {
         console.log('=== INICIO GUARDAR ASIGNACIÓN ===');
         console.log('Headers:', req.headers);
-        
-        const { 
-            datasetId, 
-            accountId, 
-            groupContentId, 
-            parentAccountId, 
-            position, 
-            meta 
+
+        const {
+            datasetId,
+            accountId,
+            groupContentId,
+            parentAccountId,
+            position,
+            meta
         } = req.body;
-        
-        const entityId = req.headers['entity-id'] || req.body.entity_id;
-        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id;
+
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         console.log('Parsed data:', {
             datasetId,
@@ -5917,24 +5941,34 @@ app.delete('/api/observations/:observationId', async (req, res) => {
 // Guardar validación de libro mayor
 app.post('/api/ledger-integrity/save', async (req, res) => {
     try {
-        const { datasetId, results, status } = req.body;
+        const { datasetId, results, status, entityId, commitmentId } = req.body;
         const userId = req.headers['user-id'];
-        
+
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveLedgerIntegrity:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  status:', status);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+
         if (!userId || !datasetId || !results) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos'
             });
         }
 
-        // Crear el run principal
+        // Crear el run principal con entity_id y commitment_id
         const { data: run, error: runError } = await supabase
             .from('ledger_integrity_runs')
             .insert({
                 dataset_id: datasetId,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 status: status || 'completed',
-                meta: { 
+                meta: {
                     totalAccounts: results.length,
                     generatedAt: new Date().toISOString()
                 }
@@ -5944,7 +5978,9 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 
         if (runError) throw runError;
 
-        // Guardar cada fila de resultados
+        console.log('✅ Ledger integrity run creado con ID:', run.id, 'entity_id:', run.entity_id, 'commitment_id:', run.commitment_id);
+
+        // Guardar cada fila de resultados con entity_id y commitment_id
         const rows = results.map(result => ({
             run_id: run.id,
             account_id: result.accountId || null,
@@ -5960,7 +5996,9 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
             previous: result.previous || null,
             difference: result.difference || null,
             order_index: result.orderIndex || 0,
-            flags: result.flags || null
+            flags: result.flags || null,
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null
         }));
 
         const { data: insertedRows, error: rowsError } = await supabase
@@ -5970,17 +6008,123 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 
         if (rowsError) throw rowsError;
 
-        res.json({ 
-            success: true, 
+        console.log('✅ Ledger integrity rows insertadas:', insertedRows?.length || 0);
+
+        res.json({
+            success: true,
             run: run,
             rows: insertedRows || []
         });
 
     } catch (error) {
         console.error('Error guardando validación:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Error guardando validación' 
+        res.status(500).json({
+            success: false,
+            error: 'Error guardando validación'
+        });
+    }
+});
+
+// Obtener validaciones de libro mayor filtradas
+app.get('/api/ledger-integrity/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
+
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getLedgerIntegrity:');
+        console.log('  datasetId:', datasetId);
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(400).json({
+                success: false,
+                error: 'userId es requerido'
+            });
+        }
+
+        if (!datasetId) {
+            console.error('❌ ERROR: datasetId es null/undefined');
+            return res.status(400).json({
+                success: false,
+                error: 'datasetId es requerido'
+            });
+        }
+
+        // Construir query base para runs
+        let runsQuery = supabase
+            .from('ledger_integrity_runs')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId);
+
+        // Aplicar filtros de entidad/compromiso si están disponibles
+        if (entity_id) {
+            console.log('🔍 Filtrando ledger integrity runs por entity_id:', entity_id);
+            runsQuery = runsQuery.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando ledger integrity runs por commitment_id:', commitment_id);
+            runsQuery = runsQuery.eq('commitment_id', commitment_id);
+        }
+
+        const { data: runs, error: runsError } = await runsQuery.order('created_at', { ascending: false }).limit(1);
+
+        if (runsError) {
+            console.error('❌ Error en consulta de ledger integrity runs:', runsError);
+            throw runsError;
+        }
+
+        if (!runs || runs.length === 0) {
+            console.log('ℹ️ No se encontraron runs de ledger integrity para el contexto');
+            return res.json({
+                success: true,
+                run: null,
+                rows: []
+            });
+        }
+
+        const run = runs[0];
+        console.log('✅ Ledger integrity run encontrado:', run.id);
+
+        // Obtener las filas correspondientes a este run
+        let rowsQuery = supabase
+            .from('ledger_integrity_rows')
+            .select('*')
+            .eq('run_id', run.id);
+
+        // También filtrar las filas por entity_id y commitment_id
+        if (entity_id) {
+            rowsQuery = rowsQuery.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            rowsQuery = rowsQuery.eq('commitment_id', commitment_id);
+        }
+
+        const { data: rows, error: rowsError } = await rowsQuery.order('order_index', { ascending: true });
+
+        if (rowsError) {
+            console.error('❌ Error en consulta de ledger integrity rows:', rowsError);
+            throw rowsError;
+        }
+
+        console.log('✅ Retornando', rows?.length || 0, 'filas de ledger integrity');
+        res.json({
+            success: true,
+            run: run,
+            rows: rows || []
+        });
+
+    } catch (error) {
+        console.error('❌ Error obteniendo validaciones de ledger integrity:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Error obteniendo validaciones de ledger integrity',
+            details: error.message
         });
     }
 });
@@ -6744,14 +6888,25 @@ app.post('/api/accounts/save', async (req, res) => {
         const userId = req.headers['user-id'];
         
         if (!datasetId || !code || !name) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos: datasetId, code, name' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos: datasetId, code, name'
             });
         }
-        
+
         console.log('Guardando cuenta contable:', { datasetId, code, name, userId });
-        
+
+        // Obtener el dataset para obtener entity_id y commitment_id
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('entity_id, commitment_id')
+            .eq('id', datasetId)
+            .single();
+
+        if (datasetError) {
+            console.warn('No se pudo obtener el dataset para entity_id/commitment_id:', datasetError);
+        }
+
         const { data, error } = await supabase
             .from('cuentas_contables')
             .insert({
@@ -6763,6 +6918,8 @@ app.post('/api/accounts/save', async (req, res) => {
                 previous_year_value: previousYearValue || 0,
                 debit: debit || 0,
                 credit: credit || 0,
+                entity_id: dataset?.entity_id || null,
+                commitment_id: dataset?.commitment_id || null,
                 meta: meta || null
             })
             .select()
@@ -6796,16 +6953,27 @@ app.post('/api/accounts/batch-save', async (req, res) => {
     try {
         const { datasetId, accounts } = req.body;
         const userId = req.headers['user-id'];
-        
+
         if (!datasetId || !accounts || !Array.isArray(accounts)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos: datasetId, accounts (array)' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos: datasetId, accounts (array)'
             });
         }
-        
+
         console.log('Guardando cuentas en lote:', { datasetId, count: accounts.length, userId });
-        
+
+        // Obtener el dataset para obtener entity_id y commitment_id
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('entity_id, commitment_id')
+            .eq('id', datasetId)
+            .single();
+
+        if (datasetError) {
+            console.warn('No se pudo obtener el dataset para entity_id/commitment_id:', datasetError);
+        }
+
         // Preparar datos para inserción
         const accountsToInsert = accounts.map(account => ({
             conjunto_id: datasetId,
@@ -6816,6 +6984,8 @@ app.post('/api/accounts/batch-save', async (req, res) => {
             previous_year_value: account.previousYearValue || 0,
             debit: account.debit || 0,
             credit: account.credit || 0,
+            entity_id: dataset?.entity_id || null,
+            commitment_id: dataset?.commitment_id || null,
             meta: account.meta || null
         }));
         
@@ -8066,8 +8236,8 @@ app.post('/api/subdocuments/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria, tipo, titulo, contenido, metadata, parent_folder_id } = req.body;
-        const entityId = req.headers['entity-id'] || req.body.entity_id;
-        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id;
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
