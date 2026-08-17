@@ -4752,10 +4752,27 @@
         async function loadCuentasFromLatestExcel() {
             try {
                 const userId = getCurrentUserId();
-                
+
                 // Obtener contexto actual
                 const context = formDataManager.getContext();
                 console.log('🔍 Cargando cuentas con contexto:', context);
+
+                // Limpiar cache del servidor para este contexto antes de cargar nuevas cuentas
+                if (context.entityId && context.commitmentId) {
+                    try {
+                        await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                            method: 'POST',
+                            headers: {
+                                'user-id': userId,
+                                'entity-id': context.entityId,
+                                'commitment-id': context.commitmentId
+                            }
+                        });
+                        console.log('🗑️ Cache del servidor limpiado para el contexto actual');
+                    } catch (cacheError) {
+                        console.warn('⚠️ Error limpiando cache del servidor:', cacheError);
+                    }
+                }
                 
                 // Primero verificar si hay un dataset válido para esta entidad/compromiso
                 if (context.entityId && context.commitmentId) {
@@ -4769,23 +4786,41 @@
                     
                     if (datasetResult.success && datasetResult.data && datasetResult.data.status === 'empty') {
                         console.log('📊 No hay dataset para esta entidad y compromiso');
-                        const cuentasSection = document.getElementById('cuentasSection');
-                        if (cuentasSection) {
-                            const tableContainer = cuentasSection.querySelector('.table-responsive');
-                            if (tableContainer) {
-                                tableContainer.innerHTML = `
-                                    <div class="text-center my-4">
-                                        <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                                        <p class="mt-2" style="color: #6c757d;">No hay datos de Excel para esta entidad y compromiso</p>
-                                    </div>
-                                `;
-                            }
+                        const cuentasTableBody = document.getElementById('cuentasTableBody');
+                        if (cuentasTableBody) {
+                            cuentasTableBody.innerHTML = `
+                                <tr>
+                                    <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                            <span>No hay datos de Excel para esta entidad y compromiso</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                            console.log('🗑️ Tabla de cuentas limpiada por ausencia de dataset');
                         }
                         return;
                     }
                 }
                 
                 console.log('🌐 Cargando cuentas desde la base de datos...');
+                
+                // Limpiar cache de cuentas en el servidor para el contexto actual
+                try {
+                    const clearCacheResponse = await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                        method: 'POST',
+                        headers: {
+                            'user-id': userId,
+                            ...(context.entityId ? { 'entity-id': context.entityId } : {}),
+                            ...(context.commitmentId ? { 'commitment-id': context.commitmentId } : {})
+                        }
+                    });
+                    const clearCacheResult = await clearCacheResponse.json();
+                    console.log('🗑️ Cache de cuentas limpiado:', clearCacheResult);
+                } catch (cacheError) {
+                    console.warn('⚠️ Error limpiando cache de cuentas:', cacheError);
+                }
                 
                 // Mostrar indicador de carga
                 const cuentasSection = document.getElementById('cuentasSection');
@@ -4823,6 +4858,25 @@
                 console.log('🔍 accounts inmediatamente de API:', accounts);
                 console.log('🔍 accounts es array:', Array.isArray(accounts));
                 console.log('🔍 accounts.length:', accounts.length);
+
+                // Si no hay cuentas, limpiar la tabla y mostrar mensaje
+                if (accounts.length === 0) {
+                    console.log('📊 No hay cuentas para este contexto, limpiando tabla');
+                    const cuentasTableBody = document.getElementById('cuentasTableBody');
+                    if (cuentasTableBody) {
+                        cuentasTableBody.innerHTML = `
+                            <tr>
+                                <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                        <span>No hay cuentas para esta entidad y compromiso</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    return;
+                }
 
                 // Cargar datos del ledger desde la API con contexto
                 const { ledgerMap, ledgerAvailable, meta } = await getLedgerDataFromLatestExcel(null, context.entityId, context.commitmentId);
@@ -8414,6 +8468,40 @@
                 const assignedElements = document.querySelectorAll('.assigned-account, .assigned-account-item');
                 assignedElements.forEach(el => el.remove());
 
+                // Limpiar variables globales que pueden contener datos de contexto anterior
+                if (typeof cachedLedgerMap !== 'undefined') {
+                    cachedLedgerMap = new Map();
+                    console.log('🗑️ cachedLedgerMap limpiado');
+                }
+                if (typeof cachedLedgerMeta !== 'undefined') {
+                    cachedLedgerMeta = null;
+                    console.log('🗑️ cachedLedgerMeta limpiado');
+                }
+
+                // Resetear valores de cuentas estáticas a 0
+                const panel = document.querySelector('.financial-groups-list');
+                if (panel) {
+                    const staticAccounts = panel.querySelectorAll('.static-account');
+                    staticAccounts.forEach(account => {
+                        account.dataset.accountValue = '0';
+                        account.dataset.accountPrevValue = '0';
+                        const prevSpan = account.querySelector('.static-account-value[data-year="previous"]');
+                        const currentSpan = account.querySelector('.static-account-value[data-year="current"]');
+                        if (prevSpan) prevSpan.textContent = formatNumberWithoutCurrency(0);
+                        if (currentSpan) currentSpan.textContent = formatNumberWithoutCurrency(0);
+                    });
+
+                    // Resetear valores de grupos principales (Activo, Pasivo, Patrimonio, Resultados)
+                    const groupValues = panel.querySelectorAll('.group-value, .sub-group-value');
+                    groupValues.forEach(valueSpan => {
+                        valueSpan.innerHTML = `
+                            <span class="group-value-item" data-year="previous">0,00</span>
+                            <span class="group-value-item" data-year="current">0,00</span>
+                        `;
+                    });
+                    console.log('🗑️ Valores de grupos principales reseteados a 0,00');
+                }
+
                 // Resetear contadores
                 if (typeof updateAllGroupCounts === 'function') {
                     updateAllGroupCounts();
@@ -8422,7 +8510,7 @@
                     updateRemainingCount();
                 }
 
-                console.log('✅ Asignaciones limpiadas de la UI');
+                console.log('✅ Asignaciones limpiadas de la UI y variables globales reseteadas');
             } catch (error) {
                 console.error('❌ Error limpiando asignaciones:', error);
             }
@@ -10964,15 +11052,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Recargar Grupos Financieros
             reloadGruposFinancieros() {
-                
+                // Invalidar caché en memoria para forzar recarga por entidad/compromiso
+                cachedGruposFinancierosRows = [];
+                cachedFinancialGroupsMeta = '';
+                cachedFinancialGroupsLoaded = false;
+
+                // Limpiar cachedLedgerMap para evitar mostrar totales de contexto anterior
+                if (typeof cachedLedgerMap !== 'undefined') {
+                    cachedLedgerMap = new Map();
+                    console.log('🗑️ cachedLedgerMap limpiado en reloadGruposFinancieros');
+                }
+                if (typeof cachedLedgerMeta !== 'undefined') {
+                    cachedLedgerMeta = null;
+                    console.log('🗑️ cachedLedgerMeta limpiado en reloadGruposFinancieros');
+                }
+
                 dataLoadState.gruposFinancieros = false;
                 if (typeof loadGruposFinancierosFromLatestExcel === 'function') {
-                    loadGruposFinancierosFromLatestExcel();
+                    // Forzar recarga completa sin reutilizar caché anterior
+                    loadGruposFinancierosFromLatestExcel({ forceReload: true });
                 }
             },
             
             // Recargar Cuentas
             reloadCuentas() {
+                // Limpiar tabla de cuentas visualmente antes de cargar nuevas
+                const cuentasTableBody = document.getElementById('cuentasTableBody');
+                if (cuentasTableBody) {
+                    cuentasTableBody.innerHTML = '';
+                    console.log('🗑️ Tabla de cuentas limpiada visualmente');
+                }
+
                 dataLoadState.cuentas = false;
                 if (typeof loadCuentasFromLatestExcel === 'function') {
                     loadCuentasFromLatestExcel();
@@ -24265,6 +24375,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('📡 Cargando cuentas desde API...');
                 const entityIdForAccounts = commitmentDropdownState.currentEntityId;
                 const commitmentIdForAccounts = commitmentDropdownState.selectedCommitmentId;
+
+                // Limpiar cache de cuentas en el servidor para el contexto actual
+                try {
+                    const clearCacheResponse = await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                        method: 'POST',
+                        headers: {
+                            'user-id': getCurrentUserId(),
+                            ...(entityIdForAccounts ? { 'entity-id': entityIdForAccounts } : {}),
+                            ...(commitmentIdForAccounts ? { 'commitment-id': commitmentIdForAccounts } : {})
+                        }
+                    });
+                    const clearCacheResult = await clearCacheResponse.json();
+                    console.log('🗑️ Cache de cuentas limpiado en asignar cuentas:', clearCacheResult);
+                } catch (cacheError) {
+                    console.warn('⚠️ Error limpiando cache de cuentas en asignar cuentas:', cacheError);
+                }
 
                 const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {

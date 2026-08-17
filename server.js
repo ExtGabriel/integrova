@@ -4858,83 +4858,43 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         }
         
         console.log('🌐 Generando cuentas desde base de datos (sin cache)');
-        
-        // Obtener el conjunto de datos activo del usuario actual y contexto
-        let conjuntosQuery = supabase
-            .from('conjuntos_datos')
-            .select('*')
-            .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true); // <- Solo datasets activos
-        
+
+        // Si no hay contexto (entity_id o commitment_id), devolver array vacío
+        // para evitar mezclar datos de diferentes entidades
+        if (!entityId && !commitmentId) {
+            console.log('⚠️ No hay contexto (entity_id o commitment_id), devolviendo array vacío');
+            return res.json({
+                success: true,
+                data: [],
+                cached: false,
+                message: 'No hay contexto de entidad/compromiso'
+            });
+        }
+
+        // Filtrar cuentas directamente por entity_id y commitment_id si están disponibles
+        let cuentasQuery = supabase
+            .from('cuentas_contables')
+            .select('*');
+
         if (entityId) {
-            conjuntosQuery = conjuntosQuery.eq('entity_id', entityId);
+            cuentasQuery = cuentasQuery.eq('entity_id', entityId);
+            console.log('🔍 Filtrando cuentas por entity_id:', entityId);
         }
         if (commitmentId) {
-            conjuntosQuery = conjuntosQuery.eq('commitment_id', commitmentId);
-        }
-        
-        const { data: conjuntoData, error: conjuntoError } = await conjuntosQuery
-            .order('fecha_importacion', { ascending: false })
-            .limit(1);
-
-        if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {
-            console.error('Error obteniendo datos del Excel:', conjuntoError);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'No se encontraron datos del Excel' 
-            });
+            cuentasQuery = cuentasQuery.eq('commitment_id', commitmentId);
+            console.log('🔍 Filtrando cuentas por commitment_id:', commitmentId);
         }
 
-        const conjunto = conjuntoData[0];
-        
-        // Obtener los datos del Excel
-        const excelData = conjunto.data;
-        if (!excelData || !excelData.sheets || excelData.sheets.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'No hay datos de Excel disponibles' 
-            });
-        }
-
-        // Obtener la primera hoja
-        const firstSheet = excelData.sheets[0];
-        const sheetData = firstSheet.data;
-        
-        if (!sheetData || sheetData.length <= 1) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'La hoja de Excel está vacía' 
-            });
-        }
-
-        // Obtener encabezados (pueden ser realmente datos si la hoja se guardó sin fila de títulos)
-        const headers = sheetData[0];
-        const firstDataRow = sheetData[1] || [];
-        console.log('🔎 /api/accounts/unassigned - headers[0]:', headers);
-        console.log('🔎 /api/accounts/unassigned - first data row[1]:', firstDataRow);
-
-        // Encontrar índices de columnas automáticamente
-        const mapping = detectColumnMapping(headers);
-
-        // Por ahora no dependemos del Excel para el monto; usaremos el saldo guardado
-        // en la tabla cuentas_contables (o, en su defecto, debito_actual - credito_actual).
-        
-        // Obtener cuentas desde la base de datos con sus UUIDs reales
-        console.log('Obteniendo cuentas desde cuentas_contables...');
-        console.log('🔍 Conjunto ID:', conjunto.id);
-        console.log('🔍 User ID:', userId);
-        
-        const { data: dbAccounts, error: dbError } = await supabase
-            .from('cuentas_contables')
-            .select('*')
-            .eq('conjunto_id', conjunto.id)
+        const { data: dbAccounts, error: dbError } = await cuentasQuery
             .order('created_at');
-            
+
         if (dbError) {
             console.error('Error obteniendo cuentas de la base de datos:', dbError);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Error obteniendo cuentas desde la base de datos' 
+            console.error('Detalles del error:', JSON.stringify(dbError, null, 2));
+            return res.status(500).json({
+                success: false,
+                error: 'Error obteniendo cuentas desde la base de datos',
+                details: dbError
             });
         }
         
