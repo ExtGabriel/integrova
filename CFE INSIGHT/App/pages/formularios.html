@@ -974,6 +974,37 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Subcategoría: Comunicaciones con la gerencia y los encargados del gobierno de la entidad -->
+                        <div class="subcategoria-section">
+                            <div class="subcategoria-header" onclick="toggleSubcategoriaDropdown('comunicaciones-gerencia-gobierno')">
+                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="comunicaciones-gerencia-gobierno-arrow"></i> Comunicaciones con la gerencia y los encargados del gobierno de la entidad</h4>
+                                <div class="plus-dropdown">
+                                    <i class="bi bi-plus-circle subcategoria-plus-icon" onclick="togglePlusMenu(event, 'comunicaciones-gerencia-gobierno-menu')"></i>
+                                    <div class="plus-dropdown-content" id="comunicaciones-gerencia-gobierno-menu">
+                                        <a href="#" onclick="openSubFolderModal(event, 'comunicaciones-gerencia-gobierno')"><i class="bi bi-folder"></i> Subcarpeta</a>
+                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', 'comunicaciones-gerencia-gobierno')"><i class="bi bi-file-earmark-spreadsheet"></i> Hoja de trabajo</a>
+                                        <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-question-circle"></i> Consulta</a>
+                                        <a href="#" onclick="openEnlaceModal(event, 'planificacion')"><i class="bi bi-link"></i> Enlace</a>
+                                        <a href="#" onclick="uploadFileDirect(event, 'planificacion')"><i class="bi bi-upload"></i> Cargar</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="subcategoria-lista" id="comunicaciones-gerencia-gobierno-content">
+                                <div class="form-item-lista" onclick="abrirFormulario('COMUNICACIONES_GERENCIA_GOBIERNO')">
+                                    <div class="form-codigo">CGG</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Comunicaciones con la gerencia y los encargados del gobierno de la entidad</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'COMUNICACIONES_GERENCIA_GOBIERNO')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'COMUNICACIONES_GERENCIA_GOBIERNO')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'COMUNICACIONES_GERENCIA_GOBIERNO')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'COMUNICACIONES_GERENCIA_GOBIERNO')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -10968,7 +10999,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Limpiar caches específicas
                 cachedTrialBalanceAccounts = [];
                 cachedFinancialGroupStructure = null;
-                cachedAssignments = new Map();
+                cachedAssignments = [];
                 
                 // Limpiar cache de subdocumentos por contexto
                 if (window.clearSubdocumentContextCache) {
@@ -11057,7 +11088,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 cachedFinancialGroupsMeta = '';
                 cachedFinancialGroupsLoaded = false;
 
-                // Limpiar cachedLedgerMap para evitar mostrar totales de contexto anterior
+                // Limpiar cachedLedgerMap y estructura para evitar datos de contexto anterior
                 if (typeof cachedLedgerMap !== 'undefined') {
                     cachedLedgerMap = new Map();
                     console.log('🗑️ cachedLedgerMap limpiado en reloadGruposFinancieros');
@@ -11065,6 +11096,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (typeof cachedLedgerMeta !== 'undefined') {
                     cachedLedgerMeta = null;
                     console.log('🗑️ cachedLedgerMeta limpiado en reloadGruposFinancieros');
+                }
+                if (typeof cachedAssignments !== 'undefined') {
+                    cachedAssignments = [];
+                    console.log('🗑️ cachedAssignments limpiado en reloadGruposFinancieros');
+                }
+                if (typeof cachedFinancialGroupStructure !== 'undefined') {
+                    cachedFinancialGroupStructure = null;
+                    console.log('🗑️ cachedFinancialGroupStructure limpiado en reloadGruposFinancieros');
                 }
 
                 dataLoadState.gruposFinancieros = false;
@@ -14410,6 +14449,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioCambiosMaterialidad();
             } else if (formId === 'RESUMEN_INCORRECCIONES') {
                 mostrarFormularioResumenIncorrecciones();
+            } else if (formId === 'COMUNICACIONES_GERENCIA_GOBIERNO') {
+                mostrarFormularioComunicacionesGerenciaGobierno();
             } else if (formId === 'A500') {
                 mostrarFormularioA500();
             } else if (formId === 'B100') {
@@ -14428,6 +14469,274 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 window.location.href = 'b450.html';
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
+            }
+        }
+        
+        // Función para mostrar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
+        function mostrarFormularioComunicacionesGerenciaGobierno() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content'>
+                    <div class='formulario-header'>
+                        <h2 style='text-align: center;'>Comunicaciones con la gerencia y los encargados del gobierno de la entidad</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioComunicacionesGerenciaGobierno()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body'>
+                        <div style='margin-bottom: 25px; color: #37474F; font-size: 0.95rem;'>
+                            <strong>Objetivo:</strong> Documentar las comunicaciones relevantes mantenidas con la gerencia y los encargados del gobierno de la entidad respecto del alcance y oportunidad de la auditoría, hallazgos significativos, fraude, deficiencias de control interno, juicios y demandas, declaraciones escritas y otros asuntos relevantes; incluyendo las respuestas obtenidas, compromisos asumidos y seguimiento efectuado.
+                        </div>
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>Referencia técnica</label>
+                                <button type='button' onclick='toggleTooltip("cgg_referencia_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='cgg_referencia_help' style='display: none; font-size: 0.9rem; color: #495057; margin-top: 8px;'>
+                                NIA 230, NIA 240, NIA 250, NIA 260, NIA 265, NIA 450, NIA 501 y NIA 580. Cuando corresponda: NIA 560 y NIA 570.
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Hallazgos de auditoría significativos</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>1. Hallazgos de auditoría significativos</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q1_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q1_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia de la cédula; descripción resumida; clasificación; cuenta o proceso afectado; monto, cuando aplique; fecha de comunicación; destinatario; medio; respuesta de la Administración; estado y efecto en los estados financieros o en el informe del auditor.
+                                    </div>
+                                    <textarea id='cgg_q1' name='cgg_q1' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente los hallazgos de auditoría significativos...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Comunicaciones acerca de fraude con la gerencia, encargados del gobierno, entes reguladores u otros</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>2. Comunicaciones acerca de fraude</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q2_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q2_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia a la evaluación o hallazgo; clasificación como riesgo, indicio, sospecha o fraude identificado; naturaleza del asunto; áreas o personas involucradas, cuando corresponda; fecha; destinatario; medio; respuesta recibida; acciones acordadas; efecto en la auditoría; consulta legal o comunicación regulatoria, si aplica.
+                                    </div>
+                                    <textarea id='cgg_q2' name='cgg_q2' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las comunicaciones acerca de fraude...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Deficiencias significativas de control interno comunicadas a la gerencia y a los encargados del gobierno</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>3. Deficiencias significativas de control interno</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q3_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q3_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia de la cédula; descripción de la deficiencia; fundamento de su clasificación; proceso afectado; riesgo; fecha y destinatario de la comunicación; respuesta y plan de acción; responsable; fecha compromiso; estado y referencia a la carta o informe de control interno.
+                                    </div>
+                                    <textarea id='cgg_q3' name='cgg_q3' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las deficiencias significativas de control interno...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Declaraciones escritas de la gerencia</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>4. Declaraciones escritas de la gerencia</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q4_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q4_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Fecha de la carta; período cubierto; nombre y cargo de los firmantes; asuntos incluidos; integridad de la información; incorrecciones no corregidas; fraude; partes relacionadas; litigios; hechos posteriores; empresa en funcionamiento; reservas, modificaciones o negativa de la gerencia y referencia al documento firmado.
+                                    </div>
+                                    <textarea id='cgg_q4' name='cgg_q4' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las declaraciones escritas de la gerencia...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Manifestaciones escritas relacionadas con posibles juicios, demandas y reclamaciones</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>5. Manifestaciones escritas relacionadas con posibles juicios, demandas y reclamaciones</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q5_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q5_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Detalle de litigios y reclamaciones; contraparte; naturaleza; estado procesal; monto reclamado; evaluación de probabilidad; provisión o revelación; abogado responsable; confirmación de abogados; diferencias identificadas; hechos posteriores y conclusión de auditoría.
+                                    </div>
+                                    <textarea id='cgg_q5' name='cgg_q5' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las manifestaciones escritas sobre juicios, demandas y reclamaciones...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Comunicaciones orales</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>6. Comunicaciones orales</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q6_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q6_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Fecha, hora y medio; participantes y cargos; clasificación y confidencialidad del asunto; hechos y conclusiones; respuesta de la gerencia o de los encargados del gobierno; acuerdos; responsables y fechas; procedimientos adicionales; efecto en la auditoría; seguimiento, preparación, revisión y referencias de soporte.
+                                    </div>
+                                    <textarea id='cgg_q6' name='cgg_q6' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las comunicaciones orales...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Conclusión del bloque</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>7. Conclusión del bloque</label>
+                                        <button type='button' onclick='toggleTooltip("cgg_q7_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cgg_q7_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Concluir si las comunicaciones requeridas fueron realizadas oportunamente y al nivel adecuado; principales asuntos comunicados; respuestas y acciones acordadas; asuntos pendientes; limitaciones o negativas; suficiencia del soporte; obtención de manifestaciones escritas y efecto en los riesgos, procedimientos, estados financieros e informe del auditor.
+                                    </div>
+                                    <textarea id='cgg_q7' name='cgg_q7' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la conclusión del bloque...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;'>
+                            <div id='aprobado-cgg' style='font-size: 0.85rem; color: #64748b;'></div>
+                            <button type='button' onclick='aprobarFormularioComunicacionesGerenciaGobierno(this)' style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;'>
+                                <i class='bi bi-check-circle'></i> Aprobar
+                            </button>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario CGG - Comunicaciones con la gerencia y los encargados del gobierno de la entidad
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; flex-direction: column; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioComunicacionesGerenciaGobierno()' style='text-align: center;'>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
+        function cerrarFormularioComunicacionesGerenciaGobierno() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para aprobar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
+        function aprobarFormularioComunicacionesGerenciaGobierno(boton) {
+            let usuarioActual = null;
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                }
+            }
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+            }
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            let aprobaciones = JSON.parse(localStorage.getItem('comunicacionesGerenciaGobierno_aprobaciones') || '{}');
+            if (aprobaciones['cgg']) {
+                delete aprobaciones['cgg'];
+                localStorage.setItem('comunicacionesGerenciaGobierno_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-cgg');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class=\"bi bi-check-circle\"></i> Aprobar';
+                    boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                }
+                showNotification('Aprobación cancelada', 'info');
+            } else {
+                aprobaciones['cgg'] = {
+                    aprobado: true,
+                    usuario: usuarioActual,
+                    fecha: new Date().toISOString()
+                };
+                localStorage.setItem('comunicacionesGerenciaGobierno_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-cgg');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class=\"bi bi-check-circle-fill\" style=\"color: #10b981;\"></i> Aprobado por ${usuarioActual} el ${fechaActual}`;
+                    aprobadoDiv.style.color = '#10b981';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class=\"bi bi-check-circle-fill\"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                }
+                showNotification('Formulario aprobado correctamente', 'success');
             }
         }
         
