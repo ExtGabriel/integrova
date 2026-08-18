@@ -1029,6 +1029,37 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Subcategoría: Finalización de Auditoría -->
+                        <div class="subcategoria-section">
+                            <div class="subcategoria-header" onclick="toggleSubcategoriaDropdown('finalizacion-auditoria')">
+                                <h4><i class="bi bi-chevron-right dropdown-arrow" id="finalizacion-auditoria-arrow"></i> Finalización de Auditoría</h4>
+                                <div class="plus-dropdown">
+                                    <i class="bi bi-plus-circle subcategoria-plus-icon" onclick="togglePlusMenu(event, 'finalizacion-auditoria-menu')"></i>
+                                    <div class="plus-dropdown-content" id="finalizacion-auditoria-menu">
+                                        <a href="#" onclick="openSubFolderModal(event, 'finalizacion-auditoria')"><i class="bi bi-folder"></i> Subcarpeta</a>
+                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', 'finalizacion-auditoria')"><i class="bi bi-file-earmark-spreadsheet"></i> Hoja de trabajo</a>
+                                        <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-question-circle"></i> Consulta</a>
+                                        <a href="#" onclick="openEnlaceModal(event, 'planificacion')"><i class="bi bi-link"></i> Enlace</a>
+                                        <a href="#" onclick="uploadFileDirect(event, 'planificacion')"><i class="bi bi-upload"></i> Cargar</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="subcategoria-lista" id="finalizacion-auditoria-content">
+                                <div class="form-item-lista" onclick="abrirFormulario('FINALIZACION_AUDITORIA')">
+                                    <div class="form-codigo">FAU</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Finalización de auditoría / Cierre del compromiso</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'FINALIZACION_AUDITORIA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'FINALIZACION_AUDITORIA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'FINALIZACION_AUDITORIA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'FINALIZACION_AUDITORIA')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -14495,6 +14526,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioCedulaHallazgo();
             } else if (formId === 'MINUTA') {
                 mostrarFormularioMinuta();
+            } else if (formId === 'FINALIZACION_AUDITORIA') {
+                mostrarFormularioFinalizacionAuditoria();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -15436,6 +15469,152 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
         
+        // Función para mostrar el formulario Finalización de auditoría
+        function mostrarFormularioFinalizacionAuditoria() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                        <h2 style='text-align: center; margin: 0 auto;'>Finalización de auditoría / Cierre del compromiso</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioFinalizacionAuditoria()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
+                            <strong>Objetivo:</strong> Concluir si se ha obtenido evidencia de auditoría suficiente y adecuada para sustentar la opinión; evaluar los resultados y asuntos significativos, incluidos los hechos posteriores y las incorrecciones identificadas; completar las revisiones requeridas; emitir el informe apropiado y cerrar oportunamente el archivo final del encargo.
+                        </p>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>Referencia técnica</label>
+                                <button type='button' onclick='toggleTooltip("fau_referencia_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_referencia_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                NIA 220 (Revisada) — Gestión de la calidad de la auditoría de estados financieros; NIA 230 — Documentación de auditoría; NIA 450 — Evaluación de las incorrecciones identificadas durante la realización de la auditoría; NIA 520 — Procedimientos analíticos; NIA 560 — Hechos posteriores al cierre; NIA 570 (Revisada) — Empresa en funcionamiento; NIA 700 (Revisada) — Formación de la opinión y emisión del informe de auditoría sobre los estados financieros; NIA 701 — Comunicación de las cuestiones clave de la auditoría en el informe de auditoría emitido por un auditor independiente; NIA 705 (Revisada) — Opinión modificada en el informe de auditoría emitido por un auditor independiente; NIA 706 (Revisada) — Párrafos de énfasis y párrafos sobre otras cuestiones en el informe de auditoría emitido por un auditor independiente; NIA 710 — Información comparativa: cifras correspondientes de períodos anteriores y estados financieros comparativos.
+                            </div>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>1. Revisión analítica</label>
+                                <button type='button' onclick='toggleTooltip("fau_q1_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q1_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Documentar la conclusión global sobre si los estados financieros son congruentes con el conocimiento de la entidad; relaciones o fluctuaciones inusuales; investigaciones, explicaciones y evidencia corroborativa; procedimientos adicionales y conclusión cuando persistan inconsistencias.
+                            </div>
+                            <textarea id='fau_q1' name='fau_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la revisión analítica...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>2. Hechos posteriores</label>
+                                <button type='button' onclick='toggleTooltip("fau_q2_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q2_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Documentar procedimientos hasta la fecha del informe; período cubierto, fuentes consultadas (actas, estados intermedios, indagaciones, asesoría legal y eventos relevantes); hechos identificados y tratamiento (ajuste/revelación); manifestación escrita y conclusión. Si se conoce un hecho después del informe, documentar evaluación y actuaciones.
+                            </div>
+                            <textarea id='fau_q2' name='fau_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente los hechos posteriores...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>3. Revisión de calidad del encargo</label>
+                                <button type='button' onclick='toggleTooltip("fau_q3_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q3_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Documentar si aplica revisión de control de calidad; identificar revisor y elegibilidad; fecha y alcance de la revisión; asuntos y juicios significativos revisados; discusión con el socio; estados financieros e informe revisados; dudas resueltas y notificación de finalización. El informe no debe fecharse antes de concluir la revisión.
+                            </div>
+                            <textarea id='fau_q3' name='fau_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la revisión de calidad del encargo...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>4. Diferencias de opinión</label>
+                                <button type='button' onclick='toggleTooltip("fau_q4_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q4_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Documentar la naturaleza del desacuerdo entre el equipo y consultados/revisor; posiciones técnicas y consultas realizadas; base normativa y evidencia considerada; conclusión alcanzada, forma de resolución y responsables. De ser necesario dejar evidencia mediante correos o cualquier tipo de información que se haya cruzado con terceros.
+                            </div>
+                            <textarea id='fau_q4' name='fau_q4' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las diferencias de opinión...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>5. Informe del auditor</label>
+                                <button type='button' onclick='toggleTooltip("fau_q5_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q5_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Versión final firmada; marco de información aplicable; opinión y su fundamento; asuntos clave cuando proceda; negocio en marcha; otra información; responsabilidades; requerimientos legales; fecha, firma y dirección. Documentar evaluación de incorrecciones y sustento de cualquier opinión modificada, párrafo de énfasis u otros asuntos.
+                            </div>
+                            <textarea id='fau_q5' name='fau_q5' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente el informe del auditor...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>6. Fracaso en cumplir objetivos relevantes de una NIA</label>
+                                <button type='button' onclick='toggleTooltip("fau_q6_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                    <i class='bi bi-lightbulb'></i>
+                                </button>
+                            </div>
+                            <div id='fau_q6_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                Objetivo no alcanzado; razones y circunstancias; efecto sobre la capacidad de cumplir los objetivos globales de la auditoría; procedimientos alternativos o adicionales; consultas; conclusión e impacto en el informe. Un fracaso relevante puede exigir modificar la opinión o retirarse, si la ley lo permite.
+                            </div>
+                            <textarea id='fau_q6' name='fau_q6' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente el fracaso en cumplir objetivos relevantes de una NIA...'></textarea>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario FAU - Finalización de auditoría
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioFinalizacionAuditoria()'>
+                                Cerrar
+                            </button>
+                            <button class='btn-guardar' onclick='guardarFormularioFinalizacionAuditoria()'>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Finalización de auditoría
+        function cerrarFormularioFinalizacionAuditoria() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario Finalización de auditoría
+        function guardarFormularioFinalizacionAuditoria() {
+            showNotification('Finalización de auditoría guardada correctamente', 'success');
+            cerrarFormularioFinalizacionAuditoria();
+        }
+
         // Función para mostrar el formulario B400
         function mostrarFormularioB400() {
             // Eliminar cualquier modal existente
