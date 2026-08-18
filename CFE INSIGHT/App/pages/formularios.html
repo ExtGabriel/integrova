@@ -1003,6 +1003,30 @@
                                         <button class="action-btn observations-btn" onclick="showObservations(event, 'COMUNICACIONES_GERENCIA_GOBIERNO')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                     </div>
                                 </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('CEDULA_HALLAZGO')">
+                                    <div class="form-codigo">CH</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Cédula de hallazgo</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'CEDULA_HALLAZGO')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'CEDULA_HALLAZGO')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'CEDULA_HALLAZGO')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'CEDULA_HALLAZGO')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('MINUTA')">
+                                    <div class="form-codigo">MIN</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Minuta</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'MINUTA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'MINUTA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'MINUTA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'MINUTA')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -14467,11 +14491,486 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioB400();
             } else if (formId === 'B450') {
                 window.location.href = 'b450.html';
+            } else if (formId === 'CEDULA_HALLAZGO') {
+                mostrarFormularioCedulaHallazgo();
+            } else if (formId === 'MINUTA') {
+                mostrarFormularioMinuta();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
         }
         
+        // Función para mostrar el formulario Cédula de hallazgo
+        function mostrarFormularioCedulaHallazgo() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content'>
+                    <div class='formulario-header'>
+                        <h2 style='text-align: center;'>Cédula de hallazgo</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioCedulaHallazgo()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body'>
+                        <div style='margin-bottom: 20px;'>
+                            <label style='display: block; color: #37474F; font-weight: 500; font-size: 0.95rem; margin-bottom: 8px;'>Descripción del hallazgo</label>
+                            <textarea id='ch_q1' name='ch_q1' rows='6' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Describa el hallazgo...'></textarea>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario CH - Cédula de hallazgo
+                        </div>
+                        <div class='formulario-acciones'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioCedulaHallazgo()'>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Cédula de hallazgo
+        function cerrarFormularioCedulaHallazgo() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para mostrar el formulario Minuta
+        function mostrarFormularioMinuta() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header'>
+                        <h2 style='text-align: center;'>Minuta</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioMinuta()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>1. IDENTIFICACIÓN DEL ENCARGO</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #9aa; font-size: 0.85rem;'>
+                            <tr>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Cliente</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_cliente' name='min_cliente' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Referencia</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_referencia' name='min_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Encargo / servicio</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_encargo' name='min_encargo' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Período</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_periodo' name='min_periodo' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Preparó</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_preparo' name='min_preparo' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Fecha de preparación</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_fecha_preparacion' name='min_fecha_preparacion' type='date' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Revisó</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_reviso' name='min_reviso' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Fecha de revisión</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_fecha_revision' name='min_fecha_revision' type='date' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                        </table>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>2. DATOS Y CLASIFICACIÓN DE LA COMUNICACIÓN</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #9aa; font-size: 0.85rem;'>
+                            <tr>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Fecha</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_fecha' name='min_fecha' type='date' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Hora</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_hora' name='min_hora' type='time' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Medio</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_medio' name='min_medio' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Lugar / plataforma</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_lugar' name='min_lugar' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Clasificación del asunto</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_clasificacion' name='min_clasificacion' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Nivel de confidencialidad</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_confidencialidad' name='min_confidencialidad' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Requiere comunicación escrita posterior</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_requiere_escrito' name='min_requiere_escrito' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Fecha prevista</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_fecha_prevista' name='min_fecha_prevista' type='date' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                        </table>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>3. PARTICIPANTES</h3>
+                        <table id='min_tabla_participantes' style='width: 100%; border-collapse: collapse; margin-bottom: 0; border: 1px solid #9aa; font-size: 0.8rem; text-align: center;'>
+                            <thead>
+                                <tr style='background: #2563eb; color: white;'>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>No.</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Nombre</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Cargo</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Entidad / área</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Participación</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Correo / contacto</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Asistió</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>1</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_nombre' name='min_p1_nombre' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_cargo' name='min_p1_cargo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_entidad' name='min_p1_entidad' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_participacion' name='min_p1_participacion' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_correo' name='min_p1_correo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'><input id='min_p1_asistio' name='min_p1_asistio' type='checkbox' style='width: 18px; height: 18px; cursor: pointer;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p1_observaciones' name='min_p1_observaciones' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>2</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_nombre' name='min_p2_nombre' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_cargo' name='min_p2_cargo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_entidad' name='min_p2_entidad' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_participacion' name='min_p2_participacion' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_correo' name='min_p2_correo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'><input id='min_p2_asistio' name='min_p2_asistio' type='checkbox' style='width: 18px; height: 18px; cursor: pointer;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p2_observaciones' name='min_p2_observaciones' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>3</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_nombre' name='min_p3_nombre' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_cargo' name='min_p3_cargo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_entidad' name='min_p3_entidad' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_participacion' name='min_p3_participacion' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_correo' name='min_p3_correo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'><input id='min_p3_asistio' name='min_p3_asistio' type='checkbox' style='width: 18px; height: 18px; cursor: pointer;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p3_observaciones' name='min_p3_observaciones' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>4</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_nombre' name='min_p4_nombre' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_cargo' name='min_p4_cargo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_entidad' name='min_p4_entidad' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_participacion' name='min_p4_participacion' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_correo' name='min_p4_correo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'><input id='min_p4_asistio' name='min_p4_asistio' type='checkbox' style='width: 18px; height: 18px; cursor: pointer;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_p4_observaciones' name='min_p4_observaciones' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style='margin-bottom: 20px; text-align: right; padding: 8px 0;'>
+                            <button type='button' onclick='agregarFilaParticipante()' style='margin-right: 8px; background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;'>+ Participante</button>
+                            <button type='button' onclick='quitarFilaParticipante()' style='background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;'>Eliminar</button>
+                        </div>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>4. ASUNTO Y OBJETIVO DE LA COMUNICACIÓN</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #9aa; font-size: 0.85rem;'>
+                            <tr>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Asunto comunicado</td>
+                                <td style='width: 82%; background: white; border: 1px solid #9aa;'><input id='min_asunto_comunicado' name='min_asunto_comunicado' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Objetivo</td>
+                                <td style='background: white; border: 1px solid #9aa;'><input id='min_objetivo' name='min_objetivo' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                        </table>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>5. ANTECEDENTES Y ASUNTOS TRATADOS</h3>
+                        <div style='margin-bottom: 20px; border: 1px solid #9aa; border-top: none;'>
+                            <textarea id='min_antecedentes' name='min_antecedentes' rows='7' style='width: 100%; border: none; padding: 12px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;' placeholder='Describa los hechos, circunstancias, hallazgos, riesgos, deficiencias, incorrecciones u otros asuntos relevantes discutidos.'></textarea>
+                        </div>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>6. RESPUESTA DE LA GERENCIA / ENCARGADOS DEL GOBIERNO</h3>
+                        <div style='margin-bottom: 20px; border: 1px solid #9aa; border-top: none;'>
+                            <textarea id='min_respuesta_gerencia' name='min_respuesta_gerencia' rows='7' style='width: 100%; border: none; padding: 12px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;' placeholder='Documente las explicaciones, comentarios, desacuerdos, decisiones y acciones propuestas por la entidad.'></textarea>
+                        </div>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>7. ACUERDOS Y COMPROMISOS</h3>
+                        <table id='min_tabla_acuerdos' style='width: 100%; border-collapse: collapse; margin-bottom: 0; border: 1px solid #9aa; font-size: 0.8rem; text-align: center;'>
+                            <thead>
+                                <tr style='background: #2563eb; color: white;'>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>No.</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Acuerdo o acción requerida</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Responsable</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Fecha compromiso</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Evidencia esperada</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Estado</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Fecha seguimiento</th>
+                                    <th style='padding: 8px; border: 1px solid #9aa; font-weight: 500;'>Referencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>1</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_acuerdo' name='min_a1_acuerdo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_responsable' name='min_a1_responsable' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_fecha_compromiso' name='min_a1_fecha_compromiso' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_evidencia' name='min_a1_evidencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_estado' name='min_a1_estado' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_fecha_seguimiento' name='min_a1_fecha_seguimiento' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a1_referencia' name='min_a1_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>2</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_acuerdo' name='min_a2_acuerdo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_responsable' name='min_a2_responsable' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_fecha_compromiso' name='min_a2_fecha_compromiso' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_evidencia' name='min_a2_evidencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_estado' name='min_a2_estado' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_fecha_seguimiento' name='min_a2_fecha_seguimiento' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a2_referencia' name='min_a2_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>3</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_acuerdo' name='min_a3_acuerdo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_responsable' name='min_a3_responsable' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_fecha_compromiso' name='min_a3_fecha_compromiso' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_evidencia' name='min_a3_evidencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_estado' name='min_a3_estado' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_fecha_seguimiento' name='min_a3_fecha_seguimiento' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a3_referencia' name='min_a3_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                                <tr style='background: white;'>
+                                    <td style='border: 1px solid #9aa; padding: 6px;'>4</td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_acuerdo' name='min_a4_acuerdo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_responsable' name='min_a4_responsable' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_fecha_compromiso' name='min_a4_fecha_compromiso' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_evidencia' name='min_a4_evidencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_estado' name='min_a4_estado' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_fecha_seguimiento' name='min_a4_fecha_seguimiento' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                    <td style='border: 1px solid #9aa; padding: 0;'><input id='min_a4_referencia' name='min_a4_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style='margin-bottom: 20px; text-align: right; padding: 8px 0;'>
+                            <button type='button' onclick='agregarFilaAcuerdo()' style='margin-right: 8px; background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;'>+ Acuerdo</button>
+                            <button type='button' onclick='quitarFilaAcuerdo()' style='background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;'>Eliminar</button>
+                        </div>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>8. EFECTO EN LA AUDITORÍA</h3>
+                        <p style='margin: 0; padding: 8px 12px; font-size: 0.8rem; color: #37474F; background: white; border: 1px solid #9aa; border-top: none; border-bottom: none;'>Indique el efecto en la valoración de riesgos, alcance, procedimientos, cronograma, estados financieros o informe del auditor.</p>
+                        <div style='border: 1px solid #9aa; border-top: none;'>
+                            <textarea id='min_efecto_auditoria' name='min_efecto_auditoria' rows='4' style='width: 100%; border: none; padding: 12px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea>
+                        </div>
+                        <p style='margin: 0; padding: 8px 12px; font-size: 0.8rem; color: #37474F; background: white; border: 1px solid #9aa; border-top: none; border-bottom: none;'>Procedimientos adicionales</p>
+                        <div style='margin-bottom: 20px; border: 1px solid #9aa; border-top: none;'>
+                            <textarea id='min_procedimientos_adicionales' name='min_procedimientos_adicionales' rows='4' style='width: 100%; border: none; padding: 12px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea>
+                        </div>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>9. SEGUIMIENTO Y CONCLUSIÓN</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #9aa; font-size: 0.85rem;'>
+                            <tr>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa; vertical-align: top;'>Resultado del seguimiento</td>
+                                <td style='width: 82%; background: white; border: 1px solid #9aa; padding: 0;'><textarea id='min_resultado_seguimiento' name='min_resultado_seguimiento' rows='4' style='width: 100%; border: none; padding: 8px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa; vertical-align: top;'>Asuntos pendientes</td>
+                                <td style='background: white; border: 1px solid #9aa; padding: 0;'><textarea id='min_asuntos_pendientes' name='min_asuntos_pendientes' rows='4' style='width: 100%; border: none; padding: 8px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa; vertical-align: top;'>Conclusión</td>
+                                <td style='background: white; border: 1px solid #9aa; padding: 0;'><textarea id='min_conclusion' name='min_conclusion' rows='4' style='width: 100%; border: none; padding: 8px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa; vertical-align: top;'>Soporte / referencia</td>
+                                <td style='background: white; border: 1px solid #9aa; padding: 0;'><textarea id='min_soporte_referencia' name='min_soporte_referencia' rows='4' style='width: 100%; border: none; padding: 8px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;'></textarea></td>
+                            </tr>
+                        </table>
+
+                        <h3 style='background: #2563eb; color: white; padding: 8px 12px; font-size: 0.95rem; margin: 0 0 0 0;'>10. CONFIRMACIÓN POSTERIOR DE LA COMUNICACIÓN</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 0; border: 1px solid #9aa; border-bottom: none; font-size: 0.85rem;'>
+                            <tr>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Tipo de confirmación</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_tipo_confirmacion' name='min_tipo_confirmacion' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                                <td style='width: 18%; background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Fecha</td>
+                                <td style='width: 32%; background: white; border: 1px solid #9aa;'><input id='min_fecha_confirmacion' name='min_fecha_confirmacion' type='date' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                            <tr>
+                                <td style='background: white; padding: 8px; font-weight: 500; border: 1px solid #9aa;'>Referencia al soporte</td>
+                                <td style='background: white; border: 1px solid #9aa;' colspan='3'><input id='min_referencia_soporte' name='min_referencia_soporte' type='text' style='width: 100%; border: none; background: transparent; padding: 8px; font-size: 0.85rem; box-sizing: border-box;'></td>
+                            </tr>
+                        </table>
+                        <p style='margin: 0; padding: 8px 12px; font-size: 0.8rem; color: #37474F; background: white; border: 1px solid #9aa; border-top: none; border-bottom: none;'>Confirmación de participantes</p>
+                        <div style='margin-bottom: 20px; border: 1px solid #9aa; border-top: none;'>
+                            <textarea id='min_confirmacion_participantes' name='min_confirmacion_participantes' rows='4' style='width: 100%; border: none; padding: 12px; font-size: 0.85rem; color: #495057; background: white; resize: vertical; box-sizing: border-box;' placeholder='Nombre, cargo, fecha y medio por el cual se confirmó o aceptó el contenido de la minuta, cuando corresponda.'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px; padding: 12px; font-size: 0.75rem; color: #37474F; background: #f8f9fa; border: 1px solid #9aa;'>
+                            <strong>Nota:</strong> Los asuntos significativos deben confirmarse mediante correo electrónico, minuta aceptada o comunicación formal. Las comunicaciones relacionadas con fraude y asuntos legales deben manejarse de acuerdo con su nivel de confidencialidad.
+                        </div>
+                        <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;'>
+                            <div id='aprobado-min' style='font-size: 0.85rem; color: #64748b;'></div>
+                            <button type='button' onclick='aprobarFormularioMinuta(this)' style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;'>
+                                <i class='bi bi-check-circle'></i> Aprobar
+                            </button>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario MIN - Minuta
+                        </div>
+                        <div class='formulario-acciones'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioMinuta()'>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Minuta
+        function cerrarFormularioMinuta() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Funciones para agregar/quitar filas de participantes en la Minuta
+        function agregarFilaParticipante() {
+            const tabla = document.getElementById('min_tabla_participantes');
+            if (!tabla) return;
+            const tbody = tabla.querySelector('tbody');
+            const filas = tbody.querySelectorAll('tr');
+            const num = filas.length + 1;
+            const row = document.createElement('tr');
+            row.style.background = 'white';
+            row.innerHTML = `
+                <td style='border: 1px solid #9aa; padding: 6px;'>${num}</td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_nombre' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_cargo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_entidad' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_participacion' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_correo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 6px;'><input name='min_p${num}_asistio' type='checkbox' style='width: 18px; height: 18px; cursor: pointer;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_p${num}_observaciones' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function quitarFilaParticipante() {
+            const tabla = document.getElementById('min_tabla_participantes');
+            if (!tabla) return;
+            const tbody = tabla.querySelector('tbody');
+            const filas = tbody.querySelectorAll('tr');
+            if (filas.length > 1) {
+                tbody.removeChild(filas[filas.length - 1]);
+            }
+        }
+
+        // Funciones para agregar/quitar filas de acuerdos en la Minuta
+        function agregarFilaAcuerdo() {
+            const tabla = document.getElementById('min_tabla_acuerdos');
+            if (!tabla) return;
+            const tbody = tabla.querySelector('tbody');
+            const filas = tbody.querySelectorAll('tr');
+            const num = filas.length + 1;
+            const row = document.createElement('tr');
+            row.style.background = 'white';
+            row.innerHTML = `
+                <td style='border: 1px solid #9aa; padding: 6px;'>${num}</td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_acuerdo' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_responsable' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_fecha_compromiso' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_evidencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_estado' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_fecha_seguimiento' type='date' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+                <td style='border: 1px solid #9aa; padding: 0;'><input name='min_a${num}_referencia' type='text' style='width: 100%; border: none; background: transparent; padding: 6px; font-size: 0.8rem; box-sizing: border-box;'></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function quitarFilaAcuerdo() {
+            const tabla = document.getElementById('min_tabla_acuerdos');
+            if (!tabla) return;
+            const tbody = tabla.querySelector('tbody');
+            const filas = tbody.querySelectorAll('tr');
+            if (filas.length > 1) {
+                tbody.removeChild(filas[filas.length - 1]);
+            }
+        }
+
+        // Función para aprobar el formulario Minuta
+        function aprobarFormularioMinuta(boton) {
+            let usuarioActual = null;
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                }
+            }
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+            }
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            let aprobaciones = JSON.parse(localStorage.getItem('minuta_aprobaciones') || '{}');
+            if (aprobaciones['min']) {
+                delete aprobaciones['min'];
+                localStorage.setItem('minuta_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-min');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                }
+                showNotification('Aprobación cancelada', 'info');
+            } else {
+                aprobaciones['min'] = {
+                    aprobado: true,
+                    usuario: usuarioActual,
+                    fecha: new Date().toISOString()
+                };
+                localStorage.setItem('minuta_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-min');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #10b981;"></i> <span style="color: #000000;">Aprobado por ${usuarioActual} el ${fechaActual}</span>`;
+                    aprobadoDiv.style.color = '#000000';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                }
+                showNotification('Minuta aprobada correctamente', 'success');
+            }
+        }
+
         // Función para mostrar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
         function mostrarFormularioComunicacionesGerenciaGobierno() {
             const modalExistente = document.querySelector('.formulario-modal');
@@ -14729,8 +15228,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 localStorage.setItem('comunicacionesGerenciaGobierno_aprobaciones', JSON.stringify(aprobaciones));
                 const aprobadoDiv = document.getElementById('aprobado-cgg');
                 if (aprobadoDiv) {
-                    aprobadoDiv.innerHTML = `<i class=\"bi bi-check-circle-fill\" style=\"color: #10b981;\"></i> Aprobado por ${usuarioActual} el ${fechaActual}`;
-                    aprobadoDiv.style.color = '#10b981';
+                    aprobadoDiv.innerHTML = `<i class=\"bi bi-check-circle-fill\" style=\"color: #10b981;\"></i> <span style=\"color: #000000;\">Aprobado por ${usuarioActual} el ${fechaActual}</span>`;
+                    aprobadoDiv.style.color = '#000000';
                 }
                 if (boton) {
                     boton.innerHTML = '<i class=\"bi bi-check-circle-fill\"></i> Aprobado';
