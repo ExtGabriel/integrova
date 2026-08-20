@@ -18253,37 +18253,770 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modal = document.createElement('div');
             modal.className = 'formulario-modal';
             modal.innerHTML = `
-                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
-                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%; display: flex; flex-direction: column; max-height: 90vh;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb); flex-shrink: 0;'>
                         <h2 style='text-align: center; margin: 0 auto;'>Cierre del compromiso</h2>
                         <button class='btn-cerrar' onclick='cerrarFormularioCierreCompromiso()'>
                             <i class='bi bi-x-lg'></i>
                         </button>
                     </div>
-                    <div class='formulario-body' style='padding: 20px;'>
-                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
-                            <strong>Objetivo:</strong> Documentar las actividades necesarias para cerrar el compromiso de auditoría, incluyendo la conclusión y opinión, la documentación archivada, la carta de gerencia y la liberación del equipo.
-                        </p>
+                    <div class='formulario-body' style='padding: 20px; flex: 1; overflow-y: auto; min-height: 0; height: auto;'>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Conclusiones y opinión</label>
-                            <textarea id='cco_q1' name='cco_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las conclusiones alcanzadas, la opinión a emitir y su fundamento...'></textarea>
+                        <!-- Pestaña Actividades preliminares -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_actividades_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Actividades preliminares</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_actividades_content' style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>1. Ética e independencia: ¿hay documentación del cumplimiento de los requisitos éticos relevantes, incluida la independencia, y de la resolución de cualquier problema identificado en la aceptación o continuación del cliente?</label>
+                                        <button type='button' onclick='toggleTooltip("cco_p1_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cco_p1_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Hacer referencia al formulario de Actividades preliminares.
+                                    </div>
+                                    <select id='cco_p1' name='cco_p1' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p1_texto' name='cco_p1_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al formulario de Actividades preliminares...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>2. Carta de compromiso: ¿el acuerdo con la Administración y los responsables del gobierno de la entidad sobre los términos del encargo está documentado en una carta de compromiso u otra forma adecuada, incluidos el alcance y la oportunidad planificados de la auditoría?</label>
+                                        <button type='button' onclick='toggleTooltip("cco_p2_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='cco_p2_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Hacer referencia a la Carta de compromiso firmada por la Administración.
+                                    </div>
+                                    <select id='cco_p2' name='cco_p2' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p2_texto' name='cco_p2_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la Carta de compromiso firmada por la Administración...'></textarea>
+                                </div>
+
+                            </div>
                         </div>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Documentación archivada</label>
-                            <textarea id='cco_q2' name='cco_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente el archivo final del encargo, expediente completo y retención según política...'></textarea>
+                        <!-- Pestaña Planificacion, Materialidad -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_planificacion_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Planificacion, Materialidad — ¿se documentaron</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_planificacion_content' style='padding: 20px; background: white; display: block;'>
+
+                                <!-- Preguntas 1-3 con una sola respuesta -->
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>1. Materialidad General: La materialidad para los estados financieros en su conjunto.</label>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>2. Materialidad Trivial: El nivel o niveles de materialidad para clases particulares de transacciones, saldos de cuentas o revelaciones, si corresponde.</label>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>3. Materialidad de desempeño: monto establecido por debajo de la materialidad global.</label>
+                                    <select id='cco_mat_respuesta' name='cco_mat_respuesta' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_mat_texto' name='cco_mat_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la documentación de materialidad...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>4. Las revisiones de estos elementos a medida que avanzó la auditoría, incluida cualquier revelación cualitativa que pueda ser material.</label>
+                                    <select id='cco_p4' name='cco_p4' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p4_texto' name='cco_p4_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Indicar como mínimo: elemento revisado, procedimiento realizado, resultado de la revisión y cualquier asunto o revelación cualitativa material identificada.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>5. Discusión en equipo: ¿se documentó la reunión de planificación del equipo (incluida la susceptibilidad a fraude) y cómo los asuntos planteados se reflejaron en la estrategia general y los planes de auditoría?</label>
+                                    <select id='cco_p5' name='cco_p5' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p5_texto' name='cco_p5_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la documentación de la discusión en equipo...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>6. Estrategia y plan de auditoría: ¿se documentaron la estrategia general, el plan de auditoría, los procedimientos de evaluación de riesgo realizados y los cambios significativos efectuados durante el compromiso junto con sus razones?</label>
+                                    <select id='cco_p6' name='cco_p6' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p6_texto' name='cco_p6_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la documentación de estrategia y plan de auditoría...'></textarea>
+                                </div>
+
+                            </div>
                         </div>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Carta de gerencia y representaciones</label>
-                            <textarea id='cco_q3' name='cco_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las cartas de gerencia, representaciones escritas y comunicaciones finales...'></textarea>
+                        <!-- Pestaña Evaluacion de riesgos -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_evaluacion_riesgos_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Evaluacion de riesgos<br>Riesgos de incorrección material (RIM) — ¿se documentaron y evaluaron (NIA 315.25):</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_evaluacion_riesgos_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>7. A nivel de estados financieros (riesgos y controles a nivel de entidad).</label>
+                                    <select id='cco_p7' name='cco_p7' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p7_texto' name='cco_p7_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Hacer referencia al formulario del Bloque 6 Evaluación de Riesgos de Incorrección material.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>8. A nivel de afirmación (riesgos y controles específicos por afirmación).</label>
+                                    <select id='cco_p8' name='cco_p8' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p8_texto' name='cco_p8_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la evaluación de riesgos a nivel de afirmación.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>9. Revisión de la evaluación de riesgo: ¿los RIM evaluados fueron actualizados para reflejar los cambios requeridos como resultado de los procedimientos de auditoría ejecutados?</label>
+                                    <select id='cco_p9' name='cco_p9' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p9_texto' name='cco_p9_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la evaluación actualizada y, si hubo cambios, indicar brevemente qué riesgo cambió y por qué.'></textarea>
+                                </div>
+
+                            </div>
                         </div>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Liberación del equipo y lecciones aprendidas</label>
-                            <textarea id='cco_q4' name='cco_q4' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la liberación del equipo, lecciones aprendidas y cierre administrativo...'></textarea>
+                        <!-- Pestaña Comprension de la entidad -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_comprension_entidad_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Comprensión de la entidad — los documentos de auditoría incluyen el entendimiento de</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_comprension_entidad_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>10. La estructura organizacional, titularidad, gobierno corporativo y modelo de negocio de la entidad, incluido el uso de TI.</label>
+                                    <select id='cco_p10' name='cco_p10' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p10_texto' name='cco_p10_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 4 Comprensión de la entidad y su ambiente.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>11. Los factores industriales, normativos y otros factores externos, y las medidas usadas interna y externamente para evaluar el rendimiento financiero.</label>
+                                    <select id='cco_p11' name='cco_p11' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p11_texto' name='cco_p11_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 4 Comprensión de la entidad y su ambiente.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>12. El marco de información financiera aplicable, las políticas contables de la entidad y las razones de cualquier cambio.</label>
+                                    <select id='cco_p12' name='cco_p12' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p12_texto' name='cco_p12_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 4 Comprensión de la entidad y su ambiente.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>13. Los factores de riesgo inherente y su efecto en la susceptibilidad de las afirmaciones a la incorrección.</label>
+                                    <select id='cco_p13' name='cco_p13' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p13_texto' name='cco_p13_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia a la evaluación de riesgos inherentes.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>14. El ambiente de control: la cultura, integridad y valores éticos de la gerencia y de los responsables del gobierno; la asignación de autoridad y responsabilidad; la competencia del personal; y si las deficiencias identificadas socavan los demás componentes del control interno.</label>
+                                    <select id='cco_p14' name='cco_p14' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p14_texto' name='cco_p14_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 5 Comprensión de los controles de la entidad.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>15. El proceso de la entidad para identificar, evaluar y abordar los riesgos empresariales relevantes para los objetivos de información financiera.</label>
+                                    <select id='cco_p15' name='cco_p15' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p15_texto' name='cco_p15_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al proceso de gestión de riesgos de la entidad.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>16. La supervisión del sistema de control interno: evaluaciones continuas y separadas, la función de auditoría interna (si existe) y las fuentes de información utilizadas para el monitoreo.</label>
+                                    <select id='cco_p16' name='cco_p16' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p16_texto' name='cco_p16_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 5 Comprensión de los controles de la entidad.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>17. El sistema de información y comunicación: cómo se inician, procesan e informan las transacciones y otros hechos en los estados financieros, y cómo se comunican los asuntos significativos dentro de la entidad, con los responsables del gobierno y con partes externas.</label>
+                                    <select id='cco_p17' name='cco_p17' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p17_texto' name='cco_p17_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referencia al Bloque 5 Comprensión de los controles de la entidad.'></textarea>
+                                </div>
+
+                            </div>
                         </div>
+
+                        <!-- Pestaña Riesgos de negocio y de fraude -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_riesgos_fraude_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Riesgos de negocio y de fraude — ¿se documentó</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_riesgos_fraude_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>18. Las decisiones de la discusión en equipo sobre la susceptibilidad de los estados financieros a incorrección material por fraude.</label>
+                                    <select id='cco_p18' name='cco_p18' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p18_texto' name='cco_p18_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 2 Análisis de planificación del equipo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>19. Los riesgos de incorrección material por fraude identificados y evaluados, a nivel de estados financieros y de afirmación.</label>
+                                    <select id='cco_p19' name='cco_p19' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p19_texto' name='cco_p19_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 2 Análisis de planificación del equipo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>20. Los controles identificados que aborden el riesgo de incorrección material por fraude.</label>
+                                    <select id='cco_p20' name='cco_p20' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p20_texto' name='cco_p20_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 2 Análisis de planificación del equipo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>21. Riesgos y controles: ¿se identificaron los riesgos y se documentaron los controles relacionados sobre los cuales se obtuvo comprensión?</label>
+                                    <select id='cco_p21' name='cco_p21' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p21_texto' name='cco_p21_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 2 Análisis de planificación del equipo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Respuesta al riesgo -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_respuesta_riesgo_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Respuesta al riesgo, Procedimientos y evidencia — ¿la documentación permite que un auditor experimentado, sin conexión previa, comprenda:</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_respuesta_riesgo_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>22. La naturaleza, oportunidad y alcance de los procedimientos ejecutados, vinculados a los riesgos evaluados a nivel de afirmación.</label>
+                                    <select id='cco_p22' name='cco_p22' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p22_texto' name='cco_p22_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>23. Los resultados de los procedimientos y la evidencia de auditoría obtenida, incluidas las conclusiones cuando el resultado no esté claro.</label>
+                                    <select id='cco_p23' name='cco_p23' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p23_texto' name='cco_p23_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>24. Todos los asuntos significativos surgidos, las conclusiones alcanzadas y los juicios profesionales significativos aplicados.</label>
+                                    <select id='cco_p24' name='cco_p24' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p24_texto' name='cco_p24_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>25. Identificación de quién hizo y quién revisó el trabajo: ¿la documentación indica quién realizó el trabajo y la fecha de finalización, y quién lo revisó, con fecha y alcance de la revisión?</label>
+                                    <select id='cco_p25' name='cco_p25' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p25_texto' name='cco_p25_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>26. Desviación de un requisito de la NIA: si en circunstancias excepcionales fue necesario apartarse de un requisito relevante, ¿están documentados los procedimientos alternativos y las razones?</label>
+                                    <select id='cco_p26' name='cco_p26' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p26_texto' name='cco_p26_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Respuesta al riesgo de fraude (NIA 330) -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_respuesta_riesgo_fraude_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Respuesta al riesgo de fraude (NIA 330) — ¿se documentó</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_respuesta_riesgo_fraude_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>27. Las respuestas generales al riesgo de fraude a nivel de estado financiero y su vinculación con los riesgos evaluados a nivel de afirmación.</label>
+                                    <select id='cco_p27' name='cco_p27' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p27_texto' name='cco_p27_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>28. Los resultados de los procedimientos, incluidos los diseñados para tratar el riesgo de anulación de controles por la Administración.</label>
+                                    <select id='cco_p28' name='cco_p28' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p28_texto' name='cco_p28_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>29. Las comunicaciones sobre fraude con la Administración, los responsables del gobierno, reguladores y otros.</label>
+                                    <select id='cco_p29' name='cco_p29' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p29_texto' name='cco_p29_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>30. Si aplica, cómo se superó la presunción de que el reconocimiento inadecuado de ingresos es un riesgo de fraude.</label>
+                                    <select id='cco_p30' name='cco_p30' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p30_texto' name='cco_p30_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>31. Procedimiento impredecible para tratar el riesgo de fraude: ¿se consideró o realizó?</label>
+                                    <select id='cco_p31' name='cco_p31' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p31_texto' name='cco_p31_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>32. Confianza en controles de auditorías anteriores: si se usó evidencia sobre la efectividad operativa de controles obtenida en años previos, ¿se documentaron las conclusiones sobre la confianza en dichos controles?</label>
+                                    <select id='cco_p32' name='cco_p32' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p32_texto' name='cco_p32_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al bloque 7 Respuesta de auditoría a los riesgos evaluados.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>33. Horas y presupuesto: ¿se compararon las horas reales con las presupuestadas, explicando las variaciones?</label>
+                                    <select id='cco_p33' name='cco_p33' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p33_texto' name='cco_p33_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Referenciar al PT de presupuesto de horas.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Estimaciones contables -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_estimaciones_contables_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Estimaciones contables — ¿se documentó</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_estimaciones_contables_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>34. La comprensión de los elementos clave de la entidad y los controles relacionados con las estimaciones contables.</label>
+                                    <select id='cco_p34' name='cco_p34' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p34_texto' name='cco_p34_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>35. La vinculación de los procedimientos adicionales con los riesgos evaluados a nivel de afirmación (riesgo inherente y de control).</label>
+                                    <select id='cco_p35' name='cco_p35' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p35_texto' name='cco_p35_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>36. Las respuestas cuando la Administración no tomó los pasos necesarios para tratar la incertidumbre de la estimación, los indicadores de posible sesgo, y el juicio significativo sobre la razonabilidad de las estimaciones y revelaciones.</label>
+                                    <select id='cco_p36' name='cco_p36' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p36_texto' name='cco_p36_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>37. Partes relacionadas: ¿se documentaron los nombres de las partes relacionadas identificadas y la naturaleza de las relaciones entre ellas?</label>
+                                    <select id='cco_p37' name='cco_p37' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p37_texto' name='cco_p37_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>38. Incumplimiento de leyes y reglamentos: en los casos identificados o sospechados, ¿se documentaron los procedimientos, juicios profesionales, conclusiones y resultados del análisis con la gerencia y los responsables del gobierno?</label>
+                                    <select id='cco_p38' name='cco_p38' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p38_texto' name='cco_p38_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>39. Asuntos clave de auditoría (KAM): si se incluyen en el informe, ¿se documentó la justificación de cuáles asuntos son o no son KAM, o de por qué no hay KAM que comunicar?</label>
+                                    <select id='cco_p39' name='cco_p39' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p39_texto' name='cco_p39_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Procedimientos de finalización -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_procedimientos_finalizacion_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Procedimientos de finalización</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_procedimientos_finalizacion_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>40. Concordancia con registros contables: ¿los estados financieros concuerdan o concilian con los registros contables subyacentes (auxiliares y libro mayor), incluidas las revelaciones?</label>
+                                    <select id='cco_p40' name='cco_p40' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p40_texto' name='cco_p40_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>41. Notas de revisión de archivo: ¿fueron eliminadas luego de haber clarificado las preguntas?</label>
+                                    <select id='cco_p41' name='cco_p41' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p41_texto' name='cco_p41_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Evaluación general -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_evaluacion_general_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Evaluación general — con base en los procedimientos y la evidencia obtenida</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_evaluacion_general_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>42. ¿Son las evaluaciones de riesgo todavía apropiadas, incluso cuando se identificaron indicadores de posible sesgo de la dirección?</label>
+                                    <select id='cco_p42' name='cco_p42' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p42_texto' name='cco_p42_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>43. ¿Las decisiones de la dirección sobre reconocimiento, medición, presentación y revelación están en conformidad con el marco de información financiera aplicable?</label>
+                                    <select id='cco_p43' name='cco_p43' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p43_texto' name='cco_p43_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>44. ¿Se obtuvo evidencia suficiente considerando toda la evidencia relevante, tanto corroborativa como contradictoria?</label>
+                                    <select id='cco_p44' name='cco_p44' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p44_texto' name='cco_p44_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>45. Referenciación: ¿los estados financieros y las notas se encuentran referenciados de forma adecuada a las cédulas de trabajo?</label>
+                                    <select id='cco_p45' name='cco_p45' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p45_texto' name='cco_p45_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>46. Uniformidad: ¿las políticas contables y las presunciones usadas para preparar los estados financieros son consistentes con las revelaciones?</label>
+                                    <select id='cco_p46' name='cco_p46' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p46_texto' name='cco_p46_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>47. Marco de información financiera aplicable: ¿los estados financieros contienen todas las revelaciones requeridas, considerando aspectos cualitativos y todo indicador de sesgo de la gerencia?</label>
+                                    <select id='cco_p47' name='cco_p47' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p47_texto' name='cco_p47_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Procedimientos analíticos finales -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_procedimientos_analiticos_finales_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Procedimientos analíticos finales</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_procedimientos_analiticos_finales_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>48. ¿Se diseñaron y efectuaron procedimientos analíticos cerca del final de la auditoría para concluir si los estados financieros son congruentes con el conocimiento que se tiene de la entidad?</label>
+                                    <select id='cco_p48' name='cco_p48' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p48_texto' name='cco_p48_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>49. Al identificar fluctuaciones o relaciones inconsistentes, ¿se formularon preguntas a la dirección, se obtuvo evidencia apropiada y se efectuaron otros procedimientos en la medida necesaria?</label>
+                                    <select id='cco_p49' name='cco_p49' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p49_texto' name='cco_p49_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>50. ¿Se evaluó si esos procedimientos indican un riesgo de incorrección material por fraude que no se había detectado anteriormente?</label>
+                                    <select id='cco_p50' name='cco_p50' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p50_texto' name='cco_p50_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Incorrecciones -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='var c = document.getElementById("cco_incorrecciones_content"); c.style.display = c.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = c.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Incorrecciones — ¿se documentó:</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div id='cco_incorrecciones_content' style='padding: 20px; background: white; display: block;'>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>51. El importe por debajo del cual las incorrecciones se considerarían claramente triviales.</label>
+                                    <select id='cco_p51' name='cco_p51' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p51_texto' name='cco_p51_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>52. Todas las incorrecciones acumuladas durante la auditoría y si se corrigieron.</label>
+                                    <select id='cco_p52' name='cco_p52' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p52_texto' name='cco_p52_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>53. Las conclusiones sobre si las incorrecciones no corregidas son materiales, individual o conjuntamente, y la base de esa conclusión.</label>
+                                    <select id='cco_p53' name='cco_p53' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p53_texto' name='cco_p53_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>54. ¿Se informó oportunamente a la gerencia y a los responsables del gobierno de la entidad de toda incorrección no corregida y su efecto sobre la opinión, solicitando su corrección?</label>
+                                    <select id='cco_p54' name='cco_p54' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p54_texto' name='cco_p54_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0 0 8px 0; display: block;'>55. Hechos posteriores: ¿se identificaron y trataron los hechos posteriores que pudiesen requerir ajuste o revelación en los estados financieros?</label>
+                                    <select id='cco_p55' name='cco_p55' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                    <textarea id='cco_p55_texto' name='cco_p55_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documentar referencia a la evidencia de trabajo.'></textarea>
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
                     <div class='formulario-footer' style='margin-top: 30px;'>
                         <div class='formulario-info'>
