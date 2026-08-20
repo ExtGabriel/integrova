@@ -1058,6 +1058,54 @@
                                         <button class="action-btn observations-btn" onclick="showObservations(event, 'FINALIZACION_AUDITORIA')" title="Observaciones"><i class="bi bi-flag"></i></button>
                                     </div>
                                 </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('REVISION_ANALITICA')">
+                                    <div class="form-codigo">RAU</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Revisión analítica</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'REVISION_ANALITICA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'REVISION_ANALITICA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'REVISION_ANALITICA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'REVISION_ANALITICA')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('HECHOS_POSTERIORES')">
+                                    <div class="form-codigo">HPO</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Hechos posteriores</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'HECHOS_POSTERIORES')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'HECHOS_POSTERIORES')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'HECHOS_POSTERIORES')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'HECHOS_POSTERIORES')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('CALIDAD_INFORME_AUDITORIA')">
+                                    <div class="form-codigo">CIA</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Calidad informe de auditoría</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'CALIDAD_INFORME_AUDITORIA')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'CALIDAD_INFORME_AUDITORIA')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'CALIDAD_INFORME_AUDITORIA')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'CALIDAD_INFORME_AUDITORIA')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
+                                <div class="form-item-lista" onclick="abrirFormulario('CIERRE_COMPROMISO')">
+                                    <div class="form-codigo">CCO</div>
+                                    <div class="form-info">
+                                        <div class="form-nombre">Cierre del compromiso</div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'CIERRE_COMPROMISO')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                                        <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'CIERRE_COMPROMISO')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                                        <button class="action-btn partner-btn" onclick="showPartner(event, 'CIERRE_COMPROMISO')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                                        <button class="action-btn observations-btn" onclick="showObservations(event, 'CIERRE_COMPROMISO')" title="Observaciones"><i class="bi bi-flag"></i></button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -14528,6 +14576,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 mostrarFormularioMinuta();
             } else if (formId === 'FINALIZACION_AUDITORIA') {
                 mostrarFormularioFinalizacionAuditoria();
+            } else if (formId === 'REVISION_ANALITICA') {
+                mostrarFormularioRevisionAnalitica();
+            } else if (formId === 'HECHOS_POSTERIORES') {
+                mostrarFormularioHechosPosteriores();
+            } else if (formId === 'CALIDAD_INFORME_AUDITORIA') {
+                mostrarFormularioCalidadInformeAuditoria();
+            } else if (formId === 'CIERRE_COMPROMISO') {
+                mostrarFormularioCierreCompromiso();
             } else {
                 showNotification(`Formulario ${formId} no disponible aún`, 'info');
             }
@@ -15613,6 +15669,970 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function guardarFormularioFinalizacionAuditoria() {
             showNotification('Finalización de auditoría guardada correctamente', 'success');
             cerrarFormularioFinalizacionAuditoria();
+        }
+
+        // Función para mostrar el formulario Revisión analítica
+        function mostrarFormularioRevisionAnalitica() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                        <h2 style='text-align: center; margin: 0 auto;'>Revisión analítica</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioRevisionAnalitica()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
+                            <strong>Objetivo:</strong> Documentar la conclusión global sobre si los estados financieros son congruentes con el conocimiento de la entidad, las relaciones o fluctuaciones inusuales, las investigaciones y explicaciones obtenidas, los procedimientos adicionales realizados y la conclusión final.
+                        </p>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Tendencias y fluctuaciones identificadas</label>
+                            <textarea id='rev_q1' name='rev_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las relaciones o fluctuaciones inusuales identificadas...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Investigaciones, explicaciones y evidencia corroborativa</label>
+                            <textarea id='rev_q2' name='rev_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las indagaciones realizadas, explicaciones de la gerencia y evidencia corroborativa...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Procedimientos adicionales y conclusión</label>
+                            <textarea id='rev_q3' name='rev_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente los procedimientos adicionales realizados cuando persistieron inconsistencias y la conclusión final...'></textarea>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario RAU - Revisión analítica
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioRevisionAnalitica()'>
+                                Cerrar
+                            </button>
+                            <button class='btn-guardar' onclick='guardarFormularioRevisionAnalitica()'>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Revisión analítica
+        function cerrarFormularioRevisionAnalitica() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario Revisión analítica
+        function guardarFormularioRevisionAnalitica() {
+            showNotification('Revisión analítica guardada correctamente', 'success');
+            cerrarFormularioRevisionAnalitica();
+        }
+
+        // Función para mostrar el formulario Hechos posteriores
+        function mostrarFormularioHechosPosteriores() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                        <h2 style='text-align: center; margin: 0 auto;'>Hechos posteriores</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioHechosPosteriores()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+
+                        <!-- Pestaña Hechos posteriores -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Hechos posteriores</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>1. Fecha de cierre de los estados financieros</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_fecha_cierre_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_fecha_cierre_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Indicar la fecha de cierre del período auditado.
+                                    </div>
+                                    <input type='date' id='hpo_fecha_cierre' name='hpo_fecha_cierre' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>2. Fecha de aprobación de los estados financieros por la administración</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_fecha_aprobacion_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_fecha_aprobacion_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Fecha en que los responsables del gobierno de la entidad aprobaron los estados financieros.
+                                    </div>
+                                    <input type='date' id='hpo_fecha_aprobacion' name='hpo_fecha_aprobacion' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>3. Fecha del informe de auditoría</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_fecha_informe_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_fecha_informe_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Fecha prevista de emisión del informe del auditor.
+                                    </div>
+                                    <input type='date' id='hpo_fecha_informe' name='hpo_fecha_informe' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Procedimientos de identificación -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Procedimientos de identificación</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>4. ¿Se revisaron actas de asamblea, junta directiva o reuniones posteriores al cierre?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q4_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q4_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia cruzada al papel de trabajo donde se documentó la revisión de actas.
+                                    </div>
+                                    <select id='hpo_q4' name='hpo_q4' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>5. ¿Existen reuniones celebradas cuyas actas aún no están disponibles?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q5_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q5_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Obtener borrador si es posible y consultar la fecha prevista de disponibilidad del acta definitiva y el procedimiento alternativo aplicado (p. ej. consulta a secretario...).
+                                    </div>
+                                    <select id='hpo_q5' name='hpo_q5' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q5_texto' name='hpo_q5_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>6. ¿Se revisaron registros contables posteriores al cierre?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q6_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q6_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia cruzada al papel de trabajo o el rango de fechas de los registros revisados.
+                                    </div>
+                                    <select id='hpo_q6' name='hpo_q6' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>7. ¿Se revisaron estados financieros internos, presupuestos o proyecciones actualizadas?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q7_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q7_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia cruzada al papel de trabajo o el período que cubren los estados financieros internos revisados.
+                                    </div>
+                                    <select id='hpo_q7' name='hpo_q7' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>8. ¿Se realizaron consultas a la administración y, en su caso, a los encargados del gobierno corporativo sobre hechos posteriores?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q8_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q8_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Indicar con quién se realizaron las consultas, su cargo, la fecha y documentar la información obtenida.
+                                    </div>
+                                    <select id='hpo_q8' name='hpo_q8' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q8_texto' name='hpo_q8_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Eventos específicos a investigar -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Eventos específicos a investigar</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>9. ¿Se adquirieron nuevos préstamos, garantías o compromisos significativos después del cierre?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q9_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q9_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir generalidades: banco, monto, destino, garantía, plazo, tasa de interés anual, contraparte y otras condiciones relevantes.
+                                    </div>
+                                    <select id='hpo_q9' name='hpo_q9' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q9_texto' name='hpo_q9_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>10. ¿Se realizaron ventas o adquisiciones significativas de activos?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q10_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q10_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el activo, monto de la transacción y contraparte.
+                                    </div>
+                                    <select id='hpo_q10' name='hpo_q10' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q10_texto' name='hpo_q10_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>11. ¿Hubo aumentos o reducciones de capital o cambios patrimoniales?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q11_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q11_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el movimiento patrimonial y su fecha de efecto.
+                                    </div>
+                                    <select id='hpo_q11' name='hpo_q11' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q11_texto' name='hpo_q11_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>12. ¿Se identificaron litigios, reclamaciones o contingencias nuevas?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q12_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q12_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir la naturaleza del litigio o reclamo y la estimación preliminar de exposición, si existe.
+                                    </div>
+                                    <select id='hpo_q12' name='hpo_q12' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q12_texto' name='hpo_q12_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>13. ¿Se produjeron daños, pérdidas o deterioros significativos en activos?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q13_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q13_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el activo afectado, la causa y el impacto estimado.
+                                    </div>
+                                    <select id='hpo_q13' name='hpo_q13' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q13_texto' name='hpo_q13_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>14. ¿Se registraron o planificaron ajustes contables inusuales?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q14_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q14_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir la naturaleza del ajuste y la cuenta contable afectada.
+                                    </div>
+                                    <select id='hpo_q14' name='hpo_q14' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q14_texto' name='hpo_q14_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>15. ¿Existen hechos que cuestionen la adecuación de las políticas contables aplicadas?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q15_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q15_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el hecho y la política contable potencialmente afectada.
+                                    </div>
+                                    <select id='hpo_q15' name='hpo_q15' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q15_texto' name='hpo_q15_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>16. ¿Existen hechos relevantes para estimaciones contables o provisiones reconocidas al cierre?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q16_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q16_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir cómo el hecho posterior confirma o modifica la estimación o provisión registrada.
+                                    </div>
+                                    <select id='hpo_q16' name='hpo_q16' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q16_texto' name='hpo_q16_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>17. ¿Existen hechos relevantes para la recuperación de activos (deterioro)?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q17_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q17_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el activo y el indicio de deterioro identificado después del cierre.
+                                    </div>
+                                    <select id='hpo_q17' name='hpo_q17' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q17_texto' name='hpo_q17_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>18. ¿Existen hechos que afecten la hipótesis de negocio en marcha?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q18_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q18_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Evaluar si el hecho posterior genera duda significativa sobre la capacidad de la entidad para continuar como negocio en marcha (NIA 570).
+                                    </div>
+                                    <select id='hpo_q18' name='hpo_q18' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q18_texto' name='hpo_q18_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Evaluación de hechos identificados -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Evaluación de hechos identificados</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>19. ¿Se identificaron hechos posteriores durante la revisión?</label>
+                                    </div>
+                                    <select id='hpo_q19' name='hpo_q19' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>20. Descripción del hecho posterior identificado</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q20_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q20_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el evento, la fecha de ocurrencia y las circunstancias relevantes.
+                                    </div>
+                                    <textarea id='hpo_q20' name='hpo_q20' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>21. Clasificación del hecho posterior</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q21_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q21_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Evento que requiere ajuste / Evento que requiere revelación / Sin impacto.
+                                    </div>
+                                    <select id='hpo_q21' name='hpo_q21' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='ajuste'>Evento que requiere ajuste</option>
+                                        <option value='revelacion'>Evento que requiere revelación</option>
+                                        <option value='sin_impacto'>Sin impacto</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>22. ¿El hecho posterior es material?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q22_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q22_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Justificar la conclusión de materialidad considerando el impacto cuantitativo (frente a la materialidad de desempeño) y cualitativo.
+                                    </div>
+                                    <select id='hpo_q22' name='hpo_q22' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q22_texto' name='hpo_q22_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Justificar...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>23. ¿La administración realizó el ajuste o revelación correspondiente?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q23_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q23_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Indicar la nota a los estados financieros o el asiento de ajuste correspondiente.
+                                    </div>
+                                    <select id='hpo_q23' name='hpo_q23' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>24. Conclusión sobre el tratamiento del hecho posterior</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q24_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q24_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Concluir si el tratamiento contable (ajuste, revelación o ninguno) es adecuado conforme al marco de información financiera aplicable.
+                                    </div>
+                                    <textarea id='hpo_q24' name='hpo_q24' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Concluya...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Manifestaciones escritas -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Manifestaciones escritas</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>25. ¿La carta de representación incluye la manifestación de la gerencia sobre hechos posteriores?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q25_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q25_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Referencia cruzada al papel de trabajo donde se encuentra la carta de representación.
+                                    </div>
+                                    <select id='hpo_q25' name='hpo_q25' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Hechos identificados entre la fecha del informe y la fecha de emisión de los estados financieros -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Hechos identificados entre la fecha del informe y la fecha de emisión de los estados financieros</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>26. ¿Se conocieron hechos posteriores entre la fecha del informe del auditor y la fecha de emisión de los estados financieros?</label>
+                                    </div>
+                                    <select id='hpo_q26' name='hpo_q26' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                        <option value='na'>N.A.</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>27. Descripción del hecho identificado</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q27_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q27_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el evento, la fecha en que se tuvo conocimiento y sus circunstancias.
+                                    </div>
+                                    <textarea id='hpo_q27' name='hpo_q27' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>28. ¿Fue necesario modificar los estados financieros y/o el informe del auditor?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q28_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q28_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir la modificación realizada y la nueva fecha del informe (NIA 560.13).
+                                    </div>
+                                    <select id='hpo_q28' name='hpo_q28' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q28_texto' name='hpo_q28_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Hechos descubiertos después de que los estados financieros fueron emitidos -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Hechos descubiertos después de que los estados financieros fueron emitidos</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>29. ¿Se conocieron hechos posteriores después de que los estados financieros fueron emitidos o puestos a disposición de terceros?</label>
+                                    </div>
+                                    <select id='hpo_q29' name='hpo_q29' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>30. Descripción del hecho identificado</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q30_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q30_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir el evento, la fecha en que se tuvo conocimiento y sus circunstancias.
+                                    </div>
+                                    <textarea id='hpo_q30' name='hpo_q30' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Especifique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>31. ¿La gerencia revisó si los estados financieros requieren modificación?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q31_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q31_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Indicar el resultado de la revisión de la gerencia (NIA 560.14).
+                                    </div>
+                                    <select id='hpo_q31' name='hpo_q31' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q31_texto' name='hpo_q31_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Indique...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>32. ¿Fue necesario modificar y reemitir los estados financieros y el informe de auditoría?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q32_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q32_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir la modificación, la nueva fecha del informe y cómo se comunicó a los usuarios (NIA 560.15-16).
+                                    </div>
+                                    <select id='hpo_q32' name='hpo_q32' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box; margin-bottom: 10px;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                    <textarea id='hpo_q32_texto' name='hpo_q32_texto' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Describa...'></textarea>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>33. Si la gerencia no adoptó las medidas necesarias, ¿qué acciones tomó el auditor para evitar que terceros confíen en el informe emitido?</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q33_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q33_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Describir las medidas tomadas por el auditor para impedir que se siga confiando en el informe (NIA 560.17).
+                                    </div>
+                                    <textarea id='hpo_q33' name='hpo_q33' rows='3' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Describa las acciones...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Conclusión -->
+                        <div style='margin-top: 24px; margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px;'>
+                            <div style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 12px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;' onclick='this.nextElementSibling.style.display = this.nextElementSibling.style.display === "none" ? "block" : "none"; this.querySelector("i").style.transform = this.nextElementSibling.style.display === "none" ? "rotate(-90deg)" : "rotate(0deg)";'>
+                                <h3 style='margin: 0; font-size: 1.05rem; font-weight: 600;'>Conclusión</h3>
+                                <i class='bi bi-chevron-down' style='transition: transform 0.3s ease;'></i>
+                            </div>
+                            <div style='padding: 20px; background: white; display: block;'>
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>¿Los hechos posteriores identificados fueron adecuada y oportunamente ajustados o revelados en los estados financieros?</label>
+                                    </div>
+                                    <select id='hpo_q34' name='hpo_q34' style='width: 100%; padding: 10px 14px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; box-sizing: border-box;'>
+                                        <option value=''>-- Seleccione --</option>
+                                        <option value='si'>Sí</option>
+                                        <option value='no'>No</option>
+                                    </select>
+                                </div>
+
+                                <div style='margin-bottom: 20px;'>
+                                    <div style='display: flex; align-items: center; gap: 8px; margin-bottom: 8px;'>
+                                        <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0;'>Conclusión general sobre hechos posteriores</label>
+                                        <button type='button' onclick='toggleTooltip("hpo_q35_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
+                                            <i class='bi bi-lightbulb'></i>
+                                        </button>
+                                    </div>
+                                    <div id='hpo_q35_help' style='display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;'>
+                                        Concluir si se obtuvo evidencia de auditoría suficiente y adecuada respecto de los hechos ocurridos entre la fecha de cierre y la fecha del informe, y si se identificó algún hecho que requiera actuación adicional.
+                                    </div>
+                                    <textarea id='hpo_q35' name='hpo_q35' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Concluya...'></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; display: flex; align-items: center; justify-content: space-between;'>
+                            <div id='aprobado-hpo' style='font-size: 0.85rem; color: #64748b;'></div>
+                            <button type='button' onclick='aprobarFormularioHechosPosteriores(this)' style='background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;'>
+                                <i class='bi bi-check-circle'></i> Aprobar
+                            </button>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario HPO - Hechos posteriores
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioHechosPosteriores()'>
+                                Cerrar
+                            </button>
+                            <button class='btn-guardar' onclick='guardarFormularioHechosPosteriores()'>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Hechos posteriores
+        function cerrarFormularioHechosPosteriores() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario Hechos posteriores
+        function guardarFormularioHechosPosteriores() {
+            showNotification('Hechos posteriores guardados correctamente', 'success');
+            cerrarFormularioHechosPosteriores();
+        }
+
+        // Función para aprobar el formulario Hechos posteriores
+        function aprobarFormularioHechosPosteriores(boton) {
+            let usuarioActual = null;
+            if (window.getUserUI) {
+                const userUI = window.getUserUI();
+                if (userUI) {
+                    usuarioActual = userUI.nombre || userUI.name || userUI.email || 'Usuario';
+                }
+            }
+            if (!usuarioActual && window.currentUser) {
+                usuarioActual = window.currentUser.nombre || window.currentUser.name || window.currentUser.email || 'Usuario';
+            }
+            if (!usuarioActual) {
+                usuarioActual = 'Usuario';
+            }
+            const fechaActual = new Date().toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            let aprobaciones = JSON.parse(localStorage.getItem('hechos_posteriores_aprobaciones') || '{}');
+            if (aprobaciones['hpo']) {
+                delete aprobaciones['hpo'];
+                localStorage.setItem('hechos_posteriores_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-hpo');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = '';
+                    aprobadoDiv.style.color = '#64748b';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle"></i> Aprobar';
+                    boton.style.background = 'linear-gradient(135deg, #1e3a8a, #2563eb)';
+                }
+                showNotification('Aprobación cancelada', 'info');
+            } else {
+                aprobaciones['hpo'] = {
+                    aprobado: true,
+                    usuario: usuarioActual,
+                    fecha: new Date().toISOString()
+                };
+                localStorage.setItem('hechos_posteriores_aprobaciones', JSON.stringify(aprobaciones));
+                const aprobadoDiv = document.getElementById('aprobado-hpo');
+                if (aprobadoDiv) {
+                    aprobadoDiv.innerHTML = `<i class="bi bi-check-circle-fill" style="color: #10b981;"></i> <span style="color: #000000;">Aprobado por ${usuarioActual} el ${fechaActual}</span>`;
+                    aprobadoDiv.style.color = '#000000';
+                }
+                if (boton) {
+                    boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> Aprobado';
+                    boton.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                }
+                showNotification('Hechos posteriores aprobados correctamente', 'success');
+            }
+        }
+
+        // Función para mostrar el formulario Calidad informe de auditoría
+        function mostrarFormularioCalidadInformeAuditoria() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                        <h2 style='text-align: center; margin: 0 auto;'>Calidad informe de auditoría</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioCalidadInformeAuditoria()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
+                            <strong>Objetivo:</strong> Documentar el cumplimiento de las normas de calidad aplicables al informe de auditoría, las revisiones realizadas sobre el trabajo de auditoría, el informe y los estados financieros, así como la conclusión sobre la calidad del producto final.
+                        </p>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Cumplimiento de normas de calidad</label>
+                            <textarea id='cia_q1' name='cia_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente el cumplimiento de NIA 220, NIA 230, NIA 700, NIA 705 y otras normas aplicables...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Revisión del trabajo de auditoría</label>
+                            <textarea id='cia_q2' name='cia_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la revisión del trabajo realizado, cuestiones clave tratadas y resolución de dudas...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Revisión del informe y estados financieros</label>
+                            <textarea id='cia_q3' name='cia_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la revisión del borrador del informe, estados financieros y revelaciones...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Conclusión sobre calidad</label>
+                            <textarea id='cia_q4' name='cia_q4' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la conclusión sobre la calidad del informe de auditoría...'></textarea>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario CIA - Calidad informe de auditoría
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioCalidadInformeAuditoria()'>
+                                Cerrar
+                            </button>
+                            <button class='btn-guardar' onclick='guardarFormularioCalidadInformeAuditoria()'>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Calidad informe de auditoría
+        function cerrarFormularioCalidadInformeAuditoria() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario Calidad informe de auditoría
+        function guardarFormularioCalidadInformeAuditoria() {
+            showNotification('Calidad informe de auditoría guardado correctamente', 'success');
+            cerrarFormularioCalidadInformeAuditoria();
+        }
+
+        // Función para mostrar el formulario Cierre del compromiso
+        function mostrarFormularioCierreCompromiso() {
+            const modalExistente = document.querySelector('.formulario-modal');
+            if (modalExistente) document.body.removeChild(modalExistente);
+            const modal = document.createElement('div');
+            modal.className = 'formulario-modal';
+            modal.innerHTML = `
+                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                    <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
+                        <h2 style='text-align: center; margin: 0 auto;'>Cierre del compromiso</h2>
+                        <button class='btn-cerrar' onclick='cerrarFormularioCierreCompromiso()'>
+                            <i class='bi bi-x-lg'></i>
+                        </button>
+                    </div>
+                    <div class='formulario-body' style='padding: 20px;'>
+                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
+                            <strong>Objetivo:</strong> Documentar las actividades necesarias para cerrar el compromiso de auditoría, incluyendo la conclusión y opinión, la documentación archivada, la carta de gerencia y la liberación del equipo.
+                        </p>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Conclusiones y opinión</label>
+                            <textarea id='cco_q1' name='cco_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las conclusiones alcanzadas, la opinión a emitir y su fundamento...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Documentación archivada</label>
+                            <textarea id='cco_q2' name='cco_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente el archivo final del encargo, expediente completo y retención según política...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Carta de gerencia y representaciones</label>
+                            <textarea id='cco_q3' name='cco_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las cartas de gerencia, representaciones escritas y comunicaciones finales...'></textarea>
+                        </div>
+
+                        <div style='margin-bottom: 20px;'>
+                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Liberación del equipo y lecciones aprendidas</label>
+                            <textarea id='cco_q4' name='cco_q4' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente la liberación del equipo, lecciones aprendidas y cierre administrativo...'></textarea>
+                        </div>
+                    </div>
+                    <div class='formulario-footer' style='margin-top: 30px;'>
+                        <div class='formulario-info'>
+                            Formulario CCO - Cierre del compromiso
+                        </div>
+                        <div class='formulario-acciones' style='display: flex; gap: 10px;'>
+                            <button class='btn-formulario btn-cancelar' onclick='cerrarFormularioCierreCompromiso()'>
+                                Cerrar
+                            </button>
+                            <button class='btn-guardar' onclick='guardarFormularioCierreCompromiso()'>
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.offsetHeight;
+            modal.classList.add('show');
+        }
+
+        // Función para cerrar el formulario Cierre del compromiso
+        function cerrarFormularioCierreCompromiso() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
+        // Función para guardar el formulario Cierre del compromiso
+        function guardarFormularioCierreCompromiso() {
+            showNotification('Cierre del compromiso guardado correctamente', 'success');
+            cerrarFormularioCierreCompromiso();
         }
 
         // Función para mostrar el formulario B400
