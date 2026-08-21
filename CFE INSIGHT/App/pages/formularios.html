@@ -15678,7 +15678,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modal = document.createElement('div');
             modal.className = 'formulario-modal';
             modal.innerHTML = `
-                <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
+                <div class='formulario-modal-content' style='max-width: 1200px; width: 95%;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
                         <h2 style='text-align: center; margin: 0 auto;'>Revisión analítica</h2>
                         <button class='btn-cerrar' onclick='cerrarFormularioRevisionAnalitica()'>
@@ -15686,23 +15686,476 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         </button>
                     </div>
                     <div class='formulario-body' style='padding: 20px;'>
-                        <p style='margin-bottom: 20px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
-                            <strong>Objetivo:</strong> Documentar la conclusión global sobre si los estados financieros son congruentes con el conocimiento de la entidad, las relaciones o fluctuaciones inusuales, las investigaciones y explicaciones obtenidas, los procedimientos adicionales realizados y la conclusión final.
+                        <p style='margin-bottom: 16px; font-size: 0.9rem; color: #37474F; line-height: 1.5;'>
+                            Utilice la siguiente tabla para documentar la revisión analítica comparativa de los estados financieros.
                         </p>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Tendencias y fluctuaciones identificadas</label>
-                            <textarea id='rev_q1' name='rev_q1' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las relaciones o fluctuaciones inusuales identificadas...'></textarea>
-                        </div>
+                        <div style='overflow-x: auto;'>
+                            <table style='width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #37474F;'>
+                                <thead>
+                                    <tr>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: left; min-width: 220px;'>Descripción</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Saldos al<br>(Año 1)</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Análisis<br>vertical</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Saldos al<br>(Año 2)</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Análisis<br>vertical</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Variación</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: center; min-width: 110px;'>Relación<br>porcentual</th>
+                                        <th style='border: 1px solid #e0e0e0; background: #f5f5f5; padding: 8px; text-align: left; min-width: 220px;'>Comentario sobre variación significativa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan='8' style='background: #1565C0; color: white; font-weight: 600; padding: 8px 10px; text-align: left;'>ACTIVO</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>Corriente</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Efectivo y equivalentes de efectivo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_saldo1' name='rau_efectivo_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_av1' name='rau_efectivo_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_saldo2' name='rau_efectivo_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_av2' name='rau_efectivo_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_var' name='rau_efectivo_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'>
+                                            <input id='rau_efectivo_rel' name='rau_efectivo_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'>
+                                        </td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'>
+                                            <input id='rau_efectivo_coment' name='rau_efectivo_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Cuentas por cobrar clientes</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_saldo1' name='rau_cxc_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_av1' name='rau_cxc_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_saldo2' name='rau_cxc_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_av2' name='rau_cxc_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_var' name='rau_cxc_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxc_rel' name='rau_cxc_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_cxc_coment' name='rau_cxc_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Cuentas por cobrar partes relacionadas</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_saldo1' name='rau_cxp_rel_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_av1' name='rau_cxp_rel_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_saldo2' name='rau_cxp_rel_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_av2' name='rau_cxp_rel_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_var' name='rau_cxp_rel_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cxp_rel_rel' name='rau_cxp_rel_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_cxp_rel_coment' name='rau_cxp_rel_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Inventarios</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_saldo1' name='rau_inv_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_av1' name='rau_inv_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_saldo2' name='rau_inv_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_av2' name='rau_inv_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_var' name='rau_inv_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_rel' name='rau_inv_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_inv_coment' name='rau_inv_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Gastos pagados por anticipado</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_saldo1' name='rau_ppa_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_av1' name='rau_ppa_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_saldo2' name='rau_ppa_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_av2' name='rau_ppa_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_var' name='rau_ppa_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppa_rel' name='rau_ppa_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ppa_coment' name='rau_ppa_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Otros activos corrientes</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_saldo1' name='rau_otros_corr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_av1' name='rau_otros_corr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_saldo2' name='rau_otros_corr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_av2' name='rau_otros_corr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_var' name='rau_otros_corr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_corr_rel' name='rau_otros_corr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_otros_corr_coment' name='rau_otros_corr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Total activos corrientes</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_saldo1' name='rau_total_corr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_av1' name='rau_total_corr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_saldo2' name='rau_total_corr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_av2' name='rau_total_corr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_var' name='rau_total_corr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_corr_rel' name='rau_total_corr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_corr_coment' name='rau_total_corr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Investigaciones, explicaciones y evidencia corroborativa</label>
-                            <textarea id='rev_q2' name='rev_q2' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente las indagaciones realizadas, explicaciones de la gerencia y evidencia corroborativa...'></textarea>
-                        </div>
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>No corriente</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Propiedad, planta y equipo, neto</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_saldo1' name='rau_ppe_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_av1' name='rau_ppe_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_saldo2' name='rau_ppe_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_av2' name='rau_ppe_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_var' name='rau_ppe_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ppe_rel' name='rau_ppe_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ppe_coment' name='rau_ppe_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Activos intangibles, neto</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_saldo1' name='rau_intang_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_av1' name='rau_intang_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_saldo2' name='rau_intang_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_av2' name='rau_intang_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_var' name='rau_intang_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_intang_rel' name='rau_intang_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_intang_coment' name='rau_intang_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Inversiones a largo plazo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_saldo1' name='rau_inv_lp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_av1' name='rau_inv_lp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_saldo2' name='rau_inv_lp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_av2' name='rau_inv_lp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_var' name='rau_inv_lp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_inv_lp_rel' name='rau_inv_lp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_inv_lp_coment' name='rau_inv_lp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Otros activos no corrientes</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_saldo1' name='rau_otros_nc_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_av1' name='rau_otros_nc_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_saldo2' name='rau_otros_nc_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_av2' name='rau_otros_nc_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_var' name='rau_otros_nc_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_otros_nc_rel' name='rau_otros_nc_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_otros_nc_coment' name='rau_otros_nc_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Total activos no corrientes</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_saldo1' name='rau_total_nc_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_av1' name='rau_total_nc_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_saldo2' name='rau_total_nc_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_av2' name='rau_total_nc_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_var' name='rau_total_nc_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_nc_rel' name='rau_total_nc_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_nc_coment' name='rau_total_nc_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
 
-                        <div style='margin-bottom: 20px;'>
-                            <label style='color: #37474F; font-weight: 500; font-size: 0.95rem; margin: 0; display: block; margin-bottom: 8px;'>Procedimientos adicionales y conclusión</label>
-                            <textarea id='rev_q3' name='rev_q3' rows='4' style='width: 100%; padding: 12px 16px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 0.9rem; color: #495057; background: white; resize: vertical; transition: all 0.3s ease; box-sizing: border-box;' placeholder='Documente los procedimientos adicionales realizados cuando persistieron inconsistencias y la conclusión final...'></textarea>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 700;'>Total activo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_saldo1' name='rau_total_activo_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_av1' name='rau_total_activo_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_saldo2' name='rau_total_activo_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_av2' name='rau_total_activo_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_var' name='rau_total_activo_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_activo_rel' name='rau_total_activo_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_activo_coment' name='rau_total_activo_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='background: #1565C0; color: white; font-weight: 600; padding: 8px 10px; text-align: left;'>PASIVO Y PATRIMONIO</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>Corriente</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Proveedores</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_saldo1' name='rau_prov_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_av1' name='rau_prov_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_saldo2' name='rau_prov_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_av2' name='rau_prov_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_var' name='rau_prov_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_rel' name='rau_prov_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_prov_coment' name='rau_prov_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Cuentas por pagar partes relacionadas</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_saldo1' name='rau_cpp_rel_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_av1' name='rau_cpp_rel_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_saldo2' name='rau_cpp_rel_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_av2' name='rau_cpp_rel_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_var' name='rau_cpp_rel_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_rel_rel' name='rau_cpp_rel_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_cpp_rel_coment' name='rau_cpp_rel_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Otras cuentas por pagar</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_saldo1' name='rau_ocp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_av1' name='rau_ocp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_saldo2' name='rau_ocp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_av2' name='rau_ocp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_var' name='rau_ocp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ocp_rel' name='rau_ocp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ocp_coment' name='rau_ocp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Porción corriente de préstamos bancarios</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_saldo1' name='rau_pcpb_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_av1' name='rau_pcpb_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_saldo2' name='rau_pcpb_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_av2' name='rau_pcpb_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_var' name='rau_pcpb_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pcpb_rel' name='rau_pcpb_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_pcpb_coment' name='rau_pcpb_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Provisiones a corto plazo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_saldo1' name='rau_prov_cp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_av1' name='rau_prov_cp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_saldo2' name='rau_prov_cp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_av2' name='rau_prov_cp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_var' name='rau_prov_cp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_prov_cp_rel' name='rau_prov_cp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_prov_cp_coment' name='rau_prov_cp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Total pasivo corriente</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_saldo1' name='rau_total_pasivo_corr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_av1' name='rau_total_pasivo_corr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_saldo2' name='rau_total_pasivo_corr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_av2' name='rau_total_pasivo_corr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_var' name='rau_total_pasivo_corr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_corr_rel' name='rau_total_pasivo_corr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_pasivo_corr_coment' name='rau_total_pasivo_corr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>No corriente</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Préstamos bancarios a largo plazo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_saldo1' name='rau_pblp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_av1' name='rau_pblp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_saldo2' name='rau_pblp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_av2' name='rau_pblp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_var' name='rau_pblp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_pblp_rel' name='rau_pblp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_pblp_coment' name='rau_pblp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Cuentas por pagar partes relacionadas L.P.</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_saldo1' name='rau_cpp_lp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_av1' name='rau_cpp_lp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_saldo2' name='rau_cpp_lp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_av2' name='rau_cpp_lp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_var' name='rau_cpp_lp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_cpp_lp_rel' name='rau_cpp_lp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_cpp_lp_coment' name='rau_cpp_lp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Indemnizaciones laborales</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_saldo1' name='rau_indem_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_av1' name='rau_indem_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_saldo2' name='rau_indem_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_av2' name='rau_indem_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_var' name='rau_indem_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_indem_rel' name='rau_indem_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_indem_coment' name='rau_indem_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Total pasivo</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_saldo1' name='rau_total_pasivo_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_av1' name='rau_total_pasivo_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_saldo2' name='rau_total_pasivo_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_av2' name='rau_total_pasivo_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_var' name='rau_total_pasivo_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pasivo_rel' name='rau_total_pasivo_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_pasivo_coment' name='rau_total_pasivo_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>PATRIMONIO</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Capital social pagado</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_saldo1' name='rau_capital_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_av1' name='rau_capital_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_saldo2' name='rau_capital_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_av2' name='rau_capital_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_var' name='rau_capital_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_capital_rel' name='rau_capital_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_capital_coment' name='rau_capital_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Reservas</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_saldo1' name='rau_reservas_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_av1' name='rau_reservas_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_saldo2' name='rau_reservas_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_av2' name='rau_reservas_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_var' name='rau_reservas_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_reservas_rel' name='rau_reservas_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_reservas_coment' name='rau_reservas_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Utilidades retenidas / (déficit acumulado)</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_saldo1' name='rau_ret_acc_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_av1' name='rau_ret_acc_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_saldo2' name='rau_ret_acc_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_av2' name='rau_ret_acc_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_var' name='rau_ret_acc_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ret_acc_rel' name='rau_ret_acc_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ret_acc_coment' name='rau_ret_acc_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Utilidad (pérdida) del ejercicio</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_saldo1' name='rau_util_ej_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_av1' name='rau_util_ej_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_saldo2' name='rau_util_ej_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_av2' name='rau_util_ej_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_var' name='rau_util_ej_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_util_ej_rel' name='rau_util_ej_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_util_ej_coment' name='rau_util_ej_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Total patrimonio</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_saldo1' name='rau_total_patr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_av1' name='rau_total_patr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_saldo2' name='rau_total_patr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_av2' name='rau_total_patr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_var' name='rau_total_patr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_patr_rel' name='rau_total_patr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_patr_coment' name='rau_total_patr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 700;'>Total pasivo y patrimonio</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_saldo1' name='rau_total_pyp_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_av1' name='rau_total_pyp_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_saldo2' name='rau_total_pyp_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_av2' name='rau_total_pyp_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_var' name='rau_total_pyp_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_total_pyp_rel' name='rau_total_pyp_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_total_pyp_coment' name='rau_total_pyp_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='background: #1565C0; color: white; font-weight: 600; padding: 8px 10px; text-align: left;'>ESTADO DE RESULTADOS</td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>INGRESOS Y COSTOS</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Ventas / Ingresos</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_saldo1' name='rau_ventas_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_av1' name='rau_ventas_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_saldo2' name='rau_ventas_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_av2' name='rau_ventas_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_var' name='rau_ventas_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ventas_rel' name='rau_ventas_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ventas_coment' name='rau_ventas_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Costo de ventas</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_saldo1' name='rau_costo_ventas_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_av1' name='rau_costo_ventas_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_saldo2' name='rau_costo_ventas_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_av2' name='rau_costo_ventas_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_var' name='rau_costo_ventas_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_costo_ventas_rel' name='rau_costo_ventas_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_costo_ventas_coment' name='rau_costo_ventas_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Utilidad bruta</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_saldo1' name='rau_ut_bruta_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_av1' name='rau_ut_bruta_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_saldo2' name='rau_ut_bruta_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_av2' name='rau_ut_bruta_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_var' name='rau_ut_bruta_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_bruta_rel' name='rau_ut_bruta_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ut_bruta_coment' name='rau_ut_bruta_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>GASTOS DE OPERACIÓN</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Gastos de administración</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_saldo1' name='rau_gastos_admin_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_av1' name='rau_gastos_admin_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_saldo2' name='rau_gastos_admin_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_av2' name='rau_gastos_admin_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_var' name='rau_gastos_admin_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_admin_rel' name='rau_gastos_admin_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_gastos_admin_coment' name='rau_gastos_admin_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Gastos de ventas</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_saldo1' name='rau_gastos_ventas_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_av1' name='rau_gastos_ventas_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_saldo2' name='rau_gastos_ventas_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_av2' name='rau_gastos_ventas_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_var' name='rau_gastos_ventas_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_ventas_rel' name='rau_gastos_ventas_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_gastos_ventas_coment' name='rau_gastos_ventas_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Utilidad de operación</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_saldo1' name='rau_ut_oper_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_av1' name='rau_ut_oper_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_saldo2' name='rau_ut_oper_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_av2' name='rau_ut_oper_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_var' name='rau_ut_oper_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_oper_rel' name='rau_ut_oper_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ut_oper_coment' name='rau_ut_oper_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                    <tr>
+                                        <td colspan='8' style='border: 1px solid #e0e0e0; background: #e3f2fd; font-weight: 600; padding: 8px 10px; text-align: left;'>OTROS INGRESOS Y GASTOS FINANCIEROS</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Gastos financieros, neto</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_saldo1' name='rau_gastos_fin_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_av1' name='rau_gastos_fin_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_saldo2' name='rau_gastos_fin_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_av2' name='rau_gastos_fin_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_var' name='rau_gastos_fin_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_gastos_fin_rel' name='rau_gastos_fin_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_gastos_fin_coment' name='rau_gastos_fin_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Resultado antes del impuesto sobre la renta</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_saldo1' name='rau_res_ant_isr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_av1' name='rau_res_ant_isr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_saldo2' name='rau_res_ant_isr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_av2' name='rau_res_ant_isr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_var' name='rau_res_ant_isr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_res_ant_isr_rel' name='rau_res_ant_isr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_res_ant_isr_coment' name='rau_res_ant_isr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px;'>Impuesto sobre la renta</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_saldo1' name='rau_isr_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_av1' name='rau_isr_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_saldo2' name='rau_isr_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_av2' name='rau_isr_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_var' name='rau_isr_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_isr_rel' name='rau_isr_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_isr_coment' name='rau_isr_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+                                    <tr>
+                                        <td style='border: 1px solid #e0e0e0; padding: 6px 8px; font-weight: 600;'>Utilidad (pérdida) neta del ejercicio</td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_saldo1' name='rau_ut_neta_saldo1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_av1' name='rau_ut_neta_av1' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_saldo2' name='rau_ut_neta_saldo2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_av2' name='rau_ut_neta_av2' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_var' name='rau_ut_neta_var' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px;'><input id='rau_ut_neta_rel' name='rau_ut_neta_rel' type='text' style='width: 100%; border: none; outline: none; background: transparent; text-align: right;'></td>
+                                        <td style='border: 1px solid #e0e0e0; padding: 4px 6px;'><input id='rau_ut_neta_coment' name='rau_ut_neta_coment' type='text' style='width: 100%; border: none; outline: none; background: transparent;'></td>
+                                    </tr>
+
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     <div class='formulario-footer' style='margin-top: 30px;'>
