@@ -1112,7 +1112,7 @@
                 </div>
 
                 <!-- Categoría: Evaluación de riesgo -->
-                <div class="categoria-section">
+                <div class="categoria-section" style="display: none;">
                     <div class="categoria-header" onclick="toggleCategoriaDropdown('evaluacion')">
                         <h3><i class="bi bi-chevron-down dropdown-arrow" id="evaluacion-arrow"></i> Evaluación de riesgo</h3>
                         <div class="plus-dropdown">
@@ -1449,7 +1449,7 @@
                 </div>
 
                 <!-- Categoría: Respuesta al riesgo -->
-                <div class="categoria-section">
+                <div class="categoria-section" style="display: none;">
                     <div class="categoria-header" onclick="toggleCategoriaDropdown('respuesta')">
                         <h3><i class="bi bi-chevron-down dropdown-arrow" id="respuesta-arrow"></i> Respuesta al riesgo</h3>
                         <div class="plus-dropdown">
@@ -1565,68 +1565,11 @@
                         </div>
                     </div>
                     <div class="formularios-lista" id="planes-content">
-                        <div class="form-item-lista" onclick="abrirFormulario('D100')">
-                            <div class="form-codigo">D100</div>
-                            <div class="form-info">
-                                <div class="form-nombre">Documentación Base</div>
-                            </div>
-                            <div class="form-actions">
-                                <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'D100')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
-                                <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'D100')" title="Revisado por"><i class="bi bi-person-check"></i></button>
-                                <button class="action-btn observations-btn" onclick="showObservations(event, 'D100')" title="Observaciones"><i class="bi bi-flag"></i></button>
-                                <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'D100')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                <div class="more-options-dropdown">
-                                    <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'D100')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                    <div class="dropdown-content" id="dropdown-D100">
-                                        <a href="#" onclick="sendMessage(event, 'D100')">Mensaje</a>
-                                        <a href="#" onclick="confirmForm(event, 'D100')">Confirmar</a>
-                                        <a href="#" onclick="editForm(event, 'D100')">Editar</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="form-item-lista" onclick="abrirFormulario('D110')">
-                            <div class="form-codigo">D110</div>
-                            <div class="form-info">
-                                <div class="form-nombre">Documentación Complementaria</div>
-                            </div>
-                            <div class="form-actions">
-                                <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'D110')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
-                                <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'D110')" title="Revisado por"><i class="bi bi-person-check"></i></button>
-                                <button class="action-btn observations-btn" onclick="showObservations(event, 'D110')" title="Observaciones"><i class="bi bi-flag"></i></button>
-                                <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'D110')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                <div class="more-options-dropdown">
-                                    <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'D110')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                    <div class="dropdown-content" id="dropdown-D110">
-                                        <a href="#" onclick="sendMessage(event, 'D110')">Mensaje</a>
-                                        <a href="#" onclick="confirmForm(event, 'D110')">Confirmar</a>
-                                        <a href="#" onclick="editForm(event, 'D110')">Editar</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="form-item-lista" onclick="abrirFormulario('D120')">
-                            <div class="form-codigo">D120</div>
-                            <div class="form-info">
-                                <div class="form-nombre">Archivos de Respaldo</div>
-                            </div>
-                            <div class="form-actions">
-                                <button class="action-btn prepared-btn" onclick="showPreparedBy(event, 'D120')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
-                                <button class="action-btn reviewed-btn" onclick="showReviewedAuditor(event, 'D120')" title="Revisado por"><i class="bi bi-person-check"></i></button>
-                                <button class="action-btn observations-btn" onclick="showObservations(event, 'D120')" title="Observaciones"><i class="bi bi-flag"></i></button>
-                                <button class="action-btn visibility-btn" onclick="toggleVisibility(event, 'D120')" title="Ver/Ocultar"><i class="bi bi-eye"></i></button>
-                                <div class="more-options-dropdown">
-                                    <button class="action-btn more-options-btn" onclick="toggleMoreOptions(event, 'D120')" title="Más opciones"><i class="bi bi-three-dots"></i></button>
-                                    <div class="dropdown-content" id="dropdown-D120">
-                                        <a href="#" onclick="sendMessage(event, 'D120')">Mensaje</a>
-                                        <a href="#" onclick="confirmForm(event, 'D120')">Confirmar</a>
-                                        <a href="#" onclick="editForm(event, 'D120')">Editar</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+
+
+
                     </div>
                 </div>
 
@@ -10832,6 +10775,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 menu.classList.remove('show');
             });
             
+            // Detectar la sección real desde el contenedor padre
+            const trigger = event.currentTarget || event.target;
+            const subcategoriaSection = trigger.closest('.subcategoria-section');
+            let categoria = section;
+            let subcategoria = section;
+            
+            if (subcategoriaSection) {
+                const subcategoriaList = subcategoriaSection.querySelector('.subcategoria-lista');
+                if (subcategoriaList && subcategoriaList.id) {
+                    subcategoria = subcategoriaList.id.replace(/-content$/, '');
+                    categoria = getCurrentCategory(subcategoria);
+                }
+            }
+            
+            console.log('📁 Cargar archivo en:', { categoria, subcategoria });
+            
             // Crear input de archivo temporal
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
@@ -10841,7 +10800,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             fileInput.onchange = function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    handleDirectUpload(file, section);
+                    handleDirectUpload(file, categoria, subcategoria);
                 }
                 document.body.removeChild(fileInput);
             };
@@ -10851,7 +10810,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para manejar la carga directa de archivos
-        async function handleDirectUpload(file, section) {
+        async function handleDirectUpload(file, categoria, subcategoria) {
             // Verificar si es un archivo Excel
             const isExcelFile = file.name.toLowerCase().endsWith('.xlsx') || 
                                file.name.toLowerCase().endsWith('.xls') || 
@@ -10861,7 +10820,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const fileContext = {
                 entity_id: commitmentDropdownState.currentEntityId,
                 commitment_id: commitmentDropdownState.selectedCommitmentId,
-                section: section
+                categoria: categoria,
+                subcategoria: subcategoria
             };
             
             console.log('📁 Subiendo archivo con contexto:', fileContext);
@@ -10877,18 +10837,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Convertir archivo a base64 para enviarlo
                 const fileData = await fileToBase64(file);
                 
-                // Determinar categoría y subcategoría según la sección
-                const sectionMapping = {
-                    'planificacion': { categoria: 'planificacion', subcategoria: 'general' },
-                    'evaluacion': { categoria: 'evaluacion-riesgo', subcategoria: 'general' },
-                    'respuesta': { categoria: 'respuesta', subcategoria: 'general' },
-                    'planes': { categoria: 'planes-accion', subcategoria: 'general' },
-                    'cierre': { categoria: 'cierre', subcategoria: 'general' }
-                };
-                
-                const mapping = sectionMapping[section] || { categoria: section, subcategoria: 'general' };
-                
-                // Enviar archivo al backend
+                // Enviar archivo al backend con la categoría y subcategoría reales
                 const response = await fetch('/api/subdocuments/upload', {
                     method: 'POST',
                     headers: {
@@ -10896,8 +10845,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         'user-id': window.currentUser?.id || 'anonymous'
                     },
                     body: JSON.stringify({
-                        categoria: mapping.categoria,
-                        subcategoria: mapping.subcategoria,
+                        categoria: categoria,
+                        subcategoria: subcategoria,
                         titulo: file.name.replace(/\.[^/.]+$/, ''),
                         fileName: file.name,
                         fileSize: file.size,
@@ -10944,31 +10893,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     `;
                     
                     // Encontrar la sección correcta y agregar el documento
-                    const sectionMap = {
-                        'planificacion': 'planificacion-content',
-                        'evaluacion': 'evaluacion-content',
-                        'respuesta': 'respuesta-content',
-                        'planes': 'planes-content',
-                        'cierre': 'cierre-content'
-                    };
-                    
-                    const contentId = sectionMap[section];
-                    if (contentId) {
-                        const contentElement = document.getElementById(contentId);
-                        if (contentElement) {
-                            // Si no existe un contenedor de documentos, crearlo
-                            let documentsContainer = contentElement.querySelector('.documents-container');
-                            if (!documentsContainer) {
-                                documentsContainer = document.createElement('div');
-                                documentsContainer.className = 'documents-container';
-                                contentElement.appendChild(documentsContainer);
+                    const contentId = `${subcategoria}-content`;
+                    const contentElement = document.getElementById(contentId);
+                    if (contentElement) {
+                        // Buscar solo contenedores de documentos que sean hijos directos
+                        let documentsContainer = null;
+                        for (const child of contentElement.children) {
+                            if (child.classList.contains('documents-container')) {
+                                documentsContainer = child;
+                                break;
                             }
-                            
-                            // Agregar el documento al contenedor
-                            documentsContainer.insertAdjacentHTML('beforeend', documentHTML);
-                            
-                            showNotification('Archivo guardado en la base de datos', 'success');
                         }
+                        
+                        // Si no existe un contenedor propio, crearlo al inicio
+                        if (!documentsContainer) {
+                            documentsContainer = document.createElement('div');
+                            documentsContainer.className = 'documents-container';
+                            contentElement.insertBefore(documentsContainer, contentElement.firstChild);
+                        }
+                        
+                        // Agregar el documento al contenedor
+                        documentsContainer.insertAdjacentHTML('beforeend', documentHTML);
+                        
+                        showNotification('Archivo guardado en la base de datos', 'success');
                     }
                 } else {
                     showNotification('Error al guardar archivo: ' + result.error, 'error');
