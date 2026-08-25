@@ -20533,6 +20533,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Crear el modal del formulario
             const modal = document.createElement('div');
+            modal.id = 'a200-modal';
             modal.className = 'formulario-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
@@ -21100,8 +21101,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight; // Forzar reflow
             modal.classList.add('show');
             
-            // Cargar aprobaciones guardadas
-            setTimeout(() => cargarAprobacionesA200(), 100);
+            // Cargar aprobaciones y respuestas guardadas
+            setTimeout(() => { cargarAprobacionesA200(); cargarRespuestasA200(); }, 100);
         }
         
         // Función para cerrar el formulario A200
@@ -22008,58 +22009,64 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para guardar el formulario A200
-        function guardarFormularioA200() {
-            // Recopilar todas las respuestas
-            const respuestas = {
-                q1_naturaleza: document.getElementById('a200_q1_naturaleza').value,
-                q2_doc: document.getElementById('a200_q2_doc').value,
-                q3_fecha: document.getElementById('a200_q3_fecha').value,
-                q4_doc: document.getElementById('a200_q4_doc').value,
-                q5_riesgo: document.getElementById('a200_q5_riesgo').value,
-                q6_grupo: document.getElementById('a200_q6_grupo').value,
-                q7_auditores: document.getElementById('a200_q7_auditores').value,
-                q8_doc: document.getElementById('a200_q8_doc').value,
-                q9_politicas: document.getElementById('a200_q9_politicas').value,
-                q10_integridad: document.getElementById('a200_q10_integridad').value,
-                q11_restricciones: document.getElementById('a200_q11_restricciones').value,
-                q12_amenazas: document.getElementById('a200_q12_amenazas').value,
-                q13_doc: document.getElementById('a200_q13_doc').value,
-                q14_consulta: document.getElementById('a200_q14_consulta').value,
-                q15a_recursos: document.getElementById('a200_q15a_recursos').value,
-                q15b_equipo: document.getElementById('a200_q15b_equipo').value,
-                q15c_expertos: document.getElementById('a200_q15c_expertos').value,
-                q16a_competencias: document.getElementById('a200_q16a_competencias').value,
-                q16b_informe: document.getElementById('a200_q16b_informe').value,
-                q17_doc: document.getElementById('a200_q17_doc').value,
-                q18a_marco: document.getElementById('a200_q18a_marco').value,
-                q18b_gerencia: document.getElementById('a200_q18b_gerencia').value,
-                q18c_direccion: document.getElementById('a200_q18c_direccion').value,
-                q19_doc: document.getElementById('a200_q19_doc').value,
-                q20_doc: document.getElementById('a200_q20_doc').value,
-                // Sección de Conclusión
-                entidad: document.getElementById('a200_entidad').value,
-                riesgo_compromiso: document.getElementById('a200_riesgo_compromiso').value,
-                evaluacion_riesgo: document.getElementById('a200_evaluacion_riesgo').value,
-                rcc_requerido: document.getElementById('a200_rcc_requerido').value,
-                // Sección de Certificación
-                cert1_evaluacion: document.getElementById('a200_cert1_evaluacion').value,
-                cert2_etica: document.getElementById('a200_cert2_etica').value,
-                cert3_prohibiciones: document.getElementById('a200_cert3_prohibiciones').value,
-                cert4_continuidad: document.getElementById('a200_cert4_continuidad').value
-            };
-            
+        async function guardarFormularioA200() {
+            const modal = document.getElementById('a200-modal');
+            if (!modal) {
+                showNotification('No se encontró el formulario', 'error');
+                return;
+            }
+
+            // Recolectar todas las respuestas del modal A200
+            const respuestas = {};
+            const campos = modal.querySelectorAll('input, textarea, select');
+            campos.forEach(campo => {
+                const key = campo.name || campo.id;
+                if (!key) return;
+
+                if (campo.type === 'radio' || campo.type === 'checkbox') {
+                    if (campo.checked) respuestas[key] = campo.value;
+                } else {
+                    respuestas[key] = campo.value;
+                }
+            });
+
             console.log('Respuestas del formulario A200:', respuestas);
-            
-            // Guardar en la base de datos usando el sistema de subdocumentos
-            if (window.subcategoriasManager) {
-                guardarFormularioEnBD('A200', 'Independencia y Carta de Confidencialidad', respuestas);
-            } else {
-                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
-                showNotification('Formulario A200 guardado localmente', 'warning');
+
+            try {
+                await guardarFormularioEnBD('A200', 'Actividades preliminares del compromiso', respuestas);
                 cerrarFormularioA200();
+            } catch (error) {
+                // El error ya se muestra en guardarFormularioEnBD
+                console.error('Error guardando A200:', error);
             }
         }
         
+        // Función para cargar las respuestas del formulario A200
+        async function cargarRespuestasA200() {
+            try {
+                const formulario = await getFormularioGuardado('A200');
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.getElementById('a200-modal');
+                if (!modal) return;
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando respuestas A200:', error);
+            }
+        }
+
         // Función para mostrar el formulario A300
         function mostrarFormularioA300() {
             // Eliminar cualquier modal existente
