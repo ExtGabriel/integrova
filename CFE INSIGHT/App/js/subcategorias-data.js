@@ -15,6 +15,33 @@
         }
     }
 
+    // Icono según extensión de archivo
+    function getFileIcon(fileName) {
+        const extension = (fileName || '').split('.').pop().toLowerCase();
+        const iconMap = {
+            'pdf': { class: 'bi-file-pdf', color: '#dc3545' },
+            'doc': { class: 'bi-file-word', color: '#2b579a' },
+            'docx': { class: 'bi-file-word', color: '#2b579a' },
+            'xls': { class: 'bi-file-excel', color: '#217346' },
+            'xlsx': { class: 'bi-file-excel', color: '#217346' },
+            'ppt': { class: 'bi-file-ppt', color: '#d24726' },
+            'pptx': { class: 'bi-file-ppt', color: '#d24726' },
+            'jpg': { class: 'bi-file-image', color: '#28a745' },
+            'jpeg': { class: 'bi-file-image', color: '#28a745' },
+            'png': { class: 'bi-file-image', color: '#28a745' },
+            'gif': { class: 'bi-file-image', color: '#28a745' },
+            'svg': { class: 'bi-file-image', color: '#28a745' },
+            'zip': { class: 'bi-file-zip', color: '#ffc107' },
+            'rar': { class: 'bi-file-zip', color: '#ffc107' },
+            '7z': { class: 'bi-file-zip', color: '#ffc107' },
+            'mp4': { class: 'bi-file-play', color: '#dc3545' },
+            'mp3': { class: 'bi-file-music', color: '#6f42c1' },
+            'txt': { class: 'bi-file-text', color: '#6c757d' },
+            'rtf': { class: 'bi-file-text', color: '#6c757d' }
+        };
+        return iconMap[extension] || { class: 'bi-file-earmark', color: '#6c757d' };
+    }
+
     class SubcategoriasDataManager {
         constructor() {
             this.cache = new Map();
@@ -170,8 +197,8 @@
                     throw new Error(result.error || 'Error al guardar subdocumento');
                 }
 
-                // Limpiar cache para forzar recarga
-                this.cache.delete(`${categoria}/${subcategoria}/documents`);
+                // Limpiar cache de documentos para forzar recarga con el contexto correcto
+                this.clearDocumentCache(categoria, subcategoria);
                 
                 // Actualizar UI inmediatamente
                 console.log('🔄 Actualizando UI después de guardar documento...');
@@ -236,12 +263,6 @@
         // Obtener subdocumentos
         async getSubdocuments(categoria, subcategoria, useCache = true) {
             try {
-                const cacheKey = `${categoria}/${subcategoria}/documents`;
-                
-                if (useCache && this.cache.has(cacheKey)) {
-                    return this.cache.get(cacheKey);
-                }
-
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
@@ -249,6 +270,13 @@
                 // Obtener contexto actual de entidad y compromiso
                 const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
                 const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                // Clave de cache que incluye el contexto para no mezclar documentos de otra entidad/compromiso
+                const cacheKey = `${categoria}/${subcategoria}/documents?entity=${entityId}&commitment=${commitmentId}`;
+
+                if (useCache && this.cache.has(cacheKey)) {
+                    return this.cache.get(cacheKey);
+                }
 
                 // Construir URL con parámetros de contexto
                 let apiUrl = buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`);
@@ -284,11 +312,21 @@
             }
         }
 
+        // Limpiar cache de documentos de una subcategoría (todas las entidades/compromisos)
+        clearDocumentCache(categoria, subcategoria) {
+            const prefix = `${categoria}/${subcategoria}/documents`;
+            for (const key of this.cache.keys()) {
+                if (key.startsWith(prefix)) {
+                    this.cache.delete(key);
+                }
+            }
+        }
+
         // Limpiar cache
         clearCache(categoria = null, subcategoria = null) {
             if (categoria && subcategoria) {
                 this.cache.delete(`${categoria}/${subcategoria}/subfolders`);
-                this.cache.delete(`${categoria}/${subcategoria}/documents`);
+                this.clearDocumentCache(categoria, subcategoria);
             } else {
                 this.cache.clear();
             }
@@ -383,6 +421,14 @@
             console.log('📋 Subcarpetas:', subfolders);
             console.log('📄 Documentos:', documents);
             
+            // Limpiar documentos que fueron insertados manualmente por handleDirectUpload
+            // para evitar que documentos de contextos anteriores sigan visibles
+            const oldUploadContainers = container.querySelectorAll('.documents-container, .uploaded-document');
+            oldUploadContainers.forEach(el => {
+                console.log('🧹 Eliminando documento/carpeta manual del contexto anterior:', el.className);
+                el.remove();
+            });
+            
             const rootKey = 'root';
             const foldersByParent = {};
             const docsByParent = {};
@@ -407,17 +453,43 @@
                 if (!list.length) return '';
                 let html = '<div class="documents-list">';
                 list.forEach(doc => {
-                    const icon = this.getDocumentIcon(doc.tipo);
+                    const isArchivo = doc.tipo === 'archivo';
+                    const metadata = doc.metadata || {};
+                    const fileName = isArchivo ? (metadata.fileName || doc.titulo || 'Archivo') : (doc.titulo || 'Documento');
+                    const title = doc.titulo || (isArchivo ? (fileName.split('.').slice(0, -1).join('.') || fileName) : 'Documento');
+                    const fileSize = isArchivo ? (metadata.fileSize || 0) : 0;
+                    const createdAt = doc.created_at || metadata.uploadDate;
+                    const author = window.currentUser?.name || 'Usuario';
+                    const icon = isArchivo ? getFileIcon(fileName) : { class: this.getDocumentIcon(doc.tipo), color: '#0d6efd' };
+                    const fileSizeLabel = typeof window.formatFileSize === 'function' ? window.formatFileSize(fileSize) : fileSize + ' bytes';
+                    const dateLabel = createdAt
+                        ? (typeof window.formatDateTime === 'function' ? window.formatDateTime(createdAt) : new Date(createdAt).toLocaleString('es-GT'))
+                        : 'Sin fecha';
+                    const meta = isArchivo ? `${fileSizeLabel} - ${dateLabel}` : dateLabel;
+                    const clickAction = isArchivo ? `openUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
+                    const editAction = isArchivo ? `editUploadedDocument('${doc.id}')` : `editSubdocument(${doc.id})`;
+                    const viewAction = isArchivo ? `downloadUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
+                    const deleteAction = isArchivo ? `deleteUploadedDocument('${doc.id}')` : `deleteSubdocument(${doc.id})`;
                     html += `
-                        <div class="document-row" data-id="${doc.id}">
-                            <div class="document-row-main" onclick="viewSubdocument(${doc.id})" style="cursor: pointer;">
-                                <i class="bi ${icon}"></i>
-                                <span class="document-title">${doc.titulo}</span>
-                                <span class="document-type">${doc.tipo}</span>
+                        <div class="document-item uploaded-document" data-id="${doc.id}" data-type="${doc.tipo}">
+                            <div class="document-header" onclick="${clickAction}" style="cursor: pointer;">
+                                <div class="document-icon" style="color: ${icon.color || '#0d6efd'};">
+                                    <i class="bi ${icon.class}"></i>
+                                </div>
+                                <div class="document-info">
+                                    <h4 class="document-title">${title}</h4>
+                                    ${isArchivo ? `<p class="document-filename">${fileName}</p>` : ''}
+                                    <p class="document-meta">${meta}</p>
+                                    <p class="document-author">
+                                        <i class="bi bi-person-fill"></i>
+                                        <span>${author}</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div class="document-row-actions">
-                                <button class="btn-edit" onclick="editSubdocument(${doc.id})" title="Editar"><i class="bi bi-pencil"></i></button>
-                                <button class="btn-delete" onclick="deleteSubdocument(${doc.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
+                            <div class="document-actions">
+                                <button class="btn-action btn-edit" onclick="${editAction}" title="Editar"><i class="bi bi-pencil"></i></button>
+                                <button class="btn-action btn-download" onclick="${viewAction}" title="${isArchivo ? 'Descargar' : 'Ver'}"><i class="bi ${isArchivo ? 'bi-download' : 'bi-eye'}"></i></button>
+                                <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>
                             </div>
                         </div>`;
                 });
@@ -580,7 +652,7 @@
                     throw new Error(result.error || 'Error al eliminar subdocumento');
                 }
 
-                this.cache.delete(`${this.currentCategory}/${this.currentSubcategory}/documents`);
+                this.clearDocumentCache(this.currentCategory, this.currentSubcategory);
                 
                 console.log('✅ Subdocumento eliminado:', documentTitle);
                 
@@ -672,7 +744,7 @@
                 console.log('📍 Usando categoría/subcategoría:', { targetCategory, targetSubcategory });
                 
                 // Limpiar cache
-                this.cache.delete(`${targetCategory}/${targetSubcategory}/documents`);
+                this.clearDocumentCache(targetCategory, targetSubcategory);
                 
                 console.log('✅ Subdocumento actualizado:', titulo);
                 
