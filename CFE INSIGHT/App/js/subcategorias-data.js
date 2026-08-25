@@ -422,8 +422,12 @@
             console.log('📄 Documentos:', documents);
             
             // Limpiar documentos que fueron insertados manualmente por handleDirectUpload
-            // para evitar que documentos de contextos anteriores sigan visibles
-            const oldUploadContainers = container.querySelectorAll('.documents-container, .uploaded-document');
+            // para evitar que documentos de contextos anteriores sigan visibles,
+            // pero preservar elementos estáticos como la carta de independencia
+            const oldUploadContainers = Array.from(container.querySelectorAll('.documents-container, .uploaded-document')).filter(el => {
+                const isCarta = el.classList.contains('carta-independencia-item') || el.querySelector('.carta-independencia-item');
+                return !isCarta;
+            });
             oldUploadContainers.forEach(el => {
                 console.log('🧹 Eliminando documento/carpeta manual del contexto anterior:', el.className);
                 el.remove();
