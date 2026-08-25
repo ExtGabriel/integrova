@@ -9225,65 +9225,27 @@
                     await window.subcategoriasManager.init();
                 }
                 
-                // Lista de todas las subcategorías de todas las categorías (coinciden con IDs reales)
-                const subcategories = [
-                    // Categoría: Planificación
-                    'planificacion',
-                    // Subcategorías de planificación
-                    'configuracion', 'aceptacion', 'estrategia', 'discusiones', 
-                    'materialidad', 'revision-analitica', 'comprension-entidad', 
-                    // Categoría: Evaluación de riesgo
-                    'evaluacion',
-                    // Subcategorías de evaluación
-                    'diseno-control', 'areas-riesgo', 'resumen-evaluacion', 
-                    'procedimientos-evaluacion',
-                    // Categoría: Respuesta al riesgo
-                    'respuesta',
-                    // Subcategorías de respuesta
-                    'procedimientos-auditoria',
-                    // Categoría: Planes de acción
-                    'planes',
-                    // Subcategorías de planes
-                    'incorr-identificadas', 'eval-evidencia', 'informes-direccion',
-                    // Categoría: Cierre del compromiso
-                    'cierre',
-                    // Subcategorías de cierre
-                    'cierre-compromiso'
-                ];
+                // Cargar dinámicamente categorías y subcategorías visibles en el DOM
+                const subcategoryContainers = document.querySelectorAll('.formularios-lista[id$="-content"], .subcategoria-lista[id$="-content"]');
+                const processed = new Set();
                 
                 // Cargar cada subcategoría secuencialmente para evitar sobrecarga
-                for (const subcategory of subcategories) {
+                for (const container of subcategoryContainers) {
                     try {
-                        console.log(`📂 Cargando subcategoría: ${subcategory}`);
+                        const subcategory = container.id.replace('-content', '');
+                        if (processed.has(subcategory)) continue;
+                        processed.add(subcategory);
                         
-                        // Determinar la categoría correcta para esta subcategoría
-                        let category = 'planificacion'; // default
+                        // Determinar la categoría correcta
+                        const category = getCurrentCategory(subcategory) || 'planificacion';
                         
-                        if (['diseno-control', 'areas-riesgo', 'resumen-evaluacion', 'procedimientos-evaluacion'].includes(subcategory)) {
-                            category = 'evaluacion';
-                        } else if (['procedimientos-auditoria'].includes(subcategory)) {
-                            category = 'respuesta';
-                        } else if (['incorr-identificadas', 'eval-evidencia', 'informes-direccion'].includes(subcategory)) {
-                            category = 'planes';
-                        } else if (['cierre-compromiso'].includes(subcategory)) {
-                            category = 'cierre';
-                        } else if (subcategory === 'planificacion') {
-                            category = 'planificacion';
-                        } else if (subcategory === 'evaluacion') {
-                            category = 'evaluacion';
-                        } else if (subcategory === 'respuesta') {
-                            category = 'respuesta';
-                        } else if (subcategory === 'planes') {
-                            category = 'planes';
-                        } else if (subcategory === 'cierre') {
-                            category = 'cierre';
-                        }
+                        console.log(`📂 Cargando subcategoría: ${subcategory} (${category})`);
                         
                         await window.subcategoriasManager.updateUI(category, subcategory);
                         // Pequeña pausa entre cargas para no saturar
                         await new Promise(resolve => setTimeout(resolve, 50));
                     } catch (error) {
-                        console.warn(`⚠️ Error cargando subcategoría ${subcategory}:`, error);
+                        console.warn(`⚠️ Error cargando subcategoría:`, error);
                     }
                 }
                 
@@ -10875,6 +10837,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (result.success) {
                     // Recargar documentos desde la BD para mostrar siempre la misma vista
                     await window.subcategoriasManager.updateUI(categoria, subcategoria);
+                    
+                    // Asegurar que la sección/categoría esté expandida para que se vea el documento
+                    if (categoria === subcategoria) {
+                        ensureCategoriaExpanded(subcategoria);
+                    } else {
+                        ensureCategoriaExpanded(categoria);
+                        ensureSubcategoriaExpanded(subcategoria);
+                    }
+                    
                     showNotification('Archivo guardado en la base de datos', 'success');
                 } else {
                     showNotification('Error al guardar archivo: ' + result.error, 'error');
@@ -13806,6 +13777,34 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 content.classList.add('expanded');
                 arrow.classList.remove('bi-chevron-right');
                 arrow.classList.add('bi-chevron-down');
+                content.style.animation = 'slideDown 0.3s ease-out';
+            }
+        }
+
+        // Función para asegurar que una categoría esté expandida (sin cerrarla si ya lo está)
+        function ensureCategoriaExpanded(categoriaId) {
+            const content = document.getElementById(`${categoriaId}-content`);
+            const arrow = document.getElementById(`${categoriaId}-arrow`);
+            if (content && !content.classList.contains('expanded')) {
+                content.classList.add('expanded');
+                if (arrow) {
+                    arrow.classList.remove('bi-chevron-down');
+                    arrow.classList.add('bi-chevron-up');
+                }
+                content.style.animation = 'slideDown 0.3s ease-out';
+            }
+        }
+
+        // Función para asegurar que una subcategoría esté expandida (sin cerrarla si ya lo está)
+        function ensureSubcategoriaExpanded(subcategoriaId) {
+            const content = document.getElementById(`${subcategoriaId}-content`);
+            const arrow = document.getElementById(`${subcategoriaId}-arrow`);
+            if (content && !content.classList.contains('expanded')) {
+                content.classList.add('expanded');
+                if (arrow) {
+                    arrow.classList.remove('bi-chevron-right');
+                    arrow.classList.add('bi-chevron-down');
+                }
                 content.style.animation = 'slideDown 0.3s ease-out';
             }
         }

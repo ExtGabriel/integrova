@@ -540,9 +540,15 @@
 
             // Buscar o crear contenedor dinámico dedicado
             let dynamicContainer = container.querySelector('.dynamic-subcategory-content');
+            const isCategoryContainer = container.classList.contains('formularios-lista');
             if (!dynamicContainer) {
                 dynamicContainer = document.createElement('div');
                 dynamicContainer.className = 'dynamic-subcategory-content';
+            }
+            // Mostrar los documentos generales de la categoría al inicio, subcategorías al final
+            if (isCategoryContainer) {
+                container.prepend(dynamicContainer);
+            } else {
                 container.appendChild(dynamicContainer);
             }
 
