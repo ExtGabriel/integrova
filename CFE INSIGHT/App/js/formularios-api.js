@@ -44,31 +44,61 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
         }
         
         // Obtener contexto directamente desde el DOM y variables globales
-        const entityDropdown = document.getElementById('entidadHijo');
+        const entityDropdown = document.getElementById('entidad');
         const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
-        
+
+        console.log('🔍 DIAGNÓSTICO captura de contexto:');
+        console.log('  entityDropdown:', entityDropdown);
+        console.log('  entityDropdown.value:', entityDropdown?.value);
+        console.log('  commitmentDropdownState:', typeof commitmentDropdownState !== 'undefined' ? commitmentDropdownState : 'NO DEFINIDO');
+        console.log('  commitmentDropdownState.currentEntityId:', typeof commitmentDropdownState !== 'undefined' ? commitmentDropdownState.currentEntityId : 'N/A');
+        console.log('  formDataManager:', typeof window.formDataManager !== 'undefined' ? 'DISPONIBLE' : 'NO DISPONIBLE');
+
         let entityId = null;
         let commitmentId = null;
-        
+
         // Obtener entity_id desde el dropdown de entidades
         if (entityDropdown && entityDropdown.value) {
             entityId = entityDropdown.value;
+            console.log('  ✅ entity_id desde dropdown:', entityId);
+        } else {
+            console.log('  ❌ No se obtuvo entity_id desde dropdown');
         }
-        
+
+        // Obtener entity_id desde commitmentDropdownState (respaldo)
+        if (!entityId && typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.currentEntityId) {
+            entityId = commitmentDropdownState.currentEntityId;
+            console.log('  ✅ entity_id desde commitmentDropdownState:', entityId);
+        } else {
+            console.log('  ❌ No se obtuvo entity_id desde commitmentDropdownState');
+        }
+
         // Obtener commitment_id desde commitmentDropdownState (definido en formularios.html)
         if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
             commitmentId = commitmentDropdownState.selectedCommitmentId;
+            console.log('  ✅ commitment_id desde commitmentDropdownState:', commitmentId);
         } else if (window.currentCommitmentId) {
             commitmentId = window.currentCommitmentId;
+            console.log('  ✅ commitment_id desde window.currentCommitmentId:', commitmentId);
         } else if (commitmentDropdown && commitmentDropdown.getAttribute('data-commitment-id')) {
             commitmentId = commitmentDropdown.getAttribute('data-commitment-id');
+            console.log('  ✅ commitment_id desde atributo:', commitmentId);
+        } else {
+            console.log('  ❌ No se obtuvo commitment_id');
         }
-        
+
         // Intentar desde formDataManager si está disponible
         if (window.formDataManager && window.formDataManager.getContext) {
             const context = window.formDataManager.getContext();
-            if (!entityId) entityId = context.entityId;
-            if (!commitmentId) commitmentId = context.commitmentId;
+            console.log('  formDataManager.getContext():', context);
+            if (!entityId && context.entityId) {
+                entityId = context.entityId;
+                console.log('  ✅ entity_id desde formDataManager:', entityId);
+            }
+            if (!commitmentId && context.commitmentId) {
+                commitmentId = context.commitmentId;
+                console.log('  ✅ commitment_id desde formDataManager:', commitmentId);
+            }
         }
         
         console.log('� Guardando formulario con contexto:', { 
@@ -138,17 +168,22 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
         }
         
         // Obtener contexto actual de entidad/compromiso
-        const entityDropdown = document.getElementById('entidadHijo');
+        const entityDropdown = document.getElementById('entidad');
         const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
-        
+
         let entityId = null;
         let commitmentId = null;
-        
+
         // Obtener entity_id desde el dropdown de entidades
         if (entityDropdown && entityDropdown.value) {
             entityId = entityDropdown.value;
         }
-        
+
+        // Obtener entity_id desde commitmentDropdownState (respaldo)
+        if (!entityId && typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.currentEntityId) {
+            entityId = commitmentDropdownState.currentEntityId;
+        }
+
         // Obtener commitment_id desde commitmentDropdownState
         if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
             commitmentId = commitmentDropdownState.selectedCommitmentId;

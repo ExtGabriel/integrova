@@ -9164,9 +9164,10 @@ app.get('/api/users/id/:userId', async (req, res) => {
 // ENDPOINTS PARA FORMULARIOS
 // ============================================
 
-// Guardar formulario
+// Guardar formulario (con upsert - inserta o actualiza si existe)
 app.post('/api/formularios/save', async (req, res) => {
     try {
+        console.log('=== INICIO POST /api/formularios/save ===');
         const userId = req.user?.id || req.headers['user-id'];
         const { 
             form_id, 
@@ -9175,8 +9176,11 @@ app.post('/api/formularios/save', async (req, res) => {
             subdocument_id, 
             metadata,
             entity_id = null,
-            commitment_id = null
+            commitment_id = null,
+            id // ID opcional para actualizar un registro existente
         } = req.body;
+        
+        console.log('📥 Body recibido:', { form_id, form_title, subdocument_id, entity_id, commitment_id, id });
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -9216,29 +9220,104 @@ app.post('/api/formularios/save', async (req, res) => {
             created_by: userId,
             entity_id: validEntityId,
             commitment_id: validCommitmentId,
-            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         };
 
-        console.log('💾 Guardando formulario con payload:', payload);
-
-        const { data: formulario, error } = await supabase
-            .from('form_responses')
-            .insert([payload])
-            .select()
-            .single();
+        // Si se proporciona un ID, actualizamos ese registro específico
+        if (id) {
+            console.log('🔄 Actualizando formulario existente con ID:', id);
+            const { data: formulario, error } = await supabase
+                .from('form_responses')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+                
+            if (error) {
+                console.error('❌ Error actualizando formulario:', error);
+                return res.status(500).json({ success: false, error: 'Error al actualizar el formulario' });
+            }
             
-        if (error) {
-            console.error('❌ Error guardando formulario:', error);
-            return res.status(500).json({ success: false, error: 'Error al guardar el formulario' });
+            console.log('✅ Formulario actualizado exitosamente');
+            res.json({
+                success: true,
+                message: 'Formulario actualizado exitosamente',
+                formulario,
+                action: 'update'
+            });
+        } else {
+            // Si no hay ID, buscamos si existe un registro con el mismo contexto
+            console.log('🔍 Buscando formulario existente con contexto:', { form_id, subdocument_id, validEntityId, validCommitmentId });
+            
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('form_id', form_id)
+                .eq('created_by', userId);
+            
+            if (subdocument_id) {
+                query = query.eq('subdocument_id', subdocument_id);
+            } else {
+                query = query.is('subdocument_id', null);
+            }
+            
+            if (validEntityId) {
+                query = query.eq('entity_id', validEntityId);
+            }
+            
+            if (validCommitmentId) {
+                query = query.eq('commitment_id', validCommitmentId);
+            }
+            
+            const { data: existingForm } = await query.maybeSingle();
+            
+            if (existingForm) {
+                // Si existe, actualizamos
+                console.log('🔄 Formulario existente encontrado, actualizando ID:', existingForm.id);
+                const { data: formulario, error } = await supabase
+                    .from('form_responses')
+                    .update(payload)
+                    .eq('id', existingForm.id)
+                    .select()
+                    .single();
+                    
+                if (error) {
+                    console.error('❌ Error actualizando formulario existente:', error);
+                    return res.status(500).json({ success: false, error: 'Error al actualizar el formulario' });
+                }
+                
+                console.log('✅ Formulario actualizado exitosamente');
+                res.json({
+                    success: true,
+                    message: 'Formulario actualizado exitosamente',
+                    formulario,
+                    action: 'update'
+                });
+            } else {
+                // Si no existe, insertamos nuevo
+                console.log('🆕 No existe formulario, creando nuevo registro');
+                payload.created_at = new Date().toISOString();
+                
+                const { data: formulario, error } = await supabase
+                    .from('form_responses')
+                    .insert([payload])
+                    .select()
+                    .single();
+                    
+                if (error) {
+                    console.error('❌ Error creando nuevo formulario:', error);
+                    return res.status(500).json({ success: false, error: 'Error al crear el formulario' });
+                }
+                
+                console.log('✅ Formulario creado exitosamente');
+                res.json({
+                    success: true,
+                    message: 'Formulario creado exitosamente',
+                    formulario,
+                    action: 'insert'
+                });
+            }
         }
-        
-        console.log('✅ Formulario guardado exitosamente');
-        res.json({
-            success: true,
-            message: 'Formulario guardado exitosamente',
-            formulario
-        });
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/save:', error);
@@ -9348,6 +9427,232 @@ app.get('/api/formularios/list', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/list:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Guardar aprobación de formulario (por sección)
+app.post('/api/formularios/approval', async (req, res) => {
+    try {
+        console.log('=== INICIO POST /api/formularios/approval ===');
+        console.log('📥 Body recibido:', JSON.stringify(req.body, null, 2));
+        console.log('📥 Headers:', {
+            'user-id': req.headers['user-id'],
+            'content-type': req.headers['content-type']
+        });
+
+        const userId = req.user?.id || req.headers['user-id'];
+        const {
+            form_response_id,
+            section, // Sección específica del formulario (ej: 'estimacion-contable', 'integridad-libro-mayor')
+            status,
+            comments,
+            user_name,
+            role
+        } = req.body;
+
+        console.log('🔍 Datos extraídos:', {
+            userId,
+            form_response_id,
+            section,
+            status,
+            user_name,
+            role
+        });
+
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!form_response_id || !status) {
+            console.error('❌ Faltan campos requeridos:', { form_response_id, status });
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_response_id, status' });
+        }
+
+        if (!section) {
+            console.error('❌ Falta campo section');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: section' });
+        }
+
+        // Validar que el status sea válido
+        const validStatuses = ['approved', 'rejected', 'pending', 'review'];
+        if (!validStatuses.includes(status)) {
+            console.error('❌ Status no válido:', status);
+            return res.status(400).json({ success: false, error: 'Status no válido. Debe ser: approved, rejected, pending, review' });
+        }
+
+        console.log('📝 Guardando aprobación:', { form_response_id, section, status, userId, user_name, role });
+
+        // Obtener el formulario actual
+        console.log('🔍 Buscando formulario con ID:', form_response_id);
+        const { data: currentForm, error: fetchError } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('id', form_response_id)
+            .single();
+
+        if (fetchError) {
+            console.error('❌ Error obteniendo formulario:', fetchError);
+            console.error('❌ Detalles del error:', {
+                code: fetchError.code,
+                message: fetchError.message,
+                details: fetchError.details
+            });
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado', details: fetchError.message });
+        }
+
+        if (!currentForm) {
+            console.error('❌ Formulario no encontrado con ID:', form_response_id);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        console.log('✅ Formulario encontrado:', {
+            id: currentForm.id,
+            form_id: currentForm.form_id,
+            current_approvals: currentForm.approvals
+        });
+
+        // Obtener approvals actuales o inicializar objeto por secciones
+        const currentApprovals = currentForm.approvals || {};
+        console.log('🔍 currentApprovals antes de modificar:', JSON.stringify(currentApprovals, null, 2));
+
+        const sectionsApprovals = currentApprovals.sections || {};
+        console.log('🔍 sectionsApprovals:', JSON.stringify(sectionsApprovals, null, 2));
+
+        // Obtener aprobaciones de la sección específica o inicializar array
+        const sectionApprovals = sectionsApprovals[section] || [];
+        console.log('🔍 sectionApprovals para sección', section, ':', JSON.stringify(sectionApprovals, null, 2));
+
+        // Crear nueva aprobación
+        const newApproval = {
+            user_id: userId,
+            user_name: user_name || 'Usuario',
+            role: role || 'auditor',
+            status: status,
+            timestamp: new Date().toISOString(),
+            comments: comments || ''
+        };
+
+        console.log('📝 Nueva aprobación a agregar:', JSON.stringify(newApproval, null, 2));
+
+        // Agregar nueva aprobación al array de la sección
+        sectionApprovals.push(newApproval);
+        console.log('📝 sectionApprovals después de push:', JSON.stringify(sectionApprovals, null, 2));
+
+        // Construir objeto approvals completo
+        const newApprovals = {
+            sections: {
+                ...sectionsApprovals,
+                [section]: sectionApprovals
+            },
+            last_updated: new Date().toISOString(),
+            last_status: status,
+            last_section: section
+        };
+
+        console.log('📝 newApprovals a guardar:', JSON.stringify(newApprovals, null, 2));
+
+        // Actualizar approvals en la base de datos con estructura por secciones
+        console.log('💾 Actualizando formulario en BD...');
+        const { data: updatedForm, error: updateError } = await supabase
+            .from('form_responses')
+            .update({
+                approvals: newApprovals,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', form_response_id)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('❌ Error actualizando aprobación:', updateError);
+            console.error('❌ Detalles del error:', {
+                code: updateError.code,
+                message: updateError.message,
+                details: updateError.details,
+                hint: updateError.hint
+            });
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error al guardar la aprobación',
+                details: updateError.message 
+            });
+        }
+
+        console.log('✅ Aprobación guardada exitosamente para sección:', section);
+        console.log('✅ Formulario actualizado:', {
+            id: updatedForm.id,
+            approvals: updatedForm.approvals
+        });
+
+        res.json({
+            success: true,
+            message: 'Aprobación guardada exitosamente',
+            approval: newApproval,
+            section: section,
+            formulario: updatedForm
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/approval:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor',
+            details: error.message 
+        });
+    }
+});
+
+// Obtener aprobaciones de un formulario (todas o por sección específica)
+app.get('/api/formularios/approval/:formResponseId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { formResponseId } = req.params;
+        const { section } = req.query; // Parámetro opcional para filtrar por sección
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        console.log('🔍 Obteniendo aprobaciones del formulario:', formResponseId, section ? `(sección: ${section})` : '(todas las secciones)');
+
+        const { data: formulario, error } = await supabase
+            .from('form_responses')
+            .select('id, approvals, created_at, updated_at')
+            .eq('id', formResponseId)
+            .single();
+
+        if (error || !formulario) {
+            console.error('❌ Error obteniendo aprobaciones:', error);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        const approvals = formulario.approvals || { sections: {} };
+
+        // Si se solicita una sección específica, devolver solo esa
+        if (section) {
+            const sectionApprovals = approvals.sections?.[section] || [];
+            console.log('✅ Aprobaciones de sección obtenidas:', section, sectionApprovals.length);
+            return res.json({
+                success: true,
+                section: section,
+                approvals: sectionApprovals,
+                formulario
+            });
+        }
+
+        // Devolver todas las aprobaciones organizadas por sección
+        console.log('✅ Aprobaciones obtenidas:', approvals);
+        res.json({
+            success: true,
+            approvals: approvals,
+            formulario
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint GET /api/formularios/approval:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });

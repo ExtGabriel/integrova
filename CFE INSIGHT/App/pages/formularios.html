@@ -8465,6 +8465,13 @@
             if (commitmentId) {
                 const entityValue = commitmentDropdownState.currentEntityId;
                 console.log('🔄 Cambiando a compromiso:', { commitmentId, entityValue });
+                
+                // ✅ Actualizar formDataManager con el contexto completo
+                if (formDataManager && formDataManager.setContext) {
+                    formDataManager.setContext(entityValue, commitmentId);
+                    console.log('📋 formDataManager.context actualizado:', { entity_id: entityValue, commitment_id: commitmentId });
+                }
+                
                 formDataManager.switchTo(entityValue, commitmentId);
                 
                 // Recargar asignaciones con el nuevo contexto
@@ -8954,6 +8961,12 @@
                 // invalidar cache para forzar recarga con la nueva entidad
                 commitmentDropdownState.cacheTimestamp = 0;
                 commitmentDropdownState.cache = null;
+
+                // ✅ Actualizar formDataManager con el nuevo entity_id
+                if (formDataManager && formDataManager.setContext) {
+                    formDataManager.setContext(normalizedValue, null);
+                    console.log('📋 formDataManager.context actualizado con entity_id:', normalizedValue);
+                }
 
                 // limpiar UI del dropdown de compromisos mientras se recarga
                 const commitLabel = document.getElementById('commitmentDropdownLabel');
@@ -20217,7 +20230,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para abrir la Carta de Independencia del Equipo de Compromiso
-        function abrirCartaIndependencia() {
+        async function abrirCartaIndependencia() {
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
@@ -20233,7 +20246,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <h2>Carta de Independencia del Equipo de Compromiso</h2>
                             </div>
                         </div>
-                        <button class="btn-cerrar-modal" onclick="cerrarFormularioA200()">
+                        <button class="btn-cerrar-modal" onclick="cerrarCartaIndependencia()">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -20246,16 +20259,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <div class="carta-independencia-subtitulo" contenteditable="true">Auditoría de Estados Financieros al 31 de diciembre de [AÑO]</div>
                             </div>
 
-                            
+
                             <div class="carta-independencia-cuerpo">
                                 <div contenteditable="true" class="carta-texto-editable">
                                     <p>Señores</p>
                                     <p><strong>[NOMBRE DE LA FIRMA]</strong></p>
                                     <p>Ciudad</p>
                                     <p>
-                                        Confirmo que a lo largo de todo el año concluido el 31 de diciembre de [AÑO] y durante el período comprendido entre la fecha de 
-                                        presentación de los informes hasta la fecha de esta declaración, a mi leal saber y entender he permanecido independiente del 
-                                        cliente de auditoría mencionado anteriormente según lo define el Código de Ética para Contadores Profesionales de la 
+                                        Confirmo que a lo largo de todo el año concluido el 31 de diciembre de [AÑO] y durante el período comprendido entre la fecha de
+                                        presentación de los informes hasta la fecha de esta declaración, a mi leal saber y entender he permanecido independiente del
+                                        cliente de auditoría mencionado anteriormente según lo define el Código de Ética para Contadores Profesionales de la
                                         Federación Internacional de Contadores ("IFAC") y cualquier otro requisito de independencia local aplicable.
                                     </p>
                                     <p>En particular, confirmo lo siguiente (marcar con una X según corresponda):</p>
@@ -20348,29 +20361,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td><input type="text" placeholder="Socio del encargo"></td>
-                                            <td><input type="text"></td>
-                                            <td><input type="date"></td>
+                                            <td class="firmante-cargo">Socio del encargo</td>
+                                            <td><input type="text" class="firmante-firma"></td>
+                                            <td><input type="date" class="firmante-fecha"></td>
                                         </tr>
                                         <tr>
-                                            <td><input type="text" placeholder="Gerente de Auditoria"></td>
-                                            <td><input type="text"></td>
-                                            <td><input type="date"></td>
+                                            <td class="firmante-cargo">Gerente de Auditoria</td>
+                                            <td><input type="text" class="firmante-firma"></td>
+                                            <td><input type="date" class="firmante-fecha"></td>
                                         </tr>
                                         <tr>
-                                            <td><input type="text" placeholder="Senior A"></td>
-                                            <td><input type="text"></td>
-                                            <td><input type="date"></td>
+                                            <td class="firmante-cargo">Senior A</td>
+                                            <td><input type="text" class="firmante-firma"></td>
+                                            <td><input type="date" class="firmante-fecha"></td>
                                         </tr>
                                         <tr>
-                                            <td><input type="text" placeholder="Senior B"></td>
-                                            <td><input type="text"></td>
-                                            <td><input type="date"></td>
+                                            <td class="firmante-cargo">Senior B</td>
+                                            <td><input type="text" class="firmante-firma"></td>
+                                            <td><input type="date" class="firmante-fecha"></td>
                                         </tr>
                                         <tr>
-                                            <td><input type="text" placeholder="Asistente"></td>
-                                            <td><input type="text"></td>
-                                            <td><input type="date"></td>
+                                            <td class="firmante-cargo">Asistente</td>
+                                            <td><input type="text" class="firmante-firma"></td>
+                                            <td><input type="date" class="firmante-fecha"></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -20387,8 +20400,109 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+
+            // Cargar datos guardados si existen
+            setTimeout(() => cargarCartaIndependenciaGuardada(), 100);
         }
-        
+
+        // Función para cargar datos guardados de la Carta de Independencia
+        async function cargarCartaIndependenciaGuardada() {
+            if (!window.getFormularioGuardado) {
+                console.warn('⚠️ getFormularioGuardado no disponible');
+                return;
+            }
+
+            try {
+                const formulario = await getFormularioGuardado('CARTA_INDEPENDENCIA');
+                if (!formulario || !formulario.form_data) {
+                    console.log('📭 No hay datos guardados para Carta de Independencia');
+                    return;
+                }
+
+                const datos = formulario.form_data;
+                console.log('📂 Cargando datos de Carta de Independencia:', datos);
+
+                // Cargar encabezado editable
+                if (datos.encabezado) {
+                    const clienteEditable = document.querySelector('.carta-independencia-cliente');
+                    const tituloEditable = document.querySelector('.carta-independencia-titulo');
+                    const subtituloEditable = document.querySelector('.carta-independencia-subtitulo');
+
+                    if (clienteEditable && datos.encabezado.cliente) {
+                        clienteEditable.textContent = datos.encabezado.cliente;
+                    }
+                    if (tituloEditable && datos.encabezado.titulo) {
+                        tituloEditable.textContent = datos.encabezado.titulo;
+                    }
+                    if (subtituloEditable && datos.encabezado.subtitulo) {
+                        subtituloEditable.textContent = datos.encabezado.subtitulo;
+                    }
+                }
+
+                // Cargar texto editable
+                const editableText = document.querySelector('.carta-texto-editable');
+                if (editableText && datos.texto) {
+                    editableText.innerHTML = datos.texto;
+                }
+
+                // Cargar declaraciones
+                if (datos.declaraciones && Array.isArray(datos.declaraciones)) {
+                    const filasDeclaraciones = document.querySelectorAll('.carta-independencia-tabla tbody tr');
+                    filasDeclaraciones.forEach((fila, index) => {
+                        if (datos.declaraciones[index]) {
+                            const declaracionGuardada = datos.declaraciones[index];
+                            // Cargar respuesta (checkbox)
+                            if (declaracionGuardada.respuesta) {
+                                const radioSi = fila.cells[2]?.querySelector(`input[value="${declaracionGuardada.respuesta}"]`);
+                                const radioNo = fila.cells[3]?.querySelector(`input[value="${declaracionGuardada.respuesta}"]`);
+                                if (radioSi) radioSi.checked = true;
+                                if (radioNo) radioNo.checked = true;
+                            }
+                        }
+                    });
+                }
+
+                // Cargar firmantes
+                if (datos.firmantes && Array.isArray(datos.firmantes)) {
+                    const filasFirmantes = document.querySelectorAll('.carta-firmantes-tabla tbody tr');
+                    filasFirmantes.forEach((fila, index) => {
+                        if (datos.firmantes[index]) {
+                            const firmanteGuardado = datos.firmantes[index];
+                            const firmaInput = fila.cells[1]?.querySelector('input');
+                            const fechaInput = fila.cells[2]?.querySelector('input');
+
+                            if (firmaInput) firmaInput.value = firmanteGuardado.firma || '';
+                            if (fechaInput) fechaInput.value = firmanteGuardado.fecha || '';
+                        }
+                    });
+                }
+
+                // Cargar excepciones
+                if (datos.excepciones) {
+                    const excepcionesTextarea = document.querySelector('.carta-independencia-excepciones textarea');
+                    if (excepcionesTextarea) {
+                        excepcionesTextarea.value = datos.excepciones;
+                    }
+                }
+
+                console.log('✅ Datos de Carta de Independencia cargados correctamente');
+
+            } catch (error) {
+                console.error('❌ Error cargando Carta de Independencia guardada:', error);
+            }
+        }
+
+        // Función para cerrar la Carta de Independencia
+        function cerrarCartaIndependencia() {
+            const modal = document.querySelector('.formulario-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                }, 300);
+            }
+        }
+
         // Función para cerrar el formulario B400
         function cerrarFormularioB400() {
             const modal = document.querySelector('.formulario-modal');
@@ -20401,11 +20515,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para guardar la Carta de Independencia
-        function guardarCartaIndependencia() {
-            // Recopilar datos de la carta de independencia
+        async function guardarCartaIndependencia() {
+            // Recopilar datos del encabezado editable
+            const clienteEditable = document.querySelector('.carta-independencia-cliente');
+            const tituloEditable = document.querySelector('.carta-independencia-titulo');
+            const subtituloEditable = document.querySelector('.carta-independencia-subtitulo');
+
+            // Recopilar datos del cuerpo editable
             const editableText = document.querySelector('.carta-texto-editable');
             const textoCarta = editableText ? editableText.innerHTML : '';
-            
+
+            const datosEncabezado = {
+                cliente: clienteEditable ? clienteEditable.textContent : '',
+                titulo: tituloEditable ? tituloEditable.textContent : '',
+                subtitulo: subtituloEditable ? subtituloEditable.textContent : ''
+            };
+
             // Recopilar datos de la tabla de declaraciones
             const declaraciones = [];
             const filasDeclaraciones = document.querySelectorAll('.carta-independencia-tabla tbody tr');
@@ -20414,45 +20539,76 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const declaracion = fila.cells[1]?.textContent || '';
                 const si = fila.cells[2]?.querySelector('input:checked')?.value || '';
                 const no = fila.cells[3]?.querySelector('input:checked')?.value || '';
-                
+
                 declaraciones.push({
                     numero,
                     declaracion,
                     respuesta: si || no || ''
                 });
             });
-            
+
             // Recopilar datos de la tabla de firmantes
             const firmantes = [];
             const filasFirmantes = document.querySelectorAll('.carta-firmantes-tabla tbody tr');
             filasFirmantes.forEach((fila) => {
-                const nombre = fila.cells[0]?.querySelector('input')?.value || '';
-                const cargo = fila.cells[1]?.querySelector('input')?.value || '';
-                const firma = fila.cells[2]?.querySelector('input')?.value || '';
-                const fecha = fila.cells[3]?.querySelector('input')?.value || '';
-                
+                const cargo = fila.cells[0]?.textContent || ''; // Cargo es texto fijo
+                const firma = fila.cells[1]?.querySelector('input')?.value || '';
+                const fecha = fila.cells[2]?.querySelector('input')?.value || '';
+
                 firmantes.push({
-                    nombre,
                     cargo,
                     firma,
                     fecha
                 });
             });
-            
+
             // Recopilar excepciones
             const excepciones = document.querySelector('.carta-independencia-excepciones textarea')?.value || '';
-            
+
             const datosCarta = {
+                encabezado: datosEncabezado,
                 texto: textoCarta,
                 declaraciones,
                 firmantes,
                 excepciones
             };
-            
+
             console.log('Datos de la Carta de Independencia:', datosCarta);
-            
-            // Aquí podrías enviar los datos a un servidor o guardarlos localmente
-            alert('Carta de Independencia guardada exitosamente');
+
+            // Guardar en la base de datos usando el sistema de formularios API
+            if (window.guardarFormularioEnBD) {
+                try {
+                    // Primero verificar si ya existe un formulario guardado para actualizarlo
+                    let formularioExistente = null;
+                    if (window.getFormularioGuardado) {
+                        formularioExistente = await getFormularioGuardado('CARTA_INDEPENDENCIA');
+                        console.log('Formulario existente encontrado:', formularioExistente?.id);
+                    }
+
+                    // Guardar/actualizar con el ID si existe
+                    await guardarFormularioEnBD(
+                        'CARTA_INDEPENDENCIA',
+                        'Carta de Independencia del Equipo de Compromiso',
+                        datosCarta,
+                        formularioExistente?.id || null  // Enviar ID para actualizar si existe
+                    );
+
+                    // Cerrar el modal después de guardar exitosamente
+                    const modal = document.querySelector('.formulario-modal');
+                    if (modal) {
+                        modal.classList.remove('show');
+                        setTimeout(() => {
+                            document.body.removeChild(modal);
+                        }, 300);
+                    }
+                } catch (error) {
+                    console.error('Error guardando Carta de Independencia:', error);
+                    // El error ya se muestra en guardarFormularioEnBD
+                }
+            } else {
+                console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                alert('Carta de Independencia guardada localmente (API no disponible)');
+            }
         }
         
         // Función para guardar el formulario B400

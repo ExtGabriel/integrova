@@ -1854,6 +1854,204 @@ window.saveStoredAccount = saveStoredAccount;
 window.saveStoredAssignment = saveStoredAssignment;
 window.getStoredAssignments = getStoredAssignments;
 
+// ============================================
+// FORM APPROVALS (POR SECCIÓN)
+// ============================================
+
+/**
+ * Detecta automáticamente la sección actual del formulario basándose en la URL o el DOM
+ * @returns {string} Identificador de la sección actual
+ */
+function detectCurrentSection() {
+    // 1. Detectar desde la URL
+    const path = window.location.pathname;
+    if (path.includes('estimacion_contable')) return 'estimacion-contable';
+    if (path.includes('integridad')) return 'integridad-libro-mayor';
+    if (path.includes('grupos-financieros')) return 'grupos-financieros';
+    if (path.includes('asignar-cuentas')) return 'asignar-cuentas';
+    if (path.includes('a300')) return 'a300-planificacion';
+    
+    // 2. Detectar desde el título de la página
+    const title = document.title || '';
+    if (title.toLowerCase().includes('estimación contable')) return 'estimacion-contable';
+    if (title.toLowerCase().includes('integridad')) return 'integridad-libro-mayor';
+    if (title.toLowerCase().includes('grupos financieros')) return 'grupos-financieros';
+    if (title.toLowerCase().includes('asignar cuentas')) return 'asignar-cuentas';
+    if (title.toLowerCase().includes('a300')) return 'a300-planificacion';
+    
+    // 3. Detectar desde elementos del DOM
+    const activeTab = document.querySelector('.tab-link.active')?.textContent?.toLowerCase() || '';
+    if (activeTab.includes('estimación')) return 'estimacion-contable';
+    if (activeTab.includes('integridad')) return 'integridad-libro-mayor';
+    if (activeTab.includes('grupos')) return 'grupos-financieros';
+    
+    // 4. Valor por defecto
+    return 'general';
+}
+
+/**
+ * Guarda una aprobación de formulario para una sección específica
+ * @param {Object} approvalData - Datos de la aprobación
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFormApproval(approvalData) {
+    try {
+        console.log('=== INICIO saveFormApproval ===');
+        console.log('approvalData recibido:', approvalData);
+        
+        const userId = getCurrentUserId();
+        
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            throw new Error('Usuario no autenticado. Inicia sesión para continuar.');
+        }
+        
+        if (!approvalData.form_response_id) {
+            console.error('❌ form_response_id no proporcionado');
+            throw new Error('form_response_id es requerido. Debe guardar el formulario primero.');
+        }
+        
+        // Detectar automáticamente la sección si no se proporciona
+        const section = approvalData.section || detectCurrentSection();
+        
+        console.log('🔍 Sección detectada para aprobación:', section);
+        console.log('🔍 URL actual:', window.location.pathname);
+        console.log('🔍 Título de página:', document.title);
+        
+        const payload = {
+            form_response_id: approvalData.form_response_id,
+            section: section,
+            status: approvalData.status,
+            comments: approvalData.comments || '',
+            user_name: approvalData.user_name || getCurrentUserName(),
+            role: approvalData.role || getCurrentUserRole()
+        };
+        
+        console.log('Payload a enviar:', payload);
+        console.log('API URL:', `${DATABASE_API_BASE_URL}/api/formularios/approval`);
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': userId
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        const result = await response.json();
+        console.log('Response body:', result);
+        
+        if (!response.ok) {
+            console.error('❌ Error HTTP:', response.status, result.error);
+            throw new Error(result.error || `Error del servidor: ${response.status}`);
+        }
+        
+        if (!result.success) {
+            console.error('❌ Error en respuesta:', result.error);
+            throw new Error(result.error || 'Error guardando aprobación');
+        }
+
+        console.log('✅ Aprobación guardada exitosamente en BD:', result.approval);
+        console.log('✅ Sección guardada:', result.section);
+        return result;
+
+    } catch (error) {
+        console.error('❌ Error en saveFormApproval:', error);
+        console.error('❌ Detalles del error:', {
+            message: error.message,
+            stack: error.stack,
+            databaseApiUrl: DATABASE_API_BASE_URL
+        });
+        
+        // Error específico si el servidor no está corriendo
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('No se puede conectar con el servidor. Verifica que server.js esté corriendo en el puerto 3001.');
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Obtiene las aprobaciones de un formulario (todas o por sección específica)
+ * @param {string} formResponseId - ID del formulario
+ * @param {string} section - Sección específica (opcional)
+ * @returns {Promise<Object>} Aprobaciones del formulario
+ */
+async function getFormApprovals(formResponseId, section = null) {
+    try {
+        console.log('=== INICIO getFormApprovals ===');
+        console.log('formResponseId:', formResponseId, 'section:', section);
+        
+        const userId = getCurrentUserId();
+        
+        const url = section 
+            ? `${DATABASE_API_BASE_URL}/api/formularios/approval/${formResponseId}?section=${section}`
+            : `${DATABASE_API_BASE_URL}/api/formularios/approval/${formResponseId}`;
+
+        const headers = {
+            'user-id': userId
+        };
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers
+        });
+
+        const result = await response.json();
+        console.log('Response body:', result);
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo aprobaciones');
+        }
+
+        console.log('✅ Aprobaciones obtenidas:', result.approvals);
+        return result;
+
+    } catch (error) {
+        console.error('❌ Error en getFormApprovals:', error);
+        throw error;
+    }
+}
+
+/**
+ * Función helper para obtener el nombre del usuario actual
+ * @returns {string} Nombre del usuario
+ */
+function getCurrentUserName() {
+    const user = getCurrentSession();
+    return user?.username || user?.name || 'Usuario';
+}
+
+/**
+ * Función helper para obtener el rol del usuario actual
+ * @returns {string} Rol del usuario
+ */
+function getCurrentUserRole() {
+    const user = getCurrentSession();
+    return user?.role || 'auditor';
+}
+
+// Exponer funciones globalmente
+window.saveFormApproval = saveFormApproval;
+window.getFormApprovals = getFormApprovals;
+window.detectCurrentSection = detectCurrentSection;
+window.getCurrentUserName = getCurrentUserName;
+window.getCurrentUserRole = getCurrentUserRole;
+
+// Funciones duales (localStorage + base de datos)
+window.saveFinancialGroupDual = saveFinancialGroupDual;
+window.saveAccountDual = saveAccountDual;
+window.saveStoredAccount = saveStoredAccount;
+window.saveStoredAssignment = saveStoredAssignment;
+window.getStoredAssignments = getStoredAssignments;
+
 // Debug: Verificar que el archivo se cargó correctamente
 console.log('✅ database-api.js cargado correctamente');
 console.log('Funciones disponibles:', {
@@ -1873,5 +2071,8 @@ console.log('Funciones disponibles:', {
     saveExcelData: !!window.saveExcelData,
     syncAllDataToDatabase: !!window.syncAllDataToDatabase,
     loadAndSyncAssignments: !!window.loadAndSyncAssignments,
-    getFinancialGroupStructure: !!window.getFinancialGroupStructure
+    getFinancialGroupStructure: !!window.getFinancialGroupStructure,
+    saveFormApproval: !!window.saveFormApproval,
+    getFormApprovals: !!window.getFormApprovals,
+    detectCurrentSection: !!window.detectCurrentSection
 });
