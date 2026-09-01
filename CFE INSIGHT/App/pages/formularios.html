@@ -13254,43 +13254,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para mostrar auditor que revisó (Sistema de aprobación)
-        function showReviewedAuditor(event, formId) {
+        async function showReviewedAuditor(event, formId) {
             event.stopPropagation();
-            
+
             // Obtener datos guardados
-            const savedData = localStorage.getItem(`reviewedBy_${formId}`);
-            
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'reviewed-by');
+
             // Crear modal de aprobación
             const modal = document.createElement('div');
             modal.className = 'reviewed-modal';
-            
-            if (savedData) {
+
+            if (aprobacion) {
                 // Si ya hay datos aprobados, mostrar la información
-                const data = JSON.parse(savedData);
-                const dateTime = new Date(data.date);
-                const formattedDate = dateTime.toLocaleDateString('es-ES', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric' 
+                const dateTime = new Date(aprobacion.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
                 });
-                const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
                     minute: '2-digit',
-                    hour12: false 
+                    hour12: false
                 });
-                
+
                 // Verificar si el usuario actual es quien aprobó
                 const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
                 const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const isApprover = currentUserName === data.name;
-                
+                const isApprover = currentUserName === aprobacion.usuario;
+
                 let resetButton = '';
                 if (isApprover) {
                     resetButton = `<button class="btn btn-warning" onclick="resetReviewedBy('${formId}')">Eliminar mi aprobación</button>`;
                 } else {
                     resetButton = `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
                 }
-                
+
                 modal.innerHTML = `
                     <div class="reviewed-content">
                         <div class="reviewed-header">
@@ -13302,7 +13301,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <div class="info-row">
                                     <i class="bi bi-person-fill"></i>
                                     <div class="info-content">
-                                        <strong>Nombre:</strong> ${data.name}
+                                        <strong>Nombre:</strong> ${aprobacion.usuario}
                                     </div>
                                 </div>
                                 <div class="info-row">
@@ -13375,53 +13374,43 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para aprobar como "Revisado por"
-        function approveReviewedBy(formId) {
+        async function approveReviewedBy(formId) {
             // Obtener usuario actual automáticamente
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
-            
-            const now = new Date();
-            // Formatear fecha y hora local
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const localDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            
-            const approvalData = {
-                name: userName,
-                position: userPosition,
-                date: localDateTime
-            };
-            
-            // Guardar en localStorage
-            localStorage.setItem(`reviewedBy_${formId}`, JSON.stringify(approvalData));
-            
-            showNotification(`Formulario ${formId} aprobado por ${approvalData.name}`, 'success');
+            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
+
+            await window.saveApprovalForSection(formId, 'reviewed-by', 'approved', {
+                user_name: userName,
+                role: userPosition,
+                comments: JSON.stringify({ position: userPosition })
+            });
+
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'reviewed-by');
+
+            showNotification(`Formulario ${formId} aprobado por ${aprobacion.usuario}`, 'success');
             closeReviewedModal();
-            
+
             // Actualizar el botón para mostrar que está aprobado
-            updateReviewedButton(formId, approvalData);
+            updateReviewedButton(formId, aprobacion);
         }
         
         // Función para reiniciar aprobación de "Revisado por"
-        function resetReviewedBy(formId) {
-            localStorage.removeItem(`reviewedBy_${formId}`);
+        async function resetReviewedBy(formId) {
+            await window.removeApprovalForSection(formId, 'reviewed-by');
             showNotification(`Su aprobación de ${formId} ha sido eliminada`, 'info');
             closeReviewedModal();
             updateReviewedButton(formId, null);
         }
-        
+
         // Función para actualizar el botón de "Revisado por"
         function updateReviewedButton(formId, data) {
             const button = document.querySelector(`.reviewed-btn[onclick="showReviewedAuditor(event, '${formId}')"]`);
             if (button) {
                 if (data) {
                     button.classList.add('approved');
-                    button.title = `Revisado por: ${data.name}`;
+                    button.title = `Revisado por: ${data.usuario || data.name}`;
                 } else {
                     button.classList.remove('approved');
                     button.title = 'Revisado por';
@@ -13430,43 +13419,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para mostrar quién preparó el formulario (Sistema de aprobación)
-        function showPreparedBy(event, formId) {
+        async function showPreparedBy(event, formId) {
             event.stopPropagation();
-            
+
             // Obtener datos guardados
-            const savedData = localStorage.getItem(`preparedBy_${formId}`);
-            
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'prepared-by');
+
             // Crear modal de aprobación
             const modal = document.createElement('div');
             modal.className = 'prepared-modal';
-            
-            if (savedData) {
+
+            if (aprobacion) {
                 // Si ya hay datos aprobados, mostrar la información
-                const data = JSON.parse(savedData);
-                const dateTime = new Date(data.date);
-                const formattedDate = dateTime.toLocaleDateString('es-ES', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric' 
+                const dateTime = new Date(aprobacion.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
                 });
-                const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
                     minute: '2-digit',
-                    hour12: false 
+                    hour12: false
                 });
-                
+
                 // Verificar si el usuario actual es quien aprobó
                 const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
                 const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const isApprover = currentUserName === data.name;
-                
+                const isApprover = currentUserName === aprobacion.usuario;
+
                 let resetButton = '';
                 if (isApprover) {
                     resetButton = `<button class="btn btn-warning" onclick="resetPreparedBy('${formId}')">Eliminar mi aprobación</button>`;
                 } else {
                     resetButton = `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
                 }
-                
+
                 modal.innerHTML = `
                     <div class="prepared-content">
                         <div class="prepared-header">
@@ -13478,7 +13466,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <div class="info-row">
                                     <i class="bi bi-person-fill"></i>
                                     <div class="info-content">
-                                        <strong>Nombre:</strong> ${data.name}
+                                        <strong>Nombre:</strong> ${aprobacion.usuario}
                                     </div>
                                 </div>
                                 <div class="info-row">
@@ -13551,53 +13539,43 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para aprobar como "Preparado por"
-        function approvePreparedBy(formId) {
+        async function approvePreparedBy(formId) {
             // Obtener usuario actual automáticamente
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Preparador';
-            
-            const now = new Date();
-            // Formatear fecha y hora local
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const localDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            
-            const approvalData = {
-                name: userName,
-                position: userPosition,
-                date: localDateTime
-            };
-            
-            // Guardar en localStorage
-            localStorage.setItem(`preparedBy_${formId}`, JSON.stringify(approvalData));
-            
-            showNotification(`Formulario ${formId} aprobado como preparado por ${approvalData.name}`, 'success');
+            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
+
+            await window.saveApprovalForSection(formId, 'prepared-by', 'approved', {
+                user_name: userName,
+                role: userPosition,
+                comments: JSON.stringify({ position: userPosition })
+            });
+
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'prepared-by');
+
+            showNotification(`Formulario ${formId} aprobado como preparado por ${aprobacion.usuario}`, 'success');
             closePreparedModal();
-            
+
             // Actualizar el botón para mostrar que está aprobado
-            updatePreparedButton(formId, approvalData);
+            updatePreparedButton(formId, aprobacion);
         }
         
         // Función para reiniciar aprobación de "Preparado por"
-        function resetPreparedBy(formId) {
-            localStorage.removeItem(`preparedBy_${formId}`);
+        async function resetPreparedBy(formId) {
+            await window.removeApprovalForSection(formId, 'prepared-by');
             showNotification(`Su aprobación de ${formId} ha sido eliminada`, 'info');
             closePreparedModal();
             updatePreparedButton(formId, null);
         }
-        
+
         // Función para actualizar el botón de "Preparado por"
         function updatePreparedButton(formId, data) {
             const button = document.querySelector(`.prepared-btn[onclick="showPreparedBy(event, '${formId}')"]`);
             if (button) {
                 if (data) {
                     button.classList.add('approved');
-                    button.title = `Preparado por: ${data.name}`;
+                    button.title = `Preparado por: ${data.usuario || data.name}`;
                 } else {
                     button.classList.remove('approved');
                     button.title = 'Preparado por';
@@ -13639,43 +13617,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para mostrar "Socio" (Sistema de aprobación)
-        function showPartner(event, formId) {
+        async function showPartner(event, formId) {
             event.stopPropagation();
-            
+
             // Obtener datos guardados
-            const savedData = localStorage.getItem(`partner_${formId}`);
-            
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'partner');
+
             // Crear modal de aprobación
             const modal = document.createElement('div');
             modal.className = 'partner-modal';
-            
-            if (savedData) {
+
+            if (aprobacion) {
                 // Si ya hay datos aprobados, mostrar la información
-                const data = JSON.parse(savedData);
-                const dateTime = new Date(data.date);
-                const formattedDate = dateTime.toLocaleDateString('es-ES', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric' 
+                const dateTime = new Date(aprobacion.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
                 });
-                const formattedTime = dateTime.toLocaleTimeString('es-ES', { 
-                    hour: '2-digit', 
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
                     minute: '2-digit',
-                    hour12: false 
+                    hour12: false
                 });
-                
+
                 // Verificar si el usuario actual es quien aprobó
                 const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
                 const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const isApprover = currentUserName === data.name;
-                
+                const isApprover = currentUserName === aprobacion.usuario;
+
                 let resetButton = '';
                 if (isApprover) {
                     resetButton = `<button class="btn btn-warning" onclick="resetPartner('${formId}')">Eliminar mi aprobación</button>`;
                 } else {
                     resetButton = `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
                 }
-                
+
                 modal.innerHTML = `
                     <div class="partner-content">
                         <div class="partner-header">
@@ -13687,7 +13664,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <div class="info-row">
                                     <i class="bi bi-person-fill"></i>
                                     <div class="info-content">
-                                        <strong>Nombre:</strong> ${data.name}
+                                        <strong>Nombre:</strong> ${aprobacion.usuario}
                                     </div>
                                 </div>
                                 <div class="info-row">
@@ -13760,53 +13737,43 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para aprobar como "Socio"
-        function approvePartner(formId) {
+        async function approvePartner(formId) {
             // Obtener usuario actual automáticamente
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
-            
-            const now = new Date();
-            // Formatear fecha y hora local
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const localDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            
-            const approvalData = {
-                name: userName,
-                position: userPosition,
-                date: localDateTime
-            };
-            
-            // Guardar en localStorage
-            localStorage.setItem(`partner_${formId}`, JSON.stringify(approvalData));
-            
-            showNotification(`Formulario ${formId} aprobado por socio ${approvalData.name}`, 'success');
+            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
+
+            await window.saveApprovalForSection(formId, 'partner', 'approved', {
+                user_name: userName,
+                role: userPosition,
+                comments: JSON.stringify({ position: userPosition })
+            });
+
+            const aprobacion = await window.getFormApprovalsForSection(formId, 'partner');
+
+            showNotification(`Formulario ${formId} aprobado por socio ${aprobacion.usuario}`, 'success');
             closePartnerModal();
-            
+
             // Actualizar el botón para mostrar que está aprobado
-            updatePartnerButton(formId, approvalData);
+            updatePartnerButton(formId, aprobacion);
         }
         
         // Función para reiniciar aprobación de "Socio"
-        function resetPartner(formId) {
-            localStorage.removeItem(`partner_${formId}`);
+        async function resetPartner(formId) {
+            await window.removeApprovalForSection(formId, 'partner');
             showNotification(`Su aprobación de ${formId} ha sido eliminada`, 'info');
             closePartnerModal();
             updatePartnerButton(formId, null);
         }
-        
+
         // Función para actualizar el botón de "Socio"
         function updatePartnerButton(formId, data) {
             const button = document.querySelector(`.partner-btn[onclick="showPartner(event, '${formId}')"]`);
             if (button) {
                 if (data) {
                     button.classList.add('approved');
-                    button.title = `Socio: ${data.name}`;
+                    button.title = `Socio: ${data.usuario || data.name}`;
                 } else {
                     button.classList.remove('approved');
                     button.title = 'Socio';
@@ -20389,10 +20356,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                             </div>
                                             <div id="a200_q11_help" style="display: none; margin-bottom: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; font-size: 0.85rem; color: #856404;">
                                                 <strong>Obtener de cada socio y miembro del equipo del compromiso (y, cuando aplique, de la red de la firma) la declaración firmada de independencia.</strong>
-                                            </div>
-                                            <div style="padding: 12px 16px; border: 2px dashed #dee2e6; border-radius: 8px; background: #f8f9fa; text-align: center; color: #6c757d;">
-                                                <i class="bi bi-file-earmark-text" style="font-size: 1.5rem; margin-bottom: 8px; display: block;"></i>
-                                                <span style="font-size: 0.9rem;">Espacio para referenciar carta de independencia</span>
                                             </div>
                                         </div>
 
