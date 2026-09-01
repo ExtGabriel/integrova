@@ -1906,11 +1906,6 @@ async function saveFormApproval(approvalData) {
             throw new Error('Usuario no autenticado. Inicia sesión para continuar.');
         }
         
-        if (!approvalData.form_response_id) {
-            console.error('❌ form_response_id no proporcionado');
-            throw new Error('form_response_id es requerido. Debe guardar el formulario primero.');
-        }
-        
         // Detectar automáticamente la sección si no se proporciona
         const section = approvalData.section || detectCurrentSection();
         
@@ -1919,13 +1914,20 @@ async function saveFormApproval(approvalData) {
         console.log('🔍 Título de página:', document.title);
         
         const payload = {
-            form_response_id: approvalData.form_response_id,
             section: section,
             status: approvalData.status,
             comments: approvalData.comments || '',
             user_name: approvalData.user_name || getCurrentUserName(),
             role: approvalData.role || getCurrentUserRole()
         };
+
+        if (approvalData.form_response_id) {
+            payload.form_response_id = approvalData.form_response_id;
+        } else {
+            if (approvalData.form_id) payload.form_id = approvalData.form_id;
+            if (approvalData.entity_id) payload.entity_id = approvalData.entity_id;
+            if (approvalData.commitment_id) payload.commitment_id = approvalData.commitment_id;
+        }
         
         console.log('Payload a enviar:', payload);
         console.log('API URL:', `${DATABASE_API_BASE_URL}/api/formularios/approval`);
@@ -2021,6 +2023,67 @@ async function getFormApprovals(formResponseId, section = null) {
 }
 
 /**
+ * Obtiene la última aprobación de una sección usando form_id + entidad/compromiso.
+ * @param {string} formId - Identificador del formulario
+ * @param {string} section - Sección a consultar
+ * @returns {Promise<Object|null>} Última aprobación o null
+ */
+async function getFormApprovalsForSection(formId, section) {
+    try {
+        const userId = getCurrentUserId();
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({
+                form_id: formId,
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
+        });
+
+        const result = await response.json();
+        console.log('getFormApprovalsForSection response:', result);
+
+        if (!result.success || !result.formulario) {
+            return null;
+        }
+
+        const approvals = result.formulario.approvals || { sections: {} };
+        const sectionApprovals = approvals.sections?.[section] || [];
+
+        if (sectionApprovals.length === 0) {
+            return null;
+        }
+
+        const last = sectionApprovals[sectionApprovals.length - 1];
+        const fecha = new Date(last.timestamp).toLocaleString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return {
+            usuario: last.user_name,
+            userId: last.user_id,
+            fecha: fecha,
+            timestamp: last.timestamp,
+            status: last.status
+        };
+    } catch (error) {
+        console.error('❌ Error en getFormApprovalsForSection:', error);
+        return null;
+    }
+}
+
+/**
  * Función helper para obtener el nombre del usuario actual
  * @returns {string} Nombre del usuario
  */
@@ -2038,12 +2101,88 @@ function getCurrentUserRole() {
     return user?.role || 'auditor';
 }
 
+/**
+ * Guarda una aprobación usando el contexto actual de entidad/compromiso.
+ * Busca o crea automáticamente el registro en form_responses.
+ * @param {string} formId - Identificador del formulario/sección
+ * @param {string} section - Sección aprobada
+ * @param {string} status - Estado de la aprobación (approved, rejected, pending, review)
+ * @param {Object} options - Opciones adicionales (comments, user_name, role)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveApprovalForSection(formId, section, status = 'approved', options = {}) {
+    try {
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        return await saveFormApproval({
+            form_id: formId,
+            section: section,
+            entity_id: entityId,
+            commitment_id: commitmentId,
+            status: status,
+            comments: options.comments || '',
+            user_name: options.user_name || getCurrentUserName(),
+            role: options.role || getCurrentUserRole()
+        });
+    } catch (error) {
+        console.error('❌ Error en saveApprovalForSection:', error);
+        throw error;
+    }
+}
+
+/**
+ * Quita la aprobación del usuario actual para una sección, usando el contexto actual.
+ * @param {string} formId - Identificador del formulario/sección
+ * @param {string} section - Sección a desaprobar
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function removeApprovalForSection(formId, section) {
+    try {
+        const userId = getCurrentUserId();
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        const payload = {
+            form_id: formId,
+            section: section,
+            entity_id: entityId,
+            commitment_id: commitmentId
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        console.log('Response body:', result);
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `Error del servidor: ${response.status}`);
+        }
+
+        console.log('✅ Aprobación eliminada de BD:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Error en removeApprovalForSection:', error);
+        throw error;
+    }
+}
+
 // Exponer funciones globalmente
 window.saveFormApproval = saveFormApproval;
 window.getFormApprovals = getFormApprovals;
 window.detectCurrentSection = detectCurrentSection;
 window.getCurrentUserName = getCurrentUserName;
 window.getCurrentUserRole = getCurrentUserRole;
+window.saveApprovalForSection = saveApprovalForSection;
+window.removeApprovalForSection = removeApprovalForSection;
+window.getFormApprovalsForSection = getFormApprovalsForSection;
 
 // Funciones duales (localStorage + base de datos)
 window.saveFinancialGroupDual = saveFinancialGroupDual;

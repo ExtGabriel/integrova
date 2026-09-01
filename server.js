@@ -9444,6 +9444,9 @@ app.post('/api/formularios/approval', async (req, res) => {
         const userId = req.user?.id || req.headers['user-id'];
         const {
             form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
             section, // Sección específica del formulario (ej: 'estimacion-contable', 'integridad-libro-mayor')
             status,
             comments,
@@ -9454,6 +9457,9 @@ app.post('/api/formularios/approval', async (req, res) => {
         console.log('🔍 Datos extraídos:', {
             userId,
             form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
             section,
             status,
             user_name,
@@ -9465,14 +9471,70 @@ app.post('/api/formularios/approval', async (req, res) => {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
 
-        if (!form_response_id || !status) {
-            console.error('❌ Faltan campos requeridos:', { form_response_id, status });
-            return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_response_id, status' });
+        if (!status) {
+            console.error('❌ Falta campo status');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: status' });
         }
 
         if (!section) {
             console.error('❌ Falta campo section');
             return res.status(400).json({ success: false, error: 'Falta el campo requerido: section' });
+        }
+
+        let resolvedFormResponseId = form_response_id;
+        let targetFormId = form_id || section;
+
+        // Si no hay form_response_id, buscar/crear por form_id + entity + commitment + usuario
+        if (!resolvedFormResponseId) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('created_by', userId)
+                .eq('form_id', targetFormId);
+
+            if (entity_id && uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            }
+            if (commitment_id && uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            }
+
+            const { data: existing, error: findError } = await query.maybeSingle();
+
+            if (findError) {
+                console.error('❌ Error buscando formulario:', findError);
+                return res.status(500).json({ success: false, error: 'Error buscando formulario', details: findError.message });
+            }
+
+            if (existing?.id) {
+                resolvedFormResponseId = existing.id;
+            } else {
+                console.log('🆕 No existe formulario, creando nuevo registro para aprobación:', { targetFormId, entity_id, commitment_id });
+                const newPayload = {
+                    form_id: targetFormId,
+                    form_title: `Formulario ${targetFormId}`,
+                    form_data: {},
+                    created_by: userId,
+                    entity_id: (entity_id && uuidRegex.test(entity_id)) ? entity_id : null,
+                    commitment_id: (commitment_id && uuidRegex.test(commitment_id)) ? commitment_id : null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                const { data: newForm, error: createError } = await supabase
+                    .from('form_responses')
+                    .insert([newPayload])
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('❌ Error creando formulario para aprobación:', createError);
+                    return res.status(500).json({ success: false, error: 'Error creando formulario para aprobación', details: createError.message });
+                }
+
+                resolvedFormResponseId = newForm.id;
+            }
         }
 
         // Validar que el status sea válido
@@ -9482,14 +9544,14 @@ app.post('/api/formularios/approval', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Status no válido. Debe ser: approved, rejected, pending, review' });
         }
 
-        console.log('📝 Guardando aprobación:', { form_response_id, section, status, userId, user_name, role });
+        console.log('📝 Guardando aprobación:', { form_response_id: resolvedFormResponseId, section, status, userId, user_name, role });
 
         // Obtener el formulario actual
-        console.log('🔍 Buscando formulario con ID:', form_response_id);
+        console.log('🔍 Buscando formulario con ID:', resolvedFormResponseId);
         const { data: currentForm, error: fetchError } = await supabase
             .from('form_responses')
             .select('*')
-            .eq('id', form_response_id)
+            .eq('id', resolvedFormResponseId)
             .single();
 
         if (fetchError) {
@@ -9503,7 +9565,7 @@ app.post('/api/formularios/approval', async (req, res) => {
         }
 
         if (!currentForm) {
-            console.error('❌ Formulario no encontrado con ID:', form_response_id);
+            console.error('❌ Formulario no encontrado con ID:', resolvedFormResponseId);
             return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
         }
 
@@ -9561,7 +9623,7 @@ app.post('/api/formularios/approval', async (req, res) => {
                 approvals: newApprovals,
                 updated_at: new Date().toISOString()
             })
-            .eq('id', form_response_id)
+            .eq('id', resolvedFormResponseId)
             .select()
             .single();
 
@@ -9602,6 +9664,129 @@ app.post('/api/formularios/approval', async (req, res) => {
             error: 'Error interno del servidor',
             details: error.message 
         });
+    }
+});
+
+// Quitar / deshacer aprobación de una sección
+app.post('/api/formularios/approval/remove', async (req, res) => {
+    try {
+        console.log('=== INICIO POST /api/formularios/approval/remove ===');
+        console.log('📥 Body recibido:', JSON.stringify(req.body, null, 2));
+
+        const userId = req.user?.id || req.headers['user-id'];
+        const {
+            form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
+            section
+        } = req.body;
+
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!section) {
+            console.error('❌ Falta campo section');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: section' });
+        }
+
+        let resolvedFormResponseId = form_response_id;
+        let targetFormId = form_id || section;
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        if (!resolvedFormResponseId) {
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('created_by', userId)
+                .eq('form_id', targetFormId);
+
+            if (entity_id && uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            }
+            if (commitment_id && uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            }
+
+            const { data: existing, error: findError } = await query.maybeSingle();
+
+            if (findError) {
+                console.error('❌ Error buscando formulario:', findError);
+                return res.status(500).json({ success: false, error: 'Error buscando formulario', details: findError.message });
+            }
+
+            if (existing?.id) {
+                resolvedFormResponseId = existing.id;
+            } else {
+                console.log('ℹ️ No existe formulario para quitar aprobación:', { targetFormId, entity_id, commitment_id });
+                return res.status(404).json({ success: false, error: 'No se encontró el formulario para quitar la aprobación' });
+            }
+        }
+
+        // Obtener el formulario actual
+        console.log('🔍 Buscando formulario con ID:', resolvedFormResponseId);
+        const { data: currentForm, error: fetchError } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('id', resolvedFormResponseId)
+            .single();
+
+        if (fetchError || !currentForm) {
+            console.error('❌ Error obteniendo formulario:', fetchError);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        const currentApprovals = currentForm.approvals || {};
+        const sectionsApprovals = currentApprovals.sections || {};
+        const sectionApprovals = sectionsApprovals[section] || [];
+
+        // Eliminar la aprobación del usuario actual en esa sección
+        const updatedSectionApprovals = sectionApprovals.filter(a => a.user_id !== userId);
+
+        const newSections = { ...sectionsApprovals };
+        if (updatedSectionApprovals.length > 0) {
+            newSections[section] = updatedSectionApprovals;
+        } else {
+            delete newSections[section];
+        }
+
+        const newApprovals = {
+            sections: newSections,
+            last_updated: new Date().toISOString(),
+            last_status: 'removed',
+            last_section: section
+        };
+
+        console.log('💾 Eliminando aprobación en BD...');
+        const { data: updatedForm, error: updateError } = await supabase
+            .from('form_responses')
+            .update({
+                approvals: newApprovals,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', resolvedFormResponseId)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('❌ Error quitando aprobación:', updateError);
+            return res.status(500).json({ success: false, error: 'Error al quitar la aprobación', details: updateError.message });
+        }
+
+        console.log('✅ Aprobación eliminada exitosamente para sección:', section);
+        res.json({
+            success: true,
+            message: 'Aprobación eliminada exitosamente',
+            section: section,
+            formulario: updatedForm
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/approval/remove:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor', details: error.message });
     }
 });
 
