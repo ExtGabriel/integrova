@@ -12798,6 +12798,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('appendCategoryRootFolder: faltan datos', { category, subfolder });
                 return;
             }
+
+            // Evitar duplicar la carpeta "General" en Planes (ya se muestra como bloque azul)
+            const folderNameLower = (subfolder.nombre || '').trim().toLowerCase();
+            if (category === 'planes' && folderNameLower === 'general') {
+                console.log('appendCategoryRootFolder: omitiendo fila amarilla para carpeta General en Planes');
+                return;
+            }
+
             const container = document.getElementById(`${category}-content`);
             if (!container) {
                 console.warn('appendCategoryRootFolder: no existe contenedor', `${category}-content`);
@@ -27433,6 +27441,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     async function createGeneralFolderIfNotExists() {
         console.log('🚀 INICIO createGeneralFolderIfNotExists');
         try {
+            // Capturar contexto de entidad y compromiso activos
+            const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+            const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+            console.log('🔍 Contexto BG:', { entityId, commitmentId });
+
             console.log('🔍 Verificando subcategoriasManager...');
             if (!window.subcategoriasManager) {
                 console.error('❌ subcategoriasManager no está disponible; no se puede crear la carpeta General');
@@ -27494,29 +27507,35 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             }
 
-            // Buscar carpeta "General" vinculada al dataset actual
+            // Buscar carpeta "General" del contexto actual
             console.log('🔍 Buscando carpeta "General" existente...');
-            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
             console.log('📁 Subcarpetas obtenidas:', subfolders?.length || 0);
             
             let generalFolder = (subfolders || []).find(folder => {
                 const folderName = (folder.nombre || '').trim().toLowerCase();
-                const folderDataset = folder.meta?.datasetId || '';
+                const folderEntityId = folder.entity_id || folder.metadata?.entity_id || '';
+                const folderCommitmentId = folder.commitment_id || folder.metadata?.commitment_id || '';
+                const matches = folderName === 'general' &&
+                                folderEntityId === entityId &&
+                                folderCommitmentId === commitmentId;
                 console.log('🔍 Analizando carpeta:', {
                     nombre: folder.nombre,
                     folderName,
-                    folderDataset,
-                    currentDatasetId,
-                    coincide: folderName === 'general' && folderDataset === currentDatasetId
+                    folderEntityId,
+                    folderCommitmentId,
+                    entityId,
+                    commitmentId,
+                    coincide: matches
                 });
-                return folderName === 'general' && folderDataset === currentDatasetId;
+                return matches;
             });
 
             console.log('📊 Resultado búsqueda carpeta General:', generalFolder ? 'ENCONTRADA' : 'NO ENCONTRADA');
 
-            // Si no existe, crearla vinculada al dataset
+            // Si no existe, crearla vinculada al contexto
             if (!generalFolder) {
-                console.log('🔨 Creando carpeta "General" automáticamente para dataset:', currentDatasetId);
+                console.log('🔨 Creando carpeta "General" automáticamente para entidad:', entityId, 'compromiso:', commitmentId);
                 const folderMeta = {
                     datasetId: currentDatasetId,
                     datasetName: currentDatasetName || 'Dataset actual',
@@ -27531,7 +27550,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     'General',       // folderName
                     `Carpeta general para documentos de auditoría - ${currentDatasetName || 'Dataset actual'}`, // description
                     null,            // parentFolderId
-                    folderMeta       // metadata con vinculación al dataset
+                    folderMeta,      // metadata con vinculación al dataset
+                    entityId,        // entityId
+                    commitmentId     // commitmentId
                 );
                 console.log('📋 Resultado saveSubfolder:', generalFolder);
 
@@ -27553,7 +27574,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Crear documentos BG dentro de la carpeta General si aún no existen
             if (generalFolder && generalFolder.id) {
                 console.log('🔨 Creando documentos BG en carpeta:', generalFolder.id);
-                await createBGDocumentsIfNotExist(generalFolder.id);
+                await createBGDocumentsIfNotExist(generalFolder.id, entityId, commitmentId);
                 console.log('✅ Documentos BG creados (o ya existían)');
             } else {
                 console.error('❌ No se pueden crear BG - generalFolder o generalFolder.id no disponible:', { generalFolder });
@@ -27574,39 +27595,41 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
 
-            // Obtener todas las carpetas "General" existentes
-            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
+            // Capturar contexto de entidad y compromiso activos
+            const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+            const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+            console.log('🔍 Contexto carpetas General:', { entityId, commitmentId });
+
+            // Obtener carpetas "General" del contexto actual
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
             const generalFolders = (subfolders || []).filter(folder => {
                 const folderName = (folder.nombre || '').trim().toLowerCase();
                 return folderName === 'general';
             });
 
-            console.log('📁 Carpetas "General" encontradas:', generalFolders.length);
+            console.log('📁 Carpetas "General" encontradas para este contexto:', generalFolders.length);
 
-            // Ocultar carpetas "General" de otros datasets
+            // Al filtrar por entidad/compromiso, solo traemos carpetas del contexto activo
             generalFolders.forEach(folder => {
-                const folderDataset = folder.metadata?.datasetId;
                 const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
-                
-                if (folderDataset !== activeDatasetId && folderElement) {
-                    console.log('🙈 Ocultando carpeta "General" de dataset anterior:', folderDataset);
-                    folderElement.style.display = 'none';
-                } else if (folderDataset === activeDatasetId && folderElement) {
-                    console.log('👁️ Mostrando carpeta "General" del dataset activo:', folderDataset);
+                if (folderElement) {
+                    console.log('👁️ Mostrando carpeta "General" del contexto activo:', folder.id);
                     folderElement.style.display = 'block';
                 }
             });
 
-            // Verificar si existe carpeta "General" para el dataset activo
-            const activeFolder = generalFolders.find(folder => 
-                folder.metadata?.datasetId === activeDatasetId
-            );
+            // Verificar si existe carpeta "General" para el contexto activo
+            const activeFolder = generalFolders.find(folder => {
+                const folderEntityId = folder.entity_id || folder.metadata?.entity_id || '';
+                const folderCommitmentId = folder.commitment_id || folder.metadata?.commitment_id || '';
+                return folderEntityId === entityId && folderCommitmentId === commitmentId;
+            });
 
             if (!activeFolder) {
-                console.log('🔨 No existe carpeta "General" para dataset activo, creándola...');
+                console.log('🔨 No existe carpeta "General" para el contexto activo, creándola...');
                 await createGeneralFolderIfNotExists();
             } else {
-                console.log('✅ Carpeta "General" del dataset activo ya existe');
+                console.log('✅ Carpeta "General" del contexto activo ya existe');
             }
 
         } catch (error) {
@@ -27614,7 +27637,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
     }
 
-    // Función para limpiar carpetas "General" cuando se elimina un dataset
+    // Función para limpiar carpetas "General" y BG del contexto activo cuando se elimina un dataset
     async function cleanupGeneralFoldersForDeletedDataset(datasetId) {
         console.log('🔍 INICIO cleanupGeneralFoldersForDeletedDataset para datasetId:', datasetId);
         
@@ -27632,35 +27655,34 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 await window.subcategoriasManager.init();
             }
 
-            console.log('🔍 Buscando carpetas "General" vinculadas al dataset:', datasetId);
+            // Capturar contexto de entidad y compromiso activos
+            const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+            const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+            console.log('🔍 Contexto limpieza:', { entityId, commitmentId });
+
+            console.log('🔍 Buscando carpetas "General" del contexto activo');
             
-            // Buscar todas las carpetas "General" vinculadas al dataset eliminado
-            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false);
-            console.log('📁 Total de subcarpetas encontradas:', subfolders?.length || 0);
+            // Buscar carpetas "General" del contexto activo
+            const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
+            console.log('📁 Total de subcarpetas del contexto:', subfolders?.length || 0);
             
             if (subfolders) {
                 console.log('📋 Lista de subcarpetas:', subfolders.map(f => ({
                     id: f.id,
                     nombre: f.nombre,
-                    datasetId: f.meta?.datasetId
+                    entityId: f.entity_id,
+                    commitmentId: f.commitment_id
                 })));
             }
             
             const foldersToDelete = (subfolders || []).filter(folder => {
                 const folderName = (folder.nombre || '').trim().toLowerCase();
-                const folderDataset = folder.meta?.datasetId || '';
-                const shouldDelete = folderName === 'general' && 
-                                   (folderDataset === datasetId || folderDataset === '' || folderDataset === undefined);
+                const shouldDelete = folderName === 'general';
                 
                 console.log('🔍 Analizando carpeta:', {
                     id: folder.id,
                     nombre: folder.nombre,
-                    folderName: folderName,
-                    folderDataset: folderDataset,
-                    targetDatasetId: datasetId,
-                    shouldDelete: shouldDelete,
-                    motivo: folderDataset === datasetId ? 'Dataset coincide' : 
-                           (folderDataset === '' || folderDataset === undefined) ? 'Carpeta huérfana sin datasetId' : 'No eliminar'
+                    shouldDelete: shouldDelete
                 });
                 
                 return shouldDelete;
@@ -27670,12 +27692,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Eliminar cada carpeta encontrada
             for (const folder of foldersToDelete) {
-                console.log('🗑️ Eliminando carpeta "General" del dataset eliminado:', folder);
+                console.log('🗑️ Eliminando carpeta "General":', folder);
                 
                 try {
+                    // Determinar el contexto específico de la carpeta
+                    const folderEntityId = folder.entity_id || '';
+                    const folderCommitmentId = folder.commitment_id || '';
+
                     // Primero eliminar todos los documentos dentro de la carpeta
                     console.log('📄 Buscando documentos dentro de la carpeta:', folder.id);
-                    const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
+                    const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, folderEntityId, folderCommitmentId);
                     console.log('📄 Total documentos encontrados:', documents?.length || 0);
                     
                     const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === folder.id);
@@ -27683,15 +27709,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     
                     for (const doc of docsInFolder) {
                         console.log('🗑️ Eliminando documento:', doc.id, doc.nombre);
-                        await window.subcategoriasManager.deleteSubdocument(doc.id, doc.nombre || 'Documento');
+                        await window.subcategoriasManager.deleteSubdocument(doc.id, doc.nombre || 'Documento', true);
                     }
                     
                     // Luego eliminar la carpeta
                     console.log('🗑️ Eliminando carpeta:', folder.id);
-                    await window.subcategoriasManager.deleteSubfolder('planes', 'planes', folder.id);
+                    await window.subcategoriasManager.deleteSubfolder(folder.id, folder.nombre || 'General', true);
                     
                     // Remover de la UI
-                    const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
+                    const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`) || 
+                                           document.querySelector(`[data-id="${folder.id}"]`);
                     if (folderElement) {
                         console.log('🖼️ Removiendo carpeta de la UI');
                         folderElement.remove();
@@ -27699,7 +27726,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         console.warn('⚠️ No se encontró elemento de la carpeta en la UI');
                     }
                     
-                    console.log('✅ Carpeta "General" eliminada exitosamente');
+                    console.log('✅ Carpeta "General" y BG eliminadas exitosamente');
                     
                 } catch (folderError) {
                     console.error('❌ Error eliminando carpeta específica:', folder, folderError);
@@ -27707,9 +27734,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
 
             if (foldersToDelete.length > 0) {
-                showNotification(`🗑️ Se eliminaron ${foldersToDelete.length} carpetas "General" del dataset eliminado`, 'info');
+                showNotification(`🗑️ Se eliminaron ${foldersToDelete.length} carpeta(s) "General" y sus BG del dataset eliminado`, 'info');
             } else {
-                console.log('ℹ️ No se encontraron carpetas "General" para eliminar del dataset:', datasetId);
+                console.log('ℹ️ No se encontraron carpetas "General" para eliminar en este contexto');
             }
 
         } catch (error) {
@@ -27721,7 +27748,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
     // Crear las hojas de trabajo BG-1 ACTIVO, BG-2 PASIVO y BG-3 ESTADO DE RESULTADOS
     // dentro de la carpeta General si todavía no existen
-    async function createBGDocumentsIfNotExist(parentFolderId) {
+    async function createBGDocumentsIfNotExist(parentFolderId, entityId = '', commitmentId = '') {
         try {
             if (!window.subcategoriasManager || !parentFolderId) return;
 
@@ -27729,7 +27756,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 await window.subcategoriasManager.init();
             }
 
-            const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false);
+            const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+            const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
+            const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, resolvedEntityId, resolvedCommitmentId);
             const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === parentFolderId);
 
             const requiredDocs = [
@@ -27772,7 +27802,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     cfg.titulo,
                     content,           // contenido generado
                     cfg.meta || {},
-                    parentFolderId
+                    parentFolderId,
+                    resolvedEntityId,
+                    resolvedCommitmentId
                 );
             }
         } catch (error) {

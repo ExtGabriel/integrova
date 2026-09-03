@@ -109,24 +109,34 @@
         }
 
         // Guardar subcarpeta
-        async saveSubfolder(categoria, subcategoria, nombre, descripcion = '', parentFolderId = null) {
+        async saveSubfolder(categoria, subcategoria, nombre, descripcion = '', parentFolderId = null, metadata = {}, entityId = null, commitmentId = null) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
                 const response = await fetch(buildApiUrl('/api/subfolders/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     },
                     body: JSON.stringify({
                         categoria,
                         subcategoria,
                         nombre,
                         descripcion,
-                        parent_folder_id: parentFolderId
+                        parent_folder_id: parentFolderId,
+                        metadata: {
+                            ...metadata,
+                            entity_id: resolvedEntityId,
+                            commitment_id: resolvedCommitmentId
+                        }
                     })
                 });
 
@@ -158,23 +168,23 @@
         }
 
         // Guardar subdocumento
-        async saveSubdocument(categoria, subcategoria, tipo, titulo, contenido = '', metadata = {}, parentFolderId = null) {
+        async saveSubdocument(categoria, subcategoria, tipo, titulo, contenido = '', metadata = {}, parentFolderId = null, entityId = null, commitmentId = null) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                // Obtener contexto actual de entidad y compromiso
-                const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
-                const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                // Obtener contexto actual de entidad y compromiso si no se pasaron explícitamente
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
 
                 const response = await fetch(buildApiUrl('/api/subdocuments/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'user-id': this.userId,
-                        'entity-id': entityId,
-                        'commitment-id': commitmentId
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     },
                     body: JSON.stringify({
                         categoria,
@@ -184,8 +194,8 @@
                         contenido,
                         metadata: {
                             ...metadata,
-                            entity_id: entityId,
-                            commitment_id: commitmentId
+                            entity_id: resolvedEntityId,
+                            commitment_id: resolvedCommitmentId
                         },
                         parent_folder_id: parentFolderId
                     })
@@ -223,9 +233,12 @@
         }
 
         // Obtener subcarpetas
-        async getSubfolders(categoria, subcategoria, useCache = true) {
+        async getSubfolders(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
-                const cacheKey = `${categoria}/${subcategoria}/subfolders`;
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                const cacheKey = `${categoria}/${subcategoria}/subfolders?entity=${resolvedEntityId}&commitment=${resolvedCommitmentId}`;
                 
                 if (useCache && this.cache.has(cacheKey)) {
                     return this.cache.get(cacheKey);
@@ -235,9 +248,17 @@
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl(`/api/subfolders/${categoria}/${subcategoria}`), {
+                let apiUrl = buildApiUrl(`/api/subfolders/${categoria}/${subcategoria}`);
+                const params = new URLSearchParams();
+                if (resolvedEntityId) params.append('entity_id', resolvedEntityId);
+                if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
+                if (params.toString()) apiUrl += `?${params.toString()}`;
+
+                const response = await fetch(apiUrl, {
                     headers: {
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     }
                 });
 
@@ -261,18 +282,18 @@
         }
 
         // Obtener subdocumentos
-        async getSubdocuments(categoria, subcategoria, useCache = true) {
+        async getSubdocuments(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                // Obtener contexto actual de entidad y compromiso
-                const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
-                const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                // Obtener contexto actual de entidad y compromiso si no se pasaron explícitamente
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
 
                 // Clave de cache que incluye el contexto para no mezclar documentos de otra entidad/compromiso
-                const cacheKey = `${categoria}/${subcategoria}/documents?entity=${entityId}&commitment=${commitmentId}`;
+                const cacheKey = `${categoria}/${subcategoria}/documents?entity=${resolvedEntityId}&commitment=${resolvedCommitmentId}`;
 
                 if (useCache && this.cache.has(cacheKey)) {
                     return this.cache.get(cacheKey);
@@ -281,15 +302,15 @@
                 // Construir URL con parámetros de contexto
                 let apiUrl = buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`);
                 const params = new URLSearchParams();
-                if (entityId) params.append('entity_id', entityId);
-                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (resolvedEntityId) params.append('entity_id', resolvedEntityId);
+                if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
                 if (params.toString()) apiUrl += `?${params.toString()}`;
 
                 const response = await fetch(apiUrl, {
                     headers: {
                         'user-id': this.userId,
-                        'entity-id': entityId,
-                        'commitment-id': commitmentId
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     }
                 });
 
@@ -581,14 +602,14 @@
         }
 
         // Eliminar subcarpeta
-        async deleteSubfolder(folderId, folderName) {
+        async deleteSubfolder(folderId, folderName, skipConfirm = false) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                // Confirmación
-                if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todo su contenido? Esta acción no se puede deshacer.`)) {
+                // Confirmación (puede omitirse para limpiezas automáticas)
+                if (!skipConfirm && !confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todo su contenido? Esta acción no se puede deshacer.`)) {
                     return;
                 }
 
@@ -639,13 +660,13 @@
         }
 
         // Eliminar subdocumento
-        async deleteSubdocument(documentId, documentTitle) {
+        async deleteSubdocument(documentId, documentTitle, skipConfirm = false) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                if (!confirm(`¿Estás seguro de que quieres eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
+                if (!skipConfirm && !confirm(`¿Estás seguro de que quieres eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
                     return;
                 }
 

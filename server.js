@@ -8155,7 +8155,9 @@ app.delete('/api/notifications/:id', async (req, res) => {
 app.post('/api/subfolders/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { nombre, descripcion, categoria, subcategoria, parent_folder_id } = req.body;
+        const { nombre, descripcion, categoria, subcategoria, parent_folder_id, metadata } = req.body;
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -8166,6 +8168,7 @@ app.post('/api/subfolders/save', async (req, res) => {
         }
         
         console.log(`💾 Guardando subcarpeta: ${nombre} en ${categoria}/${subcategoria}`);
+        console.log(`📌 Contexto carpeta - entity_id: ${entityId}, commitment_id: ${commitmentId}`);
         
         const { data: subfolder, error } = await supabase
             .from('subcarpetas')
@@ -8176,6 +8179,8 @@ app.post('/api/subfolders/save', async (req, res) => {
                 subcategoria,
                 parent_folder_id: parent_folder_id || null,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -8261,20 +8266,32 @@ app.get('/api/subfolders/:categoria/:subcategoria', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria } = req.params;
+        const { entity_id, commitment_id } = req.query;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
         
         console.log(`🔍 Obteniendo subcarpetas de ${categoria}/${subcategoria}`);
+        console.log(`🔍 Contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
         
-        const { data: subfolders, error } = await supabase
+        let query = supabase
             .from('subcarpetas')
             .select('*')
             .eq('categoria', categoria)
             .eq('subcategoria', subcategoria)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .eq('user_id', userId);
+
+        if (entity_id) {
+            console.log('🔍 Filtrando subcarpetas por entity_id:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando subcarpetas por commitment_id:', commitment_id);
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { data: subfolders, error } = await query.order('created_at', { ascending: false });
             
         if (error) {
             console.error('❌ Error obteniendo subcarpetas:', error);
