@@ -6651,21 +6651,30 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
             return res.json({ success: true, snapshot: null, rows: [] });
         }
 
-        const { data: rows, error: rowsError } = await supabase
-            .from('financial_group_rows')
-            .select('*')
-            .eq('snapshot_id', snapshot.id)
-            .order('order_index', { ascending: true });
+        let rows = [];
 
-        if (rowsError) {
-            console.error('Error obteniendo filas del snapshot de grupos financieros:', rowsError);
-            return res.status(500).json({ success: false, error: rowsError.message });
+        try {
+            const { data: rowsData, error: rowsError } = await supabase
+                .from('financial_group_rows')
+                .select('*')
+                .eq('snapshot_id', snapshot.id)
+                .order('order_index', { ascending: true });
+
+            if (rowsError) {
+                console.warn('⚠️ No se pudo leer financial_group_rows, usando snapshot.meta.groups:', rowsError.message);
+                rows = snapshot.meta?.groups || [];
+            } else {
+                rows = rowsData || [];
+            }
+        } catch (tableError) {
+            console.warn('⚠️ Error consultando financial_group_rows, usando snapshot.meta.groups:', tableError.message);
+            rows = snapshot.meta?.groups || [];
         }
 
         res.json({
             success: true,
             snapshot,
-            rows: rows || []
+            rows: rows
         });
 
     } catch (error) {

@@ -379,12 +379,56 @@
         // Global variables
         let currentDatasetId = null;
         let balanceData = [];
+        let activeBgType = null;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             await loadAvailableDatasets();
             updateGeneratedDate();
+            handleQueryParams();
         });
+
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                datasetId: params.get('datasetId'),
+                bgType: params.get('bgType')
+            };
+        }
+
+        async function handleQueryParams() {
+            const { datasetId, bgType } = getQueryParams();
+            if (!datasetId) return;
+
+            activeBgType = bgType;
+
+            const select = document.getElementById('datasetSelect');
+            if (select) select.value = datasetId;
+
+            updatePageTitleForBgType(bgType);
+
+            await loadBalanceData(datasetId, bgType);
+        }
+
+        function updatePageTitleForBgType(bgType) {
+            const titleMap = {
+                activo: 'BG-1 ACTIVO',
+                pasivo: 'BG-2 PASIVO Y PATRIMONIO',
+                resultados: 'BG-3 ESTADO DE RESULTADOS'
+            };
+
+            const title = titleMap[bgType] || 'Balance General';
+
+            const headerTitle = document.querySelector('.bg-header h1');
+            if (headerTitle) {
+                headerTitle.innerHTML = `<i class="bi bi-bank"></i> ${title}`;
+            }
+
+            const summary = document.getElementById('bgSummary');
+            if (summary) {
+                summary.style.display = (bgType === 'resultados') ? 'none' : 'flex';
+            }
+        }
 
         // Load available datasets
         async function loadAvailableDatasets() {
@@ -408,9 +452,10 @@
         }
 
         // Load balance data
-        async function loadBalanceData() {
+        async function loadBalanceData(datasetId = null, bgType = null) {
             const datasetSelect = document.getElementById('datasetSelect');
-            const selectedDatasetId = datasetSelect.value;
+            const selectedDatasetId = datasetId || datasetSelect?.value;
+            const selectedBgType = bgType || activeBgType;
             
             if (!selectedDatasetId) {
                 alert('Por favor selecciona un dataset');
@@ -418,6 +463,8 @@
             }
 
             currentDatasetId = selectedDatasetId;
+            activeBgType = selectedBgType;
+            updatePageTitleForBgType(selectedBgType);
             
             const contentDiv = document.getElementById('balanceContent');
             contentDiv.innerHTML = `
@@ -437,14 +484,36 @@
                     return;
                 }
 
-                balanceData = rows;
-                renderBalanceTable(rows);
-                updateSummaryCards(rows);
+                const filteredRows = filterRowsByBgType(rows, selectedBgType);
+                balanceData = filteredRows;
+                renderBalanceTable(filteredRows, selectedBgType);
+                updateSummaryCards(filteredRows);
                 
             } catch (error) {
                 console.error('Error loading balance data:', error);
                 showEmptyState('Error al cargar los datos: ' + error.message);
             }
+        }
+
+        function filterRowsByBgType(rows, bgType) {
+            if (!bgType) return rows;
+
+            return rows.filter(row => {
+                const name = (row.accountName || '').toLowerCase();
+                const code = String(row.accountCode || '').trim();
+                const firstDigit = code.charAt(0);
+
+                if (bgType === 'activo') {
+                    return name.includes('activo') || firstDigit === '1';
+                }
+                if (bgType === 'pasivo') {
+                    return name.includes('pasivo') || name.includes('patrimonio') || firstDigit === '2' || firstDigit === '3';
+                }
+                if (bgType === 'resultados') {
+                    return name.includes('resultado') || name.includes('ingreso') || name.includes('gasto') || firstDigit === '4' || firstDigit === '5';
+                }
+                return true;
+            });
         }
 
         

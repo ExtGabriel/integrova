@@ -1294,8 +1294,13 @@
             const panel = document.getElementById('areaDetailPanel');
             if (!panel) return;
 
-            // Mostrar interfaz manual para Hoja de Trabajo
-            renderManualWorksheet(panel);
+            const isBg = currentWorksheetDoc && currentWorksheetDoc.metadata && currentWorksheetDoc.metadata.bgType;
+            if (isBg) {
+                await renderBGWorksheet(panel);
+            } else {
+                // Mostrar interfaz manual para Hoja de Trabajo
+                renderManualWorksheet(panel);
+            }
         }
 
         function normalizeLabel(value) {
@@ -2666,6 +2671,197 @@
             });
         }
 
+        
+        async function renderBGWorksheet(panel) {
+            const bgType = currentWorksheetDoc?.metadata?.bgType;
+            const storedDatasetId = currentWorksheetDoc?.metadata?.datasetId;
+            const datasetId = storedDatasetId || getLastAssignmentsDatasetId();
+            const title = currentWorksheetDoc?.titulo || 'Hoja de Trabajo';
+
+            console.log('🔍 renderBGWorksheet:', { bgType, storedDatasetId, fallbackDatasetId: datasetId, hasFn: typeof window.getLatestFinancialGroupResults });
+
+            panel.innerHTML = `
+                <div class="loading-state" style="padding: 40px; text-align: center;">
+                    <div class="spinner"></div>
+                    <p>Cargando datos del balance...</p>
+                </div>
+            `;
+
+            if (!datasetId) {
+                panel.innerHTML = `
+                    <div class="alert alert-warning" style="padding: 20px;">
+                        No se puede cargar este BG: no se encontró el ID del dataset asociado.
+                    </div>
+                `;
+                console.warn('⚠️ renderBGWorksheet: datasetId no disponible', currentWorksheetDoc);
+                return;
+            }
+
+            if (typeof window.getLatestFinancialGroupResults !== 'function') {
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(r => setTimeout(r, 200));
+                    if (typeof window.getLatestFinancialGroupResults === 'function') break;
+                }
+            }
+
+            if (typeof window.getLatestFinancialGroupResults !== 'function') {
+                panel.innerHTML = `
+                    <div class="alert alert-warning" style="padding: 20px;">
+                        No se puede cargar este BG: la función de carga de datos aún no está disponible.
+                    </div>
+                `;
+                console.warn('⚠️ renderBGWorksheet: getLatestFinancialGroupResults no disponible');
+                return;
+            }
+
+            try {
+                console.log('Cargando datos guardados de grupos financieros para BG:', { bgType, datasetId });
+                const { rows } = await window.getLatestFinancialGroupResults(datasetId);
+
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    panel.innerHTML = `
+                        <div class="alert alert-info" style="padding: 20px;">
+                            No hay datos de grupos financieros guardados para este dataset.
+                        </div>
+                    `;
+                    return;
+                }
+
+                const filteredRows = filterRowsByBgType(rows, bgType);
+
+                if (filteredRows.length === 0) {
+                    panel.innerHTML = `
+                        <div class="alert alert-info" style="padding: 20px;">
+                            No hay cuentas clasificadas como ${bgType} en los datos guardados.
+                        </div>
+                    `;
+                    return;
+                }
+
+                let totalPreliminary = 0;
+                let totalAdjustments = 0;
+                let totalFinalCurrent = 0;
+                let totalFinalPrevious = 0;
+
+                const rowsHtml = filteredRows.map(row => {
+                    const preliminary = Number(row.preliminary) || 0;
+                    const adjustments = Number(row.adjustments) || 0;
+                    const finalCurrent = Number(row.finalCurrent) || 0;
+                    const finalPrevious = Number(row.finalPrevious) || 0;
+                    const variation = finalCurrent - finalPrevious;
+
+                    totalPreliminary += preliminary;
+                    totalAdjustments += adjustments;
+                    totalFinalCurrent += finalCurrent;
+                    totalFinalPrevious += finalPrevious;
+
+                    return `
+                        <tr>
+                            <td class="col-description">${row.accountName || ''}</td>
+                            <td class="col-ref">${row.accountCode || ''}</td>
+                            <td class="col-amount">${formatCurrency(preliminary)}</td>
+                            <td class="col-amount">${formatCurrency(adjustments)}</td>
+                            <td class="col-amount" style="font-weight: 600;">${formatCurrency(finalCurrent)}</td>
+                            <td class="col-ref">${row.accountCode || ''}</td>
+                            <td class="col-amount">${formatCurrency(finalPrevious)}</td>
+                            <td class="col-variation">${formatCurrency(variation)}</td>
+                            <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const totalVariation = totalFinalCurrent - totalFinalPrevious;
+
+                const tableHtml = `
+                    <div class="worksheet-header">
+                        <img src="../assets/SB&Asociados.png" alt="SB&Asociados" class="sb-logo" />
+                        <img src="../assets/allinialGlobal.png" alt="Allinial Global" class="allinial-logo" />
+                        <h2 class="entity-name">Nombre de la entidad</h2>
+                        <h3 class="summary-title">${title}</h3>
+                        <p class="date-line">Al 31 de diciembre del</p>
+                        <p class="currency-line">Cifras expresadas en</p>
+                    </div>
+                    <div class="materiality-section">
+                        <p class="materiality-line">Materialidad general:</p>
+                        <p class="materiality-line">Materialidad de desempeño:</p>
+                        <p class="materiality-line">Materialidad trivial:</p>
+                    </div>
+                    <div class="worksheet-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="col-description">Descripción</th>
+                                    <th class="col-ref">Ref.</th>
+                                    <th class="col-amount">Año actual</th>
+                                    <th class="col-amount">Ajustes</th>
+                                    <th class="col-amount">Saldos finales</th>
+                                    <th class="col-ref">Ref.</th>
+                                    <th class="col-amount">Año anterior</th>
+                                    <th class="col-variation">Variación</th>
+                                    <th class="col-variation-pct">Variación %</th>
+                                </tr>
+                                <tr class="subheader">
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                                <tr style="font-weight: 700; background-color: #f8f9fa;">
+                                    <td class="col-description">TOTAL</td>
+                                    <td class="col-ref"></td>
+                                    <td class="col-amount">${formatCurrency(totalPreliminary)}</td>
+                                    <td class="col-amount">${formatCurrency(totalAdjustments)}</td>
+                                    <td class="col-amount">${formatCurrency(totalFinalCurrent)}</td>
+                                    <td class="col-ref"></td>
+                                    <td class="col-amount">${formatCurrency(totalFinalPrevious)}</td>
+                                    <td class="col-variation">${formatCurrency(totalVariation)}</td>
+                                    <td class="col-variation-pct">${calculateVariationPercentage(totalFinalCurrent, totalFinalPrevious)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                panel.innerHTML = tableHtml;
+                console.log('✅ BG renderizado con datos guardados:', { title, rows: filteredRows.length });
+            } catch (error) {
+                console.error('❌ Error renderizando BG:', error);
+                panel.innerHTML = `
+                    <div class="alert alert-danger" style="padding: 20px;">
+                        Error al cargar los datos del BG: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function filterRowsByBgType(rows, bgType) {
+            if (!bgType) return rows;
+
+            return rows.filter(row => {
+                const name = (row.accountName || '').toLowerCase();
+                const code = String(row.accountCode || '').trim();
+                const firstDigit = code.charAt(0);
+
+                if (bgType === 'activo') {
+                    return name.includes('activo') || firstDigit === '1';
+                }
+                if (bgType === 'pasivo') {
+                    return name.includes('pasivo') || name.includes('patrimonio') || firstDigit === '2' || firstDigit === '3';
+                }
+                if (bgType === 'resultados') {
+                    return name.includes('resultado') || name.includes('ingreso') || name.includes('gasto') || firstDigit === '4' || firstDigit === '5';
+                }
+                return true;
+            });
+        }
         
         function renderManualWorksheet(panel) {
             const tableHtml = `
