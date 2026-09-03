@@ -6131,10 +6131,34 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                 error: 'results es requerido y no puede estar vacío' 
             });
         }
-        
+
+        // Normalizar nombres de propiedades: aceptar snake_case y camelCase
+        function normalizeFinancialGroupRow(row) {
+            if (!row || typeof row !== 'object') return row;
+            return {
+                accountName: row.accountName || row.account_name || '',
+                accountCode: row.accountCode || row.account_code || '',
+                preliminary: row.preliminary !== undefined ? row.preliminary : 0,
+                adjustments: row.adjustments !== undefined ? row.adjustments : 0,
+                finalCurrent: row.finalCurrent !== undefined ? row.finalCurrent : row.final_current !== undefined ? row.final_current : 0,
+                finalPrevious: row.finalPrevious !== undefined ? row.finalPrevious : row.final_previous !== undefined ? row.final_previous : 0,
+                level: row.level !== undefined ? row.level : 0,
+                isParent: row.isParent !== undefined ? row.isParent : row.is_parent !== undefined ? row.is_parent : false,
+                hasChildren: row.hasChildren !== undefined ? row.hasChildren : row.has_children !== undefined ? row.has_children : false,
+                rowId: row.rowId !== undefined ? row.rowId : row.row_id !== undefined ? row.row_id : '',
+                parentId: row.parentId !== undefined ? row.parentId : row.parent_id !== undefined ? row.parent_id : '',
+                ledgerMissing: row.ledgerMissing !== undefined ? row.ledgerMissing : row.ledger_missing !== undefined ? row.ledger_missing : false,
+                groupContentId: row.groupContentId || row.group_content_id || '',
+                accountId: row.accountId || row.account_id || '',
+                nodeType: row.nodeType || row.node_type || ''
+            };
+        }
+
+        const normalizedResults = results.map(normalizeFinancialGroupRow);
+
         // Mostrar muestra de datos recibidos
         console.log('🔍 Muestra de datos recibidos en servidor (primeros 3):');
-        results.slice(0, 3).forEach((row, i) => {
+        normalizedResults.slice(0, 3).forEach((row, i) => {
             console.log(`  Row ${i}:`, {
                 accountName: row.accountName,
                 accountCode: row.accountCode,
@@ -6146,7 +6170,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
         });
         
         // Verificar si todos los valores son 0
-        const allZeros = results.every(row => 
+        const allZeros = normalizedResults.every(row => 
             (row.preliminary === 0 || row.preliminary === undefined || row.preliminary === null) &&
             (row.adjustments === 0 || row.adjustments === undefined || row.adjustments === null) &&
             (row.finalCurrent === 0 || row.finalCurrent === undefined || row.finalCurrent === null) &&
@@ -6168,7 +6192,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                 user_id: userId,
                 generated_at: new Date().toISOString(),
                 meta: { 
-                    totalRows: results.length,
+                    totalRows: normalizedResults.length,
                     generatedAt: new Date().toISOString(),
                     status: status || 'completed',
                     entityId: entityId || null,
@@ -6187,24 +6211,12 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 
         console.log('✅ Snapshot creado exitosamente:', snapshot.id);
 
-        // VALIDACIÓN Y FILTRADO INTELIGENTE ANTES DE GUARDAR
-        console.log('🔍 Aplicando filtrado inteligente a grupos financieros...');
+        // VALIDACIÓN Y FILTRADO ANTES DE GUARDAR
+        console.log('🔍 Aplicando filtrado a grupos financieros...');
         
-        const filteredResults = results.filter((result, index) => {
-            // Criterios de inclusión
-            const hasFinancialData = (result.preliminary !== 0 && result.preliminary !== undefined && result.preliminary !== null) || 
-                                    (result.adjustments !== 0 && result.adjustments !== undefined && result.adjustments !== null) || 
-                                    (result.finalCurrent !== 0 && result.finalCurrent !== undefined && result.finalCurrent !== null) || 
-                                    (result.finalPrevious !== 0 && result.finalPrevious !== undefined && result.finalPrevious !== null);
-            const isMainStructuralGroup = (result.isParent && result.hasChildren && 
-                                         result.accountName && result.accountName.trim() !== '' && 
-                                         !result.accountName.startsWith('-'));
-            const hasValidCodeAndData = (result.accountCode && result.accountCode.trim() !== '' && 
-                                       result.accountName && result.accountName.trim() !== '' && 
-                                       !result.accountName.startsWith('-') && 
-                                       (hasFinancialData || result.hasChildren));
-            
-            const shouldKeep = hasFinancialData || isMainStructuralGroup || hasValidCodeAndData;
+        const filteredResults = normalizedResults.filter((result, index) => {
+            // Guardar todos los grupos con nombre, incluso si tienen valor 0 o nombre con prefijo '-'
+            const shouldKeep = result.accountName && result.accountName.trim() !== '';
             
             // Log para primeras 5 filas
             if (index < 5) {
@@ -6215,9 +6227,6 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
                     adjustments: result.adjustments,
                     finalCurrent: result.finalCurrent,
                     finalPrevious: result.finalPrevious,
-                    hasFinancialData,
-                    isMainStructuralGroup,
-                    hasValidCodeAndData,
                     shouldKeep
                 });
             }
@@ -6225,7 +6234,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
             return shouldKeep;
         });
         
-        console.log(`🔍 Filtrado de grupos: ${filteredResults.length} de ${results.length} grupos pasaron el filtro`);
+        console.log(`🔍 Filtrado de grupos: ${filteredResults.length} de ${normalizedResults.length} grupos pasaron el filtro`);
         
         // Función de conversión segura para números
         function safeConvertNumber(value) {

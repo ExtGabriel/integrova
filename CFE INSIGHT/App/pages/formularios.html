@@ -4637,6 +4637,22 @@
                 return rows.flatMap(row => [row, ...getDescendants(row.dataset.rowId)]);
             };
 
+            // Asegurar que todos los toggles inicien expandidos (flecha hacia abajo)
+            newTbody.querySelectorAll('.financial-toggle').forEach(button => {
+                button.dataset.collapsed = 'false';
+                const icon = button.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('bi-chevron-right');
+                    icon.classList.add('bi-chevron-down');
+                }
+                const rowId = button.dataset.rowId;
+                if (rowId) {
+                    getDescendants(rowId).forEach(row => {
+                        row.style.display = '';
+                    });
+                }
+            });
+
             // Usar event delegation con el nuevo tbody
             newTbody.addEventListener('click', (event) => {
                 const button = event.target.closest('.financial-toggle');
@@ -5337,9 +5353,15 @@
                     const cleanedGroup = validateAndCleanFinancialGroup(group);
                     
                     // Verificar si el grupo es válido después de la limpieza
-                    const isValid = cleanedGroup.accountCode && 
-                                   cleanedGroup.accountName && 
-                                   cleanedGroup.accountCode !== 'SIN_CODIGO';
+                    const isSummaryGroup =
+                        Boolean(cleanedGroup.isParent) ||
+                        Boolean(cleanedGroup.hasChildren) ||
+                        (Number(cleanedGroup.level) || 0) === 0;
+                    
+                    const isValid = cleanedGroup.accountName && (
+                        (cleanedGroup.accountCode && cleanedGroup.accountCode !== 'SIN_CODIGO') ||
+                        isSummaryGroup
+                    );
                     
                     if (isValid) {
                         cleanedGroups.push(cleanedGroup);
@@ -6993,17 +7015,6 @@
                 const rows = groupsByType[type];
                 if (rows.length === 0) return;
 
-                // Agregar encabezado de tipo si no está vacío
-                if (type !== '') {
-                    html += `
-                        <tr class="type-header" style="background-color: #e9ecef; font-weight: 700; color: #495057;">
-                            <td colspan="6" style="padding: 12px 8px; border-bottom: 2px solid #dee2e6;">
-                                ${type}
-                            </td>
-                        </tr>
-                    `;
-                }
-
                 // Renderizar filas de este tipo (manteniendo el orden original con jerarquía)
                 rows.forEach(row => {
                     const indent = row.level * 20;
@@ -7013,7 +7024,7 @@
                         ? formatLedgerMissingCell()
                         : formatLedgerCell(row.adjustments);
                     const toggle = row.hasChildren
-                        ? `<button class="financial-toggle" data-row-id="${row.rowId}" aria-label="Expandir/contraer" style="border: none; background: transparent; padding: 0; margin: 0 4px 0 0; cursor: pointer; color: #64748b;">
+                        ? `<button class="financial-toggle" data-row-id="${row.rowId}" data-collapsed="false" aria-label="Expandir/contraer" style="border: none; background: transparent; padding: 0; margin: 0 4px 0 0; cursor: pointer; color: #64748b;">
                                <i class="bi bi-chevron-down"></i>
                            </button>`
                         : '<span style="width: 14px; display: inline-block;"></span>';
