@@ -26063,6 +26063,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('⚠️ Error limpiando selecciones:', error);
             }
 
+            // 9. Notificar a formularios-ajustes.js que el dataset cambió (limpiar ajustes)
+            try {
+                window.dispatchEvent(new CustomEvent('datasetChanged', {
+                    detail: { datasetId: null, action: 'reset' }
+                }));
+                console.log('✅ Evento datasetChanged disparado');
+            } catch (error) {
+                console.warn('⚠️ Error disparando datasetChanged:', error);
+            }
+
             console.log('🎉 REINICIO COMPLETO FINALIZADO - Sistema listo para nuevo archivo');
         }
         
@@ -26804,6 +26814,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         currentDatasetId = nextId;
         window.currentDatasetId = nextId;
         console.log('🔄 handleDatasetChange estableció currentDatasetId a:', currentDatasetId);
+
+        // Notificar a formularios-ajustes.js que el dataset cambió
+        try {
+            window.dispatchEvent(new CustomEvent('datasetChanged', {
+                detail: { datasetId: currentDatasetId, action: 'change' }
+            }));
+            console.log('✅ Evento datasetChanged disparado');
+        } catch (error) {
+            console.warn('⚠️ Error disparando datasetChanged:', error);
+        }
+
         cachedAssignments = [];
         cachedFinancialGroupStructure = null;
 

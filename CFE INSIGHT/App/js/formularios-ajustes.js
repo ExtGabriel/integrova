@@ -3105,10 +3105,14 @@ function updateNumeroField() {
                 }
                 
                 // Recargar los ajustes desde la base de datos
-                if (typeof loadAjustes === 'function') {
-                    await loadAjustes();
-                    console.log('✅ Ajustes recargados desde base de datos');
+                ajustes = await loadAdjustmentsFromStorage();
+                if (!Array.isArray(ajustes)) {
+                    ajustes = [];
                 }
+                window.ajustes = ajustes;
+                renderAjustes();
+                broadcastAdjustmentsUpdate();
+                console.log('✅ Ajustes recargados desde base de datos');
             } catch (error) {
                 console.error('❌ Error sincronizando ajustes con base de datos:', error);
             }
@@ -3125,6 +3129,30 @@ function updateNumeroField() {
         console.error('Stack trace:', error.stack);
     }
     
+    // Escuchar cambios de dataset para recargar ajustes del dataset correcto
+    if (typeof window !== 'undefined') {
+        window.addEventListener('datasetChanged', async (event) => {
+            console.log('🔄 Dataset cambiado detectado en ajustes:', event.detail);
+            const newDatasetId = event.detail?.datasetId || window.currentDatasetId || null;
+            currentDatasetId = newDatasetId;
+
+            if (currentDatasetId) {
+                console.log('📥 Recargando ajustes para nuevo dataset:', currentDatasetId);
+                ajustes = await loadAdjustmentsFromStorage();
+                if (!Array.isArray(ajustes)) {
+                    ajustes = [];
+                }
+                renderAjustes();
+                broadcastAdjustmentsUpdate();
+            } else {
+                console.log('🧹 Sin dataset activo, limpiando ajustes');
+                ajustes = [];
+            }
+
+            window.ajustes = ajustes;
+        });
+    }
+
     // Exponer funciones globalmente inmediatamente después de que se definan
     // Esto asegura que estén disponibles para formularios.html
     if (typeof window !== 'undefined') {
