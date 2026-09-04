@@ -2727,7 +2727,10 @@
                     return;
                 }
 
-                const filteredRows = filterRowsByBgType(rows, bgType);
+                let filteredRows = filterRowsByBgType(rows, bgType);
+
+                // En BG, ocultar cuentas que tienen todos los valores en 0
+                filteredRows = filteredRows.filter(row => !isRowAllZero(row));
 
                 if (filteredRows.length === 0) {
                     panel.innerHTML = `
@@ -2738,37 +2741,7 @@
                     return;
                 }
 
-                let totalPreliminary = 0;
-                let totalAdjustments = 0;
-                let totalFinalCurrent = 0;
-                let totalFinalPrevious = 0;
-
-                const rowsHtml = filteredRows.map(row => {
-                    const preliminary = Number(row.preliminary) || 0;
-                    const adjustments = Number(row.adjustments) || 0;
-                    const finalCurrent = Number(row.finalCurrent) || 0;
-                    const finalPrevious = Number(row.finalPrevious) || 0;
-                    const variation = finalCurrent - finalPrevious;
-
-                    totalPreliminary += preliminary;
-                    totalAdjustments += adjustments;
-                    totalFinalCurrent += finalCurrent;
-                    totalFinalPrevious += finalPrevious;
-
-                    return `
-                        <tr>
-                            <td class="col-description">${row.accountName || ''}</td>
-                            <td class="col-ref">${row.accountCode || ''}</td>
-                            <td class="col-amount">${formatCurrency(preliminary)}</td>
-                            <td class="col-amount">${formatCurrency(adjustments)}</td>
-                            <td class="col-amount" style="font-weight: 600;">${formatCurrency(finalCurrent)}</td>
-                            <td class="col-ref">${row.accountCode || ''}</td>
-                            <td class="col-amount">${formatCurrency(finalPrevious)}</td>
-                            <td class="col-variation">${formatCurrency(variation)}</td>
-                            <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
-                        </tr>
-                    `;
-                }).join('');
+                const { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious } = generateBgTableBody(filteredRows, bgType);
 
                 const totalVariation = totalFinalCurrent - totalFinalPrevious;
 
@@ -2813,17 +2786,17 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${rowsHtml}
-                                <tr style="font-weight: 700; background-color: #f8f9fa;">
-                                    <td class="col-description">TOTAL</td>
-                                    <td class="col-ref"></td>
-                                    <td class="col-amount">${formatCurrency(totalPreliminary)}</td>
-                                    <td class="col-amount">${formatCurrency(totalAdjustments)}</td>
-                                    <td class="col-amount">${formatCurrency(totalFinalCurrent)}</td>
-                                    <td class="col-ref"></td>
-                                    <td class="col-amount">${formatCurrency(totalFinalPrevious)}</td>
-                                    <td class="col-variation">${formatCurrency(totalVariation)}</td>
-                                    <td class="col-variation-pct">${calculateVariationPercentage(totalFinalCurrent, totalFinalPrevious)}</td>
+                                ${bodyHtml}
+                                <tr style="font-weight: 700;">
+                                    <td class="col-description" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">TOTAL</td>
+                                    <td class="col-ref" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;"></td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalPreliminary)}</td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalAdjustments)}</td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000; font-weight: 700;">${formatCurrency(totalFinalCurrent)}</td>
+                                    <td class="col-ref" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;"></td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalFinalPrevious)}</td>
+                                    <td class="col-variation" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalVariation)}</td>
+                                    <td class="col-variation-pct" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${calculateVariationPercentage(totalFinalCurrent, totalFinalPrevious)}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2842,25 +2815,185 @@
             }
         }
 
+        function isRowAllZero(row) {
+            const preliminary = Number(row.preliminary) || 0;
+            const adjustments = Number(row.adjustments) || 0;
+            const finalCurrent = Number(row.finalCurrent) || 0;
+            const finalPrevious = Number(row.finalPrevious) || 0;
+            return preliminary === 0 && adjustments === 0 && finalCurrent === 0 && finalPrevious === 0;
+        }
+
         function filterRowsByBgType(rows, bgType) {
             if (!bgType) return rows;
 
             return rows.filter(row => {
-                const name = (row.accountName || '').toLowerCase();
+                const nameLower = (row.accountName || '').toLowerCase();
+                const nameTrim = (row.accountName || '').trim();
                 const code = String(row.accountCode || '').trim();
                 const firstDigit = code.charAt(0);
 
+                // No mostrar padres/grupos generales (ej. "Activo SIN_CODIGO" ni subgrupos con guion)
+                const isParentRow = row.isParent || row.hasChildren || row.nodeType === 'group';
+                const isHeaderName = nameTrim.startsWith('-') || nameTrim.startsWith('–') || nameTrim.startsWith('—') || code === 'SIN_CODIGO' || (code === '' && row.level === 0);
+                if (isParentRow || isHeaderName) {
+                    return false;
+                }
+
                 if (bgType === 'activo') {
-                    return name.includes('activo') || firstDigit === '1';
+                    return nameLower.includes('activo') || firstDigit === '1';
                 }
                 if (bgType === 'pasivo') {
-                    return name.includes('pasivo') || name.includes('patrimonio') || firstDigit === '2' || firstDigit === '3';
+                    return nameLower.includes('pasivo') || nameLower.includes('patrimonio') || firstDigit === '2' || firstDigit === '3';
                 }
                 if (bgType === 'resultados') {
-                    return name.includes('resultado') || name.includes('ingreso') || name.includes('gasto') || firstDigit === '4' || firstDigit === '5';
+                    return nameLower.includes('resultado') || nameLower.includes('ingreso') || nameLower.includes('gasto') || firstDigit === '4' || firstDigit === '5';
                 }
                 return true;
             });
+        }
+
+        function classifyActivoType(code) {
+            const codeStr = String(code || '').trim();
+            // Códigos como 1.1.01, 1.1, 1.1.010 o segmentos con .1 y .2
+            const segments = codeStr.split('.');
+
+            if (segments.length >= 2) {
+                const secondSegment = segments[1];
+                if (secondSegment === '1') return 'corriente';
+                if (secondSegment === '2') return 'no_corriente';
+            }
+
+            // Fallback: 11xx corriente, 12/13/14/15xx no corriente
+            if (codeStr.length >= 2) {
+                const secondDigit = codeStr.charAt(1);
+                if (secondDigit === '1') return 'corriente';
+                if (['2', '3', '4', '5'].includes(secondDigit)) return 'no_corriente';
+            }
+
+            return 'corriente';
+        }
+
+        function sumRowValues(row) {
+            return {
+                preliminary: Number(row.preliminary) || 0,
+                adjustments: Number(row.adjustments) || 0,
+                finalCurrent: Number(row.finalCurrent) || 0,
+                finalPrevious: Number(row.finalPrevious) || 0
+            };
+        }
+
+        function buildRowHtml(row) {
+            const { preliminary, adjustments, finalCurrent, finalPrevious } = sumRowValues(row);
+            const variation = finalCurrent - finalPrevious;
+
+            return `
+                <tr>
+                    <td class="col-description">${row.accountName || ''}</td>
+                    <td class="col-ref">${row.accountCode || ''}</td>
+                    <td class="col-amount">${formatCurrency(preliminary)}</td>
+                    <td class="col-amount">${formatCurrency(adjustments)}</td>
+                    <td class="col-amount" style="font-weight: 600;">${formatCurrency(finalCurrent)}</td>
+                    <td class="col-ref">${row.accountCode || ''}</td>
+                    <td class="col-amount">${formatCurrency(finalPrevious)}</td>
+                    <td class="col-variation">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
+                </tr>
+            `;
+        }
+
+        function buildSubtotalHtml(label, totals, topBorder = false, bottomBorder = false) {
+            const variation = totals.finalCurrent - totals.finalPrevious;
+            const cellTop = topBorder ? 'border-top: 1px solid #000000;' : '';
+            const cellBottom = bottomBorder ? 'border-bottom: 1px solid #000000;' : '';
+            const cellStyle = `${cellTop} ${cellBottom}`.trim();
+
+            return `
+                <tr style="font-weight: 700;">
+                    <td class="col-description" style="${cellStyle}">${label}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.preliminary)}</td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.adjustments)}</td>
+                    <td class="col-amount" style="font-weight: 700; ${cellStyle}">${formatCurrency(totals.finalCurrent)}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.finalPrevious)}</td>
+                    <td class="col-variation" style="${cellStyle}">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct" style="${cellStyle}">${calculateVariationPercentage(totals.finalCurrent, totals.finalPrevious)}</td>
+                </tr>
+            `;
+        }
+
+        function generateBgTableBody(filteredRows, bgType) {
+            if (bgType !== 'activo') {
+                let totalPreliminary = 0;
+                let totalAdjustments = 0;
+                let totalFinalCurrent = 0;
+                let totalFinalPrevious = 0;
+
+                const bodyHtml = filteredRows.map(row => {
+                    const values = sumRowValues(row);
+                    totalPreliminary += values.preliminary;
+                    totalAdjustments += values.adjustments;
+                    totalFinalCurrent += values.finalCurrent;
+                    totalFinalPrevious += values.finalPrevious;
+                    return buildRowHtml(row);
+                }).join('');
+
+                return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
+            }
+
+            const corrienteRows = [];
+            const noCorrienteRows = [];
+
+            filteredRows.forEach(row => {
+                const type = classifyActivoType(row.accountCode);
+                if (type === 'corriente') {
+                    corrienteRows.push(row);
+                } else {
+                    noCorrienteRows.push(row);
+                }
+            });
+
+            const corrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
+            const noCorrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
+
+            let bodyHtml = '';
+
+            if (corrienteRows.length > 0) {
+                bodyHtml += `<tr style="font-weight: 600;">
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO CORRIENTE</td>
+                </tr>`;
+                corrienteRows.forEach(row => {
+                    const values = sumRowValues(row);
+                    corrienteTotals.preliminary += values.preliminary;
+                    corrienteTotals.adjustments += values.adjustments;
+                    corrienteTotals.finalCurrent += values.finalCurrent;
+                    corrienteTotals.finalPrevious += values.finalPrevious;
+                    bodyHtml += buildRowHtml(row);
+                });
+                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO CORRIENTE', corrienteTotals, true, false);
+            }
+
+            if (noCorrienteRows.length > 0) {
+                bodyHtml += `<tr style="font-weight: 600;">
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO NO CORRIENTE</td>
+                </tr>`;
+                noCorrienteRows.forEach(row => {
+                    const values = sumRowValues(row);
+                    noCorrienteTotals.preliminary += values.preliminary;
+                    noCorrienteTotals.adjustments += values.adjustments;
+                    noCorrienteTotals.finalCurrent += values.finalCurrent;
+                    noCorrienteTotals.finalPrevious += values.finalPrevious;
+                    bodyHtml += buildRowHtml(row);
+                });
+                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO NO CORRIENTE', noCorrienteTotals, true, true);
+            }
+
+            const totalPreliminary = corrienteTotals.preliminary + noCorrienteTotals.preliminary;
+            const totalAdjustments = corrienteTotals.adjustments + noCorrienteTotals.adjustments;
+            const totalFinalCurrent = corrienteTotals.finalCurrent + noCorrienteTotals.finalCurrent;
+            const totalFinalPrevious = corrienteTotals.finalPrevious + noCorrienteTotals.finalPrevious;
+
+            return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
         }
         
         function renderManualWorksheet(panel) {
