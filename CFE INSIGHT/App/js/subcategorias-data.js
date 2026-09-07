@@ -864,7 +864,6 @@
             console.log('📄 Datos del documento obtenidos:', docData);
             
             if (docData.tipo === 'hoja-trabajo') {
-                console.log('🔄 Redirigiendo a página de hojas de trabajo...');
                 try {
                     const payload = {
                         id: docData.id,
@@ -878,7 +877,15 @@
                 } catch (storageError) {
                     console.warn('No se pudo guardar currentWorksheetDocument en localStorage:', storageError);
                 }
-                window.location.href = 'hojas-trabajo.html';
+
+                // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
+                if (docData.metadata?.bgType) {
+                    console.log('🔄 Redirigiendo a página de BG...');
+                    window.location.href = 'hojas-trabajo.html';
+                } else {
+                    console.log('🔄 Redirigiendo a página de Sumarias...');
+                    window.location.href = 'sumarias.html';
+                }
                 return;
             }
             
@@ -899,7 +906,6 @@
             console.log('📄 Datos del documento obtenidos:', docData);
             
             if (docData.tipo === 'hoja-trabajo') {
-                console.log('🔄 Redirigiendo a página de hojas de trabajo para editar...');
                 try {
                     const payload = {
                         id: docData.id,
@@ -913,7 +919,15 @@
                 } catch (storageError) {
                     console.warn('No se pudo guardar currentWorksheetDocument en localStorage (edición):', storageError);
                 }
-                window.location.href = 'hojas-trabajo.html';
+
+                // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
+                if (docData.metadata?.bgType) {
+                    console.log('🔄 Redirigiendo a página de BG para editar...');
+                    window.location.href = 'hojas-trabajo.html';
+                } else {
+                    console.log('🔄 Redirigiendo a página de Sumarias para editar...');
+                    window.location.href = 'sumarias.html';
+                }
                 return;
             }
             

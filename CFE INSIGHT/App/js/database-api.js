@@ -1485,7 +1485,7 @@ async function listExcelDatasets(entityId = null, commitmentId = null, uploadSec
         console.log('Listing Excel datasets by context:', { entityId, commitmentId, uploadSection });
         
         // Construir URL con filtros
-        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/excel/datasets`;
         const params = new URLSearchParams();
         
         if (entityId) {
