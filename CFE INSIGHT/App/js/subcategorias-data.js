@@ -413,7 +413,9 @@
                 // Agregar contenido dinámico
                 console.log('🎨 Renderizando contenido dinámico...');
                 this.renderSubcategoriaContent(subcategoriaContent, subfolders, documents);
-                console.log('✅ UI actualizada completamente');
+
+                // Actualizar indicadores de aprobación en documentos BG
+                await window.updateBgApprovalButtons(subcategoriaContent);
                 
             } catch (error) {
                 console.error('❌ Error en updateUI:', error);
@@ -484,17 +486,27 @@
                     const title = doc.titulo || (isArchivo ? (fileName.split('.').slice(0, -1).join('.') || fileName) : 'Documento');
                     const fileSize = isArchivo ? (metadata.fileSize || 0) : 0;
                     const createdAt = doc.created_at || metadata.uploadDate;
-                    const author = window.currentUser?.name || 'Usuario';
+                    const author = doc.users?.name || doc.users?.full_name || doc.users?.email || 'Usuario';
                     const icon = isArchivo ? getFileIcon(fileName) : { class: this.getDocumentIcon(doc.tipo), color: '#0d6efd' };
                     const fileSizeLabel = typeof window.formatFileSize === 'function' ? window.formatFileSize(fileSize) : fileSize + ' bytes';
                     const dateLabel = createdAt
                         ? (typeof window.formatDateTime === 'function' ? window.formatDateTime(createdAt) : new Date(createdAt).toLocaleString('es-GT'))
                         : 'Sin fecha';
                     const meta = isArchivo ? `${fileSizeLabel} - ${dateLabel}` : dateLabel;
+                    const isBG = (title || '').toUpperCase().startsWith('BG-') || !!metadata.bgType;
                     const clickAction = isArchivo ? `openUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
                     const editAction = isArchivo ? `editUploadedDocument('${doc.id}')` : `editSubdocument(${doc.id})`;
                     const viewAction = isArchivo ? `downloadUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
                     const deleteAction = isArchivo ? `deleteUploadedDocument('${doc.id}')` : `deleteSubdocument(${doc.id})`;
+                    const safeTitle = (title || '').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                    const actionButtons = isBG
+                        ? `<button class="btn-action btn-prepared prepared-btn" data-form-id="${doc.id}" data-approval="prepared-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'prepared-by')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                           <button class="btn-action btn-reviewed reviewed-btn" data-form-id="${doc.id}" data-approval="reviewed-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'reviewed-by')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                           <button class="btn-action btn-partner partner-btn" data-form-id="${doc.id}" data-approval="partner" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'partner')" title="Socio"><i class="bi bi-person-badge"></i></button>
+                           <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
+                        : `<button class="btn-action btn-edit" onclick="${editAction}" title="Editar"><i class="bi bi-pencil"></i></button>
+                           <button class="btn-action btn-download" onclick="${viewAction}" title="${isArchivo ? 'Descargar' : 'Ver'}"><i class="bi ${isArchivo ? 'bi-download' : 'bi-eye'}"></i></button>
+                           <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`;
                     html += `
                         <div class="document-item uploaded-document" data-id="${doc.id}" data-type="${doc.tipo}">
                             <div class="document-header" onclick="${clickAction}" style="cursor: pointer;">
@@ -512,9 +524,7 @@
                                 </div>
                             </div>
                             <div class="document-actions">
-                                <button class="btn-action btn-edit" onclick="${editAction}" title="Editar"><i class="bi bi-pencil"></i></button>
-                                <button class="btn-action btn-download" onclick="${viewAction}" title="${isArchivo ? 'Descargar' : 'Ver'}"><i class="bi ${isArchivo ? 'bi-download' : 'bi-eye'}"></i></button>
-                                <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                ${actionButtons}
                             </div>
                         </div>`;
                 });
@@ -1047,5 +1057,208 @@
         const { categoria, subcategoria } = event.detail;
         window.subcategoriasManager.updateUI(categoria, subcategoria);
     });
+
+    // Sistema de aprobaciones para documentos BG (mismos modales que los formularios)
+    const APPROVAL_CONFIG = {
+        'prepared-by': {
+            modalClass: 'prepared-modal',
+            contentClass: 'prepared-content',
+            headerClass: 'prepared-header',
+            bodyClass: 'prepared-body',
+            infoClass: 'prepared-info',
+            actionsClass: 'prepared-actions',
+            icon: 'bi-person-plus',
+            label: 'Preparado por',
+            role: 'Preparador'
+        },
+        'reviewed-by': {
+            modalClass: 'reviewed-modal',
+            contentClass: 'reviewed-content',
+            headerClass: 'reviewed-header',
+            bodyClass: 'reviewed-body',
+            infoClass: 'reviewed-info',
+            actionsClass: 'reviewed-actions',
+            icon: 'bi-person-check',
+            label: 'Revisado por',
+            role: 'Revisor'
+        },
+        'partner': {
+            modalClass: 'partner-modal',
+            contentClass: 'partner-content',
+            headerClass: 'partner-header',
+            bodyClass: 'partner-body',
+            infoClass: 'partner-info',
+            actionsClass: 'partner-actions',
+            icon: 'bi-person-badge',
+            label: 'Socio',
+            role: 'Socio'
+        }
+    };
+
+    function getCurrentApprovalUser() {
+        const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null) || {};
+        return {
+            name: currentUser.name || currentUser.nombre || currentUser.full_name || currentUser.email || 'Usuario',
+            position: currentUser.position || currentUser.role || currentUser.rol || 'Usuario',
+            id: currentUser.id || currentUser.user_id || currentUser.userId || null
+        };
+    }
+
+    function closeDocApprovalModal(section) {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        const modal = document.querySelector(`.${config.modalClass}`);
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) modal.parentNode.removeChild(modal);
+            }, 300);
+        }
+    }
+    window.closeDocApprovalModal = closeDocApprovalModal;
+
+    window.approveDocApproval = async (docId, section) => {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        try {
+            const user = getCurrentApprovalUser();
+            await window.saveApprovalForSection(String(docId), section, 'approved', {
+                user_name: user.name,
+                role: config.role,
+                view_all: true
+            });
+            const saved = await window.getFormApprovalsForSection(String(docId), section);
+            if (typeof showNotification === 'function') showNotification(`${config.label} registrado${saved ? ' por ' + saved.usuario : ''}`, 'success');
+            await window.updateBgApprovalButtonUI(docId, section);
+            closeDocApprovalModal(section);
+        } catch (error) {
+            console.error('❌ Error aprobando documento:', error);
+            if (typeof showNotification === 'function') showNotification('Error: ' + error.message, 'error');
+        }
+    };
+
+    window.resetDocApproval = async (docId, section) => {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        try {
+            await window.removeApprovalForSection(String(docId), section, true);
+            if (typeof showNotification === 'function') showNotification(`${config.label} eliminado`, 'info');
+            await window.updateBgApprovalButtonUI(docId, section);
+            closeDocApprovalModal(section);
+        } catch (error) {
+            console.error('❌ Error eliminando aprobación:', error);
+            if (typeof showNotification === 'function') showNotification('Error: ' + error.message, 'error');
+        }
+    };
+
+    window.showDocApproval = async (event, docId, title, section) => {
+        if (event) event.stopPropagation();
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+
+        try {
+            const aprobacion = await window.getFormApprovalsForSection(String(docId), section, true);
+            const user = getCurrentApprovalUser();
+            const modal = document.createElement('div');
+            modal.className = config.modalClass;
+
+            if (aprobacion) {
+                const dateTime = new Date(aprobacion.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const isApprover = user.name === aprobacion.usuario;
+                const resetButton = isApprover
+                    ? `<button class="btn btn-warning" onclick="resetDocApproval('${docId}', '${section}')">Eliminar mi aprobación</button>`
+                    : `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
+
+                modal.innerHTML = `
+                    <div class="${config.contentClass}">
+                        <div class="${config.headerClass}">
+                            <h4><i class="bi ${config.icon}"></i> ${config.label} - ${title || docId}</h4>
+                            <button class="close-btn" onclick="closeDocApprovalModal('${section}')">&times;</button>
+                        </div>
+                        <div class="${config.bodyClass}">
+                            <div class="${config.infoClass}">
+                                <div class="info-row">
+                                    <i class="bi bi-person-fill"></i>
+                                    <div class="info-content"><strong>Nombre:</strong> ${aprobacion.usuario}</div>
+                                </div>
+                                <div class="info-row">
+                                    <i class="bi bi-calendar-fill"></i>
+                                    <div class="info-content"><strong>Fecha:</strong> ${formattedDate}</div>
+                                </div>
+                                <div class="info-row">
+                                    <i class="bi bi-clock-fill"></i>
+                                    <div class="info-content"><strong>Hora:</strong> ${formattedTime}</div>
+                                </div>
+                            </div>
+                            <div class="${config.actionsClass}">
+                                <button class="btn btn-secondary" onclick="closeDocApprovalModal('${section}')">Cerrar</button>
+                                ${resetButton}
+                            </div>
+                        </div>
+                    </div>`;
+            } else {
+                modal.innerHTML = `
+                    <div class="${config.contentClass}">
+                        <div class="${config.headerClass}">
+                            <h4><i class="bi ${config.icon}"></i> Añadir aprobación - ${title || docId}</h4>
+                            <button class="close-btn" onclick="closeDocApprovalModal('${section}')">&times;</button>
+                        </div>
+                        <div class="${config.bodyClass}">
+                            <div class="approval-form">
+                                <p class="approval-text">¿Desea aprobar este documento como "${config.label}"?</p>
+                                <div class="approval-user-info">
+                                    <div class="info-row">
+                                        <i class="bi bi-person-fill"></i>
+                                        <div class="info-content"><strong>Usted está identificado como:</strong> ${user.name}</div>
+                                    </div>
+                                    <div class="info-row">
+                                        <i class="bi bi-briefcase-fill"></i>
+                                        <div class="info-content"><strong>Posición:</strong> ${user.position}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="${config.actionsClass}">
+                                <button class="btn btn-secondary" onclick="closeDocApprovalModal('${section}')">Cancelar</button>
+                                <button class="btn btn-primary" onclick="approveDocApproval('${docId}', '${section}')">Aprobar</button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            document.body.appendChild(modal);
+            setTimeout(() => modal.classList.add('show'), 10);
+        } catch (error) {
+            console.error('❌ Error mostrando aprobación de documento:', error);
+        }
+    };
+
+    window.updateBgApprovalButtonUI = async (docId, section) => {
+        const btn = document.querySelector(`.document-actions button[data-form-id="${docId}"][data-approval="${section}"]`);
+        if (!btn) return;
+        const config = APPROVAL_CONFIG[section];
+        const label = config ? config.label : section;
+        try {
+            const approval = await window.getFormApprovalsForSection(String(docId), section, true);
+            if (approval) {
+                btn.classList.add('approved');
+                btn.title = `${label}: ${approval.usuario} (${approval.fecha})`;
+            } else {
+                btn.classList.remove('approved');
+                btn.title = label;
+            }
+        } catch (error) {
+            console.error('Error actualizando botón de aprobación:', error);
+        }
+    };
+
+    window.updateBgApprovalButtons = async (container) => {
+        if (!container) return;
+        const btns = container.querySelectorAll('.document-actions button[data-form-id][data-approval]');
+        for (const btn of btns) {
+            await window.updateBgApprovalButtonUI(btn.dataset.formId, btn.dataset.approval);
+        }
+    };
 
 })();

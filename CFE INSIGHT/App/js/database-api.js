@@ -1918,7 +1918,8 @@ async function saveFormApproval(approvalData) {
             status: approvalData.status,
             comments: approvalData.comments || '',
             user_name: approvalData.user_name || getCurrentUserName(),
-            role: approvalData.role || getCurrentUserRole()
+            role: approvalData.role || getCurrentUserRole(),
+            view_all: approvalData.view_all || false
         };
 
         if (approvalData.form_response_id) {
@@ -2028,7 +2029,7 @@ async function getFormApprovals(formResponseId, section = null) {
  * @param {string} section - Sección a consultar
  * @returns {Promise<Object|null>} Última aprobación o null
  */
-async function getFormApprovalsForSection(formId, section) {
+async function getFormApprovalsForSection(formId, section, viewAll = false) {
     try {
         const userId = getCurrentUserId();
         const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
@@ -2043,7 +2044,8 @@ async function getFormApprovalsForSection(formId, section) {
             body: JSON.stringify({
                 form_id: formId,
                 entity_id: entityId,
-                commitment_id: commitmentId
+                commitment_id: commitmentId,
+                view_all: viewAll
             })
         });
 
@@ -2123,7 +2125,8 @@ async function saveApprovalForSection(formId, section, status = 'approved', opti
             status: status,
             comments: options.comments || '',
             user_name: options.user_name || getCurrentUserName(),
-            role: options.role || getCurrentUserRole()
+            role: options.role || getCurrentUserRole(),
+            view_all: options.view_all || false
         });
     } catch (error) {
         console.error('❌ Error en saveApprovalForSection:', error);
@@ -2137,7 +2140,7 @@ async function saveApprovalForSection(formId, section, status = 'approved', opti
  * @param {string} section - Sección a desaprobar
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function removeApprovalForSection(formId, section) {
+async function removeApprovalForSection(formId, section, viewAll = false) {
     try {
         const userId = getCurrentUserId();
         const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
@@ -2147,7 +2150,8 @@ async function removeApprovalForSection(formId, section) {
             form_id: formId,
             section: section,
             entity_id: entityId,
-            commitment_id: commitmentId
+            commitment_id: commitmentId,
+            view_all: viewAll
         };
 
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval/remove`, {

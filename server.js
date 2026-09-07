@@ -2843,17 +2843,15 @@ app.get('/api/excel/latest', async (req, res) => {
         let query = supabase
             .from('conjuntos_datos')
             .select('*')
-            .eq('user_id', userId) // <- Filtrar por usuario
             .eq('is_active', true);
         
-        // Agregar filtros de entidad y compromiso si se proporcionan
-        if (entity_id) {
-            console.log('🔍 Adding entity_id filter:', entity_id);
-            query = query.eq('entity_id', entity_id);
-        }
-        if (commitment_id) {
-            console.log('🔍 Adding commitment_id filter:', commitment_id);
-            query = query.eq('commitment_id', commitment_id);
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo dataset por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando por usuario:', userId);
+            query = query.eq('user_id', userId);
         }
         
         // Verificar query SQL generado
@@ -2951,15 +2949,17 @@ app.post('/api/excel/save-temp-data', async (req, res) => {
             return res.status(400).json({ success: false, error: 'No hay archivos para guardar' });
         }
 
-        // Desactivar datasets anteriores del usuario para esta entidad/compromiso específicos
+        // Desactivar datasets anteriores según entidad/compromiso (compartidos) o por usuario (fallback)
         let deactivateQuery = supabase
             .from('conjuntos_datos')
-            .update({ is_active: false })
-            .eq('user_id', userId);
+            .update({ is_active: false });
 
-        // Si se proporciona entidad y compromiso, desactivar solo para ese contexto
         if (entity_id && commitment_id) {
+            console.log('🔍 Desactivando datasets previos para entity_id:', entity_id, 'commitment_id:', commitment_id);
             deactivateQuery = deactivateQuery.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, desactivando por usuario:', userId);
+            deactivateQuery = deactivateQuery.eq('user_id', userId);
         }
 
         const { error: deactivateError } = await deactivateQuery;
@@ -3062,7 +3062,6 @@ app.post('/api/excel/process-mapping', async (req, res) => {
             .from('conjuntos_datos')
             .select('*')
             .eq('id', fileId)
-            .eq('user_id', userId) // <- Verificar que pertenezca al usuario
             .single();
 
         if (conjuntoError) {
@@ -4131,17 +4130,15 @@ app.get('/api/excel/datasets', async (req, res) => {
                     grupo_financiero
                 )
             `)
-            .eq('user_id', userId) // <- Filtrar por usuario
             .eq('is_active', true);
 
-        // Aplicar filtros de entidad/compromiso si llegan en la query
-        if (entity_id) {
-            console.log('🔍 Filtrando por entity_id en /api/excel/datasets:', entity_id);
-            query = query.eq('entity_id', entity_id);
-        }
-        if (commitment_id) {
-            console.log('🔍 Filtrando por commitment_id en /api/excel/datasets:', commitment_id);
-            query = query.eq('commitment_id', commitment_id);
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo datasets por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando por usuario:', userId);
+            query = query.eq('user_id', userId);
         }
 
         const { data: datasets, error: datasetsError } = await query
@@ -4530,23 +4527,23 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
         const processedFiles = [];
 
-        // Desactivar datasets anteriores del usuario para esta entidad/compromiso específicos
-        if (userId) {
-            let deactivateQuery = supabase
-                .from('conjuntos_datos')
-                .update({ is_active: false })
-                .eq('user_id', userId);
+        // Desactivar datasets anteriores según entidad/compromiso (compartidos) o por usuario (fallback)
+        let deactivateQuery = supabase
+            .from('conjuntos_datos')
+            .update({ is_active: false });
 
-            // Si se proporciona entidad y compromiso, desactivar solo para ese contexto
-            if (entityId && commitmentId) {
-                deactivateQuery = deactivateQuery.eq('entity_id', entityId).eq('commitment_id', commitmentId);
-            }
+        if (entityId && commitmentId) {
+            console.log('🔍 Desactivando datasets previos para entity_id:', entityId, 'commitment_id:', commitmentId);
+            deactivateQuery = deactivateQuery.eq('entity_id', entityId).eq('commitment_id', commitmentId);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, desactivando datasets por usuario:', userId);
+            deactivateQuery = deactivateQuery.eq('user_id', userId);
+        }
 
-            const { error: deactivateError } = await deactivateQuery;
+        const { error: deactivateError } = await deactivateQuery;
 
-            if (deactivateError) {
-                console.error('Error desactivando datasets anteriores:', deactivateError);
-            }
+        if (deactivateError) {
+            console.error('Error desactivando datasets anteriores:', deactivateError);
         }
 
         for (const file of files) {
@@ -5266,7 +5263,6 @@ app.post('/api/group-names/save', async (req, res) => {
             .from('account_assignments')
             .delete()
             .eq('dataset_id', realDatasetId)
-            .eq('user_id', realUserId)
             .in('meta->>type', ['group_name', 'subgroup_name']);
         
         // Insertar nuevos nombres
@@ -5339,7 +5335,6 @@ app.get('/api/group-names/:datasetId', async (req, res) => {
             .from('account_assignments')
             .select('*')
             .eq('dataset_id', realDatasetId)
-            .eq('user_id', realUserId)
             .in('meta->>type', ['group_name', 'subgroup_name']);
         
         if (error) {
@@ -5411,18 +5406,7 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
                 cuentas_contables(id, numero_cuenta, nombre_cuenta),
                 users(id, email)
             `)
-            .eq('dataset_id', datasetId)
-            .eq('user_id', userId);
-        
-        // Aplicar filtros de entidad/compromiso si están disponibles
-        if (entity_id) {
-            console.log('🔍 Filtrando asignaciones por entity_id:', entity_id);
-            query = query.eq('entity_id', entity_id);
-        }
-        if (commitment_id) {
-            console.log('🔍 Filtrando asignaciones por commitment_id:', commitment_id);
-            query = query.eq('commitment_id', commitment_id);
-        }
+            .eq('dataset_id', datasetId);
         
         const { data, error } = await query.order('position');
 
@@ -5469,7 +5453,6 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
             .from('account_assignments')
             .delete()
             .eq('id', assignmentId)
-            .eq('user_id', userId); // Solo el dueño puede eliminar
 
         if (error) throw error;
 
@@ -5678,10 +5661,10 @@ app.delete('/api/adjustments/:adjustmentId', async (req, res) => {
             });
         }
 
-        // Verificar que el dataset pertenezca al usuario
+        // Verificar que el dataset exista
         const { data: dataset, error: datasetError } = await supabase
             .from('conjuntos_datos')
-            .select('user_id')
+            .select('id')
             .eq('id', adjustment.dataset_id)
             .single();
             
@@ -5689,13 +5672,6 @@ app.delete('/api/adjustments/:adjustmentId', async (req, res) => {
             return res.status(404).json({ 
                 success: false, 
                 error: 'Dataset not found' 
-            });
-        }
-        
-        if (dataset.user_id !== userId) {
-            return res.status(403).json({ 
-                success: false, 
-                error: 'Access denied' 
             });
         }
         
@@ -6471,7 +6447,6 @@ app.post('/api/financial-groups/save', async (req, res) => {
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(1)
             .single();
@@ -6546,11 +6521,11 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
         
         console.log('🔍 DEBUG getFinancialGroups:', { datasetId, userId });
         
-        // Primero, verificar si hay snapshots para este usuario
+        // Primero, verificar si hay snapshots para este dataset
         const { data: allSnapshots, error: allError } = await supabase
             .from('financial_group_snapshots')
             .select('*')
-            .eq('user_id', userId);
+            .eq('dataset_id', datasetId);
             
         console.log('🔍 Todos los snapshots del usuario:', allSnapshots?.length || 0);
         if (allSnapshots && allSnapshots.length > 0) {
@@ -6562,7 +6537,6 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(1)
             .single();
@@ -6575,7 +6549,6 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
             const { data: similarSnapshots } = await supabase
                 .from('financial_group_snapshots')
                 .select('*')
-                .eq('user_id', userId)
                 .ilike('dataset_id', `%${datasetId}%`);
                 
             console.log('🔍 Snapshots similares encontrados:', similarSnapshots?.length || 0);
@@ -6637,7 +6610,6 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(1)
             .single();
@@ -6703,7 +6675,6 @@ app.get('/api/financial-groups-results/:datasetId/history', async (req, res) => 
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(parsedLimit);
 
@@ -6732,7 +6703,6 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             .from('account_assignments')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('position', { ascending: true });
         
         if (error) {
@@ -8288,16 +8258,15 @@ app.get('/api/subfolders/:categoria/:subcategoria', async (req, res) => {
             .from('subcarpetas')
             .select('*')
             .eq('categoria', categoria)
-            .eq('subcategoria', subcategoria)
-            .eq('user_id', userId);
+            .eq('subcategoria', subcategoria);
 
-        if (entity_id) {
-            console.log('🔍 Filtrando subcarpetas por entity_id:', entity_id);
-            query = query.eq('entity_id', entity_id);
-        }
-        if (commitment_id) {
-            console.log('🔍 Filtrando subcarpetas por commitment_id:', commitment_id);
-            query = query.eq('commitment_id', commitment_id);
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo subcarpetas por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subcarpetas por usuario:', userId);
+            query = query.eq('user_id', userId);
         }
 
         const { data: subfolders, error } = await query.order('created_at', { ascending: false });
@@ -8481,7 +8450,6 @@ app.post('/api/subdocuments/get', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error || !document) {
@@ -8658,7 +8626,6 @@ app.get('/api/subdocuments/document/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -8703,7 +8670,6 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -8846,17 +8812,15 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('categoria', categoria)
-            .eq('subcategoria', subcategoria)
-            .eq('user_id', userId);
+            .eq('subcategoria', subcategoria);
         
-        // Aplicar filtros de entidad/compromiso si están disponibles
-        if (entity_id) {
-            console.log('🔍 Filtrando subdocumentos por entity_id:', entity_id);
-            query = query.eq('entity_id', entity_id);
-        }
-        if (commitment_id) {
-            console.log('🔍 Filtrando subdocumentos por commitment_id:', commitment_id);
-            query = query.eq('commitment_id', commitment_id);
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo subdocumentos por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subdocumentos por usuario:', userId);
+            query = query.eq('user_id', userId);
         }
         
         const { data: documents, error } = await query.order('created_at', { ascending: false });
@@ -8874,6 +8838,34 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
             return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
         }
         
+        // Enriquecer documentos con info del usuario que los subió
+        if (documents && documents.length > 0) {
+            const userIds = [...new Set(documents.map(d => d.user_id).filter(Boolean))];
+            if (userIds.length > 0) {
+                const { data: users, error: usersError } = await supabase
+                    .from('users')
+                    .select('id, email, full_name, raw_user_meta_data')
+                    .in('id', userIds);
+
+                if (!usersError && users) {
+                    const userMap = users.reduce((map, user) => {
+                        let userName = user.email || 'Usuario';
+                        if (user.full_name) userName = user.full_name;
+                        else if (user.raw_user_meta_data?.name) userName = user.raw_user_meta_data.name;
+                        else if (user.raw_user_meta_data?.full_name) userName = user.raw_user_meta_data.full_name;
+                        map[user.id] = { ...user, name: userName };
+                        return map;
+                    }, {});
+
+                    documents.forEach(doc => {
+                        if (doc.user_id && userMap[doc.user_id]) {
+                            doc.users = userMap[doc.user_id];
+                        }
+                    });
+                }
+            }
+        }
+
         console.log(`✅ ${documents?.length || 0} subdocumentos encontrados`);
         res.json({
             success: true,
@@ -8904,7 +8896,6 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -9368,7 +9359,8 @@ app.post('/api/formularios/get', async (req, res) => {
             form_id, 
             subdocument_id,
             entity_id = null,
-            commitment_id = null
+            commitment_id = null,
+            view_all = false
         } = req.body;
         
         if (!userId) {
@@ -9377,8 +9369,11 @@ app.post('/api/formularios/get', async (req, res) => {
         
         let query = supabase
             .from('form_responses')
-            .select('*')
-            .eq('created_by', userId);
+            .select('*');
+        
+        if (!view_all) {
+            query = query.eq('created_by', userId);
+        }
             
         if (form_id) {
             query = query.eq('form_id', form_id);
@@ -9486,7 +9481,8 @@ app.post('/api/formularios/approval', async (req, res) => {
             status,
             comments,
             user_name,
-            role
+            role,
+            view_all = false
         } = req.body;
 
         console.log('🔍 Datos extraídos:', {
@@ -9519,14 +9515,17 @@ app.post('/api/formularios/approval', async (req, res) => {
         let resolvedFormResponseId = form_response_id;
         let targetFormId = form_id || section;
 
-        // Si no hay form_response_id, buscar/crear por form_id + entity + commitment + usuario
+        // Si no hay form_response_id, buscar/crear por form_id + entity + commitment (+ usuario si no es vista compartida)
         if (!resolvedFormResponseId) {
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
             let query = supabase
                 .from('form_responses')
                 .select('id')
-                .eq('created_by', userId)
                 .eq('form_id', targetFormId);
+
+            if (!view_all) {
+                query = query.eq('created_by', userId);
+            }
 
             if (entity_id && uuidRegex.test(entity_id)) {
                 query = query.eq('entity_id', entity_id);
@@ -9714,7 +9713,8 @@ app.post('/api/formularios/approval/remove', async (req, res) => {
             form_id,
             entity_id,
             commitment_id,
-            section
+            section,
+            view_all = false
         } = req.body;
 
         if (!userId) {
@@ -9736,8 +9736,11 @@ app.post('/api/formularios/approval/remove', async (req, res) => {
             let query = supabase
                 .from('form_responses')
                 .select('id')
-                .eq('created_by', userId)
                 .eq('form_id', targetFormId);
+
+            if (!view_all) {
+                query = query.eq('created_by', userId);
+            }
 
             if (entity_id && uuidRegex.test(entity_id)) {
                 query = query.eq('entity_id', entity_id);
