@@ -455,6 +455,7 @@
     <script src="../js/config-supabase.js"></script>
     <script type="module" src="../js/database-api.js"></script>
     <script src="../js/auth-guard.js"></script>
+    <script src="../js/subcategorias-data.js"></script>
     <script>
         let currentWorksheetDoc = null;
 
@@ -701,6 +702,7 @@
 
             const areaRow = typeof area === 'object' ? area : allAreas.find(a => a.name === areaName);
             renderAreaRows(areaRow);
+            scheduleAutoSave();
             console.log('Área seleccionada:', areaName, areaRow);
         }
 
@@ -782,8 +784,80 @@
             renderAreasList(filtered);
         }
 
+        // === Auto-guardado de la sumaria ===
+        let autoSaveTimer = null;
+
+        async function waitForManager(timeout = 3000) {
+            const start = Date.now();
+            while (!window.subcategoriasManager?.userId && (Date.now() - start) < timeout) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return window.subcategoriasManager?.userId;
+        }
+
+        function scheduleAutoSave() {
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSaveSumaria, 2000);
+        }
+
+        async function autoSaveSumaria() {
+            if (!currentWorksheetDoc?.id) {
+                console.warn('No hay documento actual para auto-guardar');
+                return;
+            }
+
+            const hasManager = await waitForManager();
+            if (!hasManager) {
+                console.warn('No se pudo obtener usuario para auto-guardar');
+                return;
+            }
+
+            try {
+                const content = document.getElementById('sumariaContent').innerHTML;
+                await window.subcategoriasManager.updateSubdocument(
+                    currentWorksheetDoc.id,
+                    currentWorksheetDoc.titulo,
+                    content,
+                    {
+                        ...currentWorksheetDoc.metadata,
+                        datasetId: currentDatasetIdForAreas,
+                        lastSaved: new Date().toISOString()
+                    },
+                    currentWorksheetDoc.categoria,
+                    currentWorksheetDoc.subcategoria
+                );
+                console.log('✅ Sumaria guardada automáticamente');
+            } catch (e) {
+                console.error('❌ Error auto-guardando sumaria:', e);
+            }
+        }
+
+        async function loadSavedContent() {
+            if (!currentWorksheetDoc?.id) return;
+            const hasManager = await waitForManager();
+            if (!hasManager) return;
+
+            try {
+                const doc = await window.subcategoriasManager.getSubdocument(currentWorksheetDoc.id);
+                if (doc?.contenido) {
+                    document.getElementById('sumariaContent').innerHTML = doc.contenido;
+                    console.log('✅ Contenido de sumaria restaurado');
+                }
+            } catch (e) {
+                console.warn('No se pudo cargar contenido guardado:', e);
+            }
+        }
+
         // Cargar áreas al iniciar
-        document.addEventListener('DOMContentLoaded', loadAreas);
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSavedContent();
+            await loadAreas();
+
+            const sumariaContent = document.getElementById('sumariaContent');
+            if (sumariaContent) {
+                sumariaContent.addEventListener('input', scheduleAutoSave);
+            }
+        });
     </script>
 </body>
 </html>
