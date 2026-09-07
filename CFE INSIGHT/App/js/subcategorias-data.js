@@ -460,7 +460,26 @@
             const foldersByParent = {};
             const docsByParent = {};
 
-            subfolders.forEach(folder => {
+            // Evitar mostrar carpetas duplicadas (misma categoría/subcategoría/padre/contexto)
+            const seenFolders = new Set();
+            const uniqueSubfolders = (subfolders || []).filter(folder => {
+                const key = [
+                    (folder.nombre || '').trim().toLowerCase(),
+                    folder.parent_folder_id || 'root',
+                    folder.categoria || '',
+                    folder.subcategoria || '',
+                    folder.entity_id || folder.metadata?.entity_id || '',
+                    folder.commitment_id || folder.metadata?.commitment_id || ''
+                ].join('|');
+                if (seenFolders.has(key)) {
+                    console.warn('🗑️ Carpeta duplicada omitida en UI:', folder.nombre, folder.id);
+                    return false;
+                }
+                seenFolders.add(key);
+                return true;
+            });
+
+            uniqueSubfolders.forEach(folder => {
                 const key = folder.parent_folder_id || rootKey;
                 if (!foldersByParent[key]) foldersByParent[key] = [];
                 foldersByParent[key].push(folder);

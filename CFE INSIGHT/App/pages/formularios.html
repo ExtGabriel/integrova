@@ -27496,6 +27496,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Función para crear automáticamente la carpeta "General" en Planes y Procedimientos
     // y generar dentro de ella las hojas de trabajo BG-1, BG-2 y BG-3
     async function createGeneralFolderIfNotExists() {
+        // Serializar llamadas para evitar carpetas duplicadas
+        if (window.generalFolderLock) {
+            console.log('⏳ Esperando creación previa de carpeta General...');
+            await window.generalFolderLock;
+            return createGeneralFolderIfNotExists();
+        }
+
+        window.generalFolderLock = (async () => {
         console.log('🚀 INICIO createGeneralFolderIfNotExists');
         try {
             // Capturar contexto de entidad y compromiso activos
@@ -27639,7 +27647,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         } catch (error) {
             console.error('Error creando carpeta "General" automáticamente:', error);
+        } finally {
+            window.generalFolderLock = null;
         }
+        })();
+
+        return await window.generalFolderLock;
     }
 
     // Función para gestionar carpetas "General" por dataset activo
