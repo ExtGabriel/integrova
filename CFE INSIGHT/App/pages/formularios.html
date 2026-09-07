@@ -10224,12 +10224,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             fileInput.click();
         }
         
-        // Función para manejar la carga directa de archivos
+        // Función para manejar la carga directa de archivos (sección de documentos)
         async function handleDirectUpload(file, categoria, subcategoria) {
-            // Verificar si es un archivo Excel
-            const isExcelFile = file.name.toLowerCase().endsWith('.xlsx') || 
-                               file.name.toLowerCase().endsWith('.xls') || 
-                               file.name.toLowerCase().endsWith('.csv');
+            // En la sección de documentos todo se sube como archivo adjunto.
+            // El mapeo de Excel se realiza únicamente en la sección "Conjunto de datos".
             
             // Agregar contexto de entidad/compromiso al archivo
             const fileContext = {
@@ -10241,13 +10239,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             console.log('📁 Subiendo archivo con contexto:', fileContext);
             
-            if (isExcelFile) {
-                // Para archivos Excel, iniciar nuestro flujo personalizado con contexto
-                startExcelUploadFlow(file, fileContext);
-                return;
-            }
-            
-            // Para otros archivos, usar el nuevo endpoint de subdocumentos
+            // Usar el endpoint de subdocumentos para cualquier archivo
             try {
                 // Convertir archivo a base64 para enviarlo
                 const fileData = await fileToBase64(file);
@@ -10373,14 +10365,31 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const fileSize = formatFileSize(file.size);
             
             // Mostrar nuestro modal personalizado
-            showUploadExcelModal(file.name, fileSize);
+            if (typeof showUploadExcelModal === 'function') {
+                showUploadExcelModal(file.name, fileSize);
+            } else {
+                // Fallback si el script del modal aún no se cargó
+                const modal = document.getElementById('uploadExcelModal');
+                if (modal) {
+                    const fileNameElement = document.getElementById('fileName');
+                    const fileSizeElement = document.getElementById('fileSize');
+                    if (fileNameElement) fileNameElement.textContent = file.name;
+                    if (fileSizeElement) fileSizeElement.textContent = fileSize;
+                    modal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    console.error('❌ No se encontró el modal de subida de Excel');
+                }
+            }
             
             // Guardar el archivo y su contexto para procesamiento posterior
             window.currentExcelFile = file;
             window.currentFileContext = fileContext;
             
             // Guardar información del archivo en el gestor
-            entityFileManager.saveFile(file, fileContext);
+            if (typeof entityFileManager !== 'undefined' && entityFileManager.saveFile) {
+                entityFileManager.saveFile(file, fileContext);
+            }
             
             console.log('📊 Contexto del archivo Excel:', fileContext);
         }
@@ -43349,9 +43358,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    // Eliminar el elemento del DOM con animación
-                    const docElement = document.getElementById(documentId);
-                    if (docElement) {
+                    // Eliminar el/los elemento(s) del DOM con animación (puede renderizarse con id o data-id)
+                    const docElements = document.querySelectorAll(`#${CSS.escape(documentId)}, [data-id="${documentId}"]`);
+                    docElements.forEach(docElement => {
                         docElement.style.transition = 'all 0.3s ease';
                         docElement.style.opacity = '0';
                         docElement.style.transform = 'translateX(20px)';
@@ -43359,7 +43368,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         setTimeout(() => {
                             docElement.remove();
                         }, 300);
-                    }
+                    });
                     alert('Archivo eliminado correctamente');
                 } else {
                     alert('No se pudo eliminar el archivo');

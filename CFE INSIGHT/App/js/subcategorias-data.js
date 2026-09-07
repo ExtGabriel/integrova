@@ -701,7 +701,7 @@
                     detail: { documentId, documentTitle }
                 }));
 
-                const documentElement = document.querySelector(`.document-row[data-id="${documentId}"]`);
+                const documentElement = document.querySelector(`.document-item[data-id="${documentId}"]`);
                 if (documentElement) {
                     documentElement.remove();
                     console.log('🗑️ Elemento de documento eliminado del DOM');
