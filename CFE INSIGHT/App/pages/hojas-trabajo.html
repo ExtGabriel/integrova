@@ -2699,21 +2699,42 @@
                     return;
                 }
 
-                let filteredRows = filterRowsByBgType(rows, bgType);
+                // En BG automático, mostrar solo las cuentas padre con el total de sus cuentas asignadas
+                let summaryRows = buildBgParentSummary(rows, bgType);
+                summaryRows = summaryRows.filter(row => !isRowAllZero(row));
 
-                // En BG, ocultar cuentas que tienen todos los valores en 0
-                filteredRows = filteredRows.filter(row => !isRowAllZero(row));
-
-                if (filteredRows.length === 0) {
+                if (summaryRows.length === 0) {
                     panel.innerHTML = `
                         <div class="alert alert-info" style="padding: 20px;">
-                            No hay cuentas clasificadas como ${bgType} en los datos guardados.
+                            No hay cuentas padre clasificadas como ${bgType} en los datos guardados.
                         </div>
                     `;
                     return;
                 }
 
-                const { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious } = generateBgTableBody(filteredRows, bgType);
+                let { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious } = generateBgTableBody(summaryRows, bgType);
+
+                // En BG de Pasivo y Patrimonio, agregar fila "Resultado del periodo" al final
+                if (bgType === 'pasivo') {
+                    const rp = computeResultadoPeriodo(rows);
+                    const rpVariation = rp.finalCurrent - rp.finalPrevious;
+                    bodyHtml += `
+                        <tr style="font-weight: 600;">
+                            <td class="col-description">Resultado del periodo</td>
+                            <td class="col-ref"></td>
+                            <td class="col-amount">${formatCurrency(rp.preliminary)}</td>
+                            <td class="col-amount">${formatCurrency(rp.adjustments)}</td>
+                            <td class="col-amount" style="font-weight: 600;">${formatCurrency(rp.finalCurrent)}</td>
+                            <td class="col-ref"></td>
+                            <td class="col-amount">${formatCurrency(rp.finalPrevious)}</td>
+                            <td class="col-variation">${formatCurrency(rpVariation)}</td>
+                            <td class="col-variation-pct">${calculateVariationPercentage(rp.finalCurrent, rp.finalPrevious)}</td>
+                        </tr>`;
+                    totalPreliminary += rp.preliminary;
+                    totalAdjustments += rp.adjustments;
+                    totalFinalCurrent += rp.finalCurrent;
+                    totalFinalPrevious += rp.finalPrevious;
+                }
 
                 const totalVariation = totalFinalCurrent - totalFinalPrevious;
 
@@ -2776,7 +2797,7 @@
                 `;
 
                 panel.innerHTML = tableHtml;
-                console.log('✅ BG renderizado con datos guardados:', { title, rows: filteredRows.length });
+                console.log('✅ BG renderizado con datos guardados:', { title, rows: summaryRows.length });
             } catch (error) {
                 console.error('❌ Error renderizando BG:', error);
                 panel.innerHTML = `
@@ -2795,6 +2816,90 @@
             return preliminary === 0 && adjustments === 0 && finalCurrent === 0 && finalPrevious === 0;
         }
 
+        // Devuelve el nombre del grupo raíz (nivel 0) de una fila
+        function getTopLevelName(row, rowById) {
+            let current = row;
+            let guard = 0;
+            while (current && current.parentId && rowById[current.parentId] && guard++ < 50) {
+                current = rowById[current.parentId];
+            }
+            return (current?.accountName || '').toLowerCase();
+        }
+
+        // Suma los valores de todas las filas que pertenecen al grupo raíz "Resultados"
+        function computeResultadoPeriodo(rows) {
+            const rowById = {};
+            rows.forEach(r => { if (r.rowId) rowById[r.rowId] = r; });
+
+            let preliminary = 0, adjustments = 0, finalCurrent = 0, finalPrevious = 0;
+            const isLeaf = (r) => !(r.isParent || r.hasChildren || r.nodeType === 'group');
+            rows.forEach(r => {
+                if (isLeaf(r) && getTopLevelName(r, rowById).includes('resultado')) {
+                    preliminary += Number(r.preliminary) || 0;
+                    adjustments += Number(r.adjustments) || 0;
+                    finalCurrent += Number(r.finalCurrent) || 0;
+                    finalPrevious += Number(r.finalPrevious) || 0;
+                }
+            });
+            return { preliminary, adjustments, finalCurrent, finalPrevious };
+        }
+
+        // Agrupa las cuentas hijas por su padre y devuelve solo las cuentas padre con totales
+        function buildBgParentSummary(rows, bgType) {
+            if (!Array.isArray(rows) || rows.length === 0) return [];
+
+            const rowById = {};
+            rows.forEach(r => { if (r.rowId) rowById[r.rowId] = r; });
+
+            const childrenByParent = {};
+            rows.forEach(r => {
+                if (r.parentId) {
+                    if (!childrenByParent[r.parentId]) childrenByParent[r.parentId] = [];
+                    childrenByParent[r.parentId].push(r);
+                }
+            });
+
+            const matchesBgType = (r) => {
+                const topName = getTopLevelName(r, rowById);
+                if (bgType === 'activo') return topName.includes('activo');
+                if (bgType === 'pasivo') return topName.includes('pasivo') || topName.includes('patrimonio');
+                if (bgType === 'resultados') return topName.includes('resultado') || topName.includes('resultados');
+                return true;
+            };
+
+            const isLeaf = (r) => !(r.isParent || r.hasChildren || r.nodeType === 'group');
+            const isParent = (r) => !isLeaf(r);
+
+            const parentRows = rows.filter(r => isParent(r) && matchesBgType(r));
+
+            const summary = [];
+            parentRows.forEach(parent => {
+                const children = (childrenByParent[parent.rowId] || []).filter(c => isLeaf(c) && matchesBgType(c));
+                if (children.length === 0) return;
+
+                const totals = children.reduce((acc, c) => ({
+                    preliminary: acc.preliminary + (Number(c.preliminary) || 0),
+                    adjustments: acc.adjustments + (Number(c.adjustments) || 0),
+                    finalCurrent: acc.finalCurrent + (Number(c.finalCurrent) || 0),
+                    finalPrevious: acc.finalPrevious + (Number(c.finalPrevious) || 0)
+                }), { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 });
+
+                summary.push({
+                    accountName: parent.accountName,
+                    accountCode: parent.accountCode,
+                    preliminary: totals.preliminary,
+                    adjustments: totals.adjustments,
+                    finalCurrent: totals.finalCurrent,
+                    finalPrevious: totals.finalPrevious,
+                    level: parent.level || 0,
+                    orderIndex: parent.orderIndex || 0
+                });
+            });
+
+            summary.sort((a, b) => (a.orderIndex - b.orderIndex) || String(a.accountCode).localeCompare(String(b.accountCode)));
+            return summary;
+        }
+
         function filterRowsByBgType(rows, bgType) {
             if (!bgType) return rows;
 
@@ -2811,14 +2916,21 @@
                     return false;
                 }
 
+                const hasCode = code !== '';
                 if (bgType === 'activo') {
-                    return nameLower.includes('activo') || firstDigit === '1';
+                    const matchCode = firstDigit === '1';
+                    return hasCode ? matchCode : nameLower.includes('activo');
                 }
                 if (bgType === 'pasivo') {
-                    return nameLower.includes('pasivo') || nameLower.includes('patrimonio') || firstDigit === '2' || firstDigit === '3';
+                    const matchCode = ['2', '3'].includes(firstDigit);
+                    const matchName = nameLower.includes('pasivo') || nameLower.includes('patrimonio');
+                    return hasCode ? matchCode : matchName;
                 }
                 if (bgType === 'resultados') {
-                    return nameLower.includes('resultado') || nameLower.includes('ingreso') || nameLower.includes('gasto') || firstDigit === '4' || firstDigit === '5';
+                    const resultKeywords = ['resultado', 'ingreso', 'gasto', 'costo', 'impuesto', 'renta', 'conversión', 'financiero', 'operación', 'operativo', 'administración', 'venta'];
+                    const matchName = resultKeywords.some(k => nameLower.includes(k));
+                    const matchCode = ['4', '5', '6', '7', '9'].includes(firstDigit);
+                    return hasCode ? matchCode : matchName;
                 }
                 return true;
             });
@@ -2861,11 +2973,11 @@
             return `
                 <tr>
                     <td class="col-description">${row.accountName || ''}</td>
-                    <td class="col-ref">${row.accountCode || ''}</td>
+                    <td class="col-ref"></td>
                     <td class="col-amount">${formatCurrency(preliminary)}</td>
                     <td class="col-amount">${formatCurrency(adjustments)}</td>
                     <td class="col-amount" style="font-weight: 600;">${formatCurrency(finalCurrent)}</td>
-                    <td class="col-ref">${row.accountCode || ''}</td>
+                    <td class="col-ref"></td>
                     <td class="col-amount">${formatCurrency(finalPrevious)}</td>
                     <td class="col-variation">${formatCurrency(variation)}</td>
                     <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
