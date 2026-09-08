@@ -8878,6 +8878,92 @@ app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     }
 });
 
+// Obtener todos los subdocumentos de un contexto (entity/commitment) sin filtrar por categoría/subcategoría
+app.get('/api/subdocuments/context', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id, commitment_id, tipo } = req.query;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        console.log(`🔍 Obteniendo subdocumentos por contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}, tipo: ${tipo}`);
+
+        let query = supabase
+            .from('subdocumentos')
+            .select('*');
+
+        // Filtrar por entidad/compromiso cuando estén disponibles; si no hay contexto, mantener privado por usuario
+        if (entity_id) {
+            console.log('🔍 Filtrando por entity_id:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id !== undefined) {
+            if (commitment_id === '' || commitment_id === 'null') {
+                console.log('🔍 Filtrando por commitment_id NULL');
+                query = query.is('commitment_id', null);
+            } else {
+                console.log('🔍 Filtrando por commitment_id:', commitment_id);
+                query = query.eq('commitment_id', commitment_id);
+            }
+        }
+        if (!entity_id && commitment_id === undefined && userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subdocumentos por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+
+        if (tipo) {
+            query = query.eq('tipo', tipo);
+        }
+
+        const { data: documents, error } = await query.order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('❌ Error obteniendo subdocumentos por contexto:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
+        }
+
+        // Enriquecer documentos con info del usuario que los subió
+        if (documents && documents.length > 0) {
+            const userIds = [...new Set(documents.map(d => d.user_id).filter(Boolean))];
+            if (userIds.length > 0) {
+                const { data: users, error: usersError } = await supabase
+                    .from('users')
+                    .select('id, email, full_name, raw_user_meta_data')
+                    .in('id', userIds);
+
+                if (!usersError && users) {
+                    const userMap = users.reduce((map, user) => {
+                        let userName = user.email || 'Usuario';
+                        if (user.full_name) userName = user.full_name;
+                        else if (user.raw_user_meta_data?.name) userName = user.raw_user_meta_data.name;
+                        else if (user.raw_user_meta_data?.full_name) userName = user.raw_user_meta_data.full_name;
+                        map[user.id] = { ...user, name: userName };
+                        return map;
+                    }, {});
+
+                    documents.forEach(doc => {
+                        if (doc.user_id && userMap[doc.user_id]) {
+                            doc.users = userMap[doc.user_id];
+                        }
+                    });
+                }
+            }
+        }
+
+        console.log(`✅ ${documents?.length || 0} subdocumentos encontrados por contexto`);
+        res.json({
+            success: true,
+            documents: documents || []
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/context:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Descargar archivo de subdocumento
 app.get('/api/subdocuments/download/:documentId', async (req, res) => {
     try {
@@ -9431,18 +9517,38 @@ app.post('/api/formularios/get', async (req, res) => {
 app.get('/api/formularios/list', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        
+        const { entity_id, commitment_id, form_id_prefix } = req.query;
+
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
-        
-        console.log(`🔍 Listando formularios del usuario: ${userId}`);
-        
-        const { data: formularios, error } = await supabase
+
+        console.log(`🔍 Listando formularios del usuario: ${userId}, entity_id: ${entity_id}, commitment_id: ${commitment_id}, form_id_prefix: ${form_id_prefix}`);
+
+        let query = supabase
             .from('form_responses')
-            .select('*')
-            .eq('created_by', userId)
-            .order('created_at', { ascending: false });
+            .select('*');
+
+        // Filtrar por entidad/compromiso cuando estén disponibles; si no hay contexto, mantener privado por usuario
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id !== undefined) {
+            if (commitment_id === '' || commitment_id === 'null') {
+                query = query.is('commitment_id', null);
+            } else {
+                query = query.eq('commitment_id', commitment_id);
+            }
+        }
+        if (!entity_id && commitment_id === undefined) {
+            query = query.eq('created_by', userId);
+        }
+
+        if (form_id_prefix) {
+            query = query.like('form_id', `${form_id_prefix}%`);
+        }
+
+        const { data: formularios, error } = await query.order('created_at', { ascending: false });
             
         if (error) {
             console.error('❌ Error listando formularios:', error);
@@ -9457,6 +9563,52 @@ app.get('/api/formularios/list', async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/list:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Eliminar formulario por form_id y contexto (usado para quitar vínculos de documentos)
+app.post('/api/formularios/delete', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { form_id, entity_id = null, commitment_id = null } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!form_id) {
+            return res.status(400).json({ success: false, error: 'form_id requerido' });
+        }
+
+        console.log(`🗑️ Eliminando formulario ${form_id} para entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
+
+        let query = supabase
+            .from('form_responses')
+            .delete()
+            .eq('form_id', form_id);
+
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id === '' || commitment_id === 'null' || commitment_id === null) {
+            query = query.is('commitment_id', null);
+        } else {
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { error } = await query;
+
+        if (error) {
+            console.error('❌ Error eliminando formulario:', error);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el formulario' });
+        }
+
+        console.log('✅ Formulario eliminado correctamente');
+        res.json({ success: true, message: 'Formulario eliminado correctamente' });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/delete:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
