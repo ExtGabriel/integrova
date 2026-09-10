@@ -1,5 +1,5 @@
 const DATABASE_API_BASE_URL = (window.API_BASE_URL)
-    || (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL))
+    || (typeof window !== 'undefined' && window.location?.hostname === 'localhost' ? 'http://localhost:3001' : '')
     || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
     || '';
 
@@ -20,12 +20,37 @@ async function saveAccountAssignment(assignmentData) {
         const finalDatasetId = assignmentData.datasetId || currentDatasetId;
         const userId = getCurrentUserId();
         
+        // Obtener contexto actual de entidad y compromiso de múltiples fuentes
+        let entityId = assignmentData.entity_id ||
+                      document.getElementById('entidad')?.value ||
+                      '';
+
+        let commitmentId = assignmentData.commitment_id || '';
+
+        // Si no viene en assignmentData, buscar en el dropdown de compromisos
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            if (selectedItem) {
+                commitmentId = selectedItem.dataset.commitmentId || '';
+            }
+        }
+        
+        console.log('🔍 Contexto obtenido para saveAccountAssignment:');
+        console.log('  - assignmentData.entity_id:', assignmentData.entity_id);
+        console.log('  - window.commitmentDropdownState?.currentEntityId:', window.commitmentDropdownState?.currentEntityId);
+        console.log('  - document.getElementById("entidad")?.value:', document.getElementById('entidad')?.value);
+        console.log('  - entityId final:', entityId);
+        console.log('  - commitmentId final:', commitmentId);
+        
         console.log('Valores finales:', {
             datasetId: finalDatasetId,
             accountId: assignmentData.accountId,
             groupContentId: assignmentData.groupContentId,
             userId: userId,
-            currentDatasetId: currentDatasetId
+            currentDatasetId: currentDatasetId,
+            entityId,
+            commitmentId
         });
         
         const payload = {
@@ -34,17 +59,28 @@ async function saveAccountAssignment(assignmentData) {
             groupContentId: assignmentData.groupContentId,
             parentAccountId: assignmentData.parentAccountId || null,
             position: assignmentData.position || 0,
-            meta: assignmentData.meta || {}
+            meta: assignmentData.meta || {},
+            entity_id: entityId,
+            commitment_id: commitmentId
         };
         
         console.log('Payload a enviar:', payload);
-        
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': userId
+        };
+        // Solo enviar headers de contexto si tienen valor real
+        if (entityId) {
+            headers['entity-id'] = entityId;
+        }
+        if (commitmentId) {
+            headers['commitment-id'] = commitmentId;
+        }
+
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/save`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'user-id': userId
-            },
+            headers,
             body: JSON.stringify(payload)
         });
 
@@ -70,31 +106,71 @@ async function saveAccountAssignment(assignmentData) {
 /**
  * Obtiene todas las asignaciones de un dataset
  * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Array>} Array de asignaciones
  */
-async function getAccountAssignments(datasetId) {
+async function getAccountAssignments(datasetId, entityId = null, commitmentId = null) {
     try {
-        console.log('Loading assignments from database for dataset:', datasetId);
+        console.log('🔍🔍🔍 DIAGNÓSTICO getAccountAssignments:');
+        console.log('  datasetId:', datasetId);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  userId:', getCurrentUserId());
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/${datasetId}`, {
+        // Si no se proporcionan entityId/commitmentId, usar el contexto actual
+        const contextEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+        const contextCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+        
+        let url = `${DATABASE_API_BASE_URL}/api/assignments/${datasetId}`;
+        const params = new URLSearchParams();
+        
+        if (contextEntityId) {
+            params.append('entity_id', contextEntityId);
+        }
+        if (contextCommitmentId) {
+            params.append('commitment_id', contextCommitmentId);
+        }
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        console.log('  URL completa:', url);
+        
+        const headers = {
+            'user-id': getCurrentUserId()
+        };
+        
+        if (contextEntityId) {
+            headers['entity-id'] = contextEntityId;
+        }
+        if (contextCommitmentId) {
+            headers['commitment-id'] = contextCommitmentId;
+        }
+        
+        const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'user-id': getCurrentUserId()
-            }
+            headers
         });
 
+        console.log('  Response status:', response.status);
         const result = await response.json();
+        console.log('  Response result:', result);
         
         if (!result.success) {
+            console.error('❌ Error en respuesta:', result.error);
             throw new Error(result.error || 'Error obteniendo asignaciones');
         }
 
         const assignments = (result.assignments || []).map(convertDatabaseAssignmentToLocalStorage);
-        console.log('Assignments loaded:', assignments.length);
+        console.log('✅ Assignments loaded:', assignments.length);
+        console.log('🔍 Muestra de primeras 3 asignaciones:', assignments.slice(0, 3));
         return assignments;
 
     } catch (error) {
-        console.error('Error in getAccountAssignments:', error);
+        console.error('❌ Error in getAccountAssignments:', error);
+        console.error('❌ Stack trace:', error.stack);
         return [];
     }
 }
@@ -306,9 +382,13 @@ async function saveFinancialAdjustment(adjustmentData) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
+                'user-id': getCurrentUserId(),
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify({
+                id: adjustmentData.id || adjustmentData.adjustmentId || null,
                 datasetId: adjustmentData.datasetId || currentDatasetId,
                 accountId: adjustmentData.accountId || null,
                 assignmentId: adjustmentData.assignmentId || null,
@@ -317,7 +397,24 @@ async function saveFinancialAdjustment(adjustmentData) {
                 monto: adjustmentData.monto,
                 descripcion: adjustmentData.descripcion || null,
                 htmlContenido: adjustmentData.htmlContenido || null,
-                adjuntos: adjustmentData.adjuntos || null
+                adjuntos: adjustmentData.adjuntos || null,
+                // Include UI metadata for rendering
+                meta: {
+                    numero: adjustmentData.numero,
+                    tipo: adjustmentData.tipo,
+                    tipoLabel: adjustmentData.tipoLabel,
+                    periodo: adjustmentData.periodo,
+                    periodoLabel: adjustmentData.periodoLabel,
+                    periodoYear: adjustmentData.periodoYear,
+                    entidad: adjustmentData.entidad,
+                    entidadLabel: adjustmentData.entidadLabel,
+                    descripcion: adjustmentData.descripcion,
+                    detalles: adjustmentData.detalles,
+                    creado: adjustmentData.creado || new Date().toISOString(),
+                    modificado: adjustmentData.modificado || new Date().toISOString(),
+                    totalMonto: adjustmentData.totalMonto,
+                    ...adjustmentData.meta
+                }
             })
         });
 
@@ -389,41 +486,6 @@ async function saveAccountAdjustments(datasetId, adjustmentsMap) {
     }
 }
 
-/**
- * Obtiene los grupos financieros almacenados para un dataset
- * @param {string} datasetId - ID del dataset
- * @returns {Promise<Array>} Lista de grupos financieros
- */
-async function getFinancialGroups(datasetId) {
-    const resolvedDatasetId = datasetId || currentDatasetId;
-
-    if (!resolvedDatasetId) {
-        console.warn('getFinancialGroups: datasetId requerido');
-        return [];
-    }
-
-    try {
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${resolvedDatasetId}`, {
-            method: 'GET',
-            headers: {
-                'user-id': getCurrentUserId()
-            }
-        });
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || 'Error obteniendo grupos financieros');
-        }
-
-        console.log('Financial groups loaded:', result.groups.length);
-        return result.groups;
-
-    } catch (error) {
-        console.error('Error in getFinancialGroups:', error);
-        return [];
-    }
-}
 
 /**
  * Obtiene el snapshot más reciente de resultados de grupos financieros
@@ -507,6 +569,11 @@ async function getFinancialGroupSnapshots(datasetId, limit = 5) {
     }
 }
 
+// Make functions available globally
+if (typeof window !== 'undefined') {
+    window.getLatestFinancialGroupResults = getLatestFinancialGroupResults;
+}
+
 /**
  * Guarda los resultados calculados de grupos financieros en la base de datos
  * @param {string} datasetId - ID del dataset
@@ -514,38 +581,89 @@ async function getFinancialGroupSnapshots(datasetId, limit = 5) {
  * @param {string} status - Estado del cálculo
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function saveFinancialGroupsResults(datasetId, results, status = 'completed') {
+async function saveFinancialGroupsResults(datasetId, results, status = 'completed', entityId, commitmentId) {
     try {
-        console.log('Saving financial groups results:', { datasetId, resultsCount: results.length });
+        const userId = getCurrentUserId();
+        console.log('🔍 DIAGNÓSTICO COMPLETO saveFinancialGroupsResults:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  status:', status);
+        
+        // Verificar datos requeridos
+        if (!userId) {
+            console.error('❌ ERROR CRÍTICO: userId es null/undefined');
+            throw new Error('Usuario no autenticado - userId es null');
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR CRÍTICO: datasetId es null/undefined');
+            throw new Error('DatasetId es null - no se puede guardar sin dataset');
+        }
+        
+        if (!results || results.length === 0) {
+            console.error('❌ ERROR CRÍTICO: results está vacío o es null');
+            throw new Error('No hay resultados para guardar - results está vacío');
+        }
+        
+        // Mostrar muestra de datos para verificar que no son todos 0
+        console.log('🔍 Muestra de datos a guardar (primeros 3):');
+        results.slice(0, 3).forEach((row, i) => {
+            console.log(`  Row ${i}:`, {
+                accountName: row.accountName,
+                accountCode: row.accountCode,
+                preliminary: row.preliminary,
+                adjustments: row.adjustments,
+                finalCurrent: row.finalCurrent,
+                finalPrevious: row.finalPrevious
+            });
+        });
+        
+        const requestBody = {
+            datasetId,
+            results,
+            status,
+            entityId,
+            commitmentId
+        };
+        
+        const requestBodyString = JSON.stringify(requestBody);
+        console.log('🔍 DEBUG: Enviando request body:', requestBodyString);
+        console.log('🔍 DEBUG: Longitud del body:', requestBodyString.length);
+        console.log('🔍 DEBUG: Primeros 200 caracteres:', requestBodyString.substring(0, 200));
         
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': getCurrentUserId()
+                'user-id': userId
             },
-            body: JSON.stringify({
-                datasetId,
-                results,
-                status
-            })
+            body: requestBodyString
         });
 
+        console.log('🔍 Response status:', response.status);
+        console.log('🔍 Response ok:', response.ok);
+        
         const result = await response.json();
+        console.log('🔍 Response result:', result);
         
         if (!result.success) {
+            console.error('❌ Error del servidor:', result.error);
             throw new Error(result.error || 'Error guardando resultados de grupos financieros');
         }
 
-        console.log('Financial groups results saved successfully:', { 
-            runId: result.run.id, 
-            rowsCount: result.rows.length 
+        console.log('✅ Financial groups results saved successfully:', { 
+            snapshotId: result.snapshot?.id, 
+            groupsCount: result.groupsCount || 0 
         });
         
         return result;
 
     } catch (error) {
-        console.error('Error in saveFinancialGroupsResults:', error);
+        console.error('❌ Error in saveFinancialGroupsResults:', error);
+        console.error('❌ Stack trace:', error.stack);
         throw error;
     }
 }
@@ -562,7 +680,10 @@ async function getFinancialAdjustments(datasetId) {
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${datasetId}`, {
             method: 'GET',
             headers: {
-                'user-id': getCurrentUserId()
+                'user-id': getCurrentUserId(),
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 
@@ -581,6 +702,39 @@ async function getFinancialAdjustments(datasetId) {
     }
 }
 
+/**
+ * Elimina un ajuste financiero de la base de datos
+ * @param {string} adjustmentId - ID del ajuste a eliminar
+ * @param {string} datasetId - ID del dataset (para validación)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function deleteFinancialAdjustment(adjustmentId, datasetId) {
+    try {
+        console.log('Deleting adjustment from database:', { adjustmentId, datasetId });
+        
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${adjustmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Adjustment deleted successfully:', result);
+        return result;
+
+    } catch (error) {
+        console.error('Error in deleteFinancialAdjustment:', error);
+        throw error;
+    }
+}
+
 // ============================================
 // LEDGER INTEGRITY
 // ============================================
@@ -590,12 +744,33 @@ async function getFinancialAdjustments(datasetId) {
  * @param {string} datasetId - ID del dataset
  * @param {Array} results - Resultados de la validación
  * @param {string} status - Estado de la validación
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Object>} Resultado de la operación
  */
-async function saveLedgerIntegrityResults(datasetId, results, status = 'completed') {
+async function saveLedgerIntegrityResults(datasetId, results, status = 'completed', entityId = null, commitmentId = null) {
     try {
-        console.log('Saving ledger integrity results:', { datasetId, resultsCount: results.length });
-        
+        // Obtener contexto actual de entidad y compromiso si no se proporcionan
+        let contextEntityId = entityId || '';
+        let contextCommitmentId = commitmentId || '';
+
+        // Si no se proporcionan, obtener del DOM
+        if (!entityId) {
+            contextEntityId = document.getElementById('entidad')?.value || '';
+        }
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            contextCommitmentId = selectedItem?.dataset.commitmentId || '';
+        }
+
+        console.log('Saving ledger integrity results:', {
+            datasetId,
+            resultsCount: results.length,
+            entity_id: contextEntityId,
+            commitment_id: contextCommitmentId
+        });
+
         const response = await fetch(`${DATABASE_API_BASE_URL}/api/ledger-integrity/save`, {
             method: 'POST',
             headers: {
@@ -605,25 +780,96 @@ async function saveLedgerIntegrityResults(datasetId, results, status = 'complete
             body: JSON.stringify({
                 datasetId,
                 results,
-                status
+                status,
+                entityId: contextEntityId,
+                commitmentId: contextCommitmentId
             })
         });
 
         const result = await response.json();
-        
+
         if (!result.success) {
             throw new Error(result.error || 'Error guardando validación');
         }
 
-        console.log('Ledger integrity saved successfully:', { 
-            runId: result.run.id, 
-            rowsCount: result.rows.length 
+        console.log('Ledger integrity saved successfully:', {
+            runId: result.run.id,
+            rowsCount: result.rows.length
         });
-        
+
         return result;
 
     } catch (error) {
         console.error('Error in saveLedgerIntegrityResults:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene validaciones de libro mayor filtradas
+ * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function getLedgerIntegrityResults(datasetId, entityId = null, commitmentId = null) {
+    try {
+        // Obtener contexto actual de entidad y compromiso si no se proporcionan
+        let contextEntityId = entityId || '';
+        let contextCommitmentId = commitmentId || '';
+
+        // Si no se proporcionan, obtener del DOM
+        if (!entityId) {
+            contextEntityId = document.getElementById('entidad')?.value || '';
+        }
+        if (!commitmentId) {
+            const menu = document.getElementById('commitmentDropdownMenu');
+            const selectedItem = menu?.querySelector('.commitment-dropdown-item.is-selected');
+            contextCommitmentId = selectedItem?.dataset.commitmentId || '';
+        }
+
+        console.log('Getting ledger integrity results:', {
+            datasetId,
+            entity_id: contextEntityId,
+            commitment_id: contextCommitmentId
+        });
+
+        let url = `${DATABASE_API_BASE_URL}/api/ledger-integrity/${datasetId}`;
+        const params = new URLSearchParams();
+
+        if (contextEntityId) {
+            params.append('entity_id', contextEntityId);
+        }
+        if (contextCommitmentId) {
+            params.append('commitment_id', contextCommitmentId);
+        }
+
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'user-id': getCurrentUserId()
+            }
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo validaciones de ledger integrity');
+        }
+
+        console.log('Ledger integrity results loaded successfully:', {
+            runId: result.run?.id,
+            rowsCount: result.rows?.length || 0
+        });
+
+        return result;
+
+    } catch (error) {
+        console.error('Error in getLedgerIntegrityResults:', error);
         throw error;
     }
 }
@@ -723,54 +969,8 @@ async function saveAccountDual(accountData) {
 }
 
 // ============================================
-// FUNCIONES LOCALSTORAGE PARA GRUPOS Y CUENTAS
+// FUNCIONES LOCALSTORAGE PARA CUENTAS
 // ============================================
-
-/**
- * Guarda un grupo financiero en localStorage
- * @param {Object} groupData - Datos del grupo financiero
- * @returns {Object} Resultado del guardado local
- */
-function saveStoredFinancialGroup(groupData) {
-    try {
-        const datasetId = groupData.datasetId || currentDatasetId;
-        const userId = getCurrentUserId();
-        
-        if (!datasetId || !userId) {
-            console.warn('Missing datasetId or userId for localStorage save');
-            return null;
-        }
-        
-        const storageKey = `financial_groups_v1_${userId}_${datasetId}`;
-        const existingGroups = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        
-        // Remove existing group for same ID if exists
-        const filteredGroups = existingGroups.filter(g => g.id !== groupData.id);
-        
-        // Add new group
-        const newGroup = {
-            id: groupData.id || `local_${Date.now()}`,
-            name: groupData.name,
-            type: groupData.type || 'group',
-            parentLabel: groupData.parentLabel || null,
-            value: groupData.value || 0,
-            meta: groupData.meta || {},
-            datasetId: datasetId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        
-        filteredGroups.push(newGroup);
-        localStorage.setItem(storageKey, JSON.stringify(filteredGroups));
-        
-        console.log('Financial group saved to localStorage:', newGroup);
-        return newGroup;
-        
-    } catch (error) {
-        console.error('Error saving financial group to localStorage:', error);
-        return null;
-    }
-}
 
 /**
  * Guarda una cuenta contable en localStorage
@@ -873,30 +1073,44 @@ async function saveAssignmentDual(assignmentData) {
 /**
  * Carga asignaciones desde la base de datos y las sincroniza con localStorage
  * @param {string} datasetId - ID del dataset
+ * @param {string} entityId - ID de la entidad (opcional)
+ * @param {string} commitmentId - ID del compromiso (opcional)
  * @returns {Promise<Array>} Array de asignaciones sincronizadas
  */
-async function loadAndSyncAssignments(datasetId) {
+async function loadAndSyncAssignments(datasetId, entityId = null, commitmentId = null) {
     try {
         console.log('Loading and syncing assignments for dataset:', datasetId);
+        console.log('Filtering by entity_id:', entityId, 'and commitment_id:', commitmentId);
         
-        // 1. Cargar desde base de datos
-        const databaseAssignments = await getAccountAssignments(datasetId);
+        // 1. Cargar desde base de datos con filtros
+        const databaseAssignments = await getAccountAssignments(datasetId, entityId, commitmentId);
         
-        // 2. Cargar desde localStorage
-        const localStorageAssignments = getStoredAssignments();
+        // 2. Cargar desde localStorage (también filtrar)
+        const localStorageAssignments = getStoredAssignments(datasetId).filter(assignment => {
+            // Filtrar por entity_id y commitment_id si están presentes
+            if (entityId && assignment.entity_id !== entityId) return false;
+            if (commitmentId && assignment.commitment_id !== commitmentId) return false;
+            return true;
+        });
         
         // 3. Sincronizar (priorizar base de datos)
         const mergedAssignments = mergeAssignments(databaseAssignments, localStorageAssignments);
         
         // 4. Actualizar localStorage con datos fusionados
-        if (mergedAssignments.length > 0) {
-            localStorage.setItem('storedAssignments', JSON.stringify(mergedAssignments));
+        if (datasetId) {
+            const userId = getCurrentUserId();
+            if (userId) {
+                const storageKey = `assigned_accounts_v1_${userId}_${datasetId}`;
+                localStorage.setItem(storageKey, JSON.stringify(mergedAssignments));
+                console.log('Assignments cached in localStorage with key:', storageKey);
+            }
         }
         
         console.log('Assignments synced:', {
             database: databaseAssignments.length,
             localStorage: localStorageAssignments.length,
-            merged: mergedAssignments.length
+            merged: mergedAssignments.length,
+            filtered_by: { entity_id: entityId, commitment_id: commitmentId }
         });
         
         return mergedAssignments;
@@ -904,8 +1118,12 @@ async function loadAndSyncAssignments(datasetId) {
     } catch (error) {
         console.error('Error in loadAndSyncAssignments:', error);
         
-        // Si falla la base de datos, usar localStorage como fallback
-        const localStorageAssignments = getStoredAssignments();
+        // Si falla la base de datos, usar localStorage como fallback con filtros
+        const localStorageAssignments = getStoredAssignments(datasetId).filter(assignment => {
+            if (entityId && assignment.entity_id !== entityId) return false;
+            if (commitmentId && assignment.commitment_id !== commitmentId) return false;
+            return true;
+        });
         console.warn('Database load failed, using localStorage fallback:', localStorageAssignments.length);
         
         return localStorageAssignments;
@@ -996,6 +1214,13 @@ function saveStoredAssignment(assignmentData) {
             return null;
         }
         
+        // Obtener contexto de entidad y compromiso
+        const entityId = assignmentData.entity_id || 
+                        window.commitmentDropdownState?.currentEntityId || 
+                        document.getElementById('entidad')?.value || '';
+        const commitmentId = assignmentData.commitment_id || 
+                          window.commitmentDropdownState?.selectedCommitmentId || '';
+        
         const storageKey = `assigned_accounts_v1_${userId}_${datasetId}`;
         const existingAssignments = JSON.parse(localStorage.getItem(storageKey) || '[]');
         
@@ -1011,6 +1236,8 @@ function saveStoredAssignment(assignmentData) {
             position: assignmentData.position || 0,
             datasetId: datasetId,
             meta: assignmentData.meta || {},
+            entity_id: entityId,
+            commitment_id: commitmentId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
@@ -1129,14 +1356,15 @@ async function syncAllDataToDatabase() {
  */
 async function getExcelData(datasetId = null, entityId = null, commitmentId = null) {
     try {
-        console.log('Getting Excel data from Conjuntos_datos:', { datasetId, entityId, commitmentId });
+        console.log('Getting Excel data from API:', { datasetId, entityId, commitmentId });
         
-        // Construir URL con contexto
-        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        // Construir URL con el endpoint correcto
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/excel/latest`;
         const params = new URLSearchParams();
         
         if (datasetId) {
-            apiUrl += `/${datasetId}`;
+            // Si hay datasetId específico, usar endpoint diferente
+            apiUrl = `${DATABASE_API_BASE_URL}/api/excel/datasets/${datasetId}`;
         } else {
             // Si no hay datasetId, buscar el más reciente con contexto
             if (entityId) {
@@ -1145,7 +1373,6 @@ async function getExcelData(datasetId = null, entityId = null, commitmentId = nu
             if (commitmentId) {
                 params.append('commitment_id', commitmentId);
             }
-            params.append('latest', 'true'); // Indicar que queremos el más reciente
             
             if (params.toString()) {
                 apiUrl += '?' + params.toString();
@@ -1174,6 +1401,12 @@ async function getExcelData(datasetId = null, entityId = null, commitmentId = nu
         
         if (!result.success) {
             throw new Error(result.error || 'Error obteniendo datos del Excel');
+        }
+
+        // Manejar caso de datos vacíos (sin Excel para esta entidad/compromiso)
+        if (result.data && result.data.status === 'empty') {
+            console.log('📊 No hay datos de Excel para esta entidad y compromiso');
+            return result.data; // Devolver el objeto con status 'empty'
         }
 
         console.log('Excel data retrieved successfully:', result.data);
@@ -1252,7 +1485,7 @@ async function listExcelDatasets(entityId = null, commitmentId = null, uploadSec
         console.log('Listing Excel datasets by context:', { entityId, commitmentId, uploadSection });
         
         // Construir URL con filtros
-        let apiUrl = `${DATABASE_API_BASE_URL}/api/conjuntos`;
+        let apiUrl = `${DATABASE_API_BASE_URL}/api/excel/datasets`;
         const params = new URLSearchParams();
         
         if (entityId) {
@@ -1576,15 +1809,51 @@ async function deleteFile(fileId, entityId = null, commitmentId = null) {
     }
 }
 
+async function getUploadedFiles(entityId = null, commitmentId = null, tipo = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) return [];
+
+        const params = new URLSearchParams();
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+        if (tipo) params.append('tipo', tipo);
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/context?${params}`, {
+            headers: {
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            }
+        });
+
+        const result = await response.json();
+        if (!result.success) return [];
+
+        return (result.documents || []).map(doc => ({
+            id: doc.id,
+            fileName: doc.metadata?.fileName || doc.titulo || 'Archivo',
+            titulo: doc.titulo || '',
+            metadata: doc.metadata || {},
+            type: doc.tipo
+        }));
+    } catch (error) {
+        console.error('Error in getUploadedFiles:', error);
+        return [];
+    }
+}
+
 // Exportar funciones para uso global
 window.saveAccountAssignment = saveAccountAssignment;
 window.getAccountAssignments = getAccountAssignments;
 window.deleteAccountAssignment = deleteAccountAssignment;
 window.saveFinancialAdjustment = saveFinancialAdjustment;
 window.getFinancialAdjustments = getFinancialAdjustments;
+window.deleteFinancialAdjustment = deleteFinancialAdjustment;
 window.saveAccountAdjustments = saveAccountAdjustments;
 window.saveFinancialGroupsResults = saveFinancialGroupsResults;
 window.saveLedgerIntegrityResults = saveLedgerIntegrityResults;
+window.getLedgerIntegrityResults = getLedgerIntegrityResults;
 window.saveAssignmentDual = saveAssignmentDual;
 window.getFinancialGroups = getFinancialGroups;
 window.getLatestFinancialGroupResults = getLatestFinancialGroupResults;
@@ -1595,6 +1864,7 @@ window.syncAllDataToDatabase = syncAllDataToDatabase;
 window.getExcelData = getExcelData;
 window.saveExcelData = saveExcelData;
 window.deleteExcelData = deleteExcelData;
+window.getExcelDatasets = listExcelDatasets;
 
 // Form data management
 window.saveFormData = saveFormData;
@@ -1604,6 +1874,7 @@ window.loadFormData = loadFormData;
 window.uploadFile = uploadFile;
 window.listFiles = listFiles;
 window.deleteFile = deleteFile;
+window.getUploadedFiles = getUploadedFiles;
 
 // Nuevas funciones para grupos financieros y cuentas
 window.saveFinancialGroup = saveFinancialGroup;
@@ -1614,7 +1885,504 @@ window.saveAccountsBatch = saveAccountsBatch;
 // Funciones duales (localStorage + base de datos)
 window.saveFinancialGroupDual = saveFinancialGroupDual;
 window.saveAccountDual = saveAccountDual;
-window.saveStoredFinancialGroup = saveStoredFinancialGroup;
+window.saveStoredAccount = saveStoredAccount;
+window.saveStoredAssignment = saveStoredAssignment;
+window.getStoredAssignments = getStoredAssignments;
+
+// ============================================
+// FORM APPROVALS (POR SECCIÓN)
+// ============================================
+
+/**
+ * Detecta automáticamente la sección actual del formulario basándose en la URL o el DOM
+ * @returns {string} Identificador de la sección actual
+ */
+function detectCurrentSection() {
+    // 1. Detectar desde la URL
+    const path = window.location.pathname;
+    if (path.includes('estimacion_contable')) return 'estimacion-contable';
+    if (path.includes('integridad')) return 'integridad-libro-mayor';
+    if (path.includes('grupos-financieros')) return 'grupos-financieros';
+    if (path.includes('asignar-cuentas')) return 'asignar-cuentas';
+    if (path.includes('a300')) return 'a300-planificacion';
+    
+    // 2. Detectar desde el título de la página
+    const title = document.title || '';
+    if (title.toLowerCase().includes('estimación contable')) return 'estimacion-contable';
+    if (title.toLowerCase().includes('integridad')) return 'integridad-libro-mayor';
+    if (title.toLowerCase().includes('grupos financieros')) return 'grupos-financieros';
+    if (title.toLowerCase().includes('asignar cuentas')) return 'asignar-cuentas';
+    if (title.toLowerCase().includes('a300')) return 'a300-planificacion';
+    
+    // 3. Detectar desde elementos del DOM
+    const activeTab = document.querySelector('.tab-link.active')?.textContent?.toLowerCase() || '';
+    if (activeTab.includes('estimación')) return 'estimacion-contable';
+    if (activeTab.includes('integridad')) return 'integridad-libro-mayor';
+    if (activeTab.includes('grupos')) return 'grupos-financieros';
+    
+    // 4. Valor por defecto
+    return 'general';
+}
+
+/**
+ * Guarda una aprobación de formulario para una sección específica
+ * @param {Object} approvalData - Datos de la aprobación
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveFormApproval(approvalData) {
+    try {
+        console.log('=== INICIO saveFormApproval ===');
+        console.log('approvalData recibido:', approvalData);
+        
+        const userId = getCurrentUserId();
+        
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            throw new Error('Usuario no autenticado. Inicia sesión para continuar.');
+        }
+        
+        // Detectar automáticamente la sección si no se proporciona
+        const section = approvalData.section || detectCurrentSection();
+        
+        console.log('🔍 Sección detectada para aprobación:', section);
+        console.log('🔍 URL actual:', window.location.pathname);
+        console.log('🔍 Título de página:', document.title);
+        
+        const payload = {
+            section: section,
+            status: approvalData.status,
+            comments: approvalData.comments || '',
+            user_name: approvalData.user_name || getCurrentUserName(),
+            role: approvalData.role || getCurrentUserRole(),
+            view_all: approvalData.view_all || false
+        };
+
+        if (approvalData.form_response_id) {
+            payload.form_response_id = approvalData.form_response_id;
+        } else {
+            if (approvalData.form_id) payload.form_id = approvalData.form_id;
+            if (approvalData.entity_id) payload.entity_id = approvalData.entity_id;
+            if (approvalData.commitment_id) payload.commitment_id = approvalData.commitment_id;
+        }
+        
+        console.log('Payload a enviar:', payload);
+        console.log('API URL:', `${DATABASE_API_BASE_URL}/api/formularios/approval`);
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'user-id': userId
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        const result = await response.json();
+        console.log('Response body:', result);
+        
+        if (!response.ok) {
+            console.error('❌ Error HTTP:', response.status, result.error);
+            throw new Error(result.error || `Error del servidor: ${response.status}`);
+        }
+        
+        if (!result.success) {
+            console.error('❌ Error en respuesta:', result.error);
+            throw new Error(result.error || 'Error guardando aprobación');
+        }
+
+        console.log('✅ Aprobación guardada exitosamente en BD:', result.approval);
+        console.log('✅ Sección guardada:', result.section);
+        return result;
+
+    } catch (error) {
+        console.error('❌ Error en saveFormApproval:', error);
+        console.error('❌ Detalles del error:', {
+            message: error.message,
+            stack: error.stack,
+            databaseApiUrl: DATABASE_API_BASE_URL
+        });
+        
+        // Error específico si el servidor no está corriendo
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('No se puede conectar con el servidor. Verifica que server.js esté corriendo en el puerto 3001.');
+        }
+        
+        throw error;
+    }
+}
+
+/**
+ * Obtiene las aprobaciones de un formulario (todas o por sección específica)
+ * @param {string} formResponseId - ID del formulario
+ * @param {string} section - Sección específica (opcional)
+ * @returns {Promise<Object>} Aprobaciones del formulario
+ */
+async function getFormApprovals(formResponseId, section = null) {
+    try {
+        console.log('=== INICIO getFormApprovals ===');
+        console.log('formResponseId:', formResponseId, 'section:', section);
+        
+        const userId = getCurrentUserId();
+        
+        const url = section 
+            ? `${DATABASE_API_BASE_URL}/api/formularios/approval/${formResponseId}?section=${section}`
+            : `${DATABASE_API_BASE_URL}/api/formularios/approval/${formResponseId}`;
+
+        const headers = {
+            'user-id': userId
+        };
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers
+        });
+
+        const result = await response.json();
+        console.log('Response body:', result);
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Error obteniendo aprobaciones');
+        }
+
+        console.log('✅ Aprobaciones obtenidas:', result.approvals);
+        return result;
+
+    } catch (error) {
+        console.error('❌ Error en getFormApprovals:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene la última aprobación de una sección usando form_id + entidad/compromiso.
+ * @param {string} formId - Identificador del formulario
+ * @param {string} section - Sección a consultar
+ * @returns {Promise<Object|null>} Última aprobación o null
+ */
+async function getFormApprovalsForSection(formId, section, viewAll = false) {
+    try {
+        const userId = getCurrentUserId();
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({
+                form_id: formId,
+                entity_id: entityId,
+                commitment_id: commitmentId,
+                view_all: viewAll
+            })
+        });
+
+        const result = await response.json();
+        console.log('getFormApprovalsForSection response:', result);
+
+        if (!result.success || !result.formulario) {
+            return null;
+        }
+
+        const approvals = result.formulario.approvals || { sections: {} };
+        const sectionApprovals = approvals.sections?.[section] || [];
+
+        if (sectionApprovals.length === 0) {
+            return null;
+        }
+
+        const last = sectionApprovals[sectionApprovals.length - 1];
+        const fecha = new Date(last.timestamp).toLocaleString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return {
+            usuario: last.user_name,
+            userId: last.user_id,
+            fecha: fecha,
+            timestamp: last.timestamp,
+            status: last.status
+        };
+    } catch (error) {
+        console.error('❌ Error en getFormApprovalsForSection:', error);
+        return null;
+    }
+}
+
+/**
+ * Función helper para obtener el nombre del usuario actual
+ * @returns {string} Nombre del usuario
+ */
+function getCurrentUserName() {
+    const user = getCurrentSession();
+    return user?.username || user?.name || 'Usuario';
+}
+
+/**
+ * Función helper para obtener el rol del usuario actual
+ * @returns {string} Rol del usuario
+ */
+function getCurrentUserRole() {
+    const user = getCurrentSession();
+    return user?.role || 'auditor';
+}
+
+/**
+ * Guarda una aprobación usando el contexto actual de entidad/compromiso.
+ * Busca o crea automáticamente el registro en form_responses.
+ * @param {string} formId - Identificador del formulario/sección
+ * @param {string} section - Sección aprobada
+ * @param {string} status - Estado de la aprobación (approved, rejected, pending, review)
+ * @param {Object} options - Opciones adicionales (comments, user_name, role)
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function saveApprovalForSection(formId, section, status = 'approved', options = {}) {
+    try {
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        return await saveFormApproval({
+            form_id: formId,
+            section: section,
+            entity_id: entityId,
+            commitment_id: commitmentId,
+            status: status,
+            comments: options.comments || '',
+            user_name: options.user_name || getCurrentUserName(),
+            role: options.role || getCurrentUserRole(),
+            view_all: options.view_all || false
+        });
+    } catch (error) {
+        console.error('❌ Error en saveApprovalForSection:', error);
+        throw error;
+    }
+}
+
+/**
+ * Quita la aprobación del usuario actual para una sección, usando el contexto actual.
+ * @param {string} formId - Identificador del formulario/sección
+ * @param {string} section - Sección a desaprobar
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+async function removeApprovalForSection(formId, section, viewAll = false) {
+    try {
+        const userId = getCurrentUserId();
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        const payload = {
+            form_id: formId,
+            section: section,
+            entity_id: entityId,
+            commitment_id: commitmentId,
+            view_all: viewAll
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        console.log('Response body:', result);
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `Error del servidor: ${response.status}`);
+        }
+
+        console.log('✅ Aprobación eliminada de BD:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Error en removeApprovalForSection:', error);
+        throw error;
+    }
+}
+
+// Referencias en celdas de BG (hojas-trabajo)
+async function saveBgReference(rowId, bgType, colIndex, file, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('Usuario no autenticado');
+
+        const formId = `ref_bg_${bgType}_${rowId}_${colIndex}`;
+        const fileName = file ? (file.fileName || file.nombre || file.titulo || file.name || 'Archivo') : '';
+        const payload = {
+            form_id: formId,
+            form_title: `Referencia BG ${bgType} - ${rowId}`,
+            form_data: file ? { rowId, bgType, colIndex, fileId: file.id, fileName, fileType: file.type || '', url: file.url || '' } : { removed: true },
+            subdocument_id: null,
+            metadata: {},
+            entity_id: entityId,
+            commitment_id: commitmentId
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error guardando referencia');
+        return result.formulario;
+    } catch (error) {
+        console.error('Error in saveBgReference:', error);
+        throw error;
+    }
+}
+
+async function getBgReferences(bgType, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) return [];
+
+        const params = new URLSearchParams();
+        params.append('form_id_prefix', `ref_bg_${bgType}_`);
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/list?${params}`, {
+            headers: {
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            }
+        });
+
+        const result = await response.json();
+        if (!result.success) return [];
+        return result.formularios || [];
+    } catch (error) {
+        console.error('Error in getBgReferences:', error);
+        return [];
+    }
+}
+
+async function deleteBgReference(rowId, bgType, colIndex, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('Usuario no autenticado');
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            },
+            body: JSON.stringify({
+                form_id: `ref_bg_${bgType}_${rowId}_${colIndex}`,
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error eliminando referencia');
+        return result;
+    } catch (error) {
+        console.error('Error in deleteBgReference:', error);
+        throw error;
+    }
+}
+
+async function syncBgReferencesToDocument(documentId, bgType, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId || !documentId) return;
+
+        const refs = await getBgReferences(bgType, entityId, commitmentId);
+        const references = (refs || []).map(ref => {
+            const fd = ref.form_data || {};
+            return {
+                rowId: fd.rowId,
+                col: fd.colIndex !== undefined ? fd.colIndex : fd.col,
+                fileId: fd.fileId,
+                fileName: fd.fileName,
+                updatedAt: ref.updated_at || ref.created_at
+            };
+        }).filter(r => r.rowId !== undefined && r.fileId);
+
+        const getRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/get`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({ documentId })
+        });
+        const getResult = await getRes.json();
+        if (!getResult.success || !getResult.document) {
+            console.warn('No se pudo obtener subdocumento para sincronizar referencias:', getResult.error);
+            return;
+        }
+
+        const doc = getResult.document;
+        const updatedMetadata = { ...(doc.metadata || {}), bgType, references };
+
+        const updateRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/update`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({
+                documentId,
+                titulo: doc.titulo,
+                contenido: doc.contenido,
+                metadata: updatedMetadata
+            })
+        });
+
+        const updateResult = await updateRes.json();
+        if (!updateResult.success) {
+            console.warn('No se pudo actualizar metadata del subdocumento:', updateResult.error);
+        } else {
+            console.log('✅ Referencias sincronizadas en metadata del documento BG:', { documentId, count: references.length });
+        }
+    } catch (error) {
+        console.error('Error in syncBgReferencesToDocument:', error);
+    }
+}
+
+// Exponer funciones globalmente
+window.saveFormApproval = saveFormApproval;
+window.getFormApprovals = getFormApprovals;
+window.detectCurrentSection = detectCurrentSection;
+window.getCurrentUserName = getCurrentUserName;
+window.getCurrentUserRole = getCurrentUserRole;
+window.saveApprovalForSection = saveApprovalForSection;
+window.removeApprovalForSection = removeApprovalForSection;
+window.getFormApprovalsForSection = getFormApprovalsForSection;
+window.saveBgReference = saveBgReference;
+window.getBgReferences = getBgReferences;
+window.deleteBgReference = deleteBgReference;
+window.syncBgReferencesToDocument = syncBgReferencesToDocument;
+
+// Funciones duales (localStorage + base de datos)
+window.saveFinancialGroupDual = saveFinancialGroupDual;
+window.saveAccountDual = saveAccountDual;
 window.saveStoredAccount = saveStoredAccount;
 window.saveStoredAssignment = saveStoredAssignment;
 window.getStoredAssignments = getStoredAssignments;
@@ -1633,9 +2401,13 @@ console.log('Funciones disponibles:', {
     getLatestFinancialGroupResults: !!window.getLatestFinancialGroupResults,
     getFinancialGroupSnapshots: !!window.getFinancialGroupSnapshots,
     saveLedgerIntegrityResults: !!window.saveLedgerIntegrityResults,
+    getLedgerIntegrityResults: !!window.getLedgerIntegrityResults,
     getExcelData: !!window.getExcelData,
     saveExcelData: !!window.saveExcelData,
     syncAllDataToDatabase: !!window.syncAllDataToDatabase,
     loadAndSyncAssignments: !!window.loadAndSyncAssignments,
-    getFinancialGroupStructure: !!window.getFinancialGroupStructure
+    getFinancialGroupStructure: !!window.getFinancialGroupStructure,
+    saveFormApproval: !!window.saveFormApproval,
+    getFormApprovals: !!window.getFormApprovals,
+    detectCurrentSection: !!window.detectCurrentSection
 });

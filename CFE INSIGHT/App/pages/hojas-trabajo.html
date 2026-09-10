@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hojas de Trabajo - CFE INSIGHT</title>
+    <title>BG - CFE INSIGHT</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="../css/main.css" rel="stylesheet">
+    <link href="../css/formularios.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
     <style>
         :root {
             --sidebar-bg: #edf1f7;
@@ -18,6 +19,223 @@
             --text-muted: #70809b;
             --card-bg: #ffffff;
             --line-color: #c7d2eb;
+        }
+
+        /* Estilos para diseño de ÁREAS */
+        .areas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+        }
+
+        .areas-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .areas-dropdown {
+            position: relative;
+        }
+
+        .areas-plus-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .areas-plus-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .areas-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+            margin-top: 5px;
+        }
+
+        .areas-menu.show {
+            display: block;
+        }
+
+        .areas-menu-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.2s ease;
+        }
+
+        .areas-menu-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .areas-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .areas-menu-item i {
+            color: var(--primary);
+        }
+
+        /* Estilos para referencias en BG */
+        .col-ref {
+            text-align: center;
+            vertical-align: middle;
+            min-width: 42px;
+        }
+
+        .btn-ref-add {
+            background: transparent;
+            border: 1px dashed #0d6efd;
+            color: #0d6efd;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-ref-add:hover {
+            background: #0d6efd;
+            color: white;
+        }
+
+        .ref-file-name {
+            color: #0d6efd;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.8rem;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .ref-file-empty {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .ref-list-item {
+            cursor: pointer;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .ref-list-item:hover {
+            background: #f8f9fa;
+        }
+
+        .ref-list-item i {
+            color: #0d6efd;
+        }
+
+        /* Estilos para sumarias */
+        .summary-list {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 15px;
+        }
+
+        .summary-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .summary-item-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-item-row.total-row {
+            background: #f8f9fa;
+            margin: 0 -15px;
+            padding: 12px 15px;
+            font-weight: 600;
+            border-top: 2px solid var(--primary);
+        }
+
+        .summary-label {
+            font-size: 0.9rem;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .summary-value {
+            font-size: 0.9rem;
+            color: var(--text-main);
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        /* Estilos para estado vacío */
+        .worksheet-empty-state {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .empty-state-content {
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .empty-state-content h3 {
+            margin: 20px 0 10px 0;
+            color: #495057;
+        }
+
+        .empty-state-content p {
+            margin: 5px 0;
+            font-size: 0.95rem;
         }
 
         body {
@@ -270,6 +488,80 @@
             box-shadow: 0 14px 22px rgba(38, 57, 115, 0.18);
         }
 
+        .area-item--subgroup {
+            margin-left: 20px;
+            background: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+        }
+
+        .area-item-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .area-item-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .area-item-description {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .area-item--subgroup .area-item-name {
+            font-weight: 400;
+        }
+
+        /* Estilos para la barra de búsqueda */
+        .search-container {
+            position: relative;
+            margin: 12px 0;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            border: 1px solid var(--sidebar-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 2px rgba(51, 75, 250, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-no-results {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
         .worksheet-content {
             flex: 1;
             background: var(--card-bg);
@@ -422,9 +714,9 @@
 
         .dynamic-table-grid {
             display: grid;
-            grid-template-columns: minmax(260px, 2fr) 110px repeat(2, minmax(140px, 1fr)) minmax(150px, 1.1fr) minmax(130px, 0.9fr) 90px;
+            grid-template-columns: minmax(280px, 2fr) 90px minmax(130px, 1fr) minmax(130px, 1fr) minmax(150px, 1.1fr) 90px minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 0.9fr) 90px;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
         }
 
         .dynamic-table-header {
@@ -672,6 +964,122 @@
                 padding: 24px;
             }
         }
+
+        /* Estilos para el encabezado de la hoja de trabajo */
+        .worksheet-header {
+            text-align: center;
+            padding: 60px 20px 40px 20px;
+            position: relative;
+        }
+
+        .worksheet-header .entity-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0 0 20px 0;
+        }
+
+        .worksheet-header .summary-title {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin: 0 0 15px 0;
+        }
+
+        .worksheet-header .date-line,
+        .worksheet-header .currency-line {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin: 8px 0;
+        }
+
+        .worksheet-header .allinial-logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 140px;
+            max-width: 32%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .worksheet-header .sb-logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 110px;
+            max-width: 28%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* Estilos para la sección de materialidad */
+        .materiality-section {
+            text-align: right;
+            margin-top: 40px;
+            padding-right: 20px;
+        }
+
+        .materiality-line {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin: 5px 0;
+            font-weight: 500;
+        }
+
+        /* Estilos para la tabla de sumaria */
+        .worksheet-table {
+            margin-top: 30px;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 10px 20px rgba(33, 56, 102, 0.06);
+            padding: 18px 18px 8px 18px;
+        }
+
+        .worksheet-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .worksheet-table thead th {
+            border-top: 2px solid #000;
+            padding: 12px 10px 6px 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #000;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .worksheet-table thead .subheader th {
+            border-top: none;
+            padding-top: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #000;
+        }
+
+        .worksheet-table thead tr:last-child th {
+            border-bottom: 2px solid #000;
+        }
+
+        .worksheet-table tbody td {
+            padding: 12px 10px;
+            border-top: none;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .worksheet-table .col-description {
+            text-align: left;
+        }
+
+        .worksheet-table .col-ref,
+        .worksheet-table .col-amount,
+        .worksheet-table .col-variation,
+        .worksheet-table .col-variation-pct {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -694,7 +1102,7 @@
                         </a>
                     </li>
                     <li class="breadcrumb-item active" aria-current="page">
-                        <i class="bi bi-grid-3x3"></i> Hojas de Trabajo
+                        <i class="bi bi-bank"></i> BG
                     </li>
                 </ol>
             </nav>
@@ -703,43 +1111,17 @@
 
     <div class="workspace-container">
         <div class="workspace-toolbar">
-            <div>
-                            </div>
+            <div id="worksheetTitleContainer">
+                
+            </div>
             <div class="toolbar-actions">
-                <button type="button" title="Historial"><i class="bi bi-arrow-counterclockwise"></i></button>
-                <button type="button" title="Imprimir"><i class="bi bi-printer"></i></button>
-                <button type="button" title="Cerrar"><i class="bi bi-x-lg"></i></button>
-                <button type="button" title="Configuración"><i class="bi bi-gear"></i></button>
+                <button type="button" title="Editar" onclick="toggleHeaderEdit()"><i class="bi bi-pencil"></i></button>
             </div>
         </div>
 
-        <div class="worksheet-layout">
-            <aside class="worksheet-sidebar">
-                <div class="sidebar-header">
-                    <span>Áreas</span>
-                    <button class="icon-button" id="areaMenuBtn" onclick="toggleAreaMenu(event)" aria-haspopup="true" aria-expanded="false">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                </div>
-
-                <div class="area-menu" id="areaMenu" role="menu">
-                    <button type="button" onclick="createNewArea()"><i class="bi bi-journal-plus"></i> Nueva área</button>
-                </div>
-
-                <div id="areaListWrapper" style="flex:1; display:flex; flex-direction:column;">
-                    <div class="area-empty" id="areaEmpty">
-                        <i class="bi bi-layers"></i>
-                        <span>Agrega tu primera área para comenzar.</span>
-                    </div>
-                    <ul class="area-list" id="areaList"></ul>
-                </div>
-            </aside>
-
+        <div class="worksheet-layout" id="worksheetLayout">
             <section class="worksheet-content" id="areaDetailPanel">
-                <div class="area-detail-empty">
-                    <i class="bi bi-layout-sidebar-inset"></i>
-                    <p>Selecciona o crea un área para comenzar.</p>
-                </div>
+                <!-- El contenido se cargará dinámicamente -->
             </section>
         </div>
     </div>
@@ -747,16 +1129,2117 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/config-supabase.js"></script>
+    <script type="module" src="../js/database-api.js"></script>
     <script src="../js/auth-guard.js"></script>
+    <script>
+        // Debug function availability
+        console.log('getLatestFinancialGroupResults available:', typeof window.getLatestFinancialGroupResults);
+    </script>
     <script>
         let areas = [];
         let selectedAreaId = null;
         let areaCounter = 1;
+        let currentWorksheetDoc = null;
+
+        if (typeof window.getCurrentUserId !== 'function') {
+            window.getCurrentUserId = function() {
+                try {
+                    if (window.currentUser && window.currentUser.id) {
+                        return window.currentUser.id;
+                    }
+
+                    if (typeof window.getUserUI === 'function') {
+                        const user = window.getUserUI();
+                        if (user && user.id) {
+                            return user.id;
+                        }
+                    }
+
+                    const sessionUser = sessionStorage.getItem('currentUser');
+                    if (sessionUser) {
+                        const parsed = JSON.parse(sessionUser);
+                        return parsed.id || parsed.user_id || parsed.uid;
+                    }
+
+                    const localUser = localStorage.getItem('currentUser');
+                    if (localUser) {
+                        const parsed = JSON.parse(localUser);
+                        return parsed.id || parsed.user_id || parsed.uid;
+                    }
+
+                    console.warn('⚠️ No se pudo obtener el ID del usuario (hojas-trabajo)');
+                    return null;
+                } catch (error) {
+                    console.error('❌ Error obteniendo ID del usuario (hojas-trabajo):', error);
+                    return null;
+                }
+            };
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const raw = localStorage.getItem('currentWorksheetDocument');
+                if (raw) {
+                    currentWorksheetDoc = JSON.parse(raw);
+                }
+            } catch (err) {
+                console.warn('No se pudo leer currentWorksheetDocument:', err);
+            }
+
+            initializeWorksheetHeader();
+            initializeWorksheetArea();
             document.addEventListener('click', handleGlobalClick);
+            
+            // Monitorear cambios en el panel principal
+            monitorPanelChanges();
         });
 
+        function monitorPanelChanges() {
+            const panel = document.getElementById('areaDetailPanel');
+            if (!panel) return;
+            
+            console.log('🔍 Iniciando monitoreo del panel principal...');
+            
+            // Crear un observer para detectar cambios en el DOM
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'childList') {
+                        console.log('🔄 CAMBIO DETECTADO EN EL PANEL:');
+                        console.log('Nodos removidos:', mutation.removedNodes.length);
+                        console.log('Nodos agregados:', mutation.addedNodes.length);
+                        
+                        // Verificar si se perdió el worksheet-header
+                        const hasHeader = panel.querySelector('.worksheet-header');
+                        if (!hasHeader) {
+                            console.error('⚠️ ¡EL WORKSHOP-HEADER FUE ELIMINADO!');
+                            console.trace('Stack trace del momento de eliminación:');
+                        }
+                        
+                        // Verificar si se perdió la tabla
+                        const hasTable = panel.querySelector('.worksheet-table');
+                        if (!hasTable) {
+                            console.error('⚠️ ¡EL WORKSHOP-TABLE FUE ELIMINADO!');
+                            console.trace('Stack trace del momento de eliminación:');
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(panel, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        function initializeWorksheetHeader() {
+            const titleContainer = document.getElementById('worksheetTitleContainer');
+            if (!titleContainer) return;
+
+            const defaultTitle = 'Hoja de Trabajo Financiera';
+            let title = defaultTitle;
+
+            if (currentWorksheetDoc && currentWorksheetDoc.titulo) {
+                title = currentWorksheetDoc.titulo;
+            }
+
+            titleContainer.innerHTML = `
+                <h1>${title}</h1>
+            `;
+        }
+
+        function getAssignmentsUserKeyForWorksheet() {
+            return window.getCurrentUserId ? (window.getCurrentUserId() || 'anon') : 'anon';
+        }
+
+        async function ensureCurrentUserLoaded() {
+            console.log('🔍 Verificando usuario actual...');
+            
+            // Si ya tenemos el usuario, retornar
+            if (window.currentUser && window.currentUser.id) {
+                console.log('✅ Usuario ya cargado:', window.currentUser.id);
+                return;
+            }
+            
+            // Intentar cargar desde sessionStorage
+            try {
+                const sessionUser = sessionStorage.getItem('currentUser');
+                if (sessionUser) {
+                    const parsed = JSON.parse(sessionUser);
+                    if (parsed && parsed.id) {
+                        window.currentUser = parsed;
+                        console.log('✅ Usuario cargado desde sessionStorage:', parsed.id);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('❌ Error cargando desde sessionStorage:', e);
+            }
+            
+            // Intentar cargar desde localStorage
+            try {
+                const localUser = localStorage.getItem('currentUser');
+                if (localUser) {
+                    const parsed = JSON.parse(localUser);
+                    if (parsed && parsed.id) {
+                        window.currentUser = parsed;
+                        console.log('✅ Usuario cargado desde localStorage:', parsed.id);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('❌ Error cargando desde localStorage:', e);
+            }
+            
+            // Intentar obtener desde auth-guard si está disponible
+            if (typeof window.getUserUI === 'function') {
+                try {
+                    const user = window.getUserUI();
+                    if (user && user.id) {
+                        window.currentUser = user;
+                        console.log('✅ Usuario cargado desde getUserUI:', user.id);
+                        return;
+                    }
+                } catch (e) {
+                    console.log('❌ Error cargando desde getUserUI:', e);
+                }
+            }
+            
+            console.log('❌ No se pudo cargar la información del usuario');
+        }
+
+        function getLastAssignmentsDatasetId() {
+            try {
+                const baseKey = 'assigned_accounts_last_dataset_v1';
+                const userKey = getAssignmentsUserKeyForWorksheet();
+                const fullKey = `${baseKey}_${userKey}`;
+                const value = localStorage.getItem(fullKey);
+                return value && value.toString().trim() ? value.toString().trim() : null;
+            } catch (error) {
+                console.warn('No se pudo leer último dataset de asignaciones:', error);
+                return null;
+            }
+        }
+
+        async function initializeWorksheetArea() {
+            const layout = document.getElementById('worksheetLayout');
+            if (layout) {
+                layout.style.display = 'flex';
+            }
+
+            const panel = document.getElementById('areaDetailPanel');
+            if (!panel) return;
+
+            const isBg = currentWorksheetDoc && currentWorksheetDoc.metadata && currentWorksheetDoc.metadata.bgType;
+            if (isBg) {
+                await renderBGWorksheet(panel);
+            } else {
+                // Mostrar interfaz manual para Hoja de Trabajo
+                renderManualWorksheet(panel);
+            }
+        }
+
+        function normalizeLabel(value) {
+            return (value || '').toString().trim().toLowerCase();
+        }
+
+        async function loadFinancialGroupsAsAreas() {
+            try {
+                // Asegurarse de que el usuario esté cargado
+                await ensureCurrentUserLoaded();
+                
+                // Obtener el ID del dataset actual
+                const datasetId = getLastAssignmentsDatasetId();
+                if (!datasetId) {
+                    console.warn('No hay datasetId disponible para cargar grupos financieros');
+                    return [];
+                }
+
+                console.log('🔍 DatasetId para grupos:', datasetId);
+                console.log('🔍 Usuario actual:', window.currentUser?.id);
+
+                // Cargar grupos financieros desde la base de datos
+                if (typeof window.getFinancialGroups === 'function') {
+                    console.log('🔍 Llamando a getFinancialGroups...');
+                    const groups = await window.getFinancialGroups(datasetId);
+                    console.log('🔍 Grupos financieros crudos:', groups);
+                    console.log('🔍 Longitud de grupos:', groups.length);
+                    console.log('🔍 Primer grupo estructura:', groups[0]);
+                    
+                    if (Array.isArray(groups) && groups.length > 0) {
+                        console.log('Grupos financieros cargados:', groups.length);
+                        
+                        // Mostrar todos los grupos con estructura jerárquica
+                        return groups.map(group => {
+                            // Debug: mostrar todos los campos disponibles
+                            console.log('Campos del grupo:', Object.keys(group));
+                            console.log('Valores del grupo:', group);
+                            
+                            const indentLevel = group.level || 0;
+                            const indent = '  '.repeat(indentLevel);
+                            const prefix = group.isParent ? '📁' : '📄';
+                            
+                            return {
+                                id: group.rowId || Math.random().toString(36),
+                                name: `${indent}${prefix} ${group.accountName || 'Sin nombre'}`,
+                                description: `Código: ${group.accountCode || 'N/A'}`,
+                                level: indentLevel,
+                                isParent: group.isParent,
+                                parentId: group.parentId
+                            };
+                        });
+                    }
+                } else {
+                    console.warn('getFinancialGroups no está disponible');
+                }
+            } catch (error) {
+                console.error('Error cargando grupos financieros:', error);
+            }
+            
+            return [];
+        }
+
+        // Variable global para almacenar todas las áreas
+        let allAreas = [];
+
+        async function renderAreasList() {
+            const areaList = document.getElementById('areaList');
+            const areaEmpty = document.getElementById('areaEmpty');
+            
+            if (!areaList || !areaEmpty) return;
+
+            // Cargar grupos financieros y guardarlos globalmente
+            allAreas = await loadFinancialGroupsAsAreas();
+            
+            // Aplicar filtro actual si hay texto en búsqueda
+            const searchInput = document.getElementById('areaSearchInput');
+            if (searchInput && searchInput.value.trim()) {
+                filterAreas();
+                return;
+            }
+            
+            if (allAreas.length === 0) {
+                areaEmpty.style.display = 'flex';
+                areaList.style.display = 'none';
+                
+                // Mostrar mensaje informativo sobre cómo crear grupos
+                const areaEmptyElement = document.getElementById('areaEmpty');
+                if (areaEmptyElement) {
+                    areaEmptyElement.innerHTML = `
+                        <i class="bi bi-layers"></i>
+                        <span>No hay grupos financieros disponibles</span>
+                        <small style="opacity: 0.7; font-size: 0.85rem; margin-top: 8px;">
+                            Para crear grupos, ve a "Formularios" → "Asignar cuentas" y haz las asignaciones desde el Excel
+                        </small>
+                    `;
+                }
+                return;
+            }
+
+            areaEmpty.style.display = 'none';
+            areaList.style.display = 'flex';
+            
+            renderFilteredAreas(allAreas);
+        }
+
+        function renderFilteredAreas(filteredAreas) {
+            const areaList = document.getElementById('areaList');
+            const areaEmpty = document.getElementById('areaEmpty');
+            
+            // Limpiar lista actual
+            areaList.innerHTML = '';
+            
+            if (filteredAreas.length === 0) {
+                // Mostrar mensaje de no resultados
+                const noResults = document.createElement('div');
+                noResults.className = 'search-no-results';
+                noResults.textContent = 'No se encontraron grupos que coincidan con la búsqueda';
+                areaList.appendChild(noResults);
+                return;
+            }
+            
+            // Agregar cada área/grupo financiero con estilo jerárquico
+            filteredAreas.forEach(area => {
+                const li = document.createElement('li');
+                li.className = 'area-item';
+                if (area.level > 0) {
+                    li.classList.add('area-item--subgroup');
+                }
+                
+                li.innerHTML = `
+                    <div class="area-item-content">
+                        <span class="area-item-name">${area.name}</span>
+                        <span class="area-item-description">${area.description}</span>
+                    </div>
+                    <button class="area-delete" onclick="deleteArea('${area.id}')" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+                li.onclick = (e) => {
+                    console.log('=== CLICK EN ÁREA DETECTADO ===');
+                    console.log('Click en área:', area.id, area.name);
+                    console.log('Target del click:', e.target);
+                    console.log('Es delete button?', !!e.target.closest('.area-delete'));
+                    console.log('Evento onclick asignado correctamente para:', area.name);
+                    
+                    if (!e.target.closest('.area-delete')) {
+                        console.log('Llamando a selectArea...');
+                        selectArea(area.id, area.name.replace(/[📁📄]\s*/, '').trim());
+                    } else {
+                        console.log('Click en botón eliminar, ignorando...');
+                    }
+                };
+                
+                // Verificar que el evento se asignó
+                console.log('Evento onclick asignado para área:', area.name);
+                areaList.appendChild(li);
+            });
+        }
+
+        function filterAreas() {
+            const searchInput = document.getElementById('areaSearchInput');
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                renderFilteredAreas(allAreas);
+                return;
+            }
+            
+            // Filtrar áreas por nombre o descripción
+            const filteredAreas = allAreas.filter(area => {
+                const cleanName = area.name.replace(/[📁📄]\s*/, '').toLowerCase();
+                const description = area.description.toLowerCase();
+                return cleanName.includes(searchTerm) || description.includes(searchTerm);
+            });
+            
+            renderFilteredAreas(filteredAreas);
+        }
+
+        function selectArea(areaId, areaName) {
+            selectedAreaId = areaId;
+            
+            console.log('=== DEBUG selectArea INICIO ===');
+            console.log('selectArea llamado con:', areaId, areaName);
+            
+            // Verificar estado actual del panel ANTES de cambios
+            const panel = document.getElementById('areaDetailPanel');
+            console.log('Panel encontrado:', !!panel);
+            if (panel) {
+                console.log('Contenido del panel ANTES:', panel.innerHTML.substring(0, 200) + '...');
+                console.log('Clases del panel:', panel.className);
+                
+                const worksheetHeader = panel.querySelector('.worksheet-header');
+                console.log('worksheet-header encontrado ANTES:', !!worksheetHeader);
+                
+                const worksheetTable = panel.querySelector('.worksheet-table');
+                console.log('worksheet-table encontrado ANTES:', !!worksheetTable);
+            }
+            
+            // Actualizar UI para mostrar área seleccionada
+            document.querySelectorAll('.area-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Encontrar y marcar el elemento seleccionado
+            const areaItems = document.querySelectorAll('.area-item');
+            areaItems.forEach(item => {
+                const nameElement = item.querySelector('.area-item-name');
+                if (nameElement && nameElement.textContent.replace(/[📁📄]\s*/, '').trim() === areaName) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // No actualizar el título del encabezado - mantener "Nombre de la entidad"
+            
+            // Actualizar la tabla existente con el nombre del grupo seleccionado
+            console.log('=== LLAMANDO A updateWorksheetTableWithGroupName ===');
+            console.log('Parámetro areaName:', areaName);
+            updateWorksheetTableWithGroupName(areaName);
+            console.log('=== TERMINÓ updateWorksheetTableWithGroupName ===');
+            
+            // Verificar estado del panel DESPUÉS de cambios
+            console.log('=== VERIFICACIÓN DESPUÉS DE CAMBIOS ===');
+            if (panel) {
+                console.log('Contenido del panel DESPUÉS:', panel.innerHTML.substring(0, 200) + '...');
+                
+                const worksheetHeaderAfter = panel.querySelector('.worksheet-header');
+                console.log('worksheet-header encontrado DESPUÉS:', !!worksheetHeaderAfter);
+                
+                const worksheetTableAfter = panel.querySelector('.worksheet-table');
+                console.log('worksheet-table encontrado DESPUÉS:', !!worksheetTableAfter);
+                
+                // Verificación simple de que los elementos existen
+                if (!worksheetHeaderAfter) {
+                    console.error('⚠️ EL WORKSHOP-HEADER NO SE ENCUENTRA DESPUÉS DE LOS CAMBIOS');
+                }
+                if (!worksheetTableAfter) {
+                    console.error('⚠️ EL WORKSHOP-TABLE NO SE ENCUENTRA DESPUÉS DE LOS CAMBIOS');
+                }
+            }
+            
+            console.log('=== DEBUG selectArea FIN ===');
+            console.log('Área seleccionada:', areaId, areaName);
+        }
+
+        function updateWorksheetTableWithGroupName(groupName) {
+            console.log('=== INICIO updateWorksheetTableWithGroupName ===');
+            console.log('groupName recibido:', groupName);
+            
+            // Buscar la primera fila vacía en la tabla y poner el nombre del grupo
+            const table = document.querySelector('.worksheet-table table');
+            console.log('Tabla encontrada:', !!table);
+            if (!table) {
+                console.log('No se encontró la tabla, saliendo...');
+                return;
+            }
+            
+            const tbody = table.querySelector('tbody');
+            console.log('Tbody encontrado:', !!tbody);
+            if (!tbody) {
+                console.log('No se encontró tbody, saliendo...');
+                return;
+            }
+            
+            // Buscar el área seleccionada para obtener su código
+            console.log('Buscando área en allAreas...');
+            console.log('allAreas disponible:', !!allAreas);
+            console.log('Total allAreas:', allAreas ? allAreas.length : 0);
+            
+            const selectedArea = allAreas.find(area => {
+                const cleanName = area.name.replace(/[📁📄]\s*/, '').trim();
+                console.log('Comparando:', cleanName, 'con', groupName);
+                return cleanName === groupName;
+            });
+            
+            console.log('Área seleccionada encontrada:', !!selectedArea);
+            if (selectedArea) {
+                console.log('Área seleccionada:', selectedArea);
+            }
+            
+            // Extraer el código del área (del description que contiene "Código: XXX")
+            let areaCode = '';
+            if (selectedArea && selectedArea.description) {
+                const codeMatch = selectedArea.description.match(/Código:\s*(.+)/);
+                if (codeMatch) {
+                    areaCode = codeMatch[1].trim();
+                }
+            }
+            
+            console.log('Código extraído:', areaCode);
+            
+            // Siempre usar la primera fila (índice 0) para reemplazar
+            const rows = tbody.querySelectorAll('tr');
+            console.log('Total filas encontradas:', rows.length);
+            
+            if (rows.length > 0) {
+                const firstRow = rows[0];
+                const descriptionCell = firstRow.querySelector('.col-description');
+                const refCell = firstRow.querySelector('.col-ref');
+                
+                console.log('Usando primera fila para reemplazar...');
+                
+                if (descriptionCell && refCell) {
+                    // Limpiar el nombre del grupo: remover iconos y espacios extra
+                    const cleanGroupName = groupName.replace(/[📁📄]\s*-\s*/, '').trim();
+                    console.log('Nombre limpio:', cleanGroupName);
+                    
+                    // Reemplazar contenido de la primera fila
+                    descriptionCell.textContent = cleanGroupName;
+                    refCell.textContent = areaCode || '';
+                    
+                    // Agregar cifras de ejemplo según el grupo seleccionado
+                    addGroupFigures(firstRow, cleanGroupName, areaCode);
+                    
+                    console.log('Primera fila actualizada exitosamente');
+                } else {
+                    console.log('No se encontraron las celdas en la primera fila');
+                }
+            } else {
+                console.log('No hay filas en la tabla');
+            }
+            
+            console.log('=== FIN updateWorksheetTableWithGroupName ===');
+        }
+
+        function createNewWorksheetRow(tbody, groupName, areaCode) {
+            console.log('Creando nueva fila con:', groupName, areaCode);
+            
+            // Crear una nueva fila con la misma estructura que las existentes
+            const newRow = document.createElement('tr');
+            
+            // Limpiar el nombre del grupo
+            const cleanGroupName = groupName.replace(/[📁📄]\s*-\s*/, '').trim();
+            
+            // Estructura de la fila (basada en la nueva tabla de 9 columnas)
+            newRow.innerHTML = `
+                <td class="col-description">${cleanGroupName}</td>
+                <td class="col-ref">${areaCode || ''}</td>
+                <td class="col-amount"></td>
+                <td class="col-amount"></td>
+                <td class="col-amount"></td>
+                <td class="col-ref"></td>
+                <td class="col-amount"></td>
+                <td class="col-variation"></td>
+                <td class="col-variation-pct"></td>
+            `;
+            
+            // Agregar la fila al tbody
+            tbody.appendChild(newRow);
+            console.log('Nueva fila agregada exitosamente');
+        }
+
+        function deleteArea(areaId) {
+            if (confirm('¿Está seguro de eliminar esta área?')) {
+                console.log('Eliminar área:', areaId);
+                // Implementar lógica de eliminación
+                renderAreasList();
+            }
+        }
+
+        function toggleHeaderEdit() {
+            const header = document.querySelector('.worksheet-header');
+            if (!header) return;
+            
+            const entityName = header.querySelector('.entity-name');
+            const summaryTitle = header.querySelector('.summary-title');
+            const dateLine = header.querySelector('.date-line');
+            const currencyLine = header.querySelector('.currency-line');
+            
+            // Si ya está en modo edición, guardar cambios
+            if (header.classList.contains('editing-mode')) {
+                saveHeaderChanges();
+                header.classList.remove('editing-mode');
+                
+                // Restaurar elementos a texto normal
+                makeHeaderReadOnly(entityName);
+                makeHeaderReadOnly(summaryTitle);
+                makeHeaderReadOnly(dateLine);
+                makeHeaderReadOnly(currencyLine);
+            } else {
+                // Activar modo edición
+                header.classList.add('editing-mode');
+                
+                // Hacer elementos editables
+                makeHeaderEditable(entityName);
+                makeHeaderEditable(summaryTitle);
+                makeHeaderEditable(dateLine);
+                makeHeaderEditable(currencyLine);
+            }
+        }
+        
+        function makeHeaderEditable(element) {
+            if (!element) return;
+            
+            element.contentEditable = true;
+            element.style.border = '2px dashed #007bff';
+            element.style.padding = '4px 8px';
+            element.style.borderRadius = '4px';
+            element.style.backgroundColor = '#f8f9fa';
+            element.focus();
+        }
+        
+        function makeHeaderReadOnly(element) {
+            if (!element) return;
+            
+            element.contentEditable = false;
+            element.style.border = 'none';
+            element.style.padding = '0';
+            element.style.backgroundColor = 'transparent';
+        }
+        
+        function saveHeaderChanges() {
+            // Aquí puedes agregar lógica para guardar los cambios si es necesario
+            console.log('Cambios del encabezado guardados');
+        }
+        
+        function addGroupFigures(row, groupName, areaCode) {
+            // Limpiar solo las celdas de cifras, NO el código del grupo
+            const amountCells = row.querySelectorAll('.col-amount');
+            const allRefCells = row.querySelectorAll('.col-ref');
+            const variationCells = row.querySelectorAll('.col-variation');
+            const variationPctCells = row.querySelectorAll('.col-variation-pct');
+            
+            amountCells.forEach(cell => cell.textContent = '');
+            
+            // Limpiar solo la SEGUNDA columna Ref (índice 1), mantener la primera (índice 0) con el código
+            if (allRefCells.length > 1) {
+                allRefCells[1].textContent = '';  // Segunda Ref
+            }
+            
+            variationCells.forEach(cell => cell.textContent = '');
+            variationPctCells.forEach(cell => cell.textContent = '');
+            
+            // Obtener datos del libro mayor para este grupo (ahora asíncrono)
+            getLedgerDataForGroupAsync(groupName, areaCode).then(ledgerData => {
+                console.log('=== DATOS RECIBIDOS EN addGroupFigures ===');
+                console.log('ledgerData:', ledgerData);
+                
+                if (ledgerData) {
+                    // Columna 1: Descripción (ya está llena)
+                    // Columna 2: Ref (ya está llena con el código)
+                    
+                    // Columna 3: Año actual - Saldo del período actual del libro mayor
+                    const currentYearCell = row.querySelector('td:nth-child(3)');
+                    if (currentYearCell && ledgerData.saldoPeriodoActual !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.saldoPeriodoActual);
+                        currentYearCell.textContent = formattedValue;
+                        console.log(`✅ Año actual aplicado: ${ledgerData.saldoPeriodoActual} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar año actual - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 4: Ajustes (dejar vacío por ahora)
+                    const adjustmentsCell = row.querySelector('td:nth-child(4)');
+                    if (adjustmentsCell) {
+                        adjustmentsCell.textContent = '';
+                    }
+                    
+                    // Columna 5: Ref (segunda ref - ya está vacía)
+                    
+                    // Columna 6: Año anterior - Saldo del período anterior del libro mayor
+                    const previousYearCell = row.querySelector('td:nth-child(6)');
+                    if (previousYearCell && ledgerData.saldoPeriodoAnterior !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.saldoPeriodoAnterior);
+                        previousYearCell.textContent = formattedValue;
+                        console.log(`✅ Año anterior aplicado: ${ledgerData.saldoPeriodoAnterior} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar año anterior - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 7: Variación - Diferencia del libro mayor
+                    const variationCell = row.querySelector('.col-variation');
+                    if (variationCell && ledgerData.diferencia !== undefined) {
+                        const formattedValue = formatCurrency(ledgerData.diferencia);
+                        variationCell.textContent = formattedValue;
+                        console.log(`✅ Variación aplicada: ${ledgerData.diferencia} -> ${formattedValue}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar variación - celda o valor no encontrado');
+                    }
+                    
+                    // Columna 8: Variación % - Calcular porcentaje
+                    const variationPctCell = row.querySelector('.col-variation-pct');
+                    if (variationPctCell) {
+                        // Siempre calcular usando la función para asegurar formato correcto
+                        const variationPct = calculateVariationPercentage(ledgerData.saldoPeriodoActual, ledgerData.saldoPeriodoAnterior);
+                        variationPctCell.textContent = variationPct;
+                        console.log(`✅ Variación % aplicada: ${variationPct}`);
+                    } else {
+                        console.log('❌ No se pudo aplicar variación % - celda no encontrada');
+                    }
+                    
+                    console.log(`✅ Datos del libro mayor aplicados para ${groupName}:`, ledgerData);
+                } else {
+                    // Si no hay datos del libro mayor, usar valores de ejemplo
+                    console.log(`❌ No se encontraron datos del libro mayor para ${groupName}, usando valores de ejemplo`);
+                    applyExampleFigures(row, groupName);
+                }
+            }).catch(error => {
+                console.error('Error en getLedgerDataForGroupAsync:', error);
+                console.log(`❌ Error al obtener datos, usando valores de ejemplo para ${groupName}`);
+                applyExampleFigures(row, groupName);
+            });
+        }
+        
+        async function getLedgerDataForGroupAsync(groupName, areaCode) {
+            console.log('=== INICIO getLedgerDataForGroupAsync ===');
+            console.log(`Buscando datos del libro mayor para: ${groupName} (código: ${areaCode})`);
+            
+            // Verificar qué hay disponible en diferentes posibles ubicaciones
+            console.log('window.currentExcelData:', typeof window.currentExcelData, !!window.currentExcelData);
+            console.log('localStorage currentExcelData:', !!localStorage.getItem('currentExcelData'));
+            console.log('window.excelData:', typeof window.excelData, !!window.excelData);
+            console.log('localStorage excelData:', !!localStorage.getItem('excelData'));
+            console.log('window.trialBalanceData:', typeof window.trialBalanceData, !!window.trialBalanceData);
+            console.log('localStorage trialBalance:', !!localStorage.getItem('trialBalance'));
+            
+            // Buscar datos de asignación de cuentas que podrían tener el balance de prueba
+            const assignedAccounts = localStorage.getItem('assigned_accounts_v1_' + (window.currentUser?.id || 'null'));
+            console.log('localStorage assigned_accounts:', !!assignedAccounts);
+            
+            if (assignedAccounts) {
+                try {
+                    const parsed = JSON.parse(assignedAccounts);
+                    console.log('Estructura de assigned_accounts:', typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                } catch (e) {
+                    console.log('Error parsing assigned_accounts:', e);
+                }
+            }
+            
+            // Buscar en otras posibles claves de localStorage
+            const possibleKeys = [
+                'excel_data', 'balance_data', 'trial_balance_data', 'ledger_data',
+                'current_dataset', 'dataset_data', 'financial_data', 'accounting_data',
+                'balance_sheet', 'income_statement', 'worksheet_data'
+            ];
+            
+            console.log('=== BUSCANDO EN OTRAS KEYS DE LOCALSTORAGE ===');
+            possibleKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    console.log(`✅ Encontrado ${key}:`, !!data);
+                    try {
+                        const parsed = JSON.parse(data);
+                        console.log(`Estructura de ${key}:`, typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                        
+                        // Si tiene trial balance o accounts, usar estos datos
+                        if (parsed.trialBalance || parsed.accounts || parsed.data) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN ${key}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, parsed);
+                        }
+                    } catch (e) {
+                        console.log(`Error parsing ${key}:`, e);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: ${key}`);
+                }
+            });
+            
+            // Buscar variables globales que podrían existir
+            console.log('=== BUSCANDO VARIABLES GLOBALES ===');
+            const globalVars = [
+                'excelData', 'balanceData', 'trialBalanceData', 'ledgerData',
+                'currentDataset', 'datasetData', 'financialData', 'accountingData',
+                'formData', 'worksheetData', 'currentEntityData'
+            ];
+            
+            globalVars.forEach(varName => {
+                if (typeof window[varName] !== 'undefined') {
+                    console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                    if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                        console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                        return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: window.${varName}`);
+                }
+            });
+            
+            // Buscar en el objeto formDataManager si existe
+            if (typeof window.formDataManager !== 'undefined' && window.formDataManager) {
+                console.log('✅ Encontrado formDataManager');
+                console.log('Métodos disponibles:', Object.getOwnPropertyNames(window.formDataManager));
+                
+                // Intentar obtener datos a través de formDataManager
+                if (typeof window.formDataManager.getCurrentData === 'function') {
+                    const data = window.formDataManager.getCurrentData();
+                    console.log('formDataManager.getCurrentData():', !!data);
+                    if (data && (data.trialBalance || data.accounts || data.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS EN formDataManager!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, data);
+                    }
+                }
+            } else {
+                console.log('❌ No encontrado: formDataManager');
+            }
+            
+            // ÚLTIMO INTENTO: Obtener datos desde la página de formularios
+            console.log('=== INTENTANDO OBTENER DATOS DESDE FORMULARIOS ===');
+            try {
+                // Intentar acceder a las funciones de formularios.html
+                if (window.parent && window.parent.getLedgerDataFromLatestExcel) {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel en parent');
+                    const apiData = window.parent.getLedgerDataFromLatestExcel();
+                    console.log('Datos desde parent:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE PARENT!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else if (typeof getLedgerDataFromLatestExcel === 'function') {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel local');
+                    const apiData = getLedgerDataFromLatestExcel();
+                    console.log('Datos desde API local:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE API LOCAL!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getLedgerDataFromLatestExcel');
+                }
+                
+                // Intentar con las variables globales que usa formularios.html
+                const formulariosVars = [
+                    'currentExcelData', 'excelDataset', 'trialBalanceData', 
+                    'ledgerData', 'balanceData', 'currentDataset'
+                ];
+                
+                // Buscar en window.parent (si formularios.html es el padre)
+                if (window.parent) {
+                    console.log('Buscando en window.parent...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.parent[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado parent.${varName}:`, typeof window.parent[varName], !!window.parent[varName]);
+                            if (window.parent[varName] && (window.parent[varName].trialBalance || window.parent[varName].accounts || window.parent[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN parent.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.parent[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Buscar en window actual
+                console.log('Buscando en window actual...');
+                formulariosVars.forEach(varName => {
+                    if (typeof window[varName] !== 'undefined') {
+                        console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                        if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                        }
+                    }
+                });
+                
+                // Intentar acceder a través de opener si es una ventana emergente
+                if (window.opener) {
+                    console.log('Buscando en window.opener...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.opener[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado opener.${varName}:`, typeof window.opener[varName], !!window.opener[varName]);
+                            if (window.opener[varName] && (window.opener[varName].trialBalance || window.opener[varName].accounts || window.opener[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN opener.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.opener[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Intentar obtener datos de grupos financieros procesados
+                console.log('=== BUSCANDO GRUPOS FINANCIEROS PROCESADOS ===');
+                try {
+                    // Obtener el ID del dataset actual
+                    const datasetId = getLastAssignmentsDatasetId();
+                    console.log('DatasetId para grupos:', datasetId);
+                    
+                    // Cargar grupos financieros desde la base de datos
+                    if (typeof window.getFinancialGroups === 'function') {
+                        const groups = await window.getFinancialGroups(datasetId);
+                        console.log('Grupos financieros encontrados:', groups.length);
+                        
+                        if (groups && groups.length > 0) {
+                            // Buscar el grupo específico por nombre o código
+                            let targetGroup = null;
+                            
+                            // Buscar por código exacto
+                            if (areaCode) {
+                                targetGroup = groups.find(group => 
+                                    group.accountCode === areaCode || 
+                                    group.accountCode === areaCode.toString() ||
+                                    group.code === areaCode
+                                );
+                                console.log(`Búsqueda por código ${areaCode}:`, !!targetGroup);
+                            }
+                            
+                            // Buscar por nombre
+                            if (!targetGroup) {
+                                targetGroup = groups.find(group => {
+                                    const name = group.accountName || group.name || '';
+                                    return name.toLowerCase().includes(groupName.toLowerCase()) ||
+                                           groupName.toLowerCase().includes(name.toLowerCase());
+                                });
+                                console.log(`Búsqueda por nombre ${groupName}:`, !!targetGroup);
+                            }
+                            
+                            if (targetGroup) {
+                                console.log('🎯 GRUPO FINANCIERO ENCONTRADO:', targetGroup);
+                                
+                                // Extraer los datos del grupo
+                                const currentBalance = parseFloat(targetGroup.currentBalance || targetGroup.saldo_actual || 0);
+                                const previousBalance = parseFloat(targetGroup.previousBalance || targetGroup.saldo_anterior || 0);
+                                const difference = currentBalance - previousBalance;
+                                
+                                return {
+                                    saldoPeriodoActual: currentBalance,
+                                    saldoPeriodoAnterior: previousBalance,
+                                    diferencia: difference,
+                                    importeTotalLibroMayor: 0,
+                                    saldoCalculado: currentBalance,
+                                    variationPct: previousBalance !== 0 ? ((currentBalance - previousBalance) / Math.abs(previousBalance)) * 100 : 0
+                                };
+                            } else {
+                                console.log('❌ Grupo no encontrado en grupos financieros');
+                            }
+                        } else {
+                            console.log('❌ No hay grupos financieros disponibles');
+                        }
+                    } else {
+                        console.log('❌ getFinancialGroups no está disponible');
+                    }
+                } catch (error) {
+                    console.log('Error obteniendo grupos financieros:', error);
+                }
+                
+                // Si no encuentra grupos, intentar con Excel como fallback
+                console.log('=== FALLBACK: BUSCANDO EN EXCEL ===');
+                if (typeof getExcelData === 'function') {
+                    console.log('✅ Encontrada función getExcelData');
+                    console.log('Intentando obtener datos con entity/commitment context...');
+                    
+                    // Obtener IDs de entidad y compromiso actuales
+                    const entityId = window.currentEntity?.id || window.currentEntityId || 
+                                    (window.formDataManager && window.formDataManager.currentEntity?.id);
+                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId || 
+                                      (window.formDataManager && window.formDataManager.currentCommitment?.id);
+                    
+                    console.log('Contexto - Entity ID:', entityId, 'Commitment ID:', commitmentId);
+                    
+                    const excelData = await getExcelData(null, entityId, commitmentId);
+                    console.log('Datos desde getExcelData:', !!excelData);
+                    console.log('Estructura completa:', Object.keys(excelData || {}));
+                    
+                    if (excelData && excelData.sheets_data && excelData.sheets_data.length > 0) {
+                        console.log('🎯 DATOS ENCONTRADOS EN sheets_data!');
+                        console.log('Primera hoja:', excelData.sheets_data[0]);
+                        
+                        // Extraer el balance de prueba de sheets_data
+                        const trialBalanceSheet = excelData.sheets_data.find(sheet => 
+                            sheet.name && (
+                                sheet.name.toLowerCase().includes('balance') ||
+                                sheet.name.toLowerCase().includes('trial') ||
+                                sheet.name.toLowerCase().includes('mayor') ||
+                                sheet.name.toLowerCase().includes('cuentas')
+                            )
+                        ) || excelData.sheets_data[0]; // Usar la primera si no encuentra específica
+                        
+                        console.log('Hoja de balance encontrada:', trialBalanceSheet.name);
+                        
+                        // Construir estructura compatible
+                        const processedData = {
+                            trialBalance: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                            accounts: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                            data: trialBalanceSheet.data || trialBalanceSheet.rows || []
+                        };
+                        
+                        console.log('Datos procesados:', processedData);
+                        return getLedgerDataFromExcelData(groupName, areaCode, processedData);
+                    } else if (excelData && excelData.success && excelData.data) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData!');
+                        console.log('Estructura de datos:', Object.keys(excelData.data));
+                        return getLedgerDataFromExcelData(groupName, areaCode, excelData.data);
+                    } else if (excelData && (excelData.trialBalance || excelData.accounts || excelData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData (formato directo)!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getExcelData');
+                }
+                
+            } catch (error) {
+                console.log('Error al obtener datos desde API:', error);
+            }
+            
+            // Si no hay datos reales, devolver null para que use applyExampleFigures
+            console.log('Devolviendo null - se usarán datos de ejemplo');
+            return null;
+        }
+        
+        function getLedgerDataForGroup(groupName, areaCode) {
+            console.log('=== INICIO getLedgerDataForGroup ===');
+            console.log(`Buscando datos del libro mayor para: ${groupName} (código: ${areaCode})`);
+            
+            // Verificar qué hay disponible en diferentes posibles ubicaciones
+            console.log('window.currentExcelData:', typeof window.currentExcelData, !!window.currentExcelData);
+            console.log('localStorage currentExcelData:', !!localStorage.getItem('currentExcelData'));
+            console.log('window.excelData:', typeof window.excelData, !!window.excelData);
+            console.log('localStorage excelData:', !!localStorage.getItem('excelData'));
+            console.log('window.trialBalanceData:', typeof window.trialBalanceData, !!window.trialBalanceData);
+            console.log('localStorage trialBalance:', !!localStorage.getItem('trialBalance'));
+            
+            // Buscar datos de asignación de cuentas que podrían tener el balance de prueba
+            const assignedAccounts = localStorage.getItem('assigned_accounts_v1_' + (window.currentUser?.id || 'null'));
+            console.log('localStorage assigned_accounts:', !!assignedAccounts);
+            
+            if (assignedAccounts) {
+                try {
+                    const parsed = JSON.parse(assignedAccounts);
+                    console.log('Estructura de assigned_accounts:', typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                } catch (e) {
+                    console.log('Error parsing assigned_accounts:', e);
+                }
+            }
+            
+            // Buscar en otras posibles claves de localStorage
+            const possibleKeys = [
+                'excel_data', 'balance_data', 'trial_balance_data', 'ledger_data',
+                'current_dataset', 'dataset_data', 'financial_data', 'accounting_data',
+                'balance_sheet', 'income_statement', 'worksheet_data'
+            ];
+            
+            console.log('=== BUSCANDO EN OTRAS KEYS DE LOCALSTORAGE ===');
+            possibleKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    console.log(`✅ Encontrado ${key}:`, !!data);
+                    try {
+                        const parsed = JSON.parse(data);
+                        console.log(`Estructura de ${key}:`, typeof parsed, parsed ? Object.keys(parsed) : 'null');
+                        
+                        // Si tiene trial balance o accounts, usar estos datos
+                        if (parsed.trialBalance || parsed.accounts || parsed.data) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN ${key}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, parsed);
+                        }
+                    } catch (e) {
+                        console.log(`Error parsing ${key}:`, e);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: ${key}`);
+                }
+            });
+            
+            // Buscar variables globales que podrían existir
+            console.log('=== BUSCANDO VARIABLES GLOBALES ===');
+            const globalVars = [
+                'excelData', 'balanceData', 'trialBalanceData', 'ledgerData',
+                'currentDataset', 'datasetData', 'financialData', 'accountingData',
+                'formData', 'worksheetData', 'currentEntityData'
+            ];
+            
+            globalVars.forEach(varName => {
+                if (typeof window[varName] !== 'undefined') {
+                    console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                    if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                        console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                        return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                    }
+                } else {
+                    console.log(`❌ No encontrado: window.${varName}`);
+                }
+            });
+            
+            // Buscar en el objeto formDataManager si existe
+            if (typeof window.formDataManager !== 'undefined' && window.formDataManager) {
+                console.log('✅ Encontrado formDataManager');
+                console.log('Métodos disponibles:', Object.getOwnPropertyNames(window.formDataManager));
+                
+                // Intentar obtener datos a través de formDataManager
+                if (typeof window.formDataManager.getCurrentData === 'function') {
+                    const data = window.formDataManager.getCurrentData();
+                    console.log('formDataManager.getCurrentData():', !!data);
+                    if (data && (data.trialBalance || data.accounts || data.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS EN formDataManager!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, data);
+                    }
+                }
+            } else {
+                console.log('❌ No encontrado: formDataManager');
+            }
+            
+            // ÚLTIMO INTENTO: Obtener datos desde la página de formularios
+            console.log('=== INTENTANDO OBTENER DATOS DESDE FORMULARIOS ===');
+            try {
+                // Intentar acceder a las funciones de formularios.html
+                if (window.parent && window.parent.getLedgerDataFromLatestExcel) {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel en parent');
+                    const apiData = window.parent.getLedgerDataFromLatestExcel();
+                    console.log('Datos desde parent:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE PARENT!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else if (typeof getLedgerDataFromLatestExcel === 'function') {
+                    console.log('✅ Encontrada función getLedgerDataFromLatestExcel local');
+                    const apiData = getLedgerDataFromLatestExcel();
+                    console.log('Datos desde API local:', !!apiData);
+                    
+                    if (apiData && (apiData.trialBalance || apiData.accounts || apiData.data)) {
+                        console.log('🎯 DATOS ENCONTRADOS DESDE API LOCAL!');
+                        return getLedgerDataFromExcelData(groupName, areaCode, apiData);
+                    }
+                } else {
+                    console.log('❌ No encontrada función getLedgerDataFromLatestExcel');
+                }
+                
+                // Intentar con las variables globales que usa formularios.html
+                const formulariosVars = [
+                    'currentExcelData', 'excelDataset', 'trialBalanceData', 
+                    'ledgerData', 'balanceData', 'currentDataset'
+                ];
+                
+                // Buscar en window.parent (si formularios.html es el padre)
+                if (window.parent) {
+                    console.log('Buscando en window.parent...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.parent[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado parent.${varName}:`, typeof window.parent[varName], !!window.parent[varName]);
+                            if (window.parent[varName] && (window.parent[varName].trialBalance || window.parent[varName].accounts || window.parent[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN parent.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.parent[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Buscar en window actual
+                console.log('Buscando en window actual...');
+                formulariosVars.forEach(varName => {
+                    if (typeof window[varName] !== 'undefined') {
+                        console.log(`✅ Encontrado window.${varName}:`, typeof window[varName], !!window[varName]);
+                        if (window[varName] && (window[varName].trialBalance || window[varName].accounts || window[varName].data)) {
+                            console.log(`🎯 DATOS ENCONTRADOS EN window.${varName}!`);
+                            return getLedgerDataFromExcelData(groupName, areaCode, window[varName]);
+                        }
+                    }
+                });
+                
+                // Intentar acceder a través de opener si es una ventana emergente
+                if (window.opener) {
+                    console.log('Buscando en window.opener...');
+                    formulariosVars.forEach(varName => {
+                        if (typeof window.opener[varName] !== 'undefined') {
+                            console.log(`✅ Encontrado opener.${varName}:`, typeof window.opener[varName], !!window.opener[varName]);
+                            if (window.opener[varName] && (window.opener[varName].trialBalance || window.opener[varName].accounts || window.opener[varName].data)) {
+                                console.log(`🎯 DATOS ENCONTRADOS EN opener.${varName}!`);
+                                return getLedgerDataFromExcelData(groupName, areaCode, window.opener[varName]);
+                            }
+                        }
+                    });
+                }
+                
+                // Intentar usar database-api con el endpoint correcto
+                if (typeof getExcelData === 'function') {
+                    console.log('✅ Encontrada función getExcelData');
+                    console.log('Intentando obtener datos con entity/commitment context...');
+                    
+                    // Obtener IDs de entidad y compromiso actuales
+                    const entityId = window.currentEntity?.id || window.currentEntityId || 
+                                    (window.formDataManager && window.formDataManager.currentEntity?.id);
+                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId || 
+                                      (window.formDataManager && window.formDataManager.currentCommitment?.id);
+                    
+                    console.log('Contexto - Entity ID:', entityId, 'Commitment ID:', commitmentId);
+                    
+                    getExcelData(null, entityId, commitmentId)
+                        .then(excelData => {
+                            console.log('Datos desde getExcelData:', !!excelData);
+                            console.log('Estructura completa:', Object.keys(excelData || {}));
+                            
+                            if (excelData && excelData.sheets_data && excelData.sheets_data.length > 0) {
+                                console.log('🎯 DATOS ENCONTRADOS EN sheets_data!');
+                                console.log('Primera hoja:', excelData.sheets_data[0]);
+                                
+                                // Extraer el balance de prueba de sheets_data
+                                const trialBalanceSheet = excelData.sheets_data.find(sheet => 
+                                    sheet.name && (
+                                        sheet.name.toLowerCase().includes('balance') ||
+                                        sheet.name.toLowerCase().includes('trial') ||
+                                        sheet.name.toLowerCase().includes('mayor') ||
+                                        sheet.name.toLowerCase().includes('cuentas')
+                                    )
+                                ) || excelData.sheets_data[0]; // Usar la primera si no encuentra específica
+                                
+                                console.log('Hoja de balance encontrada:', trialBalanceSheet.name);
+                                
+                                // Construir estructura compatible
+                                const processedData = {
+                                    trialBalance: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                                    accounts: trialBalanceSheet.data || trialBalanceSheet.rows || [],
+                                    data: trialBalanceSheet.data || trialBalanceSheet.rows || []
+                                };
+                                
+                                console.log('Datos procesados:', processedData);
+                                return getLedgerDataFromExcelData(groupName, areaCode, processedData);
+                            } else if (excelData && excelData.success && excelData.data) {
+                                console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData!');
+                                console.log('Estructura de datos:', Object.keys(excelData.data));
+                                return getLedgerDataFromExcelData(groupName, areaCode, excelData.data);
+                            } else if (excelData && (excelData.trialBalance || excelData.accounts || excelData.data)) {
+                                console.log('🎯 DATOS ENCONTRADOS DESDE getExcelData (formato directo)!');
+                                return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                            }
+                        })
+                        .catch(error => {
+                            console.log('Error en getExcelData:', error);
+                        });
+                } else {
+                    console.log('❌ No encontrada función getExcelData');
+                }
+                
+            } catch (error) {
+                console.log('Error al obtener datos desde API:', error);
+            }
+            
+            // Intentar obtener datos del libro mayor real del Excel cargado
+            try {
+                // Verificar si hay datos del Excel disponibles globalmente
+                if (typeof window.currentExcelData !== 'undefined' && window.currentExcelData) {
+                    console.log('Usando datos del Excel cargado');
+                    const result = getLedgerDataFromExcel(groupName, areaCode);
+                    console.log('Resultado de getLedgerDataFromExcel:', result);
+                    return result;
+                }
+                
+                // Verificar si hay datos en localStorage
+                const storedData = localStorage.getItem('currentExcelData');
+                if (storedData) {
+                    console.log('Usando datos del Excel desde localStorage');
+                    const excelData = JSON.parse(storedData);
+                    const result = getLedgerDataFromExcelData(groupName, areaCode, excelData);
+                    console.log('Resultado de getLedgerDataFromExcelData:', result);
+                    return result;
+                }
+                
+                console.log('No se encontraron datos del Excel, usando datos de ejemplo');
+            } catch (error) {
+                console.error('Error al obtener datos del libro mayor:', error);
+            }
+            
+            // Si no hay datos reales, devolver null para que use applyExampleFigures
+            console.log('Devolviendo null - se usarán datos de ejemplo');
+            return null;
+        }
+        
+        function getLedgerDataFromExcel(groupName, areaCode) {
+            // Buscar la cuenta correspondiente en los datos del Excel
+            const excelData = window.currentExcelData;
+            return getLedgerDataFromExcelData(groupName, areaCode, excelData);
+        }
+        
+        function getLedgerDataFromExcelData(groupName, areaCode, excelData) {
+            console.log('=== DEBUGGING DATOS EXCEL ===');
+            console.log('Estructura de excelData:', Object.keys(excelData || {}));
+            
+            if (!excelData) {
+                console.log('No hay datos del Excel');
+                return null;
+            }
+            
+            // Verificar qué datos están disponibles
+            if (excelData.trialBalance) {
+                console.log('Se encontró trialBalance con', excelData.trialBalance.length, 'cuentas');
+                console.log('Primera cuenta de ejemplo:', excelData.trialBalance[0]);
+            } else if (excelData.accounts) {
+                console.log('Se encontró accounts con', excelData.accounts.length, 'cuentas');
+                console.log('Primera cuenta de ejemplo:', excelData.accounts[0]);
+            } else {
+                console.log('No se encontró trialBalance ni accounts. Keys disponibles:', Object.keys(excelData));
+            }
+            
+            // Buscar en diferentes posibles estructuras
+            let accountsData = excelData.trialBalance || excelData.accounts || [];
+            let targetAccount = null;
+            
+            console.log(`Buscando cuenta para: ${groupName} (${areaCode})`);
+            
+            // Verificar si los datos están en formato de array (como en el ejemplo)
+            if (accountsData.length > 0 && Array.isArray(accountsData[0])) {
+                console.log('Datos en formato de array detectados');
+                
+                // El primer array probablemente contiene los encabezados
+                const headers = accountsData[0];
+                console.log('Encabezados:', headers);
+                
+                // Buscar índices de columnas importantes
+                const accountNameIndex = headers.findIndex(h => 
+                    h && (h.toString().toLowerCase().includes('cuenta') || 
+                         h.toString().toLowerCase().includes('name') ||
+                         h.toString().toLowerCase().includes('descripcion'))
+                );
+                
+                const accountNumberIndex = headers.findIndex(h => 
+                    h && (h.toString().toLowerCase().includes('numero') || 
+                         h.toString().toLowerCase().includes('código') ||
+                         h.toString().toLowerCase().includes('code'))
+                );
+                
+                // Identificar columnas de saldo por posición (últimas 2 columnas numéricas)
+                let previousBalanceIndex = -1;
+                let currentBalanceIndex = -1;
+                
+                // Buscar las últimas 2 columnas que contienen números (saldos)
+                for (let i = headers.length - 1; i >= 0; i--) {
+                    const header = headers[i];
+                    // Si es un número grande (probablemente un año o saldo)
+                    if (typeof header === 'number' && header > 1000) {
+                        if (currentBalanceIndex === -1) {
+                            currentBalanceIndex = i;
+                        } else if (previousBalanceIndex === -1) {
+                            previousBalanceIndex = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // Si no encuentra por números, intentar por texto
+                if (previousBalanceIndex === -1) {
+                    previousBalanceIndex = headers.findIndex(h => 
+                        h && (h.toString().toLowerCase().includes('anterior') || 
+                             h.toString().toLowerCase().includes('previo') ||
+                             h.toString().toLowerCase().includes('2023'))
+                    );
+                }
+                
+                if (currentBalanceIndex === -1) {
+                    currentBalanceIndex = headers.findIndex(h => 
+                        h && (h.toString().toLowerCase().includes('actual') || 
+                             h.toString().toLowerCase().includes('2024'))
+                    );
+                }
+                
+                console.log('Índices encontrados - Nombre:', accountNameIndex, 'Número:', accountNumberIndex, 
+                           'Anterior:', previousBalanceIndex, 'Actual:', currentBalanceIndex);
+                console.log('Estructura de encabezados:', headers.map((h, i) => `${i}:${h}`));
+                
+                // Buscar la cuenta en las filas de datos (empezando desde la segunda fila)
+                for (let i = 1; i < accountsData.length; i++) {
+                    const row = accountsData[i];
+                    
+                    // Buscar por código
+                    if (areaCode && accountNumberIndex !== -1) {
+                        const accountNumber = row[accountNumberIndex]?.toString().trim();
+                        if (accountNumber === areaCode || accountNumber === areaCode.toString()) {
+                            console.log(`Cuenta encontrada por código en fila ${i}:`, row);
+                            targetAccount = row;
+                            break;
+                        }
+                    }
+                    
+                    // Buscar por nombre (búsqueda más flexible)
+                    if (!targetAccount && accountNameIndex !== -1) {
+                        const accountName = row[accountNameIndex]?.toString().toLowerCase().trim();
+                        const searchName = groupName.toLowerCase().trim();
+                        
+                        if (accountName) {
+                            // Búsqueda exacta
+                            if (accountName === searchName) {
+                                console.log(`Cuenta encontrada por nombre exacto en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda por inclusión (el nombre del Excel contiene el grupo)
+                            if (accountName.includes(searchName)) {
+                                console.log(`Cuenta encontrada por nombre inclusivo en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda inversa (el grupo contiene parte del nombre del Excel)
+                            if (searchName.includes(accountName)) {
+                                console.log(`Cuenta encontrada por nombre inverso en fila ${i}:`, row);
+                                targetAccount = row;
+                                break;
+                            }
+                            
+                            // Búsqueda por palabras clave
+                            const groupWords = searchName.split(' ');
+                            const accountWords = accountName.split(' ');
+                            
+                            for (const groupWord of groupWords) {
+                                if (groupWord.length > 2) { // Ignorar palabras muy cortas
+                                    for (const accountWord of accountWords) {
+                                        if (accountWord.length > 2 && 
+                                            (accountWord.includes(groupWord) || groupWord.includes(accountWord))) {
+                                            console.log(`Cuenta encontrada por palabra clave en fila ${i}:`, row);
+                                            console.log(`Palabra coincidente: "${groupWord}" <-> "${accountWord}"`);
+                                            targetAccount = row;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (targetAccount) break;
+                            }
+                        }
+                    }
+                }
+                
+                if (targetAccount) {
+                    // Extraer valores usando los índices encontrados
+                    const previousBalance = previousBalanceIndex !== -1 ? 
+                        parseFloat(targetAccount[previousBalanceIndex] || 0) : 0;
+                    const currentBalance = currentBalanceIndex !== -1 ? 
+                        parseFloat(targetAccount[currentBalanceIndex] || 0) : 0;
+                    
+                    console.log(`Valores extraídos - Anterior: ${previousBalance}, Actual: ${currentBalance}`);
+                    
+                    // Calcular la diferencia
+                    const difference = currentBalance - previousBalance;
+                    const variationPct = previousBalance !== 0 ? (difference / Math.abs(previousBalance)) * 100 : 0;
+                    
+                    return {
+                        saldoPeriodoActual: currentBalance,
+                        saldoPeriodoAnterior: previousBalance,
+                        diferencia: difference,
+                        importeTotalLibroMayor: 0, // No disponible en este formato
+                        saldoCalculado: currentBalance,
+                        variationPct: variationPct
+                    };
+                }
+            } else {
+                // Búsqueda original para formato de objetos
+                if (areaCode) {
+                    targetAccount = accountsData.find(account => 
+                        account.accountNumber === areaCode || 
+                        account.accountNumber === areaCode.toString() ||
+                        account.code === areaCode ||
+                        account.codigo === areaCode
+                    );
+                    console.log(`Búsqueda por código ${areaCode}:`, !!targetAccount);
+                }
+                
+                if (!targetAccount) {
+                    targetAccount = accountsData.find(account => {
+                        const name = account.accountName || account.name || account.descripcion || '';
+                        return name.toLowerCase().includes(groupName.toLowerCase());
+                    });
+                    console.log(`Búsqueda por nombre ${groupName}:`, !!targetAccount);
+                }
+                
+                if (targetAccount) {
+                    console.log(`Cuenta encontrada:`, targetAccount);
+                    
+                    // Extraer datos del objeto (código original)
+                    const previousBalance = parseFloat(
+                        targetAccount.previousBalance || 
+                        targetAccount.saldo_anterior || 
+                        targetAccount.previousYearBalance || 
+                        0
+                    );
+                    
+                    const currentBalance = parseFloat(
+                        targetAccount.currentBalance || 
+                        targetAccount.saldo_actual || 
+                        targetAccount.currentYearBalance || 
+                        0
+                    );
+                    
+                    const ledgerTotal = parseFloat(
+                        targetAccount.ledgerTotal || 
+                        targetAccount.importe_libro_mayor || 
+                        (targetAccount.total_debitos || 0) - (targetAccount.total_creditos || 0) ||
+                        0
+                    );
+                    
+                    console.log(`Valores extraídos - Anterior: ${previousBalance}, Actual: ${currentBalance}, Libro Mayor: ${ledgerTotal}`);
+                    
+                    const calculatedBalance = previousBalance + ledgerTotal;
+                    const difference = calculatedBalance - currentBalance;
+                    
+                    return {
+                        saldoPeriodoActual: currentBalance,
+                        saldoPeriodoAnterior: previousBalance,
+                        diferencia: difference,
+                        importeTotalLibroMayor: ledgerTotal,
+                        saldoCalculado: calculatedBalance
+                    };
+                }
+            }
+            
+            console.log(`No se encontró cuenta para: ${groupName} (${areaCode})`);
+            return null;
+        }
+        
+        function formatCurrency(amount) {
+            console.log('=== FORMATCURRENCY DEBUG ===');
+            console.log('Input amount:', amount);
+            console.log('Type of amount:', typeof amount);
+            
+            // Formatear solo números con paréntesis para valores negativos, sin símbolo de moneda
+            const absAmount = Math.abs(amount);
+            const formatted = absAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            let result;
+            if (amount < 0) {
+                result = `(${formatted})`;
+            } else {
+                result = formatted;
+            }
+            
+            console.log('Formatted result:', result);
+            console.log('=== END FORMATCURRENCY DEBUG ===');
+            return result;
+        }
+        
+        function calculateVariationPercentage(current, previous) {
+            if (previous === 0) return '0.00';
+            
+            const variation = ((current - previous) / Math.abs(previous)) * 100;
+            const formattedValue = Math.abs(variation).toFixed(2);
+            
+            if (variation < 0) {
+                return `(${formattedValue})`;
+            } else {
+                return `+${formattedValue}`;
+            }
+        }
+        
+        function applyExampleFigures(row, groupName) {
+            // Aplicar cifras de ejemplo realistas según el tipo de cuenta
+            const currentYearCell = row.querySelector('td:nth-child(3)');
+            const previousYearCell = row.querySelector('td:nth-child(6)');
+            const variationCell = row.querySelector('.col-variation');
+            const variationPctCell = row.querySelector('.col-variation-pct');
+            
+            // Datos de ejemplo más realistas según el tipo de cuenta
+            const exampleData = {
+                'Inventarios': { current: 150000, previous: 120000 },
+                'Clientes': { current: 85000, previous: 92000 },
+                'Caja y bancos': { current: 45000, previous: 52000 },
+                'Propiedad, planta y equipo': { current: 500000, previous: 480000 },
+                'Proveedores': { current: -75000, previous: -82000 },
+                'Préstamos bancarios': { current: -200000, previous: -195000 }
+            };
+            
+            let data = { current: 100000, previous: 95000 }; // Default
+            
+            // Buscar datos específicos para el grupo
+            for (const key in exampleData) {
+                if (groupName.includes(key)) {
+                    data = exampleData[key];
+                    break;
+                }
+            }
+            
+            const variation = data.current - data.previous;
+            const variationPct = data.previous !== 0 ? (variation / Math.abs(data.previous)) * 100 : 0;
+            
+            if (currentYearCell) currentYearCell.textContent = formatCurrency(data.current);
+            if (previousYearCell) previousYearCell.textContent = formatCurrency(data.previous);
+            if (variationCell) variationCell.textContent = formatCurrency(variation);
+            if (variationPctCell) variationPctCell.textContent = calculateVariationPercentage(data.current, data.previous);
+            
+            console.log(`Aplicando datos de ejemplo para ${groupName}:`, {
+                current: data.current,
+                previous: data.previous,
+                variation: variation,
+                variationPct: variationPct
+            });
+        }
+
+        
+        async function renderBGWorksheet(panel) {
+            const title = currentWorksheetDoc?.titulo || 'Hoja de Trabajo';
+            const titleUpper = title.toUpperCase();
+            const titleBgType = titleUpper.startsWith('BG-1') ? 'activo' : titleUpper.startsWith('BG-2') ? 'pasivo' : titleUpper.startsWith('BG-3') ? 'resultados' : null;
+            const bgType = currentWorksheetDoc?.metadata?.bgType || titleBgType;
+            const storedDatasetId = currentWorksheetDoc?.metadata?.datasetId;
+            let datasetId = storedDatasetId || getLastAssignmentsDatasetId();
+
+            console.log('🔍 renderBGWorksheet:', { bgType, title, storedDatasetId, fallbackDatasetId: datasetId, hasFn: typeof window.getLatestFinancialGroupResults });
+
+            if (!datasetId && typeof window.getExcelDatasets === 'function') {
+                try {
+                    const entityId = window.currentEntity?.id || window.currentEntityId ||
+                                    (window.formDataManager && window.formDataManager.currentEntity?.id);
+                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId ||
+                                        (window.formDataManager && window.formDataManager.currentCommitment?.id);
+                    const datasets = await window.getExcelDatasets(entityId, commitmentId);
+                    if (Array.isArray(datasets) && datasets.length > 0) {
+                        datasetId = datasets[0].id;
+                        console.log('📊 datasetId resuelto por contexto:', datasetId);
+                        try {
+                            const payload = JSON.parse(localStorage.getItem('currentWorksheetDocument') || '{}');
+                            payload.metadata = { ...(payload.metadata || {}), datasetId };
+                            localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                        } catch (e) {}
+                    }
+                } catch (error) {
+                    console.warn('⚠️ No se pudo resolver dataset por contexto:', error);
+                }
+            }
+
+            panel.innerHTML = `
+                <div class="loading-state" style="padding: 40px; text-align: center;">
+                    <div class="spinner"></div>
+                    <p>Cargando datos del balance...</p>
+                </div>
+            `;
+
+            if (!datasetId) {
+                panel.innerHTML = `
+                    <div class="alert alert-warning" style="padding: 20px;">
+                        No se puede cargar este BG: no se encontró el ID del dataset asociado.
+                    </div>
+                `;
+                console.warn('⚠️ renderBGWorksheet: datasetId no disponible', currentWorksheetDoc);
+                return;
+            }
+
+            if (typeof window.getLatestFinancialGroupResults !== 'function') {
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(r => setTimeout(r, 200));
+                    if (typeof window.getLatestFinancialGroupResults === 'function') break;
+                }
+            }
+
+            if (typeof window.getLatestFinancialGroupResults !== 'function') {
+                panel.innerHTML = `
+                    <div class="alert alert-warning" style="padding: 20px;">
+                        No se puede cargar este BG: la función de carga de datos aún no está disponible.
+                    </div>
+                `;
+                console.warn('⚠️ renderBGWorksheet: getLatestFinancialGroupResults no disponible');
+                return;
+            }
+
+            try {
+                console.log('Cargando datos guardados de grupos financieros para BG:', { bgType, datasetId });
+                const { rows } = await window.getLatestFinancialGroupResults(datasetId);
+
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    panel.innerHTML = `
+                        <div class="alert alert-info" style="padding: 20px;">
+                            No hay datos de grupos financieros guardados para este dataset.
+                        </div>
+                    `;
+                    return;
+                }
+
+                // En BG automático, mostrar solo las cuentas padre con el total de sus cuentas asignadas
+                let summaryRows = buildBgParentSummary(rows, bgType);
+                summaryRows = summaryRows.filter(row => !isRowAllZero(row));
+
+                if (summaryRows.length === 0) {
+                    panel.innerHTML = `
+                        <div class="alert alert-info" style="padding: 20px;">
+                            No hay cuentas padre clasificadas como ${bgType} en los datos guardados.
+                        </div>
+                    `;
+                    return;
+                }
+
+                let { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious } = generateBgTableBody(summaryRows, bgType);
+
+                // En BG de Pasivo y Patrimonio, agregar fila "Resultado del periodo" al final
+                if (bgType === 'pasivo') {
+                    const rp = computeResultadoPeriodo(rows);
+                    const rpVariation = rp.finalCurrent - rp.finalPrevious;
+                    bodyHtml += `
+                        <tr style="font-weight: 600;">
+                            <td class="col-description">Resultado del periodo</td>
+                            <td class="col-ref"></td>
+                            <td class="col-amount">${formatCurrency(rp.preliminary)}</td>
+                            <td class="col-amount">${formatCurrency(rp.adjustments)}</td>
+                            <td class="col-amount" style="font-weight: 600;">${formatCurrency(rp.finalCurrent)}</td>
+                            <td class="col-ref"></td>
+                            <td class="col-amount">${formatCurrency(rp.finalPrevious)}</td>
+                            <td class="col-variation">${formatCurrency(rpVariation)}</td>
+                            <td class="col-variation-pct">${calculateVariationPercentage(rp.finalCurrent, rp.finalPrevious)}</td>
+                        </tr>`;
+                    totalPreliminary += rp.preliminary;
+                    totalAdjustments += rp.adjustments;
+                    totalFinalCurrent += rp.finalCurrent;
+                    totalFinalPrevious += rp.finalPrevious;
+                }
+
+                const totalVariation = totalFinalCurrent - totalFinalPrevious;
+
+                const tableHtml = `
+                    <div class="worksheet-header">
+                        <img src="../assets/SB&Asociados.png" alt="SB&Asociados" class="sb-logo" />
+                        <img src="../assets/allinialGlobal.png" alt="Allinial Global" class="allinial-logo" />
+                        <h2 class="entity-name">Nombre de la entidad</h2>
+                        <h3 class="summary-title">${title}</h3>
+                        <p class="date-line">Al 31 de diciembre del</p>
+                        <p class="currency-line">Cifras expresadas en</p>
+                    </div>
+                    <div class="materiality-section">
+                        <p class="materiality-line">Materialidad general:</p>
+                        <p class="materiality-line">Materialidad de desempeño:</p>
+                        <p class="materiality-line">Materialidad trivial:</p>
+                    </div>
+                    <div style="padding: 10px 0; text-align: right;">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAllBgReferences('${bgType}')">
+                            <i class="bi bi-trash"></i> Limpiar referencias
+                        </button>
+                    </div>
+                    <div class="worksheet-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="col-description">Descripción</th>
+                                    <th class="col-ref">Ref.</th>
+                                    <th class="col-amount">Año actual</th>
+                                    <th class="col-amount">Ajustes</th>
+                                    <th class="col-amount">Saldos finales</th>
+                                    <th class="col-ref">Ref.</th>
+                                    <th class="col-amount">Año anterior</th>
+                                    <th class="col-variation">Variación</th>
+                                    <th class="col-variation-pct">Variación %</th>
+                                </tr>
+                                <tr class="subheader">
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bodyHtml}
+                                <tr style="font-weight: 700;">
+                                    <td class="col-description" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">TOTAL</td>
+                                    <td class="col-ref" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;"></td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalPreliminary)}</td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalAdjustments)}</td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000; font-weight: 700;">${formatCurrency(totalFinalCurrent)}</td>
+                                    <td class="col-ref" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;"></td>
+                                    <td class="col-amount" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalFinalPrevious)}</td>
+                                    <td class="col-variation" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${formatCurrency(totalVariation)}</td>
+                                    <td class="col-variation-pct" style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">${calculateVariationPercentage(totalFinalCurrent, totalFinalPrevious)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                panel.innerHTML = tableHtml;
+                attachBgReferences(panel, bgType);
+                console.log('✅ BG renderizado con datos guardados:', { title, rows: summaryRows.length });
+            } catch (error) {
+                console.error('❌ Error renderizando BG:', error);
+                panel.innerHTML = `
+                    <div class="alert alert-danger" style="padding: 20px;">
+                        Error al cargar los datos del BG: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function isRowAllZero(row) {
+            const preliminary = Number(row.preliminary) || 0;
+            const adjustments = Number(row.adjustments) || 0;
+            const finalCurrent = Number(row.finalCurrent) || 0;
+            const finalPrevious = Number(row.finalPrevious) || 0;
+            return preliminary === 0 && adjustments === 0 && finalCurrent === 0 && finalPrevious === 0;
+        }
+
+        // Devuelve el nombre del grupo raíz (nivel 0) de una fila
+        function getTopLevelName(row, rowById) {
+            let current = row;
+            let guard = 0;
+            while (current && current.parentId && rowById[current.parentId] && guard++ < 50) {
+                current = rowById[current.parentId];
+            }
+            return (current?.accountName || '').toLowerCase();
+        }
+
+        // Suma los valores de todas las filas que pertenecen al grupo raíz "Resultados"
+        function computeResultadoPeriodo(rows) {
+            const rowById = {};
+            rows.forEach(r => { if (r.rowId) rowById[r.rowId] = r; });
+
+            let preliminary = 0, adjustments = 0, finalCurrent = 0, finalPrevious = 0;
+            const isLeaf = (r) => !(r.isParent || r.hasChildren || r.nodeType === 'group');
+            rows.forEach(r => {
+                if (isLeaf(r) && getTopLevelName(r, rowById).includes('resultado')) {
+                    preliminary += Number(r.preliminary) || 0;
+                    adjustments += Number(r.adjustments) || 0;
+                    finalCurrent += Number(r.finalCurrent) || 0;
+                    finalPrevious += Number(r.finalPrevious) || 0;
+                }
+            });
+            return { preliminary, adjustments, finalCurrent, finalPrevious };
+        }
+
+        // Agrupa las cuentas hijas por su padre y devuelve solo las cuentas padre con totales
+        function buildBgParentSummary(rows, bgType) {
+            if (!Array.isArray(rows) || rows.length === 0) return [];
+
+            const rowById = {};
+            rows.forEach(r => { if (r.rowId) rowById[r.rowId] = r; });
+
+            const childrenByParent = {};
+            rows.forEach(r => {
+                if (r.parentId) {
+                    if (!childrenByParent[r.parentId]) childrenByParent[r.parentId] = [];
+                    childrenByParent[r.parentId].push(r);
+                }
+            });
+
+            const matchesBgType = (r) => {
+                const topName = getTopLevelName(r, rowById);
+                if (bgType === 'activo') return topName.includes('activo');
+                if (bgType === 'pasivo') return topName.includes('pasivo') || topName.includes('patrimonio');
+                if (bgType === 'resultados') return topName.includes('resultado') || topName.includes('resultados');
+                return true;
+            };
+
+            const isLeaf = (r) => !(r.isParent || r.hasChildren || r.nodeType === 'group');
+            const isParent = (r) => !isLeaf(r);
+
+            const parentRows = rows.filter(r => isParent(r) && matchesBgType(r));
+
+            const summary = [];
+            parentRows.forEach(parent => {
+                const children = (childrenByParent[parent.rowId] || []).filter(c => isLeaf(c) && matchesBgType(c));
+                if (children.length === 0) return;
+
+                const totals = children.reduce((acc, c) => ({
+                    preliminary: acc.preliminary + (Number(c.preliminary) || 0),
+                    adjustments: acc.adjustments + (Number(c.adjustments) || 0),
+                    finalCurrent: acc.finalCurrent + (Number(c.finalCurrent) || 0),
+                    finalPrevious: acc.finalPrevious + (Number(c.finalPrevious) || 0)
+                }), { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 });
+
+                summary.push({
+                    accountName: parent.accountName,
+                    accountCode: parent.accountCode,
+                    preliminary: totals.preliminary,
+                    adjustments: totals.adjustments,
+                    finalCurrent: totals.finalCurrent,
+                    finalPrevious: totals.finalPrevious,
+                    level: parent.level || 0,
+                    orderIndex: parent.orderIndex || 0
+                });
+            });
+
+            summary.sort((a, b) => (a.orderIndex - b.orderIndex) || String(a.accountCode).localeCompare(String(b.accountCode)));
+            return summary;
+        }
+
+        function filterRowsByBgType(rows, bgType) {
+            if (!bgType) return rows;
+
+            return rows.filter(row => {
+                const nameLower = (row.accountName || '').toLowerCase();
+                const nameTrim = (row.accountName || '').trim();
+                const code = String(row.accountCode || '').trim();
+                const firstDigit = code.charAt(0);
+
+                // No mostrar padres/grupos generales (ej. "Activo SIN_CODIGO" ni subgrupos con guion)
+                const isParentRow = row.isParent || row.hasChildren || row.nodeType === 'group';
+                const isHeaderName = nameTrim.startsWith('-') || nameTrim.startsWith('–') || nameTrim.startsWith('—') || code === 'SIN_CODIGO' || (code === '' && row.level === 0);
+                if (isParentRow || isHeaderName) {
+                    return false;
+                }
+
+                const hasCode = code !== '';
+                if (bgType === 'activo') {
+                    const matchCode = firstDigit === '1';
+                    return hasCode ? matchCode : nameLower.includes('activo');
+                }
+                if (bgType === 'pasivo') {
+                    const matchCode = ['2', '3'].includes(firstDigit);
+                    const matchName = nameLower.includes('pasivo') || nameLower.includes('patrimonio');
+                    return hasCode ? matchCode : matchName;
+                }
+                if (bgType === 'resultados') {
+                    const resultKeywords = ['resultado', 'ingreso', 'gasto', 'costo', 'impuesto', 'renta', 'conversión', 'financiero', 'operación', 'operativo', 'administración', 'venta'];
+                    const matchName = resultKeywords.some(k => nameLower.includes(k));
+                    const matchCode = ['4', '5', '6', '7', '9'].includes(firstDigit);
+                    return hasCode ? matchCode : matchName;
+                }
+                return true;
+            });
+        }
+
+        function classifyActivoType(code) {
+            const codeStr = String(code || '').trim();
+            // Códigos como 1.1.01, 1.1, 1.1.010 o segmentos con .1 y .2
+            const segments = codeStr.split('.');
+
+            if (segments.length >= 2) {
+                const secondSegment = segments[1];
+                if (secondSegment === '1') return 'corriente';
+                if (secondSegment === '2') return 'no_corriente';
+            }
+
+            // Fallback: 11xx corriente, 12/13/14/15xx no corriente
+            if (codeStr.length >= 2) {
+                const secondDigit = codeStr.charAt(1);
+                if (secondDigit === '1') return 'corriente';
+                if (['2', '3', '4', '5'].includes(secondDigit)) return 'no_corriente';
+            }
+
+            return 'corriente';
+        }
+
+        function sumRowValues(row) {
+            return {
+                preliminary: Number(row.preliminary) || 0,
+                adjustments: Number(row.adjustments) || 0,
+                finalCurrent: Number(row.finalCurrent) || 0,
+                finalPrevious: Number(row.finalPrevious) || 0
+            };
+        }
+
+        function buildRowHtml(row, bgType) {
+            const { preliminary, adjustments, finalCurrent, finalPrevious } = sumRowValues(row);
+            const variation = finalCurrent - finalPrevious;
+            const rowId = (row.rowId || row.accountCode || row.id || '').toString().replace(/"/g, '&quot;');
+            const plusBtn = (col) => `<button type="button" class="btn-ref-add" title="Agregar referencia" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}"><i class="bi bi-plus-lg"></i></button>`;
+
+            return `
+                <tr>
+                    <td class="col-description">${row.accountName || ''}</td>
+                    <td class="col-ref" data-ref-row-id="${rowId}" data-ref-col="0" data-ref-bg-type="${bgType}">${plusBtn(0)}</td>
+                    <td class="col-amount">${formatCurrency(preliminary)}</td>
+                    <td class="col-amount">${formatCurrency(adjustments)}</td>
+                    <td class="col-amount" style="font-weight: 600;">${formatCurrency(finalCurrent)}</td>
+                    <td class="col-ref" data-ref-row-id="${rowId}" data-ref-col="1" data-ref-bg-type="${bgType}">${plusBtn(1)}</td>
+                    <td class="col-amount">${formatCurrency(finalPrevious)}</td>
+                    <td class="col-variation">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
+                </tr>
+            `;
+        }
+
+        function buildSubtotalHtml(label, totals, topBorder = false, bottomBorder = false) {
+            const variation = totals.finalCurrent - totals.finalPrevious;
+            const cellTop = topBorder ? 'border-top: 1px solid #000000;' : '';
+            const cellBottom = bottomBorder ? 'border-bottom: 1px solid #000000;' : '';
+            const cellStyle = `${cellTop} ${cellBottom}`.trim();
+
+            return `
+                <tr style="font-weight: 700;">
+                    <td class="col-description" style="${cellStyle}">${label}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.preliminary)}</td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.adjustments)}</td>
+                    <td class="col-amount" style="font-weight: 700; ${cellStyle}">${formatCurrency(totals.finalCurrent)}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.finalPrevious)}</td>
+                    <td class="col-variation" style="${cellStyle}">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct" style="${cellStyle}">${calculateVariationPercentage(totals.finalCurrent, totals.finalPrevious)}</td>
+                </tr>
+            `;
+        }
+
+        function generateBgTableBody(filteredRows, bgType) {
+            if (bgType !== 'activo') {
+                let totalPreliminary = 0;
+                let totalAdjustments = 0;
+                let totalFinalCurrent = 0;
+                let totalFinalPrevious = 0;
+
+                const bodyHtml = filteredRows.map(row => {
+                    const values = sumRowValues(row);
+                    totalPreliminary += values.preliminary;
+                    totalAdjustments += values.adjustments;
+                    totalFinalCurrent += values.finalCurrent;
+                    totalFinalPrevious += values.finalPrevious;
+                    return buildRowHtml(row, bgType);
+                }).join('');
+
+                return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
+            }
+
+            const corrienteRows = [];
+            const noCorrienteRows = [];
+
+            filteredRows.forEach(row => {
+                const type = classifyActivoType(row.accountCode);
+                if (type === 'corriente') {
+                    corrienteRows.push(row);
+                } else {
+                    noCorrienteRows.push(row);
+                }
+            });
+
+            const corrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
+            const noCorrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
+
+            let bodyHtml = '';
+
+            if (corrienteRows.length > 0) {
+                bodyHtml += `<tr style="font-weight: 600;">
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO CORRIENTE</td>
+                </tr>`;
+                corrienteRows.forEach(row => {
+                    const values = sumRowValues(row);
+                    corrienteTotals.preliminary += values.preliminary;
+                    corrienteTotals.adjustments += values.adjustments;
+                    corrienteTotals.finalCurrent += values.finalCurrent;
+                    corrienteTotals.finalPrevious += values.finalPrevious;
+                    bodyHtml += buildRowHtml(row, bgType);
+                });
+                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO CORRIENTE', corrienteTotals, true, false);
+            }
+
+            if (noCorrienteRows.length > 0) {
+                bodyHtml += `<tr style="font-weight: 600;">
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO NO CORRIENTE</td>
+                </tr>`;
+                noCorrienteRows.forEach(row => {
+                    const values = sumRowValues(row);
+                    noCorrienteTotals.preliminary += values.preliminary;
+                    noCorrienteTotals.adjustments += values.adjustments;
+                    noCorrienteTotals.finalCurrent += values.finalCurrent;
+                    noCorrienteTotals.finalPrevious += values.finalPrevious;
+                    bodyHtml += buildRowHtml(row, bgType);
+                });
+                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO NO CORRIENTE', noCorrienteTotals, true, true);
+            }
+
+            const totalPreliminary = corrienteTotals.preliminary + noCorrienteTotals.preliminary;
+            const totalAdjustments = corrienteTotals.adjustments + noCorrienteTotals.adjustments;
+            const totalFinalCurrent = corrienteTotals.finalCurrent + noCorrienteTotals.finalCurrent;
+            const totalFinalPrevious = corrienteTotals.finalPrevious + noCorrienteTotals.finalPrevious;
+
+            return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
+        }
+        
+        function renderManualWorksheet(panel) {
+            const tableHtml = `
+                <div class="worksheet-header">
+                    <img src="../assets/SB&Asociados.png" alt="SB&Asociados" class="sb-logo" />
+                    <img src="../assets/allinialGlobal.png" alt="Allinial Global" class="allinial-logo" />
+                    <h2 class="entity-name">Nombre de la entidad</h2>
+                    <h3 class="summary-title">SUMARIA</h3>
+                    <p class="date-line">Al 31 de diciembre del</p>
+                    <p class="currency-line">Cifras expresadas en</p>
+                </div>
+                <div class="materiality-section">
+                    <p class="materiality-line">Materialidad general:</p>
+                    <p class="materiality-line">Materialidad de desempeño:</p>
+                    <p class="materiality-line">Materialidad trivial:</p>
+                </div>
+                <div class="worksheet-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-description">Descripción</th>
+                                <th class="col-ref">Ref.</th>
+                                <th class="col-amount">Año actual</th>
+                                <th class="col-amount">Ajustes</th>
+                                <th class="col-amount">Saldos finales</th>
+                                <th class="col-ref">Ref.</th>
+                                <th class="col-amount">Año anterior</th>
+                                <th class="col-variation">Variación</th>
+                                <th class="col-variation-pct">Variación %</th>
+                            </tr>
+                            <tr class="subheader">
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="col-description">&nbsp;</td>
+                                <td class="col-ref">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-ref">&nbsp;</td>
+                                <td class="col-amount">&nbsp;</td>
+                                <td class="col-variation">&nbsp;</td>
+                                <td class="col-variation-pct">&nbsp;</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            panel.innerHTML = tableHtml;
+        }
+
+        
+        // formatCurrency function already defined above - removed duplicate
+
+        
+        
         function handleGlobalClick(event) {
             const areaMenu = document.getElementById('areaMenu');
             const areaBtn = document.getElementById('areaMenuBtn');
@@ -861,12 +3344,7 @@
             }).join('');
         }
 
-        function selectArea(areaId) {
-            selectedAreaId = areaId;
-            renderAreas();
-            renderAreaDetail();
-        }
-
+        
         function renderAreaDetail() {
             const panel = document.getElementById('areaDetailPanel');
             if (!panel) return;
@@ -941,10 +3419,13 @@
                         <div class="dynamic-table-grid dynamic-table-header">
                             ${renderHeaderCell('Descripción')}
                             ${renderHeaderCell('Ref.')}
-                            ${renderHeaderCell(currentYear, 'Q')}
-                            ${renderHeaderCell(previousYear, 'Q')}
-                            ${renderHeaderCell('Variación', 'Q')}
-                            ${renderHeaderCell('Variación', '%')}
+                            ${renderHeaderCell('Año actual')}
+                            ${renderHeaderCell('Ajustes')}
+                            ${renderHeaderCell('Saldos finales')}
+                            ${renderHeaderCell('Ref.')}
+                            ${renderHeaderCell('Año anterior')}
+                            ${renderHeaderCell('Variación')}
+                            ${renderHeaderCell('Variación %')}
                             ${renderHeaderCell('', '', 'actions')}
                         </div>
                         <div class="dynamic-table-body">
@@ -1011,10 +3492,19 @@
                         <input type="text" class="dynamic-input--number" value="${safeCurrent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${currentYear}', this.value)">
                     </div>
                     <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'adjustments', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--number" value="${safePrevious}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'finalBalances', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
+                        <input type="text" class="dynamic-input--center" value="${safeReference}" placeholder="" oninput="handleRowChange('${areaId}', '${sectionId}', '${row.id}', 'reference2', this.value)">
+                    </div>
+                    <div class="dynamic-cell">
                         <input type="text" class="dynamic-input--number" value="${safePrevious}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', '${previousYear}', this.value)">
                     </div>
                     <div class="dynamic-cell">
-                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationQ', this.value)">
+                        <input type="text" class="dynamic-input--number" value="${safeVariationQ}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variation', this.value)">
                     </div>
                     <div class="dynamic-cell">
                         <input type="text" class="dynamic-input--percent" value="${safeVariationPercent}" placeholder="0" oninput="handleRowValue('${areaId}', '${sectionId}', '${row.id}', 'variationPercent', this.value)">
@@ -1102,10 +3592,13 @@
                 id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
                 description: '',
                 reference: '',
+                reference2: '',
                 values: {
                     [years[0]]: '',
                     [years[1]]: '',
-                    variationQ: '',
+                    adjustments: '',
+                    finalBalances: '',
+                    variation: '',
                     variationPercent: ''
                 }
             };
@@ -1207,6 +3700,324 @@
             renderAreaDetail();
         }
 
+        // --- Referencias en celdas BG ---
+        let bgRefState = { rowId: null, col: null, bgType: null, currentFile: null };
+
+        function getBgContext() {
+            const entityId = currentWorksheetDoc?.entityId ||
+                            window.currentEntity?.id ||
+                            window.currentEntityId ||
+                            (window.formDataManager && window.formDataManager.currentEntity?.id) ||
+                            (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().entityId : '') ||
+                            '';
+            const commitmentId = currentWorksheetDoc?.commitmentId ||
+                                window.currentCommitment?.id ||
+                                window.currentCommitmentId ||
+                                (window.formDataManager && window.formDataManager.currentCommitment?.id) ||
+                                (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : '') ||
+                                '';
+            return { entityId, commitmentId };
+        }
+
+        async function attachBgReferences(panel, bgType) {
+            if (!panel) return;
+            const cells = panel.querySelectorAll('[data-ref-row-id]');
+            if (cells.length === 0) return;
+
+            const { entityId, commitmentId } = getBgContext();
+            if (!entityId) {
+                console.warn('⚠️ No hay contexto de entidad para cargar referencias');
+                return;
+            }
+
+            try {
+                const refs = await window.getBgReferences(bgType, entityId, commitmentId);
+                const refsByKey = {};
+                (refs || []).forEach(ref => {
+                    const fd = ref.form_data || {};
+                    const key = `${fd.rowId}_${fd.colIndex !== undefined ? fd.colIndex : (fd.col !== undefined ? fd.col : 0)}`;
+                    if (!refsByKey[key] || new Date(ref.created_at) > new Date(refsByKey[key].created_at)) {
+                        refsByKey[key] = ref;
+                    }
+                });
+
+                cells.forEach(cell => {
+                    const rowId = cell.dataset.refRowId;
+                    const col = cell.dataset.refCol;
+                    const key = `${rowId}_${col}`;
+                    const ref = refsByKey[key];
+                    if (ref && ref.form_data && ref.form_data.fileId) {
+                        const fileName = ref.form_data.fileName || 'Referencia';
+                        const fileId = ref.form_data.fileId;
+                        const fileType = (ref.form_data.fileType || '').replace(/"/g, '&quot;');
+                        cell.innerHTML = `<a href="#" class="ref-file-name" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}" data-ref-file-id="${fileId}" data-ref-file-type="${fileType}" title="${fileName.replace(/"/g, '&quot;')}" onclick="openBgReference('${fileId}', '${fileType}'); return false;">${fileName}</a>`;
+                    } else {
+                        cell.innerHTML = `<button type="button" class="btn-ref-add" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}"><i class="bi bi-plus-lg"></i></button>`;
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando referencias BG:', error);
+            }
+        }
+
+        document.body.addEventListener('click', function(e) {
+            if (e.target.closest('a.ref-file-name')) return;
+            const target = e.target.closest('.btn-ref-add') || e.target.closest('.col-ref');
+            if (!target) return;
+            const rowId = target.dataset.refRowId;
+            const col = target.dataset.refCol;
+            const bgType = target.dataset.refBgType;
+            if (rowId !== undefined && col !== undefined) {
+                openBgRefModal(rowId, parseInt(col, 10), bgType);
+            }
+        });
+
+        async function clearAllBgReferences(bgType) {
+            if (!confirm('¿Quieres quitar todas las referencias de esta hoja de trabajo?')) return;
+
+            const { entityId, commitmentId } = getBgContext();
+            if (!entityId) {
+                alert('No se pudo determinar la entidad/compromiso actual.');
+                return;
+            }
+
+            try {
+                const refs = await window.getBgReferences(bgType, entityId, commitmentId);
+                if (!refs || refs.length === 0) {
+                    alert('No hay referencias para limpiar.');
+                    return;
+                }
+
+                for (const ref of refs) {
+                    const fd = ref.form_data || {};
+                    const col = fd.colIndex !== undefined ? fd.colIndex : (fd.col !== undefined ? fd.col : 0);
+                    await window.deleteBgReference(fd.rowId, bgType, col, entityId, commitmentId);
+                }
+
+                const panel = document.getElementById('areaDetailPanel');
+                if (panel) await attachBgReferences(panel, bgType);
+                if (currentWorksheetDoc?.id) {
+                    await window.syncBgReferencesToDocument(currentWorksheetDoc.id, bgType, entityId, commitmentId);
+                }
+                alert('Referencias limpiadas.');
+            } catch (error) {
+                console.error('Error limpiando referencias:', error);
+                alert('Error limpiando referencias: ' + error.message);
+            }
+        }
+
+        async function openBgReference(fileId, fileType) {
+            if (!fileId) return;
+
+            let user;
+            if (window.currentUser) {
+                user = window.currentUser;
+            } else if (window.appSession) {
+                user = window.appSession;
+            } else {
+                try {
+                    const userUI = sessionStorage.getItem('userUI');
+                    if (userUI) user = JSON.parse(userUI);
+                } catch (err) {}
+            }
+
+            if (!user && window.currentUserReady) {
+                try {
+                    user = await Promise.race([
+                        window.currentUserReady,
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                    ]);
+                } catch (err) {
+                    console.warn('No se pudo esperar usuario:', err);
+                }
+            }
+
+            const userId = user?.id || user?.user_id || '';
+            if (!userId) {
+                alert('Usuario no autenticado');
+                return;
+            }
+
+            const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+
+            if (fileType === 'archivo') {
+                try {
+                    const response = await fetch(`${apiBase}/api/subdocuments/download/${fileId}`, {
+                        headers: { 'user-id': userId }
+                    });
+                    if (!response.ok) throw new Error('Error descargando archivo');
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                } catch (err) {
+                    alert('Error abriendo archivo: ' + err.message);
+                }
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiBase}/api/subdocuments/get`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': userId
+                    },
+                    body: JSON.stringify({ documentId: fileId })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'No se pudo abrir el documento');
+                const doc = result.document;
+                const payload = {
+                    id: doc.id,
+                    titulo: doc.titulo,
+                    tipo: doc.tipo,
+                    categoria: doc.categoria,
+                    subcategoria: doc.subcategoria,
+                    entityId: doc.entity_id,
+                    commitmentId: doc.commitment_id,
+                    metadata: doc.metadata || {}
+                };
+                localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                const target = doc.metadata?.bgType ? 'hojas-trabajo.html' : 'sumarias.html';
+                window.open(target, '_blank');
+            } catch (err) {
+                alert('Error abriendo documento: ' + err.message);
+            }
+        }
+
+        async function openBgRefModal(rowId, col, bgType) {
+            const { entityId, commitmentId } = getBgContext();
+            if (!entityId) {
+                alert('No se pudo determinar la entidad/compromiso actual.');
+                return;
+            }
+
+            bgRefState = { rowId, col, bgType, currentFile: null };
+            const modalEl = document.getElementById('bgRefModal');
+            if (!modalEl) return;
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+            const listEl = document.getElementById('bgRefList');
+            const currentEl = document.getElementById('bgRefCurrent');
+            const currentNameEl = document.getElementById('bgRefCurrentName');
+            const removeBtn = document.getElementById('bgRefRemoveBtn');
+
+            listEl.innerHTML = '<div class="text-center p-3 text-muted">Cargando archivos...</div>';
+            currentEl.style.display = 'none';
+
+            try {
+                const refs = await window.getBgReferences(bgType, entityId, commitmentId);
+                const formId = `ref_bg_${bgType}_${rowId}_${col}`;
+                const currentRef = (refs || []).find(r => r.form_id === formId);
+                if (currentRef && currentRef.form_data && currentRef.form_data.fileId) {
+                    bgRefState.currentFile = currentRef.form_data;
+                    currentNameEl.textContent = currentRef.form_data.fileName || 'Referencia';
+                    currentEl.style.display = 'block';
+                }
+
+                const files = await window.getUploadedFiles(entityId, commitmentId);
+                const displayFiles = (files || []).filter(file =>
+                    !file.metadata?.bgType &&
+                    !(file.fileName || '').toUpperCase().startsWith('BG-')
+                );
+                if (!Array.isArray(displayFiles) || displayFiles.length === 0) {
+                    listEl.innerHTML = '<div class="text-center p-3 text-muted">No hay documentos cargados en esta entidad/compromiso.</div>';
+                } else {
+                    listEl.innerHTML = displayFiles.map(file => {
+                        const name = file.fileName || file.nombre || file.titulo || file.name || 'Documento';
+                        const selectedClass = (bgRefState.currentFile && bgRefState.currentFile.fileId === file.id) ? 'bg-primary text-white' : '';
+                        const iconClass = file.type === 'archivo' ? 'bi-file-earmark' :
+                                        file.type === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet' :
+                                        file.type === 'consulta' ? 'bi-chat-dots' : 'bi-file-earmark-text';
+                        const typeLabel = file.type === 'archivo' ? 'Archivo' :
+                                          file.type === 'hoja-trabajo' ? 'Hoja de trabajo' :
+                                          file.type === 'consulta' ? 'Consulta' : (file.type || 'Documento');
+                        return `
+                            <div class="ref-list-item ${selectedClass}" data-file-id="${file.id}" data-file-name="${name.replace(/"/g, '&quot;')}" data-file-type="${(file.type || '').replace(/"/g, '&quot;')}">
+                                <i class="bi ${iconClass}"></i>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</div>
+                                    <span class="badge bg-light text-dark border" style="font-size: 0.65rem; font-weight: 500;">${typeLabel}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    listEl.querySelectorAll('.ref-list-item').forEach(item => {
+                        item.addEventListener('click', async () => {
+                            const file = {
+                                id: item.dataset.fileId,
+                                fileName: item.dataset.fileName,
+                                type: item.dataset.fileType
+                            };
+                            try {
+                                await window.saveBgReference(rowId, bgType, col, file, entityId, commitmentId);
+                                const key = `${rowId}_${col}`;
+                                const cell = document.querySelector(`.col-ref[data-ref-row-id="${rowId}"][data-ref-col="${col}"]`);
+                                if (cell) {
+                                    cell.innerHTML = `<a href="#" class="ref-file-name" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}" data-ref-file-id="${file.id}" data-ref-file-type="${(file.type || '').replace(/"/g, '&quot;')}" title="${file.fileName.replace(/"/g, '&quot;')}" onclick="openBgReference('${file.id}', '${(file.type || '').replace(/"/g, '&quot;')}'); return false;">${file.fileName}</a>`;
+                                }
+                                if (currentWorksheetDoc?.id) {
+                                    await window.syncBgReferencesToDocument(currentWorksheetDoc.id, bgType, entityId, commitmentId);
+                                }
+                                modal.hide();
+                            } catch (err) {
+                                alert('Error guardando referencia: ' + err.message);
+                            }
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando archivos/referencias:', error);
+                listEl.innerHTML = '<div class="text-center p-3 text-danger">Error cargando archivos.</div>';
+            }
+
+            removeBtn.onclick = async () => {
+                try {
+                    await window.deleteBgReference(rowId, bgType, col, entityId, commitmentId);
+                    const cell = document.querySelector(`.col-ref[data-ref-row-id="${rowId}"][data-ref-col="${col}"]`);
+                    if (cell) {
+                        cell.innerHTML = `<button type="button" class="btn-ref-add" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}"><i class="bi bi-plus-lg"></i></button>`;
+                    }
+                    if (currentWorksheetDoc?.id) {
+                        await window.syncBgReferencesToDocument(currentWorksheetDoc.id, bgType, entityId, commitmentId);
+                    }
+                    modal.hide();
+                } catch (err) {
+                    alert('Error eliminando referencia: ' + err.message);
+                }
+            };
+
+            modal.show();
+        }
+
     </script>
+
+    <!-- Modal para agregar referencias en celdas BG -->
+    <div class="modal fade" id="bgRefModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar referencia</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2">Selecciona un archivo o documento cargado:</p>
+                    <div id="bgRefList" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center p-3 text-muted">Cargando archivos...</div>
+                    </div>
+                    <div id="bgRefCurrent" class="mt-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center border rounded p-2 bg-light">
+                            <span id="bgRefCurrentName" class="ref-file-name"></span>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="bgRefRemoveBtn">Quitar</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

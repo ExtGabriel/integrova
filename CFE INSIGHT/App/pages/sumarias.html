@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sumarias - CFE INSIGHT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="../css/formularios.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #edf1f7;
+            --sidebar-border: #d7ddea;
+            --primary: #334bfa;
+            --primary-dark: #2639c7;
+            --text-main: #1f2a44;
+            --text-muted: #70809b;
+            --card-bg: #ffffff;
+            --line-color: #c7d2eb;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f5f7fb;
+            color: var(--text-main);
+        }
+
+        .workspace-topbar {
+            background: #1e3a8a;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #ffffff;
+        }
+
+        .back-button-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .back-button-icon:hover {
+            background: rgba(255, 255, 255, 0.28);
+            color: #ffffff;
+        }
+
+        .breadcrumb-nav {
+            background: transparent;
+            padding: 24px 0 0;
+            margin-bottom: 0;
+        }
+
+        .workspace-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 48px;
+        }
+
+        .workspace-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            padding: 16px 0;
+        }
+
+        .workspace-toolbar h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toolbar-actions button {
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .toolbar-actions button:hover {
+            color: var(--primary);
+            background: rgba(51, 75, 250, 0.08);
+        }
+
+        .worksheet-layout {
+            display: flex;
+            gap: 24px;
+        }
+
+        .worksheet-sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--sidebar-border);
+            border-radius: 18px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            min-height: 520px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sidebar-header span {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 36px 10px 14px;
+            border: 1px solid var(--sidebar-border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .area-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .area-item {
+            padding: 12px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            background: white;
+            border: 1px solid transparent;
+        }
+
+        .area-item:hover,
+        .area-item.active {
+            background: rgba(51, 75, 250, 0.08);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .area-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 24px 12px;
+            font-size: 0.9rem;
+        }
+
+        .worksheet-content {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 22px;
+            padding: 20px;
+            box-shadow: 0 16px 40px rgba(33, 56, 102, 0.12);
+        }
+
+        .worksheet-header {
+            text-align: center;
+            padding: 32px 16px 16px 16px;
+            position: relative;
+        }
+
+        .worksheet-header .sb-logo {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 60px;
+            max-width: 22%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .worksheet-header .allinial-logo {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 80px;
+            max-width: 26%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .worksheet-header .entity-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0 0 8px 0;
+        }
+
+        .worksheet-header .summary-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin: 0 0 6px 0;
+        }
+
+        .worksheet-header .date-line,
+        .worksheet-header .currency-line {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            margin: 3px 0;
+        }
+
+        .materiality-section {
+            text-align: right;
+            margin-top: 16px;
+            padding-right: 12px;
+        }
+
+        .materiality-line {
+            font-size: 0.85rem;
+            color: var(--text-main);
+            margin: 3px 0;
+            font-weight: 500;
+        }
+
+        .worksheet-table {
+            margin-top: 16px;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 10px 20px rgba(33, 56, 102, 0.06);
+            padding: 10px 10px 6px 10px;
+            overflow-x: auto;
+        }
+
+        .worksheet-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .worksheet-table thead th {
+            border-top: 2px solid #000;
+            padding: 6px 4px;
+            font-weight: 600;
+            font-size: 0.72rem;
+            color: #000;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .worksheet-table thead .subheader th {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .worksheet-table thead tr:last-child th {
+            border-bottom: 2px solid #000;
+        }
+
+        .worksheet-table tbody td {
+            padding: 6px 4px;
+            border-top: none;
+            font-size: 0.78rem;
+            color: var(--text-main);
+            min-width: 60px;
+            outline: none;
+        }
+
+        .worksheet-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .worksheet-table .col-description {
+            text-align: left;
+            min-width: 150px;
+        }
+
+        .worksheet-table .col-ref,
+        .worksheet-table .col-amount,
+        .worksheet-table .col-variation,
+        .worksheet-table .col-variation-pct {
+            text-align: center;
+            min-width: 60px;
+        }
+
+        [contenteditable="true"] {
+            border: 2px dashed #007bff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+
+        @media (max-width: 768px) {
+            .worksheet-content {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Topbar -->
+    <div class="workspace-topbar">
+        <div class="flex-grow-1"></div>
+        <a href="formularios.html" class="back-button-icon">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-nav">
+        <div class="workspace-container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-3">
+                    <li class="breadcrumb-item">
+                        <a href="formularios.html" class="text-decoration-none">
+                            <i class="bi bi-file-earmark-text"></i> Formularios
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="bi bi-grid-3x3"></i> Sumarias
+                    </li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="workspace-container">
+        <div class="workspace-toolbar">
+            <div id="worksheetTitleContainer">
+                <h1>Sumaria</h1>
+            </div>
+            <div class="toolbar-actions">
+                <button type="button" title="Editar encabezado" onclick="toggleHeaderEdit()">
+                    <i class="bi bi-pencil"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="worksheet-layout" id="worksheetLayout">
+            <aside class="worksheet-sidebar" id="worksheetSidebar">
+                <div class="sidebar-header">
+                    <span>Áreas</span>
+                    <button class="toolbar-actions" title="Cargar grupos" onclick="loadAreas()" style="width:auto; height:auto; padding:6px 8px;">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="search-container">
+                    <input type="text" id="areaSearchInput" class="search-input" placeholder="Buscar área..." oninput="filterAreas()">
+                    <i class="bi bi-search search-icon"></i>
+                </div>
+                <div id="areaEmpty" class="area-empty" style="display:none;">
+                    No hay áreas disponibles
+                </div>
+                <ul id="areaList" class="area-list"></ul>
+            </aside>
+
+            <section class="worksheet-content" id="sumariaContent">
+            <div class="worksheet-header">
+                <img src="../assets/SB&Asociados.png" alt="SB&Asociados" class="sb-logo" />
+                <img src="../assets/allinialGlobal.png" alt="Allinial Global" class="allinial-logo" />
+                <div class="entity-name" contenteditable="false">Nombre de la entidad</div>
+                <div class="summary-title" contenteditable="false">SUMARIA</div>
+                <div class="date-line" contenteditable="false">Al 31 de diciembre del</div>
+                <div class="currency-line" contenteditable="false">Cifras expresadas en</div>
+            </div>
+
+            <div class="materiality-section">
+                <p class="materiality-line" contenteditable="false">Materialidad general:</p>
+                <p class="materiality-line" contenteditable="false">Materialidad de desempeño:</p>
+                <p class="materiality-line" contenteditable="false">Materialidad trivial:</p>
+            </div>
+
+            <div class="worksheet-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="col-description">Descripción</th>
+                            <th class="col-ref">Ref.</th>
+                            <th class="col-amount">Año actual</th>
+                            <th class="col-amount">Ajustes</th>
+                            <th class="col-amount">Saldos finales</th>
+                            <th class="col-ref">Ref.</th>
+                            <th class="col-amount">Año anterior</th>
+                            <th class="col-variation">Variación</th>
+                            <th class="col-variation-pct">Variación %</th>
+                        </tr>
+                        <tr class="subheader">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="sumariaBody">
+                        <tr>
+                            <td class="col-description" contenteditable="true">&nbsp;</td>
+                            <td class="col-ref" contenteditable="true">&nbsp;</td>
+                            <td class="col-amount" contenteditable="true">&nbsp;</td>
+                            <td class="col-amount" contenteditable="true">&nbsp;</td>
+                            <td class="col-amount" contenteditable="true">&nbsp;</td>
+                            <td class="col-ref" contenteditable="true">&nbsp;</td>
+                            <td class="col-amount" contenteditable="true">&nbsp;</td>
+                            <td class="col-variation" contenteditable="true">&nbsp;</td>
+                            <td class="col-variation-pct" contenteditable="true">&nbsp;</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/config-supabase.js"></script>
+    <script type="module" src="../js/database-api.js"></script>
+    <script src="../js/auth-guard.js"></script>
+    <script src="../js/subcategorias-data.js"></script>
+    <script>
+        let currentWorksheetDoc = null;
+
+        // Cargar documento desde localStorage si viene de una apertura/edición
+        try {
+            const raw = localStorage.getItem('currentWorksheetDocument');
+            if (raw) {
+                currentWorksheetDoc = JSON.parse(raw);
+            }
+        } catch (err) {
+            console.warn('No se pudo leer currentWorksheetDocument:', err);
+        }
+
+        // Actualizar título con el nombre del documento
+        function initTitle() {
+            const container = document.getElementById('worksheetTitleContainer');
+            if (!container) return;
+            const title = currentWorksheetDoc?.titulo || 'Sumaria';
+            container.innerHTML = `<h1>${title}</h1>`;
+        }
+
+        initTitle();
+
+        // Alternar modo edición del encabezado
+        function toggleHeaderEdit() {
+            const header = document.querySelector('.worksheet-header');
+            const materiality = document.querySelector('.materiality-section');
+            if (!header || !materiality) return;
+
+            const allEditable = header.querySelectorAll('[contenteditable]');
+            const materialityEditable = materiality.querySelectorAll('[contenteditable]');
+            const isEditing = header.classList.contains('editing-mode');
+
+            if (isEditing) {
+                header.classList.remove('editing-mode');
+                materiality.classList.remove('editing-mode');
+                [...allEditable, ...materialityEditable].forEach(el => {
+                    el.contentEditable = 'false';
+                });
+            } else {
+                header.classList.add('editing-mode');
+                materiality.classList.add('editing-mode');
+                [...allEditable, ...materialityEditable].forEach(el => {
+                    el.contentEditable = 'true';
+                });
+                if (allEditable[0]) allEditable[0].focus();
+            }
+        }
+
+        // === Áreas / Grupos financieros ===
+        let allAreas = [];
+
+        function getCurrentUserId() {
+            try {
+                // 1. window.getUserUI() (auth-guard)
+                if (typeof window.getUserUI === 'function') {
+                    const user = window.getUserUI();
+                    if (user && user.id) return user.id;
+                }
+
+                // 2. window.currentUser
+                if (window.currentUser && window.currentUser.id) return window.currentUser.id;
+
+                // 3. sessionStorage: auth-guard usa la key 'userUI'
+                const sessionUserUI = sessionStorage.getItem('userUI');
+                if (sessionUserUI) {
+                    const parsed = JSON.parse(sessionUserUI);
+                    if (parsed.id) return parsed.id;
+                }
+
+                const sessionUser = sessionStorage.getItem('currentUser');
+                if (sessionUser) {
+                    const parsed = JSON.parse(sessionUser);
+                    if (parsed.id || parsed.user_id) return parsed.id || parsed.user_id;
+                }
+
+                // 4. localStorage
+                const localUser = localStorage.getItem('currentUser') || localStorage.getItem('userUI');
+                if (localUser) {
+                    const parsed = JSON.parse(localUser);
+                    if (parsed.id || parsed.user_id) return parsed.id || parsed.user_id;
+                }
+            } catch (e) {}
+            return 'anon';
+        }
+
+        function getLastAssignmentsDatasetId() {
+            try {
+                const fullKey = `assigned_accounts_last_dataset_v1_${getCurrentUserId()}`;
+                const value = localStorage.getItem(fullKey);
+                return value && value.toString().trim() ? value.toString().trim() : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        // Nombres de grupos contables de alto nivel que NO queremos en el menú
+        const excludedHighLevelNames = new Set([
+            'activo', 'pasivo', 'patrimonio', 'resultados', 'ingresos', 'gastos',
+            'pasivo y patrimonio', 'estado de resultados', 'activo corriente',
+            'activo no corriente', 'pasivo corriente', 'pasivo no corriente'
+        ]);
+
+        let allGroups = [];
+        let currentDatasetIdForAreas = null;
+
+        function formatCurrency(amount) {
+            if (amount === null || amount === undefined || amount === '') return '';
+            let clean = String(amount).trim().replace(/[$,]/g, '');
+            if (clean.startsWith('(') && clean.endsWith(')')) {
+                clean = '-' + clean.slice(1, -1).trim();
+            }
+            const value = Number(clean);
+            if (Number.isNaN(value)) return amount;
+            const abs = Math.abs(value).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return value < 0 ? `(${abs})` : abs;
+        }
+
+        function calculateVariationPct(current, previous) {
+            const c = Number(current) || 0;
+            const p = Number(previous) || 0;
+            if (p === 0) return c === 0 ? '0.00%' : '100.00%';
+            const pct = ((c - p) / Math.abs(p)) * 100;
+            return pct.toFixed(2) + '%';
+        }
+
+        async function resolveDatasetId() {
+            if (currentWorksheetDoc?.metadata?.datasetId) return currentWorksheetDoc.metadata.datasetId;
+
+            const fromLocal = getLastAssignmentsDatasetId();
+            if (fromLocal) return fromLocal;
+
+            // Usar el endpoint más simple /api/excel/latest para evitar el error 500 de /api/excel/datasets
+            if (typeof window.getExcelData === 'function') {
+                try {
+                    const excelData = await window.getExcelData();
+                    if (excelData?.id) {
+                        console.log('✅ Dataset activo encontrado vía /api/excel/latest:', excelData.id);
+                        return excelData.id;
+                    }
+                } catch (e) {
+                    console.warn('No se pudo obtener el dataset activo:', e);
+                }
+            }
+
+            return null;
+        }
+
+        async function loadAreas() {
+            const list = document.getElementById('areaList');
+            const empty = document.getElementById('areaEmpty');
+            if (!list || !empty) return;
+
+            list.innerHTML = '<li class="area-empty">Cargando áreas...</li>';
+            empty.style.display = 'none';
+
+            const datasetId = await resolveDatasetId();
+            currentDatasetIdForAreas = datasetId;
+            console.log('🔍 Cargando áreas desde grupos financieros. Dataset:', datasetId);
+            allAreas = [];
+            allGroups = [];
+
+            try {
+                if (datasetId && typeof window.getFinancialGroups === 'function') {
+                    const groups = await window.getFinancialGroups(datasetId);
+                    console.log('📊 Grupos financieros recibidos:', groups?.length || 0, groups);
+
+                    if (Array.isArray(groups) && groups.length) {
+                        allGroups = groups;
+                        const seen = new Set();
+                        allAreas = groups
+                            .filter(g => {
+                                // Descartar nombres de alto nivel (Activo, Pasivo, etc.)
+                                const name = (g.accountName || g.name || '').trim().toLowerCase();
+                                if (!name) return false;
+                                if (excludedHighLevelNames.has(name)) return false;
+                                return true;
+                            })
+                            .map(g => ({
+                                name: (g.accountName || g.name || '').trim(),
+                                ...g
+                            }))
+                            .filter(a => {
+                                if (seen.has(a.name.toLowerCase())) return false;
+                                seen.add(a.name.toLowerCase());
+                                return true;
+                            });
+                    }
+                } else {
+                    console.warn('No hay datasetId o getFinancialGroups no está disponible');
+                }
+            } catch (e) {
+                console.warn('No se pudieron cargar grupos financieros:', e);
+            }
+
+            // Si no hay grupos, mostrar ejemplos tipo cuentas
+            if (!allAreas.length) {
+                allAreas = [
+                    { name: 'Caja y bancos' },
+                    { name: 'Clientes' },
+                    { name: 'Inventarios' },
+                    { name: 'Proveedores' },
+                    { name: 'Préstamos bancarios' },
+                    { name: 'Propiedad, planta y equipo' },
+                    { name: 'Capital social' },
+                    { name: 'Ventas' },
+                    { name: 'Costos de ventas' },
+                    { name: 'Gastos administrativos' }
+                ];
+            }
+
+            renderAreasList(allAreas);
+        }
+
+        function renderAreasList(areasToRender) {
+            const list = document.getElementById('areaList');
+            const empty = document.getElementById('areaEmpty');
+            if (!list || !empty) return;
+
+            list.innerHTML = '';
+
+            if (!areasToRender.length) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            areasToRender.forEach(area => {
+                const li = document.createElement('li');
+                li.className = 'area-item';
+                li.textContent = area.name;
+                li.onclick = () => selectArea(area, li);
+                list.appendChild(li);
+            });
+        }
+
+        function selectArea(area, element) {
+            const areaName = typeof area === 'string' ? area : (area?.name || '');
+            document.querySelectorAll('.area-item').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            const summaryTitle = document.querySelector('.summary-title');
+            if (summaryTitle) summaryTitle.textContent = `SUMARIA - ${areaName}`;
+
+            const areaRow = typeof area === 'object' ? area : allAreas.find(a => a.name === areaName);
+            renderAreaRows(areaRow);
+            scheduleAutoSave();
+            console.log('Área seleccionada:', areaName, areaRow);
+        }
+
+        function renderAreaRows(areaRow) {
+            const tbody = document.getElementById('sumariaBody');
+            if (!tbody) return;
+
+            // Si no tenemos el objeto completo o no hay grupos cargados, dejar una fila vacía editable
+            if (!areaRow || !allGroups.length) {
+                tbody.innerHTML = createEmptyRow();
+                return;
+            }
+
+            // Buscar cuentas hijas del área seleccionada
+            const parentId = String(areaRow.rowId || '');
+            let rows = [];
+            if (parentId) {
+                rows = allGroups.filter(g => String(g.parentId || '') === parentId);
+            }
+
+            // Si el área no tiene hijos, mostrar la propia fila (cuenta hoja)
+            if (!rows.length) {
+                const self = allGroups.find(g =>
+                    (g.rowId && g.rowId === areaRow.rowId) ||
+                    ((g.accountName || g.name || '').trim().toLowerCase() === areaRow.name.toLowerCase())
+                );
+                if (self) rows = [self];
+            }
+
+            if (!rows.length) {
+                tbody.innerHTML = createEmptyRow();
+                return;
+            }
+
+            tbody.innerHTML = rows.map(row => {
+                const description = row.accountName || row.name || areaRow.name || '';
+                const code = row.accountCode || row.account_code || '';
+                const current = Number(row.preliminary ?? row.finalCurrent ?? 0);
+                const adjustments = Number(row.adjustments ?? 0);
+                const finalCurrent = Number(row.finalCurrent ?? 0);
+                const previous = Number(row.finalPrevious ?? 0);
+                const variation = finalCurrent - previous;
+
+                return `
+                    <tr>
+                        <td class="col-description">${description}</td>
+                        <td class="col-ref">${code}</td>
+                        <td class="col-amount">${formatCurrency(current)}</td>
+                        <td class="col-amount">${formatCurrency(adjustments)}</td>
+                        <td class="col-amount">${formatCurrency(finalCurrent)}</td>
+                        <td class="col-ref"></td>
+                        <td class="col-amount">${formatCurrency(previous)}</td>
+                        <td class="col-variation">${formatCurrency(variation)}</td>
+                        <td class="col-variation-pct">${calculateVariationPct(finalCurrent, previous)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function createEmptyRow() {
+            return `
+                <tr>
+                    <td class="col-description" contenteditable="true">&nbsp;</td>
+                    <td class="col-ref" contenteditable="true">&nbsp;</td>
+                    <td class="col-amount" contenteditable="true">&nbsp;</td>
+                    <td class="col-amount" contenteditable="true">&nbsp;</td>
+                    <td class="col-amount" contenteditable="true">&nbsp;</td>
+                    <td class="col-ref" contenteditable="true">&nbsp;</td>
+                    <td class="col-amount" contenteditable="true">&nbsp;</td>
+                    <td class="col-variation" contenteditable="true">&nbsp;</td>
+                    <td class="col-variation-pct" contenteditable="true">&nbsp;</td>
+                </tr>
+            `;
+        }
+
+        function filterAreas() {
+            const term = document.getElementById('areaSearchInput')?.value?.toLowerCase()?.trim() || '';
+            const filtered = allAreas.filter(a => a.name.toLowerCase().includes(term));
+            renderAreasList(filtered);
+        }
+
+        // === Auto-guardado de la sumaria ===
+        let autoSaveTimer = null;
+
+        async function waitForManager(timeout = 3000) {
+            const start = Date.now();
+            while (!window.subcategoriasManager?.userId && (Date.now() - start) < timeout) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            return window.subcategoriasManager?.userId;
+        }
+
+        function scheduleAutoSave() {
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSaveSumaria, 2000);
+        }
+
+        async function autoSaveSumaria() {
+            if (!currentWorksheetDoc?.id) {
+                console.warn('No hay documento actual para auto-guardar');
+                return;
+            }
+
+            const hasManager = await waitForManager();
+            if (!hasManager) {
+                console.warn('No se pudo obtener usuario para auto-guardar');
+                return;
+            }
+
+            try {
+                const content = document.getElementById('sumariaContent').innerHTML;
+                await window.subcategoriasManager.updateSubdocument(
+                    currentWorksheetDoc.id,
+                    currentWorksheetDoc.titulo,
+                    content,
+                    {
+                        ...currentWorksheetDoc.metadata,
+                        datasetId: currentDatasetIdForAreas,
+                        lastSaved: new Date().toISOString()
+                    },
+                    currentWorksheetDoc.categoria,
+                    currentWorksheetDoc.subcategoria
+                );
+                console.log('✅ Sumaria guardada automáticamente');
+            } catch (e) {
+                console.error('❌ Error auto-guardando sumaria:', e);
+            }
+        }
+
+        async function loadSavedContent() {
+            if (!currentWorksheetDoc?.id) return;
+            const hasManager = await waitForManager();
+            if (!hasManager) return;
+
+            try {
+                const doc = await window.subcategoriasManager.getSubdocument(currentWorksheetDoc.id);
+                if (doc?.contenido) {
+                    document.getElementById('sumariaContent').innerHTML = doc.contenido;
+                    console.log('✅ Contenido de sumaria restaurado');
+                }
+            } catch (e) {
+                console.warn('No se pudo cargar contenido guardado:', e);
+            }
+        }
+
+        // Cargar áreas al iniciar
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSavedContent();
+            await loadAreas();
+
+            const sumariaContent = document.getElementById('sumariaContent');
+            if (sumariaContent) {
+                sumariaContent.addEventListener('input', scheduleAutoSave);
+            }
+        });
+    </script>
+</body>
+</html>

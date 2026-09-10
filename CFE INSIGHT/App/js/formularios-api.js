@@ -17,58 +17,120 @@ function buildApiUrl(path) {
     return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+// Obtener ID de usuario de forma robusta, esperando a auth-guard si es necesario
+async function getFormulariosApiUserId() {
+    if (window.currentUser && window.currentUser.id) {
+        return window.currentUser.id;
+    }
+
+    if (typeof getCurrentUserId === 'function') {
+        const id = getCurrentUserId();
+        if (id) return id;
+    }
+
+    if (typeof window.getUserUI === 'function') {
+        const user = window.getUserUI();
+        if (user && (user.id || user.user_id)) {
+            return user.id || user.user_id;
+        }
+    }
+
+    if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+        try {
+            await window.currentUserReady;
+            if (window.currentUser && window.currentUser.id) {
+                return window.currentUser.id;
+            }
+        } catch (e) { }
+    }
+
+    try {
+        const sessionUser = sessionStorage.getItem('userUI');
+        if (sessionUser) {
+            const user = JSON.parse(sessionUser);
+            if (user.id || user.user_id) return user.id || user.user_id;
+        }
+    } catch (e) { }
+
+    try {
+        const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
+        if (userData) {
+            const user = JSON.parse(userData);
+            if (user.id || user.user_id) return user.id || user.user_id;
+        }
+    } catch (e) { }
+
+    return null;
+}
+
 // Función principal para guardar formulario en la BD usando API existente
 async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId = null) {
     try {
         console.log('💾 Guardando formulario en BD via API:', { formId, formTitle, formData });
         
-        // Obtener ID del usuario actual (usar el mismo método que subcategorias-data.js)
-        let userId = null;
-        
-        // Intentar obtener desde window.currentUser
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        }
-        
-        // Intentar desde localStorage
-        if (!userId) {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        // Obtener ID del usuario actual de forma robusta
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }
         
         // Obtener contexto directamente desde el DOM y variables globales
-        const entityDropdown = document.getElementById('entidadHijo');
+        const entityDropdown = document.getElementById('entidad');
         const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
-        
+
+        console.log('🔍 DIAGNÓSTICO captura de contexto:');
+        console.log('  entityDropdown:', entityDropdown);
+        console.log('  entityDropdown.value:', entityDropdown?.value);
+        console.log('  commitmentDropdownState:', typeof commitmentDropdownState !== 'undefined' ? commitmentDropdownState : 'NO DEFINIDO');
+        console.log('  commitmentDropdownState.currentEntityId:', typeof commitmentDropdownState !== 'undefined' ? commitmentDropdownState.currentEntityId : 'N/A');
+        console.log('  formDataManager:', typeof window.formDataManager !== 'undefined' ? 'DISPONIBLE' : 'NO DISPONIBLE');
+
         let entityId = null;
         let commitmentId = null;
-        
+
         // Obtener entity_id desde el dropdown de entidades
         if (entityDropdown && entityDropdown.value) {
             entityId = entityDropdown.value;
+            console.log('  ✅ entity_id desde dropdown:', entityId);
+        } else {
+            console.log('  ❌ No se obtuvo entity_id desde dropdown');
         }
-        
+
+        // Obtener entity_id desde commitmentDropdownState (respaldo)
+        if (!entityId && typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.currentEntityId) {
+            entityId = commitmentDropdownState.currentEntityId;
+            console.log('  ✅ entity_id desde commitmentDropdownState:', entityId);
+        } else {
+            console.log('  ❌ No se obtuvo entity_id desde commitmentDropdownState');
+        }
+
         // Obtener commitment_id desde commitmentDropdownState (definido en formularios.html)
         if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
             commitmentId = commitmentDropdownState.selectedCommitmentId;
+            console.log('  ✅ commitment_id desde commitmentDropdownState:', commitmentId);
         } else if (window.currentCommitmentId) {
             commitmentId = window.currentCommitmentId;
+            console.log('  ✅ commitment_id desde window.currentCommitmentId:', commitmentId);
         } else if (commitmentDropdown && commitmentDropdown.getAttribute('data-commitment-id')) {
             commitmentId = commitmentDropdown.getAttribute('data-commitment-id');
+            console.log('  ✅ commitment_id desde atributo:', commitmentId);
+        } else {
+            console.log('  ❌ No se obtuvo commitment_id');
         }
-        
+
         // Intentar desde formDataManager si está disponible
         if (window.formDataManager && window.formDataManager.getContext) {
             const context = window.formDataManager.getContext();
-            if (!entityId) entityId = context.entityId;
-            if (!commitmentId) commitmentId = context.commitmentId;
+            console.log('  formDataManager.getContext():', context);
+            if (!entityId && context.entityId) {
+                entityId = context.entityId;
+                console.log('  ✅ entity_id desde formDataManager:', entityId);
+            }
+            if (!commitmentId && context.commitmentId) {
+                commitmentId = context.commitmentId;
+                console.log('  ✅ commitment_id desde formDataManager:', commitmentId);
+            }
         }
         
         console.log('� Guardando formulario con contexto:', { 
@@ -121,34 +183,29 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
 // Función para obtener formulario guardado previamente
 async function getFormularioGuardado(formId, subdocumentId = null) {
     try {
-        let userId = null;
-        
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        } else {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }
-        
+
         // Obtener contexto actual de entidad/compromiso
-        const entityDropdown = document.getElementById('entidadHijo');
+        const entityDropdown = document.getElementById('entidad');
         const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
-        
+
         let entityId = null;
         let commitmentId = null;
-        
+
         // Obtener entity_id desde el dropdown de entidades
         if (entityDropdown && entityDropdown.value) {
             entityId = entityDropdown.value;
         }
-        
+
+        // Obtener entity_id desde commitmentDropdownState (respaldo)
+        if (!entityId && typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.currentEntityId) {
+            entityId = commitmentDropdownState.currentEntityId;
+        }
+
         // Obtener commitment_id desde commitmentDropdownState
         if (typeof commitmentDropdownState !== 'undefined' && commitmentDropdownState.selectedCommitmentId) {
             commitmentId = commitmentDropdownState.selectedCommitmentId;
@@ -191,18 +248,8 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
 // Función para listar todos los formularios del usuario
 async function listarFormulariosUsuario() {
     try {
-        let userId = null;
-        
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        } else {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }

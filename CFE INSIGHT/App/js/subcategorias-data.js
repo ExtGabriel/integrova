@@ -15,6 +15,33 @@
         }
     }
 
+    // Icono según extensión de archivo
+    function getFileIcon(fileName) {
+        const extension = (fileName || '').split('.').pop().toLowerCase();
+        const iconMap = {
+            'pdf': { class: 'bi-file-pdf', color: '#dc3545' },
+            'doc': { class: 'bi-file-word', color: '#2b579a' },
+            'docx': { class: 'bi-file-word', color: '#2b579a' },
+            'xls': { class: 'bi-file-excel', color: '#217346' },
+            'xlsx': { class: 'bi-file-excel', color: '#217346' },
+            'ppt': { class: 'bi-file-ppt', color: '#d24726' },
+            'pptx': { class: 'bi-file-ppt', color: '#d24726' },
+            'jpg': { class: 'bi-file-image', color: '#28a745' },
+            'jpeg': { class: 'bi-file-image', color: '#28a745' },
+            'png': { class: 'bi-file-image', color: '#28a745' },
+            'gif': { class: 'bi-file-image', color: '#28a745' },
+            'svg': { class: 'bi-file-image', color: '#28a745' },
+            'zip': { class: 'bi-file-zip', color: '#ffc107' },
+            'rar': { class: 'bi-file-zip', color: '#ffc107' },
+            '7z': { class: 'bi-file-zip', color: '#ffc107' },
+            'mp4': { class: 'bi-file-play', color: '#dc3545' },
+            'mp3': { class: 'bi-file-music', color: '#6f42c1' },
+            'txt': { class: 'bi-file-text', color: '#6c757d' },
+            'rtf': { class: 'bi-file-text', color: '#6c757d' }
+        };
+        return iconMap[extension] || { class: 'bi-file-earmark', color: '#6c757d' };
+    }
+
     class SubcategoriasDataManager {
         constructor() {
             this.cache = new Map();
@@ -82,24 +109,34 @@
         }
 
         // Guardar subcarpeta
-        async saveSubfolder(categoria, subcategoria, nombre, descripcion = '', parentFolderId = null) {
+        async saveSubfolder(categoria, subcategoria, nombre, descripcion = '', parentFolderId = null, metadata = {}, entityId = null, commitmentId = null) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
                 const response = await fetch(buildApiUrl('/api/subfolders/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     },
                     body: JSON.stringify({
                         categoria,
                         subcategoria,
                         nombre,
                         descripcion,
-                        parent_folder_id: parentFolderId
+                        parent_folder_id: parentFolderId,
+                        metadata: {
+                            ...metadata,
+                            entity_id: resolvedEntityId,
+                            commitment_id: resolvedCommitmentId
+                        }
                     })
                 });
 
@@ -131,17 +168,23 @@
         }
 
         // Guardar subdocumento
-        async saveSubdocument(categoria, subcategoria, tipo, titulo, contenido = '', metadata = {}, parentFolderId = null) {
+        async saveSubdocument(categoria, subcategoria, tipo, titulo, contenido = '', metadata = {}, parentFolderId = null, entityId = null, commitmentId = null) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
+                // Obtener contexto actual de entidad y compromiso si no se pasaron explícitamente
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
                 const response = await fetch(buildApiUrl('/api/subdocuments/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     },
                     body: JSON.stringify({
                         categoria,
@@ -149,7 +192,11 @@
                         tipo,
                         titulo,
                         contenido,
-                        metadata,
+                        metadata: {
+                            ...metadata,
+                            entity_id: resolvedEntityId,
+                            commitment_id: resolvedCommitmentId
+                        },
                         parent_folder_id: parentFolderId
                     })
                 });
@@ -160,8 +207,8 @@
                     throw new Error(result.error || 'Error al guardar subdocumento');
                 }
 
-                // Limpiar cache para forzar recarga
-                this.cache.delete(`${categoria}/${subcategoria}/documents`);
+                // Limpiar cache de documentos para forzar recarga con el contexto correcto
+                this.clearDocumentCache(categoria, subcategoria);
                 
                 // Actualizar UI inmediatamente
                 console.log('🔄 Actualizando UI después de guardar documento...');
@@ -186,9 +233,12 @@
         }
 
         // Obtener subcarpetas
-        async getSubfolders(categoria, subcategoria, useCache = true) {
+        async getSubfolders(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
-                const cacheKey = `${categoria}/${subcategoria}/subfolders`;
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                const cacheKey = `${categoria}/${subcategoria}/subfolders?entity=${resolvedEntityId}&commitment=${resolvedCommitmentId}`;
                 
                 if (useCache && this.cache.has(cacheKey)) {
                     return this.cache.get(cacheKey);
@@ -198,9 +248,17 @@
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl(`/api/subfolders/${categoria}/${subcategoria}`), {
+                let apiUrl = buildApiUrl(`/api/subfolders/${categoria}/${subcategoria}`);
+                const params = new URLSearchParams();
+                if (resolvedEntityId) params.append('entity_id', resolvedEntityId);
+                if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
+                if (params.toString()) apiUrl += `?${params.toString()}`;
+
+                const response = await fetch(apiUrl, {
                     headers: {
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     }
                 });
 
@@ -224,21 +282,35 @@
         }
 
         // Obtener subdocumentos
-        async getSubdocuments(categoria, subcategoria, useCache = true) {
+        async getSubdocuments(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
-                const cacheKey = `${categoria}/${subcategoria}/documents`;
-                
-                if (useCache && this.cache.has(cacheKey)) {
-                    return this.cache.get(cacheKey);
-                }
-
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`), {
+                // Obtener contexto actual de entidad y compromiso si no se pasaron explícitamente
+                const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                // Clave de cache que incluye el contexto para no mezclar documentos de otra entidad/compromiso
+                const cacheKey = `${categoria}/${subcategoria}/documents?entity=${resolvedEntityId}&commitment=${resolvedCommitmentId}`;
+
+                if (useCache && this.cache.has(cacheKey)) {
+                    return this.cache.get(cacheKey);
+                }
+
+                // Construir URL con parámetros de contexto
+                let apiUrl = buildApiUrl(`/api/subdocuments/${categoria}/${subcategoria}`);
+                const params = new URLSearchParams();
+                if (resolvedEntityId) params.append('entity_id', resolvedEntityId);
+                if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
+                if (params.toString()) apiUrl += `?${params.toString()}`;
+
+                const response = await fetch(apiUrl, {
                     headers: {
-                        'user-id': this.userId
+                        'user-id': this.userId,
+                        'entity-id': resolvedEntityId,
+                        'commitment-id': resolvedCommitmentId
                     }
                 });
 
@@ -261,11 +333,21 @@
             }
         }
 
+        // Limpiar cache de documentos de una subcategoría (todas las entidades/compromisos)
+        clearDocumentCache(categoria, subcategoria) {
+            const prefix = `${categoria}/${subcategoria}/documents`;
+            for (const key of this.cache.keys()) {
+                if (key.startsWith(prefix)) {
+                    this.cache.delete(key);
+                }
+            }
+        }
+
         // Limpiar cache
         clearCache(categoria = null, subcategoria = null) {
             if (categoria && subcategoria) {
                 this.cache.delete(`${categoria}/${subcategoria}/subfolders`);
-                this.cache.delete(`${categoria}/${subcategoria}/documents`);
+                this.clearDocumentCache(categoria, subcategoria);
             } else {
                 this.cache.clear();
             }
@@ -331,7 +413,9 @@
                 // Agregar contenido dinámico
                 console.log('🎨 Renderizando contenido dinámico...');
                 this.renderSubcategoriaContent(subcategoriaContent, subfolders, documents);
-                console.log('✅ UI actualizada completamente');
+
+                // Actualizar indicadores de aprobación en documentos BG
+                await window.updateBgApprovalButtons(subcategoriaContent);
                 
             } catch (error) {
                 console.error('❌ Error en updateUI:', error);
@@ -360,11 +444,42 @@
             console.log('📋 Subcarpetas:', subfolders);
             console.log('📄 Documentos:', documents);
             
+            // Limpiar documentos que fueron insertados manualmente por handleDirectUpload
+            // para evitar que documentos de contextos anteriores sigan visibles,
+            // pero preservar elementos estáticos como la carta de independencia
+            const oldUploadContainers = Array.from(container.querySelectorAll('.documents-container, .uploaded-document')).filter(el => {
+                const isCarta = el.classList.contains('carta-independencia-item') || el.querySelector('.carta-independencia-item');
+                return !isCarta;
+            });
+            oldUploadContainers.forEach(el => {
+                console.log('🧹 Eliminando documento/carpeta manual del contexto anterior:', el.className);
+                el.remove();
+            });
+            
             const rootKey = 'root';
             const foldersByParent = {};
             const docsByParent = {};
 
-            subfolders.forEach(folder => {
+            // Evitar mostrar carpetas duplicadas (misma categoría/subcategoría/padre/contexto)
+            const seenFolders = new Set();
+            const uniqueSubfolders = (subfolders || []).filter(folder => {
+                const key = [
+                    (folder.nombre || '').trim().toLowerCase(),
+                    folder.parent_folder_id || 'root',
+                    folder.categoria || '',
+                    folder.subcategoria || '',
+                    folder.entity_id || folder.metadata?.entity_id || '',
+                    folder.commitment_id || folder.metadata?.commitment_id || ''
+                ].join('|');
+                if (seenFolders.has(key)) {
+                    console.warn('🗑️ Carpeta duplicada omitida en UI:', folder.nombre, folder.id);
+                    return false;
+                }
+                seenFolders.add(key);
+                return true;
+            });
+
+            uniqueSubfolders.forEach(folder => {
                 const key = folder.parent_folder_id || rootKey;
                 if (!foldersByParent[key]) foldersByParent[key] = [];
                 foldersByParent[key].push(folder);
@@ -384,17 +499,62 @@
                 if (!list.length) return '';
                 let html = '<div class="documents-list">';
                 list.forEach(doc => {
-                    const icon = this.getDocumentIcon(doc.tipo);
+                    const isArchivo = doc.tipo === 'archivo';
+                    const metadata = doc.metadata || {};
+                    const fileName = isArchivo ? (metadata.fileName || doc.titulo || 'Archivo') : (doc.titulo || 'Documento');
+                    const title = doc.titulo || (isArchivo ? (fileName.split('.').slice(0, -1).join('.') || fileName) : 'Documento');
+                    const fileSize = isArchivo ? (metadata.fileSize || 0) : 0;
+                    const createdAt = doc.created_at || metadata.uploadDate;
+                    const author = doc.users?.name || doc.users?.full_name || doc.users?.email || 'Usuario';
+                    const icon = isArchivo ? getFileIcon(fileName) : { class: this.getDocumentIcon(doc.tipo), color: '#0d6efd' };
+                    const fileSizeLabel = typeof window.formatFileSize === 'function' ? window.formatFileSize(fileSize) : fileSize + ' bytes';
+                    const dateLabel = createdAt
+                        ? (typeof window.formatDateTime === 'function' ? window.formatDateTime(createdAt) : new Date(createdAt).toLocaleString('es-GT'))
+                        : 'Sin fecha';
+                    const meta = isArchivo ? `${fileSizeLabel} - ${dateLabel}` : dateLabel;
+                    const isBG = (title || '').toUpperCase().startsWith('BG-') || !!metadata.bgType;
+                    // Hoja de trabajo tipo Sumaria: no lleva Ver/Editar, pero sí aprobaciones, observaciones y eliminar
+                    const isSumaria = doc.tipo === 'hoja-trabajo' && !isBG;
+                    const clickAction = isArchivo ? `openUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
+                    const editAction = isArchivo ? `editUploadedDocument('${doc.id}')` : `editSubdocument(${doc.id})`;
+                    const viewAction = isArchivo ? `downloadUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
+                    const deleteAction = isArchivo ? `deleteUploadedDocument('${doc.id}')` : `deleteSubdocument(${doc.id})`;
+                    const safeTitle = (title || '').replace(/"/g, '&quot;').replace(/'/g, "\\'");
+
+                    const approvalButtons = `<button class="btn-action btn-prepared prepared-btn" data-form-id="${doc.id}" data-approval="prepared-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'prepared-by')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                           <button class="btn-action btn-reviewed reviewed-btn" data-form-id="${doc.id}" data-approval="reviewed-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'reviewed-by')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                           <button class="btn-action btn-partner partner-btn" data-form-id="${doc.id}" data-approval="partner" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'partner')" title="Socio"><i class="bi bi-person-badge"></i></button>`;
+
+                    const observationButton = `<button class="btn-action btn-observations observations-btn" data-form-id="${doc.id}" onclick="showObservations(event, '${doc.id}')" title="Observaciones"><i class="bi bi-flag"></i></button>`;
+
+                    const actionButtons = isBG
+                        ? `${approvalButtons}
+                           <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
+                        : isSumaria
+                            ? `${approvalButtons}
+                               ${observationButton}
+                               <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
+                            : `<button class="btn-action btn-edit" onclick="${editAction}" title="Editar"><i class="bi bi-pencil"></i></button>
+                               <button class="btn-action btn-download" onclick="${viewAction}" title="${isArchivo ? 'Descargar' : 'Ver'}"><i class="bi ${isArchivo ? 'bi-download' : 'bi-eye'}"></i></button>
+                               <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`;
                     html += `
-                        <div class="document-row" data-id="${doc.id}">
-                            <div class="document-row-main" onclick="viewSubdocument(${doc.id})" style="cursor: pointer;">
-                                <i class="bi ${icon}"></i>
-                                <span class="document-title">${doc.titulo}</span>
-                                <span class="document-type">${doc.tipo}</span>
+                        <div class="document-item uploaded-document" data-id="${doc.id}" data-type="${doc.tipo}">
+                            <div class="document-header" onclick="${clickAction}" style="cursor: pointer;">
+                                <div class="document-icon" style="color: ${icon.color || '#0d6efd'};">
+                                    <i class="bi ${icon.class}"></i>
+                                </div>
+                                <div class="document-info">
+                                    <h4 class="document-title">${title}</h4>
+                                    ${isArchivo ? `<p class="document-filename">${fileName}</p>` : ''}
+                                    <p class="document-meta">${meta}</p>
+                                    <p class="document-author">
+                                        <i class="bi bi-person-fill"></i>
+                                        <span>${author}</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div class="document-row-actions">
-                                <button class="btn-edit" onclick="editSubdocument(${doc.id})" title="Editar"><i class="bi bi-pencil"></i></button>
-                                <button class="btn-delete" onclick="deleteSubdocument(${doc.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
+                            <div class="document-actions">
+                                ${actionButtons}
                             </div>
                         </div>`;
                 });
@@ -445,9 +605,15 @@
 
             // Buscar o crear contenedor dinámico dedicado
             let dynamicContainer = container.querySelector('.dynamic-subcategory-content');
+            const isCategoryContainer = container.classList.contains('formularios-lista');
             if (!dynamicContainer) {
                 dynamicContainer = document.createElement('div');
                 dynamicContainer.className = 'dynamic-subcategory-content';
+            }
+            // Mostrar los documentos generales de la categoría al inicio, subcategorías al final
+            if (isCategoryContainer) {
+                container.prepend(dynamicContainer);
+            } else {
                 container.appendChild(dynamicContainer);
             }
 
@@ -476,14 +642,14 @@
         }
 
         // Eliminar subcarpeta
-        async deleteSubfolder(folderId, folderName) {
+        async deleteSubfolder(folderId, folderName, skipConfirm = false) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                // Confirmación
-                if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todo su contenido? Esta acción no se puede deshacer.`)) {
+                // Confirmación (puede omitirse para limpiezas automáticas)
+                if (!skipConfirm && !confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todo su contenido? Esta acción no se puede deshacer.`)) {
                     return;
                 }
 
@@ -534,23 +700,21 @@
         }
 
         // Eliminar subdocumento
-        async deleteSubdocument(documentId, documentTitle) {
+        async deleteSubdocument(documentId, documentTitle, skipConfirm = false) {
             try {
                 if (!this.userId) {
                     throw new Error('Usuario no autenticado');
                 }
 
-                if (!confirm(`¿Estás seguro de que quieres eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
+                if (!skipConfirm && !confirm(`¿Estás seguro de que quieres eliminar el documento "${documentTitle}"? Esta acción no se puede deshacer.`)) {
                     return;
                 }
 
-                const response = await fetch(buildApiUrl('/api/subdocuments/delete'), {
+                const response = await fetch(buildApiUrl(`/api/subdocuments/${documentId}`), {
                     method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
                         'user-id': this.userId
-                    },
-                    body: JSON.stringify({ documentId })
+                    }
                 });
 
                 const result = await parseJsonSafe(response);
@@ -559,7 +723,7 @@
                     throw new Error(result.error || 'Error al eliminar subdocumento');
                 }
 
-                this.cache.delete(`${this.currentCategory}/${this.currentSubcategory}/documents`);
+                this.clearDocumentCache(this.currentCategory, this.currentSubcategory);
                 
                 console.log('✅ Subdocumento eliminado:', documentTitle);
                 
@@ -567,7 +731,7 @@
                     detail: { documentId, documentTitle }
                 }));
 
-                const documentElement = document.querySelector(`.document-row[data-id="${documentId}"]`);
+                const documentElement = document.querySelector(`.document-item[data-id="${documentId}"]`);
                 if (documentElement) {
                     documentElement.remove();
                     console.log('🗑️ Elemento de documento eliminado del DOM');
@@ -651,7 +815,7 @@
                 console.log('📍 Usando categoría/subcategoría:', { targetCategory, targetSubcategory });
                 
                 // Limpiar cache
-                this.cache.delete(`${targetCategory}/${targetSubcategory}/documents`);
+                this.clearDocumentCache(targetCategory, targetSubcategory);
                 
                 console.log('✅ Subdocumento actualizado:', titulo);
                 
@@ -706,22 +870,53 @@
     window.viewSubdocument = async (docId) => {
         try {
             console.log('👁️ Iniciando vista de documento:', docId);
-            
-            // Obtener datos del documento
+
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
-            
-            // Si es una hoja de trabajo, redirigir a la página especializada
+
             if (docData.tipo === 'hoja-trabajo') {
-                console.log('🔄 Redirigiendo a página de hojas de trabajo...');
-                window.location.href = 'hojas-trabajo.html';
+                const docTitle = (docData.titulo || '').toUpperCase();
+                const titleBgType = docTitle.startsWith('BG-1') ? 'activo' : docTitle.startsWith('BG-2') ? 'pasivo' : docTitle.startsWith('BG-3') ? 'resultados' : null;
+                const bgType = docData.metadata?.bgType || titleBgType;
+                const resolvedEntityId = docData.entity_id ||
+                                       window.commitmentDropdownState?.currentEntityId ||
+                                       (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().entityId : null) ||
+                                       document.getElementById('entidad')?.value ||
+                                       '';
+                const resolvedCommitmentId = docData.commitment_id ||
+                                          window.commitmentDropdownState?.selectedCommitmentId ||
+                                          (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
+                                          '';
+
+                try {
+                    const payload = {
+                        id: docData.id,
+                        titulo: docData.titulo,
+                        tipo: docData.tipo,
+                        categoria: docData.categoria,
+                        subcategoria: docData.subcategoria,
+                        entityId: resolvedEntityId,
+                        commitmentId: resolvedCommitmentId,
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
+                    };
+                    localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                } catch (storageError) {
+                    console.warn('No se pudo guardar currentWorksheetDocument en localStorage:', storageError);
+                }
+
+                // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
+                if (bgType) {
+                    console.log('🔄 Redirigiendo a página de BG...');
+                    window.location.href = 'hojas-trabajo.html';
+                } else {
+                    console.log('🔄 Redirigiendo a página de Sumarias...');
+                    window.location.href = 'sumarias.html';
+                }
                 return;
             }
-            
-            // Para otros tipos de documentos, aquí podrías implementar la lógica de visualización
+
             console.log('📄 Visualizando documento de tipo:', docData.tipo);
-            // TODO: Implementar visualización para otros tipos de documentos
-            
+
         } catch (error) {
             console.error('❌ Error al ver documento:', error);
             console.error('📍 Stack trace:', error.stack);
@@ -732,19 +927,51 @@
     window.editSubdocument = async (docId) => {
         try {
             console.log('🔧 Iniciando edición de documento:', docId);
-            
-            // Obtener datos del documento
+
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
-            
-            // Si es una hoja de trabajo, redirigir a la página especializada
+
             if (docData.tipo === 'hoja-trabajo') {
-                console.log('🔄 Redirigiendo a página de hojas de trabajo para editar...');
-                window.location.href = 'hojas-trabajo.html';
+                const docTitle = (docData.titulo || '').toUpperCase();
+                const titleBgType = docTitle.startsWith('BG-1') ? 'activo' : docTitle.startsWith('BG-2') ? 'pasivo' : docTitle.startsWith('BG-3') ? 'resultados' : null;
+                const bgType = docData.metadata?.bgType || titleBgType;
+                const resolvedEntityId = docData.entity_id ||
+                                       window.commitmentDropdownState?.currentEntityId ||
+                                       (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().entityId : null) ||
+                                       document.getElementById('entidad')?.value ||
+                                       '';
+                const resolvedCommitmentId = docData.commitment_id ||
+                                          window.commitmentDropdownState?.selectedCommitmentId ||
+                                          (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
+                                          '';
+
+                try {
+                    const payload = {
+                        id: docData.id,
+                        titulo: docData.titulo,
+                        tipo: docData.tipo,
+                        categoria: docData.categoria,
+                        subcategoria: docData.subcategoria,
+                        entityId: resolvedEntityId,
+                        commitmentId: resolvedCommitmentId,
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
+                    };
+                    localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+                } catch (storageError) {
+                    console.warn('No se pudo guardar currentWorksheetDocument en localStorage (edición):', storageError);
+                }
+
+                // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
+                if (bgType) {
+                    console.log('🔄 Redirigiendo a página de BG para editar...');
+                    window.location.href = 'hojas-trabajo.html';
+                } else {
+                    console.log('🔄 Redirigiendo a página de Sumarias para editar...');
+                    window.location.href = 'sumarias.html';
+                }
                 return;
             }
             
-            // Abrir modal con los datos del documento
             openEditDocumentModal(docData);
             
         } catch (error) {
@@ -904,5 +1131,208 @@
         const { categoria, subcategoria } = event.detail;
         window.subcategoriasManager.updateUI(categoria, subcategoria);
     });
+
+    // Sistema de aprobaciones para documentos BG (mismos modales que los formularios)
+    const APPROVAL_CONFIG = {
+        'prepared-by': {
+            modalClass: 'prepared-modal',
+            contentClass: 'prepared-content',
+            headerClass: 'prepared-header',
+            bodyClass: 'prepared-body',
+            infoClass: 'prepared-info',
+            actionsClass: 'prepared-actions',
+            icon: 'bi-person-plus',
+            label: 'Preparado por',
+            role: 'Preparador'
+        },
+        'reviewed-by': {
+            modalClass: 'reviewed-modal',
+            contentClass: 'reviewed-content',
+            headerClass: 'reviewed-header',
+            bodyClass: 'reviewed-body',
+            infoClass: 'reviewed-info',
+            actionsClass: 'reviewed-actions',
+            icon: 'bi-person-check',
+            label: 'Revisado por',
+            role: 'Revisor'
+        },
+        'partner': {
+            modalClass: 'partner-modal',
+            contentClass: 'partner-content',
+            headerClass: 'partner-header',
+            bodyClass: 'partner-body',
+            infoClass: 'partner-info',
+            actionsClass: 'partner-actions',
+            icon: 'bi-person-badge',
+            label: 'Socio',
+            role: 'Socio'
+        }
+    };
+
+    function getCurrentApprovalUser() {
+        const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null) || {};
+        return {
+            name: currentUser.name || currentUser.nombre || currentUser.full_name || currentUser.email || 'Usuario',
+            position: currentUser.position || currentUser.role || currentUser.rol || 'Usuario',
+            id: currentUser.id || currentUser.user_id || currentUser.userId || null
+        };
+    }
+
+    function closeDocApprovalModal(section) {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        const modal = document.querySelector(`.${config.modalClass}`);
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) modal.parentNode.removeChild(modal);
+            }, 300);
+        }
+    }
+    window.closeDocApprovalModal = closeDocApprovalModal;
+
+    window.approveDocApproval = async (docId, section) => {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        try {
+            const user = getCurrentApprovalUser();
+            await window.saveApprovalForSection(String(docId), section, 'approved', {
+                user_name: user.name,
+                role: config.role,
+                view_all: true
+            });
+            const saved = await window.getFormApprovalsForSection(String(docId), section);
+            if (typeof showNotification === 'function') showNotification(`${config.label} registrado${saved ? ' por ' + saved.usuario : ''}`, 'success');
+            await window.updateBgApprovalButtonUI(docId, section);
+            closeDocApprovalModal(section);
+        } catch (error) {
+            console.error('❌ Error aprobando documento:', error);
+            if (typeof showNotification === 'function') showNotification('Error: ' + error.message, 'error');
+        }
+    };
+
+    window.resetDocApproval = async (docId, section) => {
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+        try {
+            await window.removeApprovalForSection(String(docId), section, true);
+            if (typeof showNotification === 'function') showNotification(`${config.label} eliminado`, 'info');
+            await window.updateBgApprovalButtonUI(docId, section);
+            closeDocApprovalModal(section);
+        } catch (error) {
+            console.error('❌ Error eliminando aprobación:', error);
+            if (typeof showNotification === 'function') showNotification('Error: ' + error.message, 'error');
+        }
+    };
+
+    window.showDocApproval = async (event, docId, title, section) => {
+        if (event) event.stopPropagation();
+        const config = APPROVAL_CONFIG[section];
+        if (!config) return;
+
+        try {
+            const aprobacion = await window.getFormApprovalsForSection(String(docId), section, true);
+            const user = getCurrentApprovalUser();
+            const modal = document.createElement('div');
+            modal.className = config.modalClass;
+
+            if (aprobacion) {
+                const dateTime = new Date(aprobacion.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const isApprover = user.name === aprobacion.usuario;
+                const resetButton = isApprover
+                    ? `<button class="btn btn-warning" onclick="resetDocApproval('${docId}', '${section}')">Eliminar mi aprobación</button>`
+                    : `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
+
+                modal.innerHTML = `
+                    <div class="${config.contentClass}">
+                        <div class="${config.headerClass}">
+                            <h4><i class="bi ${config.icon}"></i> ${config.label} - ${title || docId}</h4>
+                            <button class="close-btn" onclick="closeDocApprovalModal('${section}')">&times;</button>
+                        </div>
+                        <div class="${config.bodyClass}">
+                            <div class="${config.infoClass}">
+                                <div class="info-row">
+                                    <i class="bi bi-person-fill"></i>
+                                    <div class="info-content"><strong>Nombre:</strong> ${aprobacion.usuario}</div>
+                                </div>
+                                <div class="info-row">
+                                    <i class="bi bi-calendar-fill"></i>
+                                    <div class="info-content"><strong>Fecha:</strong> ${formattedDate}</div>
+                                </div>
+                                <div class="info-row">
+                                    <i class="bi bi-clock-fill"></i>
+                                    <div class="info-content"><strong>Hora:</strong> ${formattedTime}</div>
+                                </div>
+                            </div>
+                            <div class="${config.actionsClass}">
+                                <button class="btn btn-secondary" onclick="closeDocApprovalModal('${section}')">Cerrar</button>
+                                ${resetButton}
+                            </div>
+                        </div>
+                    </div>`;
+            } else {
+                modal.innerHTML = `
+                    <div class="${config.contentClass}">
+                        <div class="${config.headerClass}">
+                            <h4><i class="bi ${config.icon}"></i> Añadir aprobación - ${title || docId}</h4>
+                            <button class="close-btn" onclick="closeDocApprovalModal('${section}')">&times;</button>
+                        </div>
+                        <div class="${config.bodyClass}">
+                            <div class="approval-form">
+                                <p class="approval-text">¿Desea aprobar este documento como "${config.label}"?</p>
+                                <div class="approval-user-info">
+                                    <div class="info-row">
+                                        <i class="bi bi-person-fill"></i>
+                                        <div class="info-content"><strong>Usted está identificado como:</strong> ${user.name}</div>
+                                    </div>
+                                    <div class="info-row">
+                                        <i class="bi bi-briefcase-fill"></i>
+                                        <div class="info-content"><strong>Posición:</strong> ${user.position}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="${config.actionsClass}">
+                                <button class="btn btn-secondary" onclick="closeDocApprovalModal('${section}')">Cancelar</button>
+                                <button class="btn btn-primary" onclick="approveDocApproval('${docId}', '${section}')">Aprobar</button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            document.body.appendChild(modal);
+            setTimeout(() => modal.classList.add('show'), 10);
+        } catch (error) {
+            console.error('❌ Error mostrando aprobación de documento:', error);
+        }
+    };
+
+    window.updateBgApprovalButtonUI = async (docId, section) => {
+        const btn = document.querySelector(`.document-actions button[data-form-id="${docId}"][data-approval="${section}"]`);
+        if (!btn) return;
+        const config = APPROVAL_CONFIG[section];
+        const label = config ? config.label : section;
+        try {
+            const approval = await window.getFormApprovalsForSection(String(docId), section, true);
+            if (approval) {
+                btn.classList.add('approved');
+                btn.title = `${label}: ${approval.usuario} (${approval.fecha})`;
+            } else {
+                btn.classList.remove('approved');
+                btn.title = label;
+            }
+        } catch (error) {
+            console.error('Error actualizando botón de aprobación:', error);
+        }
+    };
+
+    window.updateBgApprovalButtons = async (container) => {
+        if (!container) return;
+        const btns = container.querySelectorAll('.document-actions button[data-form-id][data-approval]');
+        for (const btn of btns) {
+            await window.updateBgApprovalButtonUI(btn.dataset.formId, btn.dataset.approval);
+        }
+    };
 
 })();

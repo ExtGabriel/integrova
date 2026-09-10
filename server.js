@@ -1262,16 +1262,41 @@ app.put('/api/commitments/:id', async (req, res) => {
 app.delete('/api/commitments/:id', async (req, res) => {
     const id = req.params.id;
     try {
+        // Primero eliminar respuestas de formulario asociadas (cascade delete manual)
+        console.log('🗑️ Eliminando respuestas de formulario asociadas al compromiso:', id);
+        const { error: formResponsesError } = await supabase
+            .from('form_responses')
+            .delete()
+            .eq('commitment_id', id);
+
+        if (formResponsesError) {
+            console.error('Error eliminando form_responses:', formResponsesError);
+            return res.status(500).json({ success: false, error: 'Error eliminando respuestas de formulario: ' + formResponsesError.message, details: formResponsesError });
+        }
+
+        console.log('✅ Respuestas de formulario eliminadas, eliminando compromiso...');
+
+        // Ahora eliminar el compromiso
         const { data, error } = await supabase
             .from('commitments')
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error deleting commitment:', error);
+            return res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', details: error });
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('Delete commitment: no rows affected', { id });
+            return res.status(404).json({ success: false, error: 'No se encontró el compromiso a eliminar.' });
+        }
+
+        console.log('✅ Compromiso eliminado exitosamente');
         res.json({ success: true, data: { message: 'Commitment deleted' } });
     } catch (error) {
-        console.error('Error deleting commitment:', error);
-        res.status(500).json({ success: false, error: 'Failed to delete commitment' });
+        console.error('Error deleting commitment (unexpected):', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', stack: error.stack });
     }
 });
 
@@ -2804,48 +2829,109 @@ app.post('/api/ai/generate-report', async (req, res) => {
 app.get('/api/excel/latest', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
         
-        const { data, error } = await supabase
+        console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/latest:');
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+        console.log('  req.headers:', Object.keys(req.headers));
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        let query = supabase
             .from('conjuntos_datos')
             .select('*')
-            .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true)
+            .eq('is_active', true);
+        
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo dataset por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+        
+        // Verificar query SQL generado
+        console.log('🔍 Executing query for conjuntos_datos...');
+        
+        const { data, error } = await query
             .order('fecha_importacion', { ascending: false })
             .limit(1);
+        
+        console.log('🔍 Query result:', { 
+            dataCount: data?.length || 0, 
+            error: error?.message,
+            errorDetails: error,
+            firstRecord: data?.[0] ? {
+                id: data[0].id,
+                nombre: data[0].nombre,
+                entity_id: data[0].entity_id,
+                commitment_id: data[0].commitment_id,
+                hasSheets: !!data[0].data?.sheets
+            } : null
+        });
 
         if (error) {
-            console.error('Error al obtener el último conjunto de datos:', error);
+            console.error('❌ Error al obtener el último conjunto de datos:', error);
+            console.error('❌ Error details:', JSON.stringify(error, null, 2));
             return res.status(500).json({ success: false, error: error.message });
         }
 
         if (data && data.length > 0) {
             const conjunto = data[0];
             
+            console.log('✅ Conjunto encontrado, procesando datos...');
+            
             // Convertir al formato que espera el frontend
             const responseData = {
                 id: conjunto.id,
                 filename: conjunto.nombre,
                 status: 'processed',
-                sheets_data: conjunto.data?.sheets?.map(sheet => ({
-                    name: sheet.sheetName,
-                    data: sheet.data,
-                    rows: sheet.rows,
-                    columns: sheet.columns
-                })) || [],
+                sheets_data: conjunto.data?.sheets?.map(sheet => {
+                    // Combinar encabezados con datos para facilitar extracción de años
+                    const allData = [sheet.columns || [], ...sheet.data];
+                    return {
+                        name: sheet.sheetName,
+                        data: allData, // Incluir encabezados como primera fila
+                        rows: sheet.rows,
+                        columns: sheet.columns
+                    };
+                }) || [],
                 uploadedAt: conjunto.created_at,
                 totalSheets: conjunto.data?.totalSheets || 0
             };
+            
+            console.log('✅ Datos procesados exitosamente, sheets_count:', responseData.sheets_data.length);
             
             res.json({
                 success: true,
                 data: responseData
             });
         } else {
-            res.status(404).json({ success: false, message: 'No se encontraron conjuntos de datos.' });
+            console.log('⚠️ No se encontraron conjuntos de datos para el usuario:', userId);
+            // Devolver 200 con datos vacíos en lugar de 404 para mejor manejo en el frontend
+            res.json({
+                success: true,
+                data: {
+                    id: null,
+                    filename: null,
+                    status: 'empty',
+                    sheets_data: [],
+                    uploadedAt: null,
+                    totalSheets: 0,
+                    message: 'No se encontraron conjuntos de datos para esta entidad y compromiso.'
+                }
+            });
         }
     } catch (error) {
-        console.error('Error en /api/excel/latest:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor.' });
+        console.error('❌❌❌ Error en /api/excel/latest:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({ success: false, error: 'Error interno del servidor.', details: error.message });
     }
 });
 
@@ -2853,9 +2939,9 @@ app.get('/api/excel/latest', async (req, res) => {
 app.post('/api/excel/save-temp-data', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { files, mappings } = req.body;
+        const { files, mappings, entity_id, commitment_id } = req.body;
         
-        console.log('💾 Save temp data request - User ID:', userId);
+        console.log('💾 Save temp data request - User ID:', userId, 'Entity ID:', entity_id, 'Commitment ID:', commitment_id);
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -2865,11 +2951,20 @@ app.post('/api/excel/save-temp-data', async (req, res) => {
             return res.status(400).json({ success: false, error: 'No hay archivos para guardar' });
         }
 
-        // Desactivar datasets anteriores del usuario
-        const { error: deactivateError } = await supabase
+        // Desactivar datasets anteriores según entidad/compromiso (compartidos) o por usuario (fallback)
+        let deactivateQuery = supabase
             .from('conjuntos_datos')
-            .update({ is_active: false })
-            .eq('user_id', userId);
+            .update({ is_active: false });
+
+        if (entity_id && commitment_id) {
+            console.log('🔍 Desactivando datasets previos para entity_id:', entity_id, 'commitment_id:', commitment_id);
+            deactivateQuery = deactivateQuery.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, desactivando por usuario:', userId);
+            deactivateQuery = deactivateQuery.eq('user_id', userId);
+        }
+
+        const { error: deactivateError } = await deactivateQuery;
 
         if (deactivateError) {
             console.error('Error desactivando datasets anteriores:', deactivateError);
@@ -2879,28 +2974,39 @@ app.post('/api/excel/save-temp-data', async (req, res) => {
 
         for (const file of files) {
             try {
-                console.log('💾 Guardando archivo:', file.filename);
+                console.log('💾 Guardando archivo:', file.filename, 'con contexto:', { entity_id, commitment_id });
                 
+                // Preparar datos del dataset con contexto
+                const datasetData = {
+                    nombre: file.filename,
+                    tipo: 'balance_comprobacion',
+                    fecha_importacion: new Date().toISOString(),
+                    total_debitos: 0, // Se calculará después del mapeo
+                    total_creditos: 0, // Se calculará después del mapeo
+                    estado: 'subido',
+                    user_id: userId,
+                    archivo_original: file.filename,
+                    is_active: true,
+                    data: {
+                        sheets: file.sheets,
+                        totalSheets: file.totalSheets,
+                        totalRows: file.totalRows,
+                        filename: file.filename
+                    }
+                };
+
+                // Agregar entity_id y commitment_id si están disponibles
+                if (entity_id) {
+                    datasetData.entity_id = entity_id;
+                }
+                if (commitment_id) {
+                    datasetData.commitment_id = commitment_id;
+                }
+
                 // Guardar directamente en la base de datos
                 const { data: dataset, error: datasetError } = await supabase
                     .from('conjuntos_datos')
-                    .insert([{
-                        nombre: file.filename,
-                        tipo: 'balance_comprobacion',
-                        fecha_importacion: new Date().toISOString(),
-                        total_debitos: 0, // Se calculará después del mapeo
-                        total_creditos: 0, // Se calculará después del mapeo
-                        estado: 'subido',
-                        user_id: userId,
-                        archivo_original: file.filename,
-                        is_active: true,
-                        data: {
-                            sheets: file.sheets,
-                            totalSheets: file.totalSheets,
-                            totalRows: file.totalRows,
-                            filename: file.filename
-                        }
-                    }])
+                    .insert([datasetData])
                     .select()
                     .single();
 
@@ -2958,7 +3064,6 @@ app.post('/api/excel/process-mapping', async (req, res) => {
             .from('conjuntos_datos')
             .select('*')
             .eq('id', fileId)
-            .eq('user_id', userId) // <- Verificar que pertenezca al usuario
             .single();
 
         if (conjuntoError) {
@@ -2995,6 +3100,15 @@ app.post('/api/excel/process-mapping', async (req, res) => {
                 debito_anterior: account.previousYearDebit || 0,
                 credito_anterior: account.previousYearCredit || 0,
                 clasificado: false,
+                entity_id: conjunto.entity_id || null,
+                commitment_id: conjunto.commitment_id || null,
+                meta: {
+                    ...(account.meta || {}),
+                    ls: account.ls ? account.ls.toString().trim() : '',
+                    // Guardar los valores originales del Excel para usarlos luego
+                    currentYearOriginal: account.currentYearOriginal,
+                    previousYearOriginal: account.previousYearOriginal
+                },
                 created_at: new Date().toISOString()
             }));
 
@@ -3399,6 +3513,57 @@ function mapColumns(headers) {
     return mapping;
 }
 
+function parseAccountMeta(meta) {
+    if (!meta) return {};
+    if (typeof meta === 'object') return meta;
+
+    if (typeof meta === 'string') {
+        try {
+            const parsed = JSON.parse(meta);
+            if (parsed && typeof parsed === 'object') {
+                return parsed;
+            }
+        } catch (error) {
+            console.warn('⚠️ No se pudo parsear meta JSON:', error?.message);
+        }
+    }
+
+    return {};
+}
+
+function extractLSValue(account = {}) {
+    if (!account) return '';
+
+    const candidates = [account.ls, account.ls_value, account.grupo_ls, account.grupo, account.LS];
+    for (const candidate of candidates) {
+        if (candidate != null && candidate !== '') {
+            const value = candidate.toString().trim();
+            if (value) return value;
+        }
+    }
+
+    // Revisar meta JSON (puede venir como objeto o string)
+    const meta = account.meta;
+    if (meta) {
+        if (typeof meta === 'string') {
+            try {
+                const parsed = JSON.parse(meta);
+                if (parsed && parsed.ls) {
+                    const value = parsed.ls.toString().trim();
+                    if (value) return value;
+                }
+            } catch (err) {
+                console.warn('⚠️ No se pudo parsear meta.ls como JSON:', err?.message);
+            }
+        } else if (typeof meta === 'object' && meta.ls) {
+            const value = meta.ls.toString().trim();
+            if (value) return value;
+        }
+    }
+
+    return '';
+}
+
 // Detectar mapeo de columnas para el endpoint de cuentas no asignadas
 function detectColumnMapping(headers) {
     const mapping = {
@@ -3407,7 +3572,8 @@ function detectColumnMapping(headers) {
         currentYear: -1,
         previousYear: -1,
         debit: -1,
-        credit: -1
+        credit: -1,
+        ls: -1
     };
 
     const numericHeaderIndexes = [];
@@ -3422,14 +3588,16 @@ function detectColumnMapping(headers) {
             numericHeaderIndexes.push(index);
         }
 
-        // Número de cuenta
-        if (h.includes('numero') || h.includes('número') || h.includes('num') || h.includes('no.') || h === 'account number') {
+        // Número de cuenta (detección exacta primero)
+        if (rawHeader === 'Numero' || rawHeader === 'numero' || h.includes('numero') || h.includes('número') || h.includes('num') || h.includes('no.') || h === 'account number' || 
+            h.includes('código') || h.includes('codigo') || h.includes('code') || h.includes('id') || h.includes('ref')) {
             mapping.accountNumber = index;
             return;
         }
 
-        // Nombre de cuenta
-        if (h.includes('nombre') || h.includes('descripción') || h.includes('descripcion') || h === 'account name' || h.includes('name')) {
+        // Nombre de cuenta (detección exacta primero)
+        if (rawHeader === 'Cuenta' || rawHeader === 'cuenta' || h.includes('nombre') || h.includes('descripción') || h.includes('descripcion') || h === 'account name' || h.includes('name') ||
+            h.includes('concept') || h.includes('rubro') || h.includes('concepto')) {
             mapping.accountName = index;
             return;
         }
@@ -3467,6 +3635,22 @@ function detectColumnMapping(headers) {
         // Créditos
         if (h.includes('crédito') || h.includes('haber') || h.includes('credit')) {
             mapping.credit = index;
+            return;
+        }
+
+        // LS (Grupo) - detección exacta primero
+        if (rawHeader === 'LS' || rawHeader === 'ls' || /(\b|\s)ls(\b|\s|\()/i.test(rawHeader) || h.includes('grupo ls') || h.includes('ls (grupo') ||
+            h.includes('grupo') || h.includes('clasificación') || h.includes('clasificacion') || h.includes('categoria') ||
+            h.includes('categoría') || h.includes('tipo') || h === 'l.s.' || h === 'l.s') {
+            mapping.ls = index;
+            return;
+        }
+        
+        // Si no se encuentra LS explícitamente, asumir que la primera columna es LS
+        // (ya que el usuario indica que LS es la primera columna con números como 130, 140)
+        if (mapping.ls < 0 && index === 0) {
+            mapping.ls = 0;
+            return;
         }
     });
 
@@ -3488,6 +3672,38 @@ function detectColumnMapping(headers) {
 
     if (mapping.credit < 0 && mapping.previousYear >= 0) {
         mapping.credit = mapping.previousYear;
+    }
+
+    // Fallback extra: cuando la primera columna es LS y no se detectaron
+    // correctamente número de cuenta / nombre / columnas de año, asumir
+    // estructura típica: [LS, Numero, Cuenta, Año actual, Año anterior]
+    if (Array.isArray(headers) && headers.length >= 3) {
+        const hasLsInFirstColumn = mapping.ls === 0;
+
+        if (hasLsInFirstColumn && mapping.accountNumber < 0) {
+            mapping.accountNumber = 1; // Columna "Numero"
+        }
+
+        if (mapping.accountName < 0 && mapping.accountNumber >= 0) {
+            const nameIndex = mapping.accountNumber + 1;
+            if (nameIndex < headers.length) {
+                mapping.accountName = nameIndex; // Columna "Cuenta"
+            }
+        }
+
+        // Si aún no se detectaron columnas de año, usar las que siguen al nombre
+        const baseIndex = mapping.accountName >= 0 ? mapping.accountName + 1 : 3;
+        if (mapping.currentYear < 0 && baseIndex < headers.length) {
+            mapping.currentYear = baseIndex;
+            mapping.debit = mapping.debit < 0 ? baseIndex : mapping.debit;
+        }
+
+        if (mapping.previousYear < 0 && baseIndex + 1 < headers.length) {
+            mapping.previousYear = baseIndex + 1;
+            if (mapping.credit < 0) {
+                mapping.credit = mapping.previousYear;
+            }
+        }
     }
 
     console.log('📍 Mapeo detectado:', mapping);
@@ -3528,6 +3744,27 @@ function extractValue(row, colIndex) {
         return isNaN(value) ? 0 : value;
     }
     return 0;
+}
+
+// Extraer valor LS desde una fila de Excel como texto (para códigos como "130", "140")
+function extractLSValueFromRow(row, colIndex) {
+    if (colIndex >= 0 && row[colIndex]) {
+        let value = row[colIndex];
+        
+        // Si es un número, convertirlo a texto
+        if (typeof value === 'number') {
+            value = value.toString();
+        }
+        
+        // Limpiar espacios y caracteres extraños
+        value = value.toString().trim();
+        
+        // Eliminar caracteres no numéricos excepto puntos
+        value = value.replace(/[^\d.]/g, '');
+        
+        return value;
+    }
+    return '';
 }
 
 // Detectar tipo de archivo
@@ -3740,6 +3977,8 @@ app.post('/api/excel/save-accounts', async (req, res) => {
             debito_anterior: account.previousYearDebit,
             credito_anterior: account.previousYearCredit,
             saldo: account.currentYearDebit - account.currentYearCredit,
+            entity_id: dataset.entity_id || null,
+            commitment_id: dataset.commitment_id || null,
             fecha_creacion: new Date().toISOString()
         }));
 
@@ -3867,9 +4106,21 @@ function generateFinancialStatements(accounts, classifications) {
 app.get('/api/excel/datasets', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
+        
+        console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/datasets:');
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
         
         // Primero obtener los conjuntos de datos
-        const { data: datasets, error: datasetsError } = await supabase
+        console.log('🔍 Consultando conjuntos_datos...');
+        let query = supabase
             .from('conjuntos_datos')
             .select(`
                 *,
@@ -3881,12 +4132,26 @@ app.get('/api/excel/datasets', async (req, res) => {
                     grupo_financiero
                 )
             `)
-            .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true)
+            .eq('is_active', true);
+
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo datasets por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+
+        const { data: datasets, error: datasetsError } = await query
             .order('fecha_importacion', { ascending: false })
             .limit(1);
 
-        if (datasetsError) throw datasetsError;
+        if (datasetsError) {
+            console.error('❌ Error consultando conjuntos_datos:', datasetsError);
+            console.error('❌ Error details:', JSON.stringify(datasetsError, null, 2));
+            throw datasetsError;
+        }
 
         console.log('📊 Datasets obtenidos:', datasets?.length || 0);
         if (datasets && datasets.length > 0) {
@@ -4076,15 +4341,15 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
             // Continuar aunque falle la eliminación de ajustes
         }
         
-        // 5. Eliminar grupos financieros relacionados
-        const { error: groupsError } = await supabase
-            .from('financial_groups')
+        // 5. Eliminar grupos financieros relacionados (snapshots y sus filas)
+        const { error: snapshotsError } = await supabase
+            .from('financial_group_snapshots')
             .delete()
             .eq('dataset_id', datasetId);
             
-        if (groupsError) {
-            console.error('Error eliminando grupos financieros:', groupsError);
-            // Continuar aunque falle la eliminación de grupos
+        if (snapshotsError) {
+            console.error('Error eliminando snapshots de grupos financieros:', snapshotsError);
+            // Continuar aunque falle la eliminación de snapshots
         }
         
         // 6. Eliminar validaciones de ledger relacionadas
@@ -4111,6 +4376,13 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
         
         console.log(`✅ Dataset ${datasetId} eliminado completamente`);
         
+        // Limpiar cache de cuentas en memoria para este usuario
+        const cacheKey = `accounts_${userId}`;
+        if (accountsCache.has(cacheKey)) {
+            accountsCache.delete(cacheKey);
+            console.log(`🗑️ Cache de cuentas eliminado al borrar dataset para usuario: ${userId}`);
+        }
+        
         res.json({ 
             success: true, 
             message: 'Dataset eliminado exitosamente',
@@ -4135,8 +4407,10 @@ app.post('/api/excel/process-temp', upload.array('files', 5), async (req, res) =
     try {
         const files = req.files || [];
         const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.headers['entity-id'];
+        const commitmentId = req.headers['commitment-id'];
         
-        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId);
+        console.log('📡 Temp process request - Files:', files.length, 'User ID:', userId, 'Entity ID:', entityId, 'Commitment ID:', commitmentId);
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
@@ -4239,8 +4513,10 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
     try {
         const files = req.files || [];
         const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.body.entity_id || req.headers['entity-id'];
+        const commitmentId = req.body.commitment_id || req.headers['commitment-id'];
         
-        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId);
+        console.log('📡 Upload request - Files:', files.length, 'User ID:', userId, 'Entity ID:', entityId, 'Commitment ID:', commitmentId);
         
         if (files.length === 0) {
             return res.status(400).json({ success: false, error: 'No se subieron archivos' });
@@ -4253,16 +4529,23 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
 
         const processedFiles = [];
 
-        // Desactivar datasets anteriores del usuario
-        if (userId) {
-            const { error: deactivateError } = await supabase
-                .from('conjuntos_datos')
-                .update({ is_active: false })
-                .eq('user_id', userId);
+        // Desactivar datasets anteriores según entidad/compromiso (compartidos) o por usuario (fallback)
+        let deactivateQuery = supabase
+            .from('conjuntos_datos')
+            .update({ is_active: false });
 
-            if (deactivateError) {
-                console.error('Error desactivando datasets anteriores:', deactivateError);
-            }
+        if (entityId && commitmentId) {
+            console.log('🔍 Desactivando datasets previos para entity_id:', entityId, 'commitment_id:', commitmentId);
+            deactivateQuery = deactivateQuery.eq('entity_id', entityId).eq('commitment_id', commitmentId);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, desactivando datasets por usuario:', userId);
+            deactivateQuery = deactivateQuery.eq('user_id', userId);
+        }
+
+        const { error: deactivateError } = await deactivateQuery;
+
+        if (deactivateError) {
+            console.error('Error desactivando datasets anteriores:', deactivateError);
         }
 
         for (const file of files) {
@@ -4302,26 +4585,36 @@ app.post('/api/excel/upload', upload.array('files', 5), async (req, res) => {
                     }
                 }
 
-                // Guardar directamente en la base de datos
+                // Guardar directamente en la base de datos con contexto de entidad/compromiso
+                const datasetData = {
+                    nombre: file.originalname,
+                    tipo: 'balance_comprobacion',
+                    fecha_importacion: new Date().toISOString(),
+                    total_debitos: 0, // Se calculará después del mapeo
+                    total_creditos: 0, // Se calculará después del mapeo
+                    estado: 'subido',
+                    user_id: userId,
+                    archivo_original: file.originalname,
+                    is_active: true,
+                    data: {
+                        sheets: sheetsData,
+                        totalSheets: sheetsData.length,
+                        totalRows: totalRows,
+                        filename: file.originalname
+                    }
+                };
+
+                // Agregar entity_id y commitment_id si están disponibles
+                if (entityId) {
+                    datasetData.entity_id = entityId;
+                }
+                if (commitmentId) {
+                    datasetData.commitment_id = commitmentId;
+                }
+
                 const { data: dataset, error: datasetError } = await supabase
                     .from('conjuntos_datos')
-                    .insert([{
-                        nombre: file.originalname,
-                        tipo: 'balance_comprobacion',
-                        fecha_importacion: new Date().toISOString(),
-                        total_debitos: 0, // Se calculará después del mapeo
-                        total_creditos: 0, // Se calculará después del mapeo
-                        estado: 'subido',
-                        user_id: userId,
-                        archivo_original: file.originalname,
-                        is_active: true,
-                        data: {
-                            sheets: sheetsData,
-                            totalSheets: sheetsData.length,
-                            totalRows: totalRows,
-                            filename: file.originalname
-                        }
-                    }])
+                    .insert([datasetData])
                     .select()
                     .single();
 
@@ -4388,17 +4681,32 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         
         console.log('📋 Filas totales:', sheetData.length);
         
-        // Convertir mapeo de strings a números
+        const headers = sheetData[0] || [];
+        const detectedMapping = detectColumnMapping(headers) || {};
+
+        const parseIndex = (value) => {
+            const num = parseInt(value, 10);
+            return Number.isFinite(num) && num >= 0 ? num : -1;
+        };
+
+        // Convertir mapeo de strings a números con fallback a detección automática
         const mapping = {
-            accountNumber: parseInt(mappingData.accountNumber) || 0,
-            accountName: parseInt(mappingData.accountName) || 1,
-            currentYear: parseInt(mappingData.currentYear) || 2,
-            previousYear: parseInt(mappingData.previousYear) || 3,
+            accountNumber: parseIndex(mappingData.accountNumber),
+            accountName: parseIndex(mappingData.accountName),
+            currentYear: parseIndex(mappingData.currentYear),
+            previousYear: parseIndex(mappingData.previousYear),
+            ls: parseIndex(mappingData.ls),
             currentYearDC: mappingData.currentYearDebitCredit || 'credit',
             previousYearDC: mappingData.previousYearDebitCredit || 'credit'
         };
+
+        if (mapping.accountNumber < 0) mapping.accountNumber = detectedMapping.accountNumber ?? 0;
+        if (mapping.accountName < 0) mapping.accountName = detectedMapping.accountName ?? 1;
+        if (mapping.currentYear < 0) mapping.currentYear = detectedMapping.currentYear ?? 2;
+        if (mapping.previousYear < 0) mapping.previousYear = detectedMapping.previousYear ?? 3;
+        if (mapping.ls < 0) mapping.ls = detectedMapping.ls ?? 0; // Por defecto, primera columna como LS
         
-        console.log('🗂️ Mapeo de columnas:', mapping);
+        console.log('🗂️ Mapeo de columnas (con fallback):', mapping);
         
         // Determinar si la primera fila es encabezado o datos reales
         const toCleanString = (value) => {
@@ -4419,6 +4727,11 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
         // Extraer cuentas (solo omitir la primera fila cuando realmente es encabezado)
         const accounts = [];
         const dataRows = shouldSkipFirstRow ? sheetData.slice(1) : sheetData;
+
+        if (dataRows.length) {
+            const sampleLs = extractLSValueFromRow(dataRows[0], mapping.ls);
+            console.log('🔍 Primer LS detectado en dataRows[0]:', sampleLs);
+        }
         
         dataRows.forEach((row, index) => {
             // Validar que la fila tenga datos suficientes
@@ -4430,6 +4743,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             const accountName = row[mapping.accountName];
             const currentYearValue = row[mapping.currentYear] || 0;
             const previousYearValue = row[mapping.previousYear] || 0;
+            const lsValue = extractLSValueFromRow(row, mapping.ls);
             
             // Validar que tenga número de cuenta y nombre
             if (!accountNumber || !accountName) {
@@ -4459,6 +4773,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
                 name: accountName.toString().trim(),
                 currentYear: currentYearConverted, // Valor absoluto
                 previousYear: previousYearConverted, // Valor absoluto
+                ls: lsValue.toString().trim(), // Campo LS
                 // Guardar valores originales para referencia
                 currentYearOriginal: currentYearNum,
                 previousYearOriginal: previousYearNum
@@ -4483,6 +4798,7 @@ async function extractAccountsFromExcel(conjunto, mappingData) {
             
             accounts.push(account);
         });
+        console.log('🧪 Ejemplo de LS extraídos (primeros 5):', accounts.slice(0, 5).map(a => a.ls));
         
         console.log('✅ Cuentas extraídas exitosamente:', accounts.length);
         return accounts;
@@ -4504,123 +4820,198 @@ app.use((error, req, res, next) => {
     res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// Cache en memoria para cuentas (válido por 15 minutos)
+const accountsCache = new Map();
+
 // Endpoint para obtener cuentas no asignadas
 app.get('/api/accounts/unassigned', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.headers['entity-id'] || req.query.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.query.commitment_id || null;
+        const cacheKey = `accounts_${userId}_${entityId || 'none'}_${commitmentId || 'none'}`;
+        const now = Date.now();
+        const cacheTimeout = 15 * 60 * 1000; // 15 minutos
         
-        // Obtener el conjunto de datos activo del usuario actual
-        const { data: conjuntoData, error: conjuntoError } = await supabase
-            .from('conjuntos_datos')
-            .select('*')
-            .eq('user_id', userId) // <- Filtrar por usuario
-            .eq('is_active', true) // <- Solo datasets activos
-            .order('fecha_importacion', { ascending: false })
-            .limit(1);
+        console.log('🌐 /api/accounts/unassigned contexto:', {
+            userId,
+            entityId,
+            commitmentId,
+            cacheKey
+        });
+        
+        // Verificar cache en memoria primero
+        if (accountsCache.has(cacheKey)) {
+            const cached = accountsCache.get(cacheKey);
+            if (now - cached.timestamp < cacheTimeout) {
+                console.log('📦 Sirviendo cuentas desde cache en memoria (edad:', Math.round((now - cached.timestamp)/60000), 'minutos)');
+                return res.json({
+                    success: true,
+                    data: cached.data,
+                    cached: true
+                });
+            } else {
+                // Cache expirado, eliminar
+                accountsCache.delete(cacheKey);
+            }
+        }
+        
+        console.log('🌐 Generando cuentas desde base de datos (sin cache)');
 
-        if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {
-            console.error('Error obteniendo datos del Excel:', conjuntoError);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'No se encontraron datos del Excel' 
+        // Si no hay contexto (entity_id o commitment_id), devolver array vacío
+        // para evitar mezclar datos de diferentes entidades
+        if (!entityId && !commitmentId) {
+            console.log('⚠️ No hay contexto (entity_id o commitment_id), devolviendo array vacío');
+            return res.json({
+                success: true,
+                data: [],
+                cached: false,
+                message: 'No hay contexto de entidad/compromiso'
             });
         }
 
-        const conjunto = conjuntoData[0];
-        
-        // Obtener los datos del Excel
-        const excelData = conjunto.data;
-        if (!excelData || !excelData.sheets || excelData.sheets.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'No hay datos de Excel disponibles' 
-            });
-        }
-
-        // Obtener la primera hoja
-        const firstSheet = excelData.sheets[0];
-        const sheetData = firstSheet.data;
-        
-        if (!sheetData || sheetData.length <= 1) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'La hoja de Excel está vacía' 
-            });
-        }
-
-        // Obtener encabezados
-        const headers = sheetData[0];
-        
-        // Encontrar índices de columnas automáticamente
-        const mapping = detectColumnMapping(headers);
-        
-        // Obtener cuentas desde la base de datos con sus UUIDs reales
-        console.log('Obteniendo cuentas desde cuentas_contables...');
-        const { data: dbAccounts, error: dbError } = await supabase
+        // Filtrar cuentas directamente por entity_id y commitment_id si están disponibles
+        let cuentasQuery = supabase
             .from('cuentas_contables')
-            .select('*')
-            .eq('conjunto_id', conjunto.id)
+            .select('*');
+
+        if (entityId) {
+            cuentasQuery = cuentasQuery.eq('entity_id', entityId);
+            console.log('🔍 Filtrando cuentas por entity_id:', entityId);
+        }
+        if (commitmentId) {
+            cuentasQuery = cuentasQuery.eq('commitment_id', commitmentId);
+            console.log('🔍 Filtrando cuentas por commitment_id:', commitmentId);
+        }
+
+        const { data: dbAccounts, error: dbError } = await cuentasQuery
             .order('created_at');
-            
+
         if (dbError) {
             console.error('Error obteniendo cuentas de la base de datos:', dbError);
-            // Fallback: usar el método antiguo del Excel
-            const accounts = [];
-            const dataRows = sheetData.slice(1);
-            
-            dataRows.forEach((row, index) => {
-                if (!row || row.length === 0) return;
-                
-                const accountNumber = extractAccountNumber(row, mapping.accountNumber);
-                const accountName = extractAccountName(row, mapping.accountName);
-                const currentYearValue = extractValue(row, mapping.currentYear);
-                const previousYearValue = extractValue(row, mapping.previousYear);
-                
-                if (!accountNumber && !accountName) return;
-                
-                accounts.push({
-                    id: `excel-${index}`,
-                    code: accountNumber || `CUENTA-${index}`,
-                    name: accountName || '',
-                    value: currentYearValue,
-                    current_year_value: currentYearValue,
-                    previous_year_value: previousYearValue,
-                    debit: mapping.debit >= 0 ? extractValue(row, mapping.debit) : 0,
-                    credit: mapping.credit >= 0 ? extractValue(row, mapping.credit) : 0,
-                    conjunto_id: conjunto.id
-                });
+            console.error('Detalles del error:', JSON.stringify(dbError, null, 2));
+            return res.status(500).json({
+                success: false,
+                error: 'Error obteniendo cuentas desde la base de datos',
+                details: dbError
             });
-            
-            res.json({ 
-                success: true, 
-                data: accounts,
-                datasetExists: true
-            });
-            return;
         }
         
-        console.log(`Encontradas ${dbAccounts.length} cuentas en la base de datos`);
+        console.log(`🔍 Encontradas ${dbAccounts.length} cuentas en la base de datos`);
+        console.log('🔍 dbAccounts es array:', Array.isArray(dbAccounts));
+        console.log('🔍 Primera cuenta (si existe):', dbAccounts?.[0]);
+        console.log('🔍 Todas las cuentas:', dbAccounts);
+        
+        // Deduplicar cuentas por número de cuenta para evitar duplicados
+        const uniqueAccounts = new Map();
+        dbAccounts.forEach(account => {
+            const accountNumber = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+            if (accountNumber && !uniqueAccounts.has(accountNumber)) {
+                uniqueAccounts.set(accountNumber, account);
+            }
+        });
+        
+        console.log(`Cuentas únicas después de deduplicación: ${uniqueAccounts.size}`);
         
         // Transformar las cuentas de la base de datos al formato que espera el frontend
-        const accounts = dbAccounts.map(account => ({
-            id: account.id, // <- UUID real de la base de datos
-            code: account.numero_cuenta,
-            name: account.nombre_cuenta,
-            value: account.debito_actual - account.credito_actual,
-            current_year_value: account.debito_actual,
-            previous_year_value: account.debito_anterior - account.credito_anterior,
-            debit: account.debito_actual,
-            credit: account.credito_actual,
-            conjunto_id: account.conjunto_id
-        }));
+        const accounts = Array.from(uniqueAccounts.values()).map(account => {
+            const meta = parseAccountMeta(account.meta);
+            const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+
+            let lsVal = extractLSValue({ ...account, meta });
+            if (!lsVal && meta && meta.ls) {
+                lsVal = meta.ls;
+            }
+
+            // 1) Intentar usar los valores originales del Excel guardados en meta
+            // 2) Si no existen, usar saldo
+            // 3) Si tampoco hay saldo, usar débito - crédito como último recurso
+            const originalCurrent = typeof meta.currentYearOriginal === 'number' && !Number.isNaN(meta.currentYearOriginal)
+                ? meta.currentYearOriginal
+                : null;
+
+            const originalPrevious = typeof meta.previousYearOriginal === 'number' && !Number.isNaN(meta.previousYearOriginal)
+                ? meta.previousYearOriginal
+                : null;
+
+            const hasSaldo = typeof account.saldo === 'number' && !Number.isNaN(account.saldo);
+            const fallbackCurrent = hasSaldo
+                ? account.saldo
+                : (account.debito_actual - account.credito_actual);
+
+            const fallbackPrevious = (account.debito_anterior - account.credito_anterior);
+
+            const signedCurrentValue = originalCurrent !== null ? originalCurrent : fallbackCurrent;
+            const signedPreviousValue = originalPrevious !== null ? originalPrevious : fallbackPrevious;
+
+            // Debug logging para verificar los valores que se envían al frontend
+            console.log(`🔍 Debug cuenta ${account.numero_cuenta}:`);
+            console.log(`   currentYearOriginal (meta):`, meta.currentYearOriginal);
+            console.log(`   previousYearOriginal (meta):`, meta.previousYearOriginal);
+            console.log(`   Saldo (DB): ${account.saldo}`);
+            console.log(`   Debito actual: ${account.debito_actual}, Credito actual: ${account.credito_actual}`);
+            console.log(`   Valor final usado (current): ${signedCurrentValue}`);
+
+            return {
+                id: account.id, // <- UUID real de la base de datos
+                code: account.numero_cuenta,
+                name: account.nombre_cuenta,
+                value: signedCurrentValue,
+                current_year_value: signedCurrentValue,
+                previous_year_value: signedPreviousValue,
+                debit: account.debito_actual,
+                credit: account.credito_actual,
+                conjunto_id: account.conjunto_id,
+                meta,
+                ls: lsVal
+            };
+        });
+
+        console.log('🔎 Ejemplo LS devueltos (primeros 5):', accounts.slice(0, 5).map(a => a.ls));
+
+        // Guardar en cache en memoria
+        accountsCache.set(cacheKey, {
+            data: accounts,
+            timestamp: now
+        });
+        
+        console.log('💾 Cuentas guardadas en cache en memoria para usuario:', userId);
 
         res.json({ 
             success: true, 
-            data: accounts 
+            data: accounts,
+            cached: false
         });
         
     } catch (error) {
         console.error('Error en /api/accounts/unassigned:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor: ' + error.message 
+        });
+    }
+});
+
+// Endpoint para limpiar cache de cuentas (útil para desarrollo)
+app.post('/api/accounts/clear-cache', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const entityId = req.headers['entity-id'] || req.body?.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body?.commitment_id || null;
+        const cacheKey = `accounts_${userId}_${entityId || 'none'}_${commitmentId || 'none'}`;
+        
+        if (accountsCache.has(cacheKey)) {
+            accountsCache.delete(cacheKey);
+            console.log('🗑️ Cache de cuentas eliminado para usuario y contexto:', { userId, entityId, commitmentId });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Cache eliminado exitosamente' 
+        });
+        
+    } catch (error) {
+        console.error('Error limpiando cache:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Error interno del servidor: ' + error.message 
@@ -4637,15 +5028,18 @@ app.post('/api/assignments/save', async (req, res) => {
     try {
         console.log('=== INICIO GUARDAR ASIGNACIÓN ===');
         console.log('Headers:', req.headers);
-        
-        const { 
-            datasetId, 
-            accountId, 
-            groupContentId, 
-            parentAccountId, 
-            position, 
-            meta 
+
+        const {
+            datasetId,
+            accountId,
+            groupContentId,
+            parentAccountId,
+            position,
+            meta
         } = req.body;
+
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         console.log('Parsed data:', {
             datasetId,
@@ -4653,7 +5047,9 @@ app.post('/api/assignments/save', async (req, res) => {
             groupContentId,
             parentAccountId,
             position,
-            meta
+            meta,
+            entityId,
+            commitmentId
         });
         
         const userId = req.headers['user-id'];
@@ -4674,46 +5070,118 @@ app.post('/api/assignments/save', async (req, res) => {
             console.log('Usando datasetId de prueba:', realDatasetId);
         }
 
-        // Primero buscar el UUID real de la cuenta si accountId no es UUID
-        let realAccountId = accountId;
+        // Función para validar y generar UUIDs
+        const generateUUID = () => {
+            // Generar un UUID v4 válido
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
         
-        // Detectar si es un ID de prueba o no es un UUID válido
-        const isTestAccount = accountId && (
-            accountId.toString().startsWith('excel-') || 
-            accountId.toString().startsWith('local-') || 
-            accountId.toString().startsWith('db-account-') || 
-            !accountId.includes('-')
-        );
-        
-        if (isTestAccount) {
-            // Si ya es UUID (contiene guiones), usarlo directamente
-            if (accountId.includes('-')) {
-                realAccountId = accountId;
-                console.log('AccountId ya es UUID válido:', realAccountId);
-            } else {
-                // Para IDs de prueba, generar UUID directamente sin buscar en BD
-                console.log('Generando UUID para ID de prueba:', accountId);
-                realAccountId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
-                console.log('UUID generado:', realAccountId);
+        const ensureUUID = (id) => {
+            if (!id) return generateUUID();
+            
+            // Si ya parece un UUID válido (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(id.toString())) {
+                return id.toString();
             }
+            
+            // Para IDs de prueba o no UUIDs, generar uno nuevo
+            console.log('Generando UUID para ID no válido:', id);
+            return generateUUID();
+        };
+        
+        // Asegurar que los IDs que deben ser UUIDs lo sean
+        let realAccountId = ensureUUID(accountId);
+        let realUserId = ensureUUID(userId);
+        // group_content_id y parent_account_id son texto, no UUIDs
+        let realGroupContentId = groupContentId || '';
+        let realParentAccountId = parentAccountId || null;
+        
+        console.log('IDs procesados:', {
+            original: { accountId, userId, groupContentId, parentAccountId },
+            uuids: { realAccountId, realUserId, realGroupContentId, realParentAccountId }
+        });
+
+        // Verificar si la cuenta existe en cuentas_contables, si no, crearla
+        const accountCode = meta?.code || accountId;
+        const accountName = meta?.name || `Cuenta ${accountCode}`;
+        
+        console.log('Verificando si la cuenta existe en cuentas_contables:', accountCode);
+        
+        // Buscar cuenta por código
+        const { data: existingAccount, error: searchError } = await supabase
+            .from('cuentas_contables')
+            .select('id, numero_cuenta, nombre_cuenta')
+            .eq('numero_cuenta', accountCode)
+            .single();
+            
+        if (searchError && searchError.code !== 'PGRST116') {
+            console.error('Error buscando cuenta:', searchError);
         }
         
-        // Asegurar que userId sea un UUID válido
-        let realUserId = userId;
-        if (!userId || !userId.includes('-')) {
-            realUserId = '00000000-0000-0000-0000-' + Math.random().toString(36).substr(2, 12).padStart(12, '0');
-            console.log('UUID generado para user:', realUserId);
+        let finalAccountId = realAccountId;
+        
+        if (!existingAccount) {
+            console.log('Cuenta no encontrada, creando nueva cuenta en cuentas_contables...');
+            
+            // Crear la cuenta en cuentas_contables
+            const { data: newAccount, error: createError } = await supabase
+                .from('cuentas_contables')
+                .insert({
+                    id: realAccountId,
+                    conjunto_id: realDatasetId,
+                    numero_cuenta: accountCode,
+                    nombre_cuenta: accountName,
+                    debito_actual: meta?.value ? (meta.value > 0 ? meta.value : 0) : 0,
+                    credito_actual: meta?.value ? (meta.value < 0 ? Math.abs(meta.value) : 0) : 0,
+                    debito_anterior: meta?.prevValue ? (meta.prevValue > 0 ? meta.prevValue : 0) : 0,
+                    credito_anterior: meta?.prevValue ? (meta.prevValue < 0 ? Math.abs(meta.prevValue) : 0) : 0,
+                    grupo_financiero: 'General',
+                    fecha_clasificacion: new Date().toISOString(),
+                    clasificado: false,
+                    nivel_cuenta: 1,
+                    cuenta_padre_id: null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    entity_id: entityId || null,
+                    commitment_id: commitmentId || null,
+                    meta: meta || {}
+                })
+                .select()
+                .single();
+                
+            if (createError) {
+                console.error('Error creando cuenta:', createError);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: `Error creando cuenta: ${createError.message}` 
+                });
+            }
+            
+            console.log('Cuenta creada exitosamente:', newAccount);
+            finalAccountId = newAccount.id;
+        } else {
+            console.log('Cuenta existente encontrada:', existingAccount);
+            finalAccountId = existingAccount.id;
         }
         
         console.log('Intentando insertar en account_assignments...');
         const insertData = {
             dataset_id: realDatasetId,
-            account_id: realAccountId,
-            group_content_id: groupContentId,
-            parent_account_id: parentAccountId || null,
+            account_id: finalAccountId,
+            group_content_id: realGroupContentId,
+            parent_account_id: realParentAccountId,
             position: position || 0,
             user_id: realUserId,
-            meta: meta || {}
+            meta: meta || {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null
         };
         
         console.log('Datos a insertar:', insertData);
@@ -4735,6 +5203,22 @@ app.post('/api/assignments/save', async (req, res) => {
         }
 
         console.log('Assignment saved successfully:', data);
+        
+        // Marcar la cuenta como clasificada en cuentas_contables
+        const { error: updateError } = await supabase
+            .from('cuentas_contables')
+            .update({ 
+                clasificado: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', finalAccountId);
+            
+        if (updateError) {
+            console.warn('Error marcando cuenta como clasificada:', updateError);
+        } else {
+            console.log('Cuenta marcada como clasificada exitosamente');
+        }
+        
         res.json({ 
             success: true, 
             assignment: data 
@@ -4749,34 +5233,214 @@ app.post('/api/assignments/save', async (req, res) => {
     }
 });
 
+// Guardar nombres personalizados de grupos
+app.post('/api/group-names/save', async (req, res) => {
+    try {
+        const { datasetId, groupNames } = req.body;
+        const userId = req.headers['user-id'];
+        
+        console.log('Guardando nombres personalizados de grupos:', { datasetId, groupNames, userId });
+        
+        // Validar datos
+        if (!datasetId || !groupNames || !Array.isArray(groupNames)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Datos inválidos'
+            });
+        }
+        
+        // Obtener IDs reales
+        const realDatasetId = await getRealDatasetId(datasetId);
+        const realUserId = await getRealUserId(userId);
+        
+        if (!realDatasetId || !realUserId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dataset o usuario no válido'
+            });
+        }
+        
+        // Eliminar nombres anteriores del mismo dataset
+        await supabase
+            .from('account_assignments')
+            .delete()
+            .eq('dataset_id', realDatasetId)
+            .in('meta->>type', ['group_name', 'subgroup_name']);
+        
+        // Insertar nuevos nombres
+        const insertData = groupNames.map(groupName => ({
+            dataset_id: realDatasetId,
+            account_id: null,  // No aplica para nombres de grupos
+            group_content_id: groupName.id,
+            parent_account_id: groupName.parentId || null,
+            position: 0,
+            user_id: realUserId,
+            meta: {
+                type: groupName.parentId ? 'subgroup_name' : 'group_name',
+                custom_name: groupName.name,
+                original_name: groupName.originalName || ''
+            }
+        }));
+        
+        if (insertData.length > 0) {
+            const { data, error } = await supabase
+                .from('account_assignments')
+                .insert(insertData)
+                .select();
+            
+            if (error) {
+                console.error('Error guardando nombres de grupos:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            
+            console.log('Nombres de grupos guardados:', data);
+        }
+        
+        res.json({
+            success: true,
+            message: `${groupNames.length} nombres de grupos guardados exitosamente`
+        });
+        
+    } catch (error) {
+        console.error('Error guardando nombres de grupos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error guardando nombres de grupos'
+        });
+    }
+});
+
+// Obtener nombres personalizados de grupos
+app.get('/api/group-names/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        console.log('Obteniendo nombres personalizados de grupos:', { datasetId, userId });
+        
+        // Obtener IDs reales
+        const realDatasetId = await getRealDatasetId(datasetId);
+        const realUserId = await getRealUserId(userId);
+        
+        if (!realDatasetId || !realUserId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dataset o usuario no válido'
+            });
+        }
+        
+        // Obtener nombres personalizados
+        const { data, error } = await supabase
+            .from('account_assignments')
+            .select('*')
+            .eq('dataset_id', realDatasetId)
+            .in('meta->>type', ['group_name', 'subgroup_name']);
+        
+        if (error) {
+            console.error('Error obteniendo nombres de grupos:', error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+        
+        const groupNames = data.map(item => ({
+            id: item.group_content_id,
+            name: item.meta.custom_name,
+            originalName: item.meta.original_name,
+            type: item.meta.type,
+            parentId: item.parent_account_id
+        }));
+        
+        console.log('Nombres de grupos obtenidos:', groupNames);
+        
+        res.json({
+            success: true,
+            groupNames: groupNames
+        });
+        
+    } catch (error) {
+        console.error('Error obteniendo nombres de grupos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error obteniendo nombres de grupos'
+        });
+    }
+});
+
 // Obtener asignaciones de un dataset
 app.get('/api/assignments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
         
-        const { data, error } = await supabase
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getAssignments:');
+        console.log('  datasetId:', datasetId);
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+        
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'userId es requerido' 
+            });
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR: datasetId es null/undefined');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'datasetId es requerido' 
+            });
+        }
+        
+        // Construir query base
+        let query = supabase
             .from('account_assignments')
             .select(`
                 *,
                 cuentas_contables(id, numero_cuenta, nombre_cuenta),
                 users(id, email)
             `)
-            .eq('dataset_id', datasetId)
-            .order('position');
+            .eq('dataset_id', datasetId);
+        
+        const { data, error } = await query.order('position');
 
-        if (error) throw error;
+        console.log('🔍 Asignaciones filtradas:', {
+            datasetId,
+            entity_id,
+            commitment_id,
+            filteredCount: data?.length || 0,
+            hasError: !!error,
+            error: error?.message,
+            firstFiltered: data?.[0],
+            sampleData: data?.slice(0, 3)
+        });
 
+        if (error) {
+            console.error('❌ Error en consulta de asignaciones:', error);
+            throw error;
+        }
+
+        console.log('✅ Retornando', data?.length || 0, 'asignaciones');
         res.json({ 
             success: true, 
             assignments: data || [] 
         });
 
     } catch (error) {
-        console.error('Error obteniendo asignaciones:', error);
+        console.error('❌ Error obteniendo asignaciones:', error);
+        console.error('❌ Stack trace:', error.stack);
         res.status(500).json({ 
             success: false, 
-            error: 'Error obteniendo asignaciones' 
+            error: 'Error obteniendo asignaciones',
+            details: error.message
         });
     }
 });
@@ -4791,7 +5455,6 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
             .from('account_assignments')
             .delete()
             .eq('id', assignmentId)
-            .eq('user_id', userId); // Solo el dueño puede eliminar
 
         if (error) throw error;
 
@@ -4817,6 +5480,7 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
 app.post('/api/adjustments/save', async (req, res) => {
     try {
         const { 
+            id,
             datasetId, 
             accountId, 
             assignmentId, 
@@ -4825,34 +5489,87 @@ app.post('/api/adjustments/save', async (req, res) => {
             monto, 
             descripcion, 
             htmlContenido, 
-            adjuntos 
+            adjuntos,
+            meta
         } = req.body;
         
         const userId = req.headers['user-id'];
         
+        // Prevenir cacheo para asegurar respuestas frescas
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
+        console.log('🔍 DEBUG saveFinancialAdjustment - REQUEST BODY:', req.body);
+        console.log('🔍 DEBUG saveFinancialAdjustment - HEADERS:', req.headers);
+        console.log('🔍 DEBUG saveFinancialAdjustment:', { 
+            id, 
+            datasetId, 
+            userId, 
+            adjustmentType, 
+            moneda, 
+            monto,
+            descripcion,
+            htmlContenido,
+            adjuntos,
+            meta
+        });
+        
         if (!userId || !datasetId || !monto) {
+            console.log('❌ ERROR: Faltan datos requeridos - userId:', !!userId, 'datasetId:', !!datasetId, 'monto:', !!monto);
             return res.status(400).json({ 
                 success: false, 
                 error: 'Faltan datos requeridos' 
             });
         }
 
-        const { data, error } = await supabase
-            .from('ajustes_financieros')
-            .insert({
-                dataset_id: datasetId,
-                account_id: accountId || null,
-                assignment_id: assignmentId || null,
-                adjustment_type: adjustmentType || 'manual',
-                moneda: moneda || 'GTQ',
-                monto: monto,
-                descripcion: descripcion || null,
-                html_contenido: htmlContenido || null,
-                adjuntos: adjuntos || null,
-                created_by: userId
-            })
-            .select()
-            .single();
+        const payload = {
+            dataset_id: datasetId,
+            account_id: accountId || null,
+            assignment_id: assignmentId || null,
+            adjustment_type: adjustmentType || 'manual',
+            moneda: moneda || 'GTQ',
+            monto: monto,
+            descripcion: descripcion || null,
+            html_contenido: htmlContenido || null,
+            adjuntos: adjuntos || null,
+            meta: meta || {},
+            updated_at: new Date().toISOString()
+        };
+
+        console.log('🔍 DEBUG saveFinancialAdjustment - PAYLOAD CONSTRUIDO:', payload);
+
+        let data, error;
+
+        if (id) {
+            console.log('🔍 DEBUG saveFinancialAdjustment - MODO ACTUALIZACIÓN - ID:', id);
+            ({ data, error } = await supabase
+                .from('ajustes_financieros')
+                .update(payload)
+                .eq('id', id)
+                .eq('dataset_id', datasetId)
+                .select()
+                .single());
+        } else {
+            console.log('🔍 DEBUG saveFinancialAdjustment - MODO CREACIÓN - Nuevo registro');
+            ({ data, error } = await supabase
+                .from('ajustes_financieros')
+                .insert({
+                    ...payload,
+                    created_by: userId
+                })
+                .select()
+                .single());
+        }
+        
+        console.log('🔍 DEBUG saveFinancialAdjustment - RESULTADO BD:', { data, error });
+        
+        if (error) {
+            console.error('❌ ERROR EN BASE DE DATOS:', error);
+            throw error;
+        }
 
         if (error) throw error;
 
@@ -4876,6 +5593,13 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
         
+        // Prevenir cacheo para asegurar datos frescos
+        res.set({
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
         const { data, error } = await supabase
             .from('ajustes_financieros')
             .select(`
@@ -4898,6 +5622,81 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error obteniendo ajustes' 
+        });
+    }
+});
+
+// Eliminar ajuste financiero
+app.delete('/api/adjustments/:adjustmentId', async (req, res) => {
+    try {
+        const { adjustmentId } = req.params;
+        const userId = req.headers['user-id'];
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'User ID is required' 
+            });
+        }
+        
+        // Primero verificar que el ajuste exista y obtener su dataset
+        const { data: adjustment, error: fetchError } = await supabase
+            .from('ajustes_financieros')
+            .select('*')
+            .eq('id', adjustmentId)
+            .single();
+            
+        if (fetchError) {
+            if (fetchError.code === 'PGRST116') {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Adjustment not found' 
+                });
+            }
+            throw fetchError;
+        }
+        
+        if (!adjustment) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Adjustment not found' 
+            });
+        }
+
+        // Verificar que el dataset exista
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('id')
+            .eq('id', adjustment.dataset_id)
+            .single();
+            
+        if (datasetError || !dataset) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Dataset not found' 
+            });
+        }
+        
+        // Eliminar el ajuste
+        const { error: deleteError } = await supabase
+            .from('ajustes_financieros')
+            .delete()
+            .eq('id', adjustmentId);
+            
+        if (deleteError) throw deleteError;
+        
+        console.log(`✅ Ajuste ${adjustmentId} eliminado por usuario ${userId}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'Adjustment deleted successfully' 
+        });
+
+    } catch (error) {
+        console.error('Error eliminando ajuste:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error deleting adjustment' 
         });
     }
 });
@@ -4972,7 +5771,14 @@ app.get('/api/observations/:userId', async (req, res) => {
             .order('created_at', { ascending: false });
 
         if (entityId) {
-            query = query.eq('entity_id', entityId);
+            // Validar que entityId sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entityId)) {
+                query = query.eq('entity_id', entityId);
+            } else {
+                console.log('⚠️ entityId no es un UUID válido, omitiendo filtro:', entityId);
+                // Si no es un UUID válido, no aplicar el filtro y obtener todas las observaciones
+            }
         }
 
         // Diferenciar entre "no viene el parámetro" y "viene pero vacío" para permitir filtrar por nulos
@@ -5073,24 +5879,34 @@ app.delete('/api/observations/:observationId', async (req, res) => {
 // Guardar validación de libro mayor
 app.post('/api/ledger-integrity/save', async (req, res) => {
     try {
-        const { datasetId, results, status } = req.body;
+        const { datasetId, results, status, entityId, commitmentId } = req.body;
         const userId = req.headers['user-id'];
-        
+
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveLedgerIntegrity:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  status:', status);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+
         if (!userId || !datasetId || !results) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos'
             });
         }
 
-        // Crear el run principal
+        // Crear el run principal con entity_id y commitment_id
         const { data: run, error: runError } = await supabase
             .from('ledger_integrity_runs')
             .insert({
                 dataset_id: datasetId,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 status: status || 'completed',
-                meta: { 
+                meta: {
                     totalAccounts: results.length,
                     generatedAt: new Date().toISOString()
                 }
@@ -5100,7 +5916,9 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 
         if (runError) throw runError;
 
-        // Guardar cada fila de resultados
+        console.log('✅ Ledger integrity run creado con ID:', run.id, 'entity_id:', run.entity_id, 'commitment_id:', run.commitment_id);
+
+        // Guardar cada fila de resultados con entity_id y commitment_id
         const rows = results.map(result => ({
             run_id: run.id,
             account_id: result.accountId || null,
@@ -5116,7 +5934,9 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
             previous: result.previous || null,
             difference: result.difference || null,
             order_index: result.orderIndex || 0,
-            flags: result.flags || null
+            flags: result.flags || null,
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null
         }));
 
         const { data: insertedRows, error: rowsError } = await supabase
@@ -5126,17 +5946,123 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 
         if (rowsError) throw rowsError;
 
-        res.json({ 
-            success: true, 
+        console.log('✅ Ledger integrity rows insertadas:', insertedRows?.length || 0);
+
+        res.json({
+            success: true,
             run: run,
             rows: insertedRows || []
         });
 
     } catch (error) {
         console.error('Error guardando validación:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Error guardando validación' 
+        res.status(500).json({
+            success: false,
+            error: 'Error guardando validación'
+        });
+    }
+});
+
+// Obtener validaciones de libro mayor filtradas
+app.get('/api/ledger-integrity/:datasetId', async (req, res) => {
+    try {
+        const { datasetId } = req.params;
+        const userId = req.headers['user-id'];
+        const { entity_id, commitment_id } = req.query;
+
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getLedgerIntegrity:');
+        console.log('  datasetId:', datasetId);
+        console.log('  userId:', userId);
+        console.log('  entity_id:', entity_id);
+        console.log('  commitment_id:', commitment_id);
+
+        if (!userId) {
+            console.error('❌ ERROR: userId es null/undefined');
+            return res.status(400).json({
+                success: false,
+                error: 'userId es requerido'
+            });
+        }
+
+        if (!datasetId) {
+            console.error('❌ ERROR: datasetId es null/undefined');
+            return res.status(400).json({
+                success: false,
+                error: 'datasetId es requerido'
+            });
+        }
+
+        // Construir query base para runs
+        let runsQuery = supabase
+            .from('ledger_integrity_runs')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .eq('user_id', userId);
+
+        // Aplicar filtros de entidad/compromiso si están disponibles
+        if (entity_id) {
+            console.log('🔍 Filtrando ledger integrity runs por entity_id:', entity_id);
+            runsQuery = runsQuery.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            console.log('🔍 Filtrando ledger integrity runs por commitment_id:', commitment_id);
+            runsQuery = runsQuery.eq('commitment_id', commitment_id);
+        }
+
+        const { data: runs, error: runsError } = await runsQuery.order('created_at', { ascending: false }).limit(1);
+
+        if (runsError) {
+            console.error('❌ Error en consulta de ledger integrity runs:', runsError);
+            throw runsError;
+        }
+
+        if (!runs || runs.length === 0) {
+            console.log('ℹ️ No se encontraron runs de ledger integrity para el contexto');
+            return res.json({
+                success: true,
+                run: null,
+                rows: []
+            });
+        }
+
+        const run = runs[0];
+        console.log('✅ Ledger integrity run encontrado:', run.id);
+
+        // Obtener las filas correspondientes a este run
+        let rowsQuery = supabase
+            .from('ledger_integrity_rows')
+            .select('*')
+            .eq('run_id', run.id);
+
+        // También filtrar las filas por entity_id y commitment_id
+        if (entity_id) {
+            rowsQuery = rowsQuery.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            rowsQuery = rowsQuery.eq('commitment_id', commitment_id);
+        }
+
+        const { data: rows, error: rowsError } = await rowsQuery.order('order_index', { ascending: true });
+
+        if (rowsError) {
+            console.error('❌ Error en consulta de ledger integrity rows:', rowsError);
+            throw rowsError;
+        }
+
+        console.log('✅ Retornando', rows?.length || 0, 'filas de ledger integrity');
+        res.json({
+            success: true,
+            run: run,
+            rows: rows || []
+        });
+
+    } catch (error) {
+        console.error('❌ Error obteniendo validaciones de ledger integrity:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Error obteniendo validaciones de ledger integrity',
+            details: error.message
         });
     }
 });
@@ -5147,70 +6073,234 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 // Guardar resultados de grupos financieros
 app.post('/api/financial-groups-results/save', async (req, res) => {
     try {
-        const { datasetId, results, status } = req.body;
+        const { datasetId, results, status, entityId, commitmentId } = req.body;
         const userId = req.headers['user-id'];
         
-        if (!userId || !datasetId || !results) {
+        console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveFinancialGroupsResults:');
+        console.log('  userId:', userId);
+        console.log('  datasetId:', datasetId);
+        console.log('  resultsCount:', results?.length || 0);
+        console.log('  status:', status);
+        console.log('  entityId:', entityId);
+        console.log('  commitmentId:', commitmentId);
+        console.log('  hasResults:', !!results);
+        
+        // Verificar datos requeridos
+        if (!userId) {
+            console.error('❌ ERROR CRÍTICO: userId es null/undefined en el servidor');
             return res.status(400).json({ 
                 success: false, 
-                error: 'Faltan datos requeridos' 
+                error: 'userId es requerido' 
+            });
+        }
+        
+        if (!datasetId) {
+            console.error('❌ ERROR CRÍTICO: datasetId es null/undefined en el servidor');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'datasetId es requerido' 
+            });
+        }
+        
+        if (!results || results.length === 0) {
+            console.error('❌ ERROR CRÍTICO: results está vacío o es null en el servidor');
+            return res.status(400).json({ 
+                success: false, 
+                error: 'results es requerido y no puede estar vacío' 
             });
         }
 
+        // Normalizar nombres de propiedades: aceptar snake_case y camelCase
+        function normalizeFinancialGroupRow(row) {
+            if (!row || typeof row !== 'object') return row;
+            return {
+                accountName: row.accountName || row.account_name || '',
+                accountCode: row.accountCode || row.account_code || '',
+                preliminary: row.preliminary !== undefined ? row.preliminary : 0,
+                adjustments: row.adjustments !== undefined ? row.adjustments : 0,
+                finalCurrent: row.finalCurrent !== undefined ? row.finalCurrent : row.final_current !== undefined ? row.final_current : 0,
+                finalPrevious: row.finalPrevious !== undefined ? row.finalPrevious : row.final_previous !== undefined ? row.final_previous : 0,
+                level: row.level !== undefined ? row.level : 0,
+                isParent: row.isParent !== undefined ? row.isParent : row.is_parent !== undefined ? row.is_parent : false,
+                hasChildren: row.hasChildren !== undefined ? row.hasChildren : row.has_children !== undefined ? row.has_children : false,
+                rowId: row.rowId !== undefined ? row.rowId : row.row_id !== undefined ? row.row_id : '',
+                parentId: row.parentId !== undefined ? row.parentId : row.parent_id !== undefined ? row.parent_id : '',
+                ledgerMissing: row.ledgerMissing !== undefined ? row.ledgerMissing : row.ledger_missing !== undefined ? row.ledger_missing : false,
+                groupContentId: row.groupContentId || row.group_content_id || '',
+                accountId: row.accountId || row.account_id || '',
+                nodeType: row.nodeType || row.node_type || ''
+            };
+        }
+
+        const normalizedResults = results.map(normalizeFinancialGroupRow);
+
+        // Mostrar muestra de datos recibidos
+        console.log('🔍 Muestra de datos recibidos en servidor (primeros 3):');
+        normalizedResults.slice(0, 3).forEach((row, i) => {
+            console.log(`  Row ${i}:`, {
+                accountName: row.accountName,
+                accountCode: row.accountCode,
+                preliminary: row.preliminary,
+                adjustments: row.adjustments,
+                finalCurrent: row.finalCurrent,
+                finalPrevious: row.finalPrevious
+            });
+        });
+        
+        // Verificar si todos los valores son 0
+        const allZeros = normalizedResults.every(row => 
+            (row.preliminary === 0 || row.preliminary === undefined || row.preliminary === null) &&
+            (row.adjustments === 0 || row.adjustments === undefined || row.adjustments === null) &&
+            (row.finalCurrent === 0 || row.finalCurrent === undefined || row.finalCurrent === null) &&
+            (row.finalPrevious === 0 || row.finalPrevious === undefined || row.finalPrevious === null)
+        );
+        
+        console.log('🔍 ¿Todos los valores son 0?', allZeros);
+        
+        if (allZeros) {
+            console.warn('⚠️ ADVERTENCIA: Todos los valores de grupos financieros son 0');
+        }
+
         // Crear el snapshot principal
+        console.log('🔍 Creando snapshot en financial_group_snapshots...');
         const { data: snapshot, error: snapshotError } = await supabase
             .from('financial_group_snapshots')
             .insert({
                 dataset_id: datasetId,
                 user_id: userId,
-                status: status || 'completed',
+                generated_at: new Date().toISOString(),
                 meta: { 
-                    totalRows: results.length,
-                    generatedAt: new Date().toISOString()
+                    totalRows: normalizedResults.length,
+                    generatedAt: new Date().toISOString(),
+                    status: status || 'completed',
+                    entityId: entityId || null,
+                    commitmentId: commitmentId || null,
+                    allZeros: allZeros
                 }
             })
+            .select('id, meta, generated_at')
+            .single();
+
+        if (snapshotError) {
+            console.error('❌ ERROR creando snapshot:', snapshotError);
+            console.error('❌ Detalles del error:', JSON.stringify(snapshotError, null, 2));
+            throw snapshotError;
+        }
+
+        console.log('✅ Snapshot creado exitosamente:', snapshot.id);
+
+        // VALIDACIÓN Y FILTRADO ANTES DE GUARDAR
+        console.log('🔍 Aplicando filtrado a grupos financieros...');
+        
+        const filteredResults = normalizedResults.filter((result, index) => {
+            // Guardar todos los grupos con nombre, incluso si tienen valor 0 o nombre con prefijo '-'
+            const shouldKeep = result.accountName && result.accountName.trim() !== '';
+            
+            // Log para primeras 5 filas
+            if (index < 5) {
+                console.log(`🔍 Filtro grupo ${index}:`, {
+                    accountName: result.accountName,
+                    accountCode: result.accountCode,
+                    preliminary: result.preliminary,
+                    adjustments: result.adjustments,
+                    finalCurrent: result.finalCurrent,
+                    finalPrevious: result.finalPrevious,
+                    shouldKeep
+                });
+            }
+            
+            return shouldKeep;
+        });
+        
+        console.log(`🔍 Filtrado de grupos: ${filteredResults.length} de ${normalizedResults.length} grupos pasaron el filtro`);
+        
+        // Función de conversión segura para números
+        function safeConvertNumber(value) {
+            if (value === null || value === undefined || value === '') {
+                return 0;
+            }
+            
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+            }
+            
+            const stringValue = String(value).trim();
+            
+            // Manejar paréntesis (valores negativos)
+            if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+                const innerValue = stringValue.slice(1, -1).trim();
+                const converted = safeConvertNumber(innerValue);
+                return -Math.abs(converted);
+            }
+            
+            // Remover comas y símbolos
+            let cleanValue = stringValue.replace(/,/g, '').replace(/[$€£¥]/g, '');
+            
+            // Manejar signos
+            const isNegative = cleanValue.startsWith('-') || cleanValue.endsWith('-');
+            cleanValue = cleanValue.replace(/^-|-$/g, '');
+            
+            const parsed = parseFloat(cleanValue);
+            
+            if (Number.isFinite(parsed) && !isNaN(parsed)) {
+                return isNegative ? -Math.abs(parsed) : parsed;
+            }
+            
+            return 0;
+        }
+        
+        // Actualizar el snapshot para incluir los grupos financieros filtrados y limpios
+        const updatedMeta = {
+            ...snapshot.meta,
+            groups: filteredResults.map(result => ({
+                accountName: (result.accountName || '').trim(),
+                accountCode: (result.accountCode || '').trim(),
+                preliminary: safeConvertNumber(result.preliminary),
+                adjustments: safeConvertNumber(result.adjustments),
+                finalCurrent: safeConvertNumber(result.finalCurrent),
+                finalPrevious: safeConvertNumber(result.finalPrevious),
+                level: parseInt(result.level) || 0,
+                isParent: Boolean(result.isParent),
+                rowId: String(result.rowId || ''),
+                parentId: String(result.parentId || ''),
+                hasChildren: Boolean(result.hasChildren),
+                ledgerMissing: Boolean(result.ledgerMissing)
+            }))
+        };
+
+        console.log('🔍 Actualizando snapshot con grupos financieros...');
+        const { data: updatedSnapshot, error: updateError } = await supabase
+            .from('financial_group_snapshots')
+            .update({ meta: updatedMeta })
+            .eq('id', snapshot.id)
             .select()
             .single();
 
-        if (snapshotError) throw snapshotError;
+        if (updateError) {
+            console.error('❌ ERROR actualizando snapshot con grupos:', updateError);
+            console.error('❌ Detalles del error:', JSON.stringify(updateError, null, 2));
+            throw updateError;
+        }
 
-        // Guardar cada fila de resultados
-        const rows = results.map(result => ({
-            snapshot_id: snapshot.id,
-            group_content_id: result.rowId || null,
-            parent_row_id: result.parentId || null,
-            name: result.accountName || '',
-            level: result.level || 0,
-            is_group: result.isParent || false,
-            prelim: result.preliminary || 0,
-            adjustments: result.adjustments || 0,
-            current: result.finalCurrent || 0,
-            previous: result.finalPrevious || 0,
-            order_index: 0,
-            metadata: {
-                hasChildren: result.hasChildren || false,
-                ledgerMissing: result.ledgerMissing || false
-            }
-        }));
-
-        const { data: insertedRows, error: rowsError } = await supabase
-            .from('financial_group_rows')
-            .insert(rows)
-            .select();
-
-        if (rowsError) throw rowsError;
+        console.log('✅ Grupos financieros guardados en snapshot meta:', {
+            snapshotId: snapshot.id,
+            groupsCount: updatedMeta.groups.length,
+            firstGroup: updatedMeta.groups[0]
+        });
 
         res.json({ 
             success: true, 
-            snapshot: snapshot,
-            rows: insertedRows || []
+            snapshot: updatedSnapshot,
+            groupsCount: updatedMeta.groups.length
         });
 
     } catch (error) {
-        console.error('Error guardando resultados de grupos financieros:', error);
+        console.error('❌ Error guardando resultados de grupos financieros:', error);
+        console.error('❌ Stack trace:', error.stack);
         res.status(500).json({ 
             success: false, 
-            error: 'Error guardando resultados de grupos financieros' 
+            error: 'Error guardando resultados de grupos financieros',
+            details: error.message
         });
     }
 });
@@ -5354,17 +6444,50 @@ app.post('/api/financial-groups/save', async (req, res) => {
         
         console.log('Guardando grupo financiero:', { datasetId, groupId, name, userId });
         
+        // Crear un snapshot para este grupo si no existe uno reciente
+        const { data: existingSnapshot, error: existingError } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('dataset_id', datasetId)
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .single();
+        
+        let targetSnapshot;
+        if (existingError || !existingSnapshot) {
+            // Crear nuevo snapshot
+            const { data: newSnapshot, error: newError } = await supabase
+                .from('financial_group_snapshots')
+                .insert({
+                    dataset_id: datasetId,
+                    user_id: userId,
+                    generated_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+            
+            if (newError) throw newError;
+            targetSnapshot = newSnapshot;
+        } else {
+            targetSnapshot = existingSnapshot;
+        }
+        
+        // Insertar en financial_group_rows
         const { data, error } = await supabase
             .from('financial_group_rows')
             .insert({
-                dataset_id: datasetId,
-                group_id: groupId,
+                snapshot_id: targetSnapshot.id,
+                group_content_id: groupId,
+                parent_row_id: null,
                 name: name,
-                type: type || 'group',
-                parent_label: parentLabel || null,
-                value: value || 0,
-                meta: meta || null,
-                user_id: userId
+                level: 0,
+                is_group: type === 'group',
+                prelim: 0,
+                adjustments: 0,
+                current: value || 0,
+                previous: 0,
+                order_index: 0,
+                metadata: meta || {}
             })
             .select()
             .single();
@@ -5392,30 +6515,75 @@ app.post('/api/financial-groups/save', async (req, res) => {
     }
 });
 
-// Obtener grupos financieros de un dataset
+// Obtener grupos financieros de un dataset (usando solo snapshots)
 app.get('/api/financial-groups/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
         const userId = req.headers['user-id'];
         
-        const { data, error } = await supabase
-            .from('financial_group_rows')
+        console.log('🔍 DEBUG getFinancialGroups:', { datasetId, userId });
+        
+        // Primero, verificar si hay snapshots para este dataset
+        const { data: allSnapshots, error: allError } = await supabase
+            .from('financial_group_snapshots')
+            .select('*')
+            .eq('dataset_id', datasetId);
+            
+        console.log('🔍 Todos los snapshots del usuario:', allSnapshots?.length || 0);
+        if (allSnapshots && allSnapshots.length > 0) {
+            console.log('🔍 IDs de datasets con snapshots:', allSnapshots.map(s => s.dataset_id));
+        }
+        
+        // Obtener el snapshot más reciente para este dataset
+        const { data: snapshot, error: snapshotError } = await supabase
+            .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: true });
-        
-        if (error) {
-            console.error('Error obteniendo grupos financieros:', error);
-            return res.status(500).json({ 
-                success: false, 
-                error: error.message 
+            .order('generated_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+        if (snapshotError || !snapshot) {
+            console.log('🔍 No se encontró snapshot para dataset:', datasetId, 'Error:', snapshotError);
+            console.log('🔍 Buscando snapshots con dataset_id similar...');
+            
+            // Buscar snapshots que puedan coincidir parcialmente
+            const { data: similarSnapshots } = await supabase
+                .from('financial_group_snapshots')
+                .select('*')
+                .ilike('dataset_id', `%${datasetId}%`);
+                
+            console.log('🔍 Snapshots similares encontrados:', similarSnapshots?.length || 0);
+            
+            return res.json({ 
+                success: true, 
+                groups: [],
+                debug: {
+                    datasetId,
+                    userId,
+                    totalUserSnapshots: allSnapshots?.length || 0,
+                    similarSnapshots: similarSnapshots?.length || 0
+                }
             });
         }
         
+        // Extraer los datos de grupos financieros desde el campo meta del snapshot
+        const groupsData = snapshot.meta?.groups || [];
+        
+        console.log('✅ Grupos financieros retornados desde snapshot meta:', groupsData.length);
+        console.log('🔍 Estructura del snapshot:', {
+            id: snapshot.id,
+            dataset_id: snapshot.dataset_id,
+            user_id: snapshot.user_id,
+            generated_at: snapshot.generated_at,
+            hasMeta: !!snapshot.meta,
+            metaKeys: snapshot.meta ? Object.keys(snapshot.meta) : [],
+            groupsCount: groupsData.length
+        });
+        
         res.json({ 
             success: true, 
-            groups: data || [] 
+            groups: groupsData 
         });
         
     } catch (error) {
@@ -5444,7 +6612,6 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(1)
             .single();
@@ -5458,22 +6625,30 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
             return res.json({ success: true, snapshot: null, rows: [] });
         }
 
-        const { data: rows, error: rowsError } = await supabase
-            .from('financial_group_rows')
-            .select('*')
-            .eq('snapshot_id', snapshot.id)
-            .order('order_index', { ascending: true })
-            .order('created_at', { ascending: true });
+        let rows = [];
 
-        if (rowsError) {
-            console.error('Error obteniendo filas del snapshot de grupos financieros:', rowsError);
-            return res.status(500).json({ success: false, error: rowsError.message });
+        try {
+            const { data: rowsData, error: rowsError } = await supabase
+                .from('financial_group_rows')
+                .select('*')
+                .eq('snapshot_id', snapshot.id)
+                .order('order_index', { ascending: true });
+
+            if (rowsError) {
+                console.warn('⚠️ No se pudo leer financial_group_rows, usando snapshot.meta.groups:', rowsError.message);
+                rows = snapshot.meta?.groups || [];
+            } else {
+                rows = rowsData || [];
+            }
+        } catch (tableError) {
+            console.warn('⚠️ Error consultando financial_group_rows, usando snapshot.meta.groups:', tableError.message);
+            rows = snapshot.meta?.groups || [];
         }
 
         res.json({
             success: true,
             snapshot,
-            rows: rows || []
+            rows: rows
         });
 
     } catch (error) {
@@ -5502,7 +6677,6 @@ app.get('/api/financial-groups-results/:datasetId/history', async (req, res) => 
             .from('financial_group_snapshots')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('generated_at', { ascending: false })
             .limit(parsedLimit);
 
@@ -5531,7 +6705,6 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
             .from('account_assignments')
             .select('*')
             .eq('dataset_id', datasetId)
-            .eq('user_id', userId)
             .order('position', { ascending: true });
         
         if (error) {
@@ -5582,6 +6755,7 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
     try {
         const { code } = req.params;
         const userId = req.headers['user-id'];
+        const datasetId = req.headers['dataset-id'];
         
         if (!code || !userId) {
             return res.status(400).json({
@@ -5590,27 +6764,62 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
             });
         }
         
-        console.log('Getting account by code:', code, 'user:', userId);
+        console.log('Getting account by code:', code, 'user:', userId, 'dataset:', datasetId);
         
-        const { data, error } = await supabase
+        // Buscar en cuentas_contables como hace /api/accounts/unassigned
+        let query;
+        if (datasetId) {
+            // Si hay datasetId específico, buscar ese dataset
+            query = supabase
+                .from('conjuntos_datos')
+                .select('*')
+                .eq('id', datasetId)
+                .eq('user_id', userId);
+        } else {
+            // Si no hay datasetId, buscar el dataset activo
+            query = supabase
+                .from('conjuntos_datos')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('is_active', true)
+                .order('fecha_importacion', { ascending: false })
+                .limit(1);
+        }
+        
+        const { data: conjuntoData, error: conjuntoError } = await query;
+        
+        if (conjuntoError || !conjuntoData || conjuntoData.length === 0) {
+            console.error('Error obteniendo datos del dataset:', conjuntoError);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No se encontraron datos del dataset' 
+            });
+        }
+
+        const conjunto = Array.isArray(conjuntoData) ? conjuntoData[0] : conjuntoData;
+        
+        // Obtener cuentas desde la base de datos con sus UUIDs reales (como /api/accounts/unassigned)
+        console.log('Obteniendo cuenta desde cuentas_contables...');
+        const { data: dbAccounts, error: dbError } = await supabase
             .from('cuentas_contables')
             .select('*')
+            .eq('conjunto_id', conjunto.id)
             .eq('code', code)
-            .eq('conjunto_id', userId) // O usar el dataset_id apropiado
             .single();
-        
-        if (error) {
-            console.error('Error getting account by code:', error);
+            
+        if (dbError || !dbAccounts) {
+            console.error('Cuenta no encontrada en cuentas_contables:', dbError);
             return res.status(404).json({ 
                 success: false, 
                 error: 'Cuenta no encontrada' 
             });
         }
         
-        console.log('Account found:', data);
+        console.log('Account found in cuentas_contables:', dbAccounts);
+        
         res.json({ 
             success: true, 
-            account: data 
+            data: dbAccounts 
         });
         
     } catch (error) {
@@ -5629,14 +6838,25 @@ app.post('/api/accounts/save', async (req, res) => {
         const userId = req.headers['user-id'];
         
         if (!datasetId || !code || !name) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos: datasetId, code, name' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos: datasetId, code, name'
             });
         }
-        
+
         console.log('Guardando cuenta contable:', { datasetId, code, name, userId });
-        
+
+        // Obtener el dataset para obtener entity_id y commitment_id
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('entity_id, commitment_id')
+            .eq('id', datasetId)
+            .single();
+
+        if (datasetError) {
+            console.warn('No se pudo obtener el dataset para entity_id/commitment_id:', datasetError);
+        }
+
         const { data, error } = await supabase
             .from('cuentas_contables')
             .insert({
@@ -5648,6 +6868,8 @@ app.post('/api/accounts/save', async (req, res) => {
                 previous_year_value: previousYearValue || 0,
                 debit: debit || 0,
                 credit: credit || 0,
+                entity_id: dataset?.entity_id || null,
+                commitment_id: dataset?.commitment_id || null,
                 meta: meta || null
             })
             .select()
@@ -5681,16 +6903,27 @@ app.post('/api/accounts/batch-save', async (req, res) => {
     try {
         const { datasetId, accounts } = req.body;
         const userId = req.headers['user-id'];
-        
+
         if (!datasetId || !accounts || !Array.isArray(accounts)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Faltan datos requeridos: datasetId, accounts (array)' 
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos: datasetId, accounts (array)'
             });
         }
-        
+
         console.log('Guardando cuentas en lote:', { datasetId, count: accounts.length, userId });
-        
+
+        // Obtener el dataset para obtener entity_id y commitment_id
+        const { data: dataset, error: datasetError } = await supabase
+            .from('conjuntos_datos')
+            .select('entity_id, commitment_id')
+            .eq('id', datasetId)
+            .single();
+
+        if (datasetError) {
+            console.warn('No se pudo obtener el dataset para entity_id/commitment_id:', datasetError);
+        }
+
         // Preparar datos para inserción
         const accountsToInsert = accounts.map(account => ({
             conjunto_id: datasetId,
@@ -5701,6 +6934,8 @@ app.post('/api/accounts/batch-save', async (req, res) => {
             previous_year_value: account.previousYearValue || 0,
             debit: account.debit || 0,
             credit: account.credit || 0,
+            entity_id: dataset?.entity_id || null,
+            commitment_id: dataset?.commitment_id || null,
             meta: account.meta || null
         }));
         
@@ -5729,6 +6964,40 @@ app.post('/api/accounts/batch-save', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Error guardando cuentas en lote' 
+        });
+    }
+});
+
+// Endpoint temporal para inspeccionar estructura de tabla
+app.get('/api/inspect-table/:tableName', async (req, res) => {
+    try {
+        const { tableName } = req.params;
+        
+        // Consultar información de columnas de la tabla
+        const { data, error } = await supabase
+            .from('information_schema.columns')
+            .select('column_name, data_type, is_nullable')
+            .eq('table_schema', 'public')
+            .eq('table_name', tableName)
+            .order('ordinal_position');
+        
+        if (error) {
+            return res.status(500).json({ 
+                success: false, 
+                error: error.message 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            tableName,
+            columns: data || []
+        });
+        
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
         });
     }
 });
@@ -6628,70 +7897,80 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id || req.headers['user-id'];
     
+    console.log(`🔍 Mark notification as read - ID: ${id}, User: ${userId}`);
+    
     if (!userId) {
+        console.log('❌ User ID missing');
         return res.status(401).json({ success: false, error: 'User ID required' });
     }
     
     try {
-        console.log(`🔍 Marking notification ${id} as read for user ${userId}`);
+        console.log(`🔍 Starting notification ${id} as read for user ${userId}`);
 
-        // 1) Try to update by real ID first
-        console.log(`🔍 Attempting to update notification by ID: ${id} for user: ${userId}`);
-        const { data: updatedById, error: updateByIdError } = await supabase
-            .from('notifications')
-            .update({
-                read: true,
-                read_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .eq('user_id', userId)
-            .select()
-            .single();
+        // Check if ID is a virtual ID (contains prefix) or real UUID
+        const isVirtualId = !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+        
+        if (isVirtualId) {
+            console.log(`🔍 Detected virtual ID: ${id}, skipping UUID lookup`);
+        } else {
+            // 1) Try to update by real UUID first
+            console.log(`🔍 Attempting to update notification by UUID: ${id} for user: ${userId}`);
+            const { data: updatedById, error: updateByIdError } = await supabase
+                .from('notifications')
+                .update({
+                    read: true,
+                    read_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select()
+                .single();
 
-        console.log(`📊 Update by ID result:`, { updatedById, updateByIdError });
+            console.log(`📊 Update by UUID result:`, { updatedById, updateByIdError });
 
-        if (updateByIdError && updateByIdError.code !== 'PGRST116') { // PGRST116 = no rows
-            console.error('❌ Error updating notification by ID:', updateByIdError);
-            return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
-        }
-
-        if (updatedById) {
-            console.log('✅ Notification marked as read by ID:', updatedById.id);
-
-            // Also mark any sibling notifications (legacy duplicates) for same user
-            const virtualId = updatedById.metadata?.virtual_id;
-            const commitmentId = updatedById.metadata?.commitment_id;
-            try {
-                if (virtualId || commitmentId) {
-                    const siblingFilter = [];
-                    if (virtualId) siblingFilter.push(`metadata->>virtual_id.eq.${virtualId}`);
-                    if (commitmentId) siblingFilter.push(`metadata->>commitment_id.eq.${commitmentId}`);
-
-                    if (siblingFilter.length > 0) {
-                        const { error: siblingError } = await supabase
-                            .from('notifications')
-                            .update({
-                                read: true,
-                                read_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            })
-                            .eq('user_id', userId)
-                            .neq('id', updatedById.id)
-                            .or(siblingFilter.join(','));
-
-                        if (siblingError) {
-                            console.warn('⚠️ Could not mark sibling notifications as read:', siblingError);
-                        } else {
-                            console.log('✅ Sibling notifications (duplicates) marked as read');
-                        }
-                    }
-                }
-            } catch (dupError) {
-                console.warn('⚠️ Error marking sibling notifications as read:', dupError);
+            if (updateByIdError && updateByIdError.code !== 'PGRST116') { // PGRST116 = no rows
+                console.error('❌ Error updating notification by UUID:', updateByIdError);
+                return res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
             }
 
-            return res.json({ success: true, data: updatedById });
+            if (updatedById) {
+                console.log('✅ Notification marked as read by UUID:', updatedById.id);
+
+                // Also mark any sibling notifications (legacy duplicates) for same user
+                const virtualId = updatedById.metadata?.virtual_id;
+                const commitmentId = updatedById.metadata?.commitment_id;
+                try {
+                    if (virtualId || commitmentId) {
+                        const siblingFilter = [];
+                        if (virtualId) siblingFilter.push(`metadata->>virtual_id.eq.${virtualId}`);
+                        if (commitmentId) siblingFilter.push(`metadata->>commitment_id.eq.${commitmentId}`);
+
+                        if (siblingFilter.length > 0) {
+                            const { error: siblingError } = await supabase
+                                .from('notifications')
+                                .update({
+                                    read: true,
+                                    read_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('user_id', userId)
+                                .neq('id', updatedById.id)
+                                .or(siblingFilter.join(','));
+
+                            if (siblingError) {
+                                console.warn('⚠️ Could not mark sibling notifications as read:', siblingError);
+                            } else {
+                                console.log('✅ Sibling notifications (duplicates) marked as read');
+                            }
+                        }
+                    }
+                } catch (dupError) {
+                    console.warn('⚠️ Error marking sibling notifications as read:', dupError);
+                }
+
+                return res.json({ success: true, data: updatedById });
+            }
         }
 
         // 2) Fallback: check if this ID is a virtual_id stored in metadata
@@ -6778,6 +8057,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
         return res.json({ success: true, data: newNotification });
     } catch (error) {
         console.error('❌ Error marking notification as read:', error);
+        console.error('❌ Full error details:', JSON.stringify(error, null, 2));
         res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
     }
 });
@@ -6856,7 +8136,9 @@ app.delete('/api/notifications/:id', async (req, res) => {
 app.post('/api/subfolders/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { nombre, descripcion, categoria, subcategoria, parent_folder_id } = req.body;
+        const { nombre, descripcion, categoria, subcategoria, parent_folder_id, metadata } = req.body;
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -6867,6 +8149,7 @@ app.post('/api/subfolders/save', async (req, res) => {
         }
         
         console.log(`💾 Guardando subcarpeta: ${nombre} en ${categoria}/${subcategoria}`);
+        console.log(`📌 Contexto carpeta - entity_id: ${entityId}, commitment_id: ${commitmentId}`);
         
         const { data: subfolder, error } = await supabase
             .from('subcarpetas')
@@ -6877,6 +8160,8 @@ app.post('/api/subfolders/save', async (req, res) => {
                 subcategoria,
                 parent_folder_id: parent_folder_id || null,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -6906,6 +8191,8 @@ app.post('/api/subdocuments/save', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria, tipo, titulo, contenido, metadata, parent_folder_id } = req.body;
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -6916,6 +8203,7 @@ app.post('/api/subdocuments/save', async (req, res) => {
         }
         
         console.log(`💾 Guardando subdocumento: ${titulo} (${tipo}) en ${categoria}/${subcategoria}`);
+        console.log(`📌 Contexto - entity_id: ${entityId}, commitment_id: ${commitmentId}`);
         
         const { data: document, error } = await supabase
             .from('subdocumentos')
@@ -6928,6 +8216,8 @@ app.post('/api/subdocuments/save', async (req, res) => {
                 parent_folder_id: parent_folder_id || null,
                 metadata: metadata || {},
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -6957,20 +8247,31 @@ app.get('/api/subfolders/:categoria/:subcategoria', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { categoria, subcategoria } = req.params;
+        const { entity_id, commitment_id } = req.query;
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
         
         console.log(`🔍 Obteniendo subcarpetas de ${categoria}/${subcategoria}`);
+        console.log(`🔍 Contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
         
-        const { data: subfolders, error } = await supabase
+        let query = supabase
             .from('subcarpetas')
             .select('*')
             .eq('categoria', categoria)
-            .eq('subcategoria', subcategoria)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .eq('subcategoria', subcategoria);
+
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo subcarpetas por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subcarpetas por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+
+        const { data: subfolders, error } = await query.order('created_at', { ascending: false });
             
         if (error) {
             console.error('❌ Error obteniendo subcarpetas:', error);
@@ -7151,7 +8452,6 @@ app.post('/api/subdocuments/get', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error || !document) {
@@ -7280,6 +8580,8 @@ app.post('/api/subdocuments/upload', async (req, res) => {
                 parent_folder_id: null,
                 metadata,
                 user_id: userId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -7304,62 +8606,21 @@ app.post('/api/subdocuments/upload', async (req, res) => {
     }
 });
 
-// Obtener subdocumentos de una subcategoría
-app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
-    try {
-        const userId = req.user?.id || req.headers['user-id'];
-        const { categoria, subcategoria } = req.params;
-        
-        if (!userId) {
-            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
-        }
-        
-        console.log(`🔍 Obteniendo subdocumentos de ${categoria}/${subcategoria}`);
-        
-        const { data: documents, error } = await supabase
-            .from('subdocumentos')
-            .select('*')
-            .eq('categoria', categoria)
-            .eq('subcategoria', subcategoria)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-            
-        // Log para depuración - verificar created_by
-        if (documents && documents.length > 0) {
-            console.log('🔍 Documentos encontrados con created_by:');
-            documents.forEach(doc => {
-                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}`);
-            });
-        }
-            
-        if (error) {
-            console.error('❌ Error obteniendo subdocumentos:', error);
-            return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
-        }
-        
-        console.log(`✅ ${documents?.length || 0} subdocumentos encontrados`);
-        res.json({
-            success: true,
-            documents: documents || []
-        });
-        
-    } catch (error) {
-        console.error('❌ Error en endpoint /api/subdocuments:', error);
-        res.status(500).json({ success: false, error: 'Error interno del servidor' });
-    }
-});
-
 // Obtener un subdocumento específico por ID
 app.get('/api/subdocuments/document/:documentId', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { documentId } = req.params;
         
+        console.log(`🔍 Buscando documento: ${documentId} para usuario: ${userId}`);
+        
         if (!userId) {
+            console.error('❌ Usuario no autenticado');
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
         
         if (!documentId) {
+            console.error('❌ ID de documento no proporcionado');
             return res.status(400).json({ success: false, error: 'ID de documento requerido' });
         }
         
@@ -7367,7 +8628,6 @@ app.get('/api/subdocuments/document/:documentId', async (req, res) => {
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (error) {
@@ -7376,10 +8636,11 @@ app.get('/api/subdocuments/document/:documentId', async (req, res) => {
         }
         
         if (!document) {
+            console.error('❌ Documento no encontrado en BD');
             return res.status(404).json({ success: false, error: 'Documento no encontrado' });
         }
         
-        console.log(`✅ Documento ${documentId} encontrado`);
+        console.log(`✅ Documento encontrado:`, document);
         res.json({
             success: true,
             document: document
@@ -7405,11 +8666,324 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
             return res.status(400).json({ success: false, error: 'ID de documento requerido' });
         }
         
+        console.log(`🔍 Buscando documento para descarga: ${documentId} para usuario: ${userId}`);
+        
         const { data: document, error } = await supabase
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
+            .single();
+            
+        if (error) {
+            console.error('❌ Error al obtener documento para descarga:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener el documento' });
+        }
+        
+        if (!document) {
+            console.error('❌ Documento no encontrado para descarga');
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        if (document.tipo !== 'archivo') {
+            return res.status(400).json({ success: false, error: 'El documento no es un archivo' });
+        }
+        
+        const metadata = parseMetadata(document.metadata);
+        if (!metadata || !metadata.fileData) {
+            console.error('❌ Datos del archivo no encontrados en metadata');
+            return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
+        }
+        
+        // Para PDFs, validar que tenga el header correcto
+        const fileName = metadata.fileName || 'archivo';
+        const fileExtension = fileName.toLowerCase().split('.').pop();
+        let fileBuffer;
+        
+        if (fileExtension === 'pdf') {
+            try {
+                console.log(`🔍 Procesando PDF descarga: ${fileName}`);
+                console.log(`🔍 Base64 original longitud: ${metadata.fileData.length} caracteres`);
+                console.log(`🔍 Primeros 50 caracteres del base64: ${metadata.fileData.substring(0, 50)}`);
+                
+                // Validar y limpiar base64 para PDFs
+                const cleanBase64 = metadata.fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+                console.log(`🔍 Base64 limpio longitud: ${cleanBase64.length} caracteres`);
+                
+                if (cleanBase64.length === 0) {
+                    console.error('❌ Base64 limpio está vacío');
+                    return res.status(400).json({ success: false, error: 'Datos base64 inválidos' });
+                }
+                
+                // Convertir a buffer
+                fileBuffer = Buffer.from(cleanBase64, 'base64');
+                console.log(`🔍 Buffer creado, tamaño: ${fileBuffer.length} bytes`);
+                
+                // Validar que sea un PDF válido (header %PDF)
+                if (fileBuffer.length < 4) {
+                    console.error('❌ Buffer demasiado pequeño para ser PDF');
+                    return res.status(400).json({ success: false, error: 'Archivo PDF demasiado pequeño' });
+                }
+                
+                const header = fileBuffer.toString('ascii', 0, 4);
+                console.log(`🔍 Header del PDF: "${header}"`);
+                
+                if (header !== '%PDF') {
+                    console.error(`❌ Archivo PDF inválido o corrupto. Header esperado: %PDF, obtenido: ${header}`);
+                    return res.status(400).json({ success: false, error: 'Archivo PDF inválido o corrupto' });
+                }
+                
+                // Validar footer del PDF (%%EOF)
+                const footerStart = Math.max(0, fileBuffer.length - 10);
+                const footer = fileBuffer.toString('ascii', footerStart);
+                console.log(`🔍 Footer del PDF: "${footer}"`);
+                
+                if (!footer.includes('%%EOF')) {
+                    console.warn('⚠️ PDF sin footer %%EOF, pero continuando...');
+                }
+                
+                console.log(`✅ PDF validado exitosamente: ${fileBuffer.length} bytes`);
+            } catch (error) {
+                console.error('❌ Error procesando PDF:', error);
+                console.error('❌ Stack trace:', error.stack);
+                return res.status(400).json({ success: false, error: 'Error procesando archivo PDF' });
+            }
+        } else {
+            // Para otros archivos, usar conversión normal
+            try {
+                fileBuffer = Buffer.from(metadata.fileData, 'base64');
+            } catch (error) {
+                console.error('❌ Error convirtiendo base64 a buffer:', error);
+                return res.status(400).json({ success: false, error: 'Error decodificando archivo' });
+            }
+        }
+        
+        // Determinar Content-Type específico según el tipo de archivo
+        let contentType = 'application/octet-stream';
+        
+        // Content-Type específicos para formatos comunes
+        const contentTypes = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed'
+        };
+        
+        if (contentTypes[fileExtension]) {
+            contentType = contentTypes[fileExtension];
+        }
+        
+        // Set headers para descarga
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', fileBuffer.length);
+        
+        console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
+        res.send(fileBuffer);
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/download:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener subdocumentos de una subcategoría
+app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { categoria, subcategoria } = req.params;
+        const { entity_id, commitment_id } = req.query;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        console.log(`🔍 Obteniendo subdocumentos de ${categoria}/${subcategoria}`);
+        console.log(`🔍 Contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
+        
+        let query = supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('categoria', categoria)
+            .eq('subcategoria', subcategoria);
+        
+        // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
+        if (entity_id && commitment_id) {
+            console.log('🔍 Compartiendo subdocumentos por entity_id:', entity_id, 'commitment_id:', commitment_id);
+            query = query.eq('entity_id', entity_id).eq('commitment_id', commitment_id);
+        } else if (userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subdocumentos por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+        
+        const { data: documents, error } = await query.order('created_at', { ascending: false });
+            
+        // Log para depuración - verificar created_by
+        if (documents && documents.length > 0) {
+            console.log('🔍 Documentos encontrados con created_by:');
+            documents.forEach(doc => {
+                console.log(`  - ID: ${doc.id}, created_by: ${doc.created_by}, user_id: ${doc.user_id}, entity_id: ${doc.entity_id}, commitment_id: ${doc.commitment_id}`);
+            });
+        }
+            
+        if (error) {
+            console.error('❌ Error obteniendo subdocumentos:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
+        }
+        
+        // Enriquecer documentos con info del usuario que los subió
+        if (documents && documents.length > 0) {
+            const userIds = [...new Set(documents.map(d => d.user_id).filter(Boolean))];
+            if (userIds.length > 0) {
+                const { data: users, error: usersError } = await supabase
+                    .from('users')
+                    .select('id, email, full_name, raw_user_meta_data')
+                    .in('id', userIds);
+
+                if (!usersError && users) {
+                    const userMap = users.reduce((map, user) => {
+                        let userName = user.email || 'Usuario';
+                        if (user.full_name) userName = user.full_name;
+                        else if (user.raw_user_meta_data?.name) userName = user.raw_user_meta_data.name;
+                        else if (user.raw_user_meta_data?.full_name) userName = user.raw_user_meta_data.full_name;
+                        map[user.id] = { ...user, name: userName };
+                        return map;
+                    }, {});
+
+                    documents.forEach(doc => {
+                        if (doc.user_id && userMap[doc.user_id]) {
+                            doc.users = userMap[doc.user_id];
+                        }
+                    });
+                }
+            }
+        }
+
+        console.log(`✅ ${documents?.length || 0} subdocumentos encontrados`);
+        res.json({
+            success: true,
+            documents: documents || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener todos los subdocumentos de un contexto (entity/commitment) sin filtrar por categoría/subcategoría
+app.get('/api/subdocuments/context', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { entity_id, commitment_id, tipo } = req.query;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        console.log(`🔍 Obteniendo subdocumentos por contexto - entity_id: ${entity_id}, commitment_id: ${commitment_id}, tipo: ${tipo}`);
+
+        let query = supabase
+            .from('subdocumentos')
+            .select('*');
+
+        // Filtrar por entidad/compromiso cuando estén disponibles; si no hay contexto, mantener privado por usuario
+        if (entity_id) {
+            console.log('🔍 Filtrando por entity_id:', entity_id);
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id !== undefined) {
+            if (commitment_id === '' || commitment_id === 'null') {
+                console.log('🔍 Filtrando por commitment_id NULL');
+                query = query.is('commitment_id', null);
+            } else {
+                console.log('🔍 Filtrando por commitment_id:', commitment_id);
+                query = query.eq('commitment_id', commitment_id);
+            }
+        }
+        if (!entity_id && commitment_id === undefined && userId) {
+            console.log('🔍 Sin contexto de entidad/compromiso, filtrando subdocumentos por usuario:', userId);
+            query = query.eq('user_id', userId);
+        }
+
+        if (tipo) {
+            query = query.eq('tipo', tipo);
+        }
+
+        const { data: documents, error } = await query.order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('❌ Error obteniendo subdocumentos por contexto:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener los subdocumentos' });
+        }
+
+        // Enriquecer documentos con info del usuario que los subió
+        if (documents && documents.length > 0) {
+            const userIds = [...new Set(documents.map(d => d.user_id).filter(Boolean))];
+            if (userIds.length > 0) {
+                const { data: users, error: usersError } = await supabase
+                    .from('users')
+                    .select('id, email, full_name, raw_user_meta_data')
+                    .in('id', userIds);
+
+                if (!usersError && users) {
+                    const userMap = users.reduce((map, user) => {
+                        let userName = user.email || 'Usuario';
+                        if (user.full_name) userName = user.full_name;
+                        else if (user.raw_user_meta_data?.name) userName = user.raw_user_meta_data.name;
+                        else if (user.raw_user_meta_data?.full_name) userName = user.raw_user_meta_data.full_name;
+                        map[user.id] = { ...user, name: userName };
+                        return map;
+                    }, {});
+
+                    documents.forEach(doc => {
+                        if (doc.user_id && userMap[doc.user_id]) {
+                            doc.users = userMap[doc.user_id];
+                        }
+                    });
+                }
+            }
+        }
+
+        console.log(`✅ ${documents?.length || 0} subdocumentos encontrados por contexto`);
+        res.json({
+            success: true,
+            documents: documents || []
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/context:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Descargar archivo de subdocumento
+app.get('/api/subdocuments/download/:documentId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
             .single();
             
         if (error) {
@@ -7426,16 +9000,107 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
         }
         
         const metadata = parseMetadata(document.metadata);
-        if (!metadata || !metadata.fileContent) {
+        if (!metadata || !metadata.fileData) {
             return res.status(400).json({ success: false, error: 'Contenido del archivo no encontrado' });
         }
         
-        // Convertir base64 a buffer
-        const fileBuffer = Buffer.from(metadata.fileContent, 'base64');
+        // Validar integridad de los datos base64
+        if (!metadata.fileData || typeof metadata.fileData !== 'string') {
+            console.error('❌ Datos base64 inválidos');
+            return res.status(400).json({ success: false, error: 'Datos del archivo corruptos' });
+        }
+        
+        // Para PDFs, validar que tenga el header correcto
+        const fileExtension = (metadata.fileName || 'archivo').toLowerCase().split('.').pop();
+        let fileBuffer;
+        
+        if (fileExtension === 'pdf') {
+            try {
+                console.log(`🔍 Procesando PDF descarga: ${fileName}`);
+                console.log(`🔍 Base64 original longitud: ${metadata.fileData.length} caracteres`);
+                console.log(`🔍 Primeros 50 caracteres del base64: ${metadata.fileData.substring(0, 50)}`);
+                
+                // Validar y limpiar base64 para PDFs
+                const cleanBase64 = metadata.fileData.replace(/[^A-Za-z0-9+/=]/g, '');
+                console.log(`🔍 Base64 limpio longitud: ${cleanBase64.length} caracteres`);
+                
+                if (cleanBase64.length === 0) {
+                    console.error('❌ Base64 limpio está vacío');
+                    return res.status(400).json({ success: false, error: 'Datos base64 inválidos' });
+                }
+                
+                // Convertir a buffer
+                fileBuffer = Buffer.from(cleanBase64, 'base64');
+                console.log(`🔍 Buffer creado, tamaño: ${fileBuffer.length} bytes`);
+                
+                // Validar que sea un PDF válido (header %PDF)
+                if (fileBuffer.length < 4) {
+                    console.error('❌ Buffer demasiado pequeño para ser PDF');
+                    return res.status(400).json({ success: false, error: 'Archivo PDF demasiado pequeño' });
+                }
+                
+                const header = fileBuffer.toString('ascii', 0, 4);
+                console.log(`🔍 Header del PDF: "${header}"`);
+                
+                if (header !== '%PDF') {
+                    console.error(`❌ Archivo PDF inválido o corrupto. Header esperado: %PDF, obtenido: ${header}`);
+                    return res.status(400).json({ success: false, error: 'Archivo PDF inválido o corrupto' });
+                }
+                
+                // Validar footer del PDF (%%EOF)
+                const footerStart = Math.max(0, fileBuffer.length - 10);
+                const footer = fileBuffer.toString('ascii', footerStart);
+                console.log(`🔍 Footer del PDF: "${footer}"`);
+                
+                if (!footer.includes('%%EOF')) {
+                    console.warn('⚠️ PDF sin footer %%EOF, pero continuando...');
+                }
+                
+                console.log(`✅ PDF validado exitosamente: ${fileBuffer.length} bytes`);
+            } catch (error) {
+                console.error('❌ Error procesando PDF:', error);
+                console.error('❌ Stack trace:', error.stack);
+                return res.status(400).json({ success: false, error: 'Error procesando archivo PDF' });
+            }
+        } else {
+            // Para otros archivos, usar conversión normal
+            try {
+                fileBuffer = Buffer.from(metadata.fileData, 'base64');
+            } catch (error) {
+                console.error('❌ Error convirtiendo base64 a buffer:', error);
+                return res.status(400).json({ success: false, error: 'Error decodificando archivo' });
+            }
+        }
+        
+        // Determinar Content-Type específico según el tipo de archivo
+        let contentType = 'application/octet-stream';
+        const fileName = metadata.fileName || 'archivo';
+        
+        // Content-Type específicos para formatos comunes
+        const contentTypes = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed'
+        };
+        
+        if (contentTypes[fileExtension]) {
+            contentType = contentTypes[fileExtension];
+        }
         
         // Set headers para descarga
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${metadata.fileName || 'archivo'}"`);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.setHeader('Content-Length', fileBuffer.length);
         
         console.log(`✅ Descargando archivo ${documentId}: ${metadata.fileName}`);
@@ -7613,9 +9278,10 @@ app.get('/api/users/id/:userId', async (req, res) => {
 // ENDPOINTS PARA FORMULARIOS
 // ============================================
 
-// Guardar formulario
+// Guardar formulario (con upsert - inserta o actualiza si existe)
 app.post('/api/formularios/save', async (req, res) => {
     try {
+        console.log('=== INICIO POST /api/formularios/save ===');
         const userId = req.user?.id || req.headers['user-id'];
         const { 
             form_id, 
@@ -7624,8 +9290,11 @@ app.post('/api/formularios/save', async (req, res) => {
             subdocument_id, 
             metadata,
             entity_id = null,
-            commitment_id = null
+            commitment_id = null,
+            id // ID opcional para actualizar un registro existente
         } = req.body;
+        
+        console.log('📥 Body recibido:', { form_id, form_title, subdocument_id, entity_id, commitment_id, id });
         
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
@@ -7635,37 +9304,134 @@ app.post('/api/formularios/save', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Faltan campos requeridos: form_id, form_title, form_data' });
         }
         
+        // Validar que entity_id sea un UUID válido, si no, guardarlo como null
+        let validEntityId = null;
+        if (entity_id) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entity_id)) {
+                validEntityId = entity_id;
+            } else {
+                console.log('⚠️ entity_id no es un UUID válido en formulario, guardando como null:', entity_id);
+            }
+        }
+
+        // Validar que commitment_id sea un UUID válido, si no, guardarlo como null
+        let validCommitmentId = null;
+        if (commitment_id) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(commitment_id)) {
+                validCommitmentId = commitment_id;
+            } else {
+                console.log('⚠️ commitment_id no es un UUID válido en formulario, guardando como null:', commitment_id);
+            }
+        }
+
         const payload = {
             form_id,
             form_title,
             form_data: form_data,
             subdocument_id: subdocument_id || null,
             created_by: userId,
-            entity_id: entity_id || null,
-            commitment_id: commitment_id || null,
-            created_at: new Date().toISOString(),
+            entity_id: validEntityId,
+            commitment_id: validCommitmentId,
             updated_at: new Date().toISOString()
         };
 
-        console.log('💾 Guardando formulario con payload:', payload);
-
-        const { data: formulario, error } = await supabase
-            .from('form_responses')
-            .insert([payload])
-            .select()
-            .single();
+        // Si se proporciona un ID, actualizamos ese registro específico
+        if (id) {
+            console.log('🔄 Actualizando formulario existente con ID:', id);
+            const { data: formulario, error } = await supabase
+                .from('form_responses')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+                
+            if (error) {
+                console.error('❌ Error actualizando formulario:', error);
+                return res.status(500).json({ success: false, error: 'Error al actualizar el formulario' });
+            }
             
-        if (error) {
-            console.error('❌ Error guardando formulario:', error);
-            return res.status(500).json({ success: false, error: 'Error al guardar el formulario' });
+            console.log('✅ Formulario actualizado exitosamente');
+            res.json({
+                success: true,
+                message: 'Formulario actualizado exitosamente',
+                formulario,
+                action: 'update'
+            });
+        } else {
+            // Si no hay ID, buscamos si existe un registro con el mismo contexto
+            console.log('🔍 Buscando formulario existente con contexto:', { form_id, subdocument_id, validEntityId, validCommitmentId });
+            
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('form_id', form_id)
+                .eq('created_by', userId);
+            
+            if (subdocument_id) {
+                query = query.eq('subdocument_id', subdocument_id);
+            } else {
+                query = query.is('subdocument_id', null);
+            }
+            
+            if (validEntityId) {
+                query = query.eq('entity_id', validEntityId);
+            }
+            
+            if (validCommitmentId) {
+                query = query.eq('commitment_id', validCommitmentId);
+            }
+            
+            const { data: existingForm } = await query.maybeSingle();
+            
+            if (existingForm) {
+                // Si existe, actualizamos
+                console.log('🔄 Formulario existente encontrado, actualizando ID:', existingForm.id);
+                const { data: formulario, error } = await supabase
+                    .from('form_responses')
+                    .update(payload)
+                    .eq('id', existingForm.id)
+                    .select()
+                    .single();
+                    
+                if (error) {
+                    console.error('❌ Error actualizando formulario existente:', error);
+                    return res.status(500).json({ success: false, error: 'Error al actualizar el formulario' });
+                }
+                
+                console.log('✅ Formulario actualizado exitosamente');
+                res.json({
+                    success: true,
+                    message: 'Formulario actualizado exitosamente',
+                    formulario,
+                    action: 'update'
+                });
+            } else {
+                // Si no existe, insertamos nuevo
+                console.log('🆕 No existe formulario, creando nuevo registro');
+                payload.created_at = new Date().toISOString();
+                
+                const { data: formulario, error } = await supabase
+                    .from('form_responses')
+                    .insert([payload])
+                    .select()
+                    .single();
+                    
+                if (error) {
+                    console.error('❌ Error creando nuevo formulario:', error);
+                    return res.status(500).json({ success: false, error: 'Error al crear el formulario' });
+                }
+                
+                console.log('✅ Formulario creado exitosamente');
+                res.json({
+                    success: true,
+                    message: 'Formulario creado exitosamente',
+                    formulario,
+                    action: 'insert'
+                });
+            }
         }
-        
-        console.log('✅ Formulario guardado exitosamente');
-        res.json({
-            success: true,
-            message: 'Formulario guardado exitosamente',
-            formulario
-        });
         
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/save:', error);
@@ -7681,7 +9447,8 @@ app.post('/api/formularios/get', async (req, res) => {
             form_id, 
             subdocument_id,
             entity_id = null,
-            commitment_id = null
+            commitment_id = null,
+            view_all = false
         } = req.body;
         
         if (!userId) {
@@ -7690,19 +9457,34 @@ app.post('/api/formularios/get', async (req, res) => {
         
         let query = supabase
             .from('form_responses')
-            .select('*')
-            .eq('created_by', userId);
+            .select('*');
+        
+        if (!view_all) {
+            query = query.eq('created_by', userId);
+        }
             
         if (form_id) {
             query = query.eq('form_id', form_id);
         }
         
         if (entity_id) {
-            query = query.eq('entity_id', entity_id);
+            // Validar que entity_id sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            } else {
+                console.log('⚠️ entity_id no es un UUID válido en get formularios, omitiendo filtro:', entity_id);
+            }
         }
         
         if (commitment_id) {
-            query = query.eq('commitment_id', commitment_id);
+            // Validar que commitment_id sea un UUID válido antes de filtrar
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            } else {
+                console.log('⚠️ commitment_id no es un UUID válido en get formularios, omitiendo filtro:', commitment_id);
+            }
         }
             
         if (subdocument_id) {
@@ -7737,18 +9519,38 @@ app.post('/api/formularios/get', async (req, res) => {
 app.get('/api/formularios/list', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        
+        const { entity_id, commitment_id, form_id_prefix } = req.query;
+
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
         }
-        
-        console.log(`🔍 Listando formularios del usuario: ${userId}`);
-        
-        const { data: formularios, error } = await supabase
+
+        console.log(`🔍 Listando formularios del usuario: ${userId}, entity_id: ${entity_id}, commitment_id: ${commitment_id}, form_id_prefix: ${form_id_prefix}`);
+
+        let query = supabase
             .from('form_responses')
-            .select('*')
-            .eq('created_by', userId)
-            .order('created_at', { ascending: false });
+            .select('*');
+
+        // Filtrar por entidad/compromiso cuando estén disponibles; si no hay contexto, mantener privado por usuario
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id !== undefined) {
+            if (commitment_id === '' || commitment_id === 'null') {
+                query = query.is('commitment_id', null);
+            } else {
+                query = query.eq('commitment_id', commitment_id);
+            }
+        }
+        if (!entity_id && commitment_id === undefined) {
+            query = query.eq('created_by', userId);
+        }
+
+        if (form_id_prefix) {
+            query = query.like('form_id', `${form_id_prefix}%`);
+        }
+
+        const { data: formularios, error } = await query.order('created_at', { ascending: false });
             
         if (error) {
             console.error('❌ Error listando formularios:', error);
@@ -7764,6 +9566,509 @@ app.get('/api/formularios/list', async (req, res) => {
     } catch (error) {
         console.error('❌ Error en endpoint /api/formularios/list:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Eliminar formulario por form_id y contexto (usado para quitar vínculos de documentos)
+app.post('/api/formularios/delete', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { form_id, entity_id = null, commitment_id = null } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!form_id) {
+            return res.status(400).json({ success: false, error: 'form_id requerido' });
+        }
+
+        console.log(`🗑️ Eliminando formulario ${form_id} para entity_id: ${entity_id}, commitment_id: ${commitment_id}`);
+
+        let query = supabase
+            .from('form_responses')
+            .delete()
+            .eq('form_id', form_id);
+
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id === '' || commitment_id === 'null' || commitment_id === null) {
+            query = query.is('commitment_id', null);
+        } else {
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { error } = await query;
+
+        if (error) {
+            console.error('❌ Error eliminando formulario:', error);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el formulario' });
+        }
+
+        console.log('✅ Formulario eliminado correctamente');
+        res.json({ success: true, message: 'Formulario eliminado correctamente' });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/delete:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Guardar aprobación de formulario (por sección)
+app.post('/api/formularios/approval', async (req, res) => {
+    try {
+        console.log('=== INICIO POST /api/formularios/approval ===');
+        console.log('📥 Body recibido:', JSON.stringify(req.body, null, 2));
+        console.log('📥 Headers:', {
+            'user-id': req.headers['user-id'],
+            'content-type': req.headers['content-type']
+        });
+
+        const userId = req.user?.id || req.headers['user-id'];
+        const {
+            form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
+            section, // Sección específica del formulario (ej: 'estimacion-contable', 'integridad-libro-mayor')
+            status,
+            comments,
+            user_name,
+            role,
+            view_all = false
+        } = req.body;
+
+        console.log('🔍 Datos extraídos:', {
+            userId,
+            form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
+            section,
+            status,
+            user_name,
+            role
+        });
+
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!status) {
+            console.error('❌ Falta campo status');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: status' });
+        }
+
+        if (!section) {
+            console.error('❌ Falta campo section');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: section' });
+        }
+
+        let resolvedFormResponseId = form_response_id;
+        let targetFormId = form_id || section;
+
+        // Si no hay form_response_id, buscar/crear por form_id + entity + commitment (+ usuario si no es vista compartida)
+        if (!resolvedFormResponseId) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('form_id', targetFormId);
+
+            if (!view_all) {
+                query = query.eq('created_by', userId);
+            }
+
+            if (entity_id && uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            }
+            if (commitment_id && uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            }
+
+            const { data: existing, error: findError } = await query.maybeSingle();
+
+            if (findError) {
+                console.error('❌ Error buscando formulario:', findError);
+                return res.status(500).json({ success: false, error: 'Error buscando formulario', details: findError.message });
+            }
+
+            if (existing?.id) {
+                resolvedFormResponseId = existing.id;
+            } else {
+                console.log('🆕 No existe formulario, creando nuevo registro para aprobación:', { targetFormId, entity_id, commitment_id });
+                const newPayload = {
+                    form_id: targetFormId,
+                    form_title: `Formulario ${targetFormId}`,
+                    form_data: {},
+                    created_by: userId,
+                    entity_id: (entity_id && uuidRegex.test(entity_id)) ? entity_id : null,
+                    commitment_id: (commitment_id && uuidRegex.test(commitment_id)) ? commitment_id : null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+
+                const { data: newForm, error: createError } = await supabase
+                    .from('form_responses')
+                    .insert([newPayload])
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('❌ Error creando formulario para aprobación:', createError);
+                    return res.status(500).json({ success: false, error: 'Error creando formulario para aprobación', details: createError.message });
+                }
+
+                resolvedFormResponseId = newForm.id;
+            }
+        }
+
+        // Validar que el status sea válido
+        const validStatuses = ['approved', 'rejected', 'pending', 'review'];
+        if (!validStatuses.includes(status)) {
+            console.error('❌ Status no válido:', status);
+            return res.status(400).json({ success: false, error: 'Status no válido. Debe ser: approved, rejected, pending, review' });
+        }
+
+        console.log('📝 Guardando aprobación:', { form_response_id: resolvedFormResponseId, section, status, userId, user_name, role });
+
+        // Obtener el formulario actual
+        console.log('🔍 Buscando formulario con ID:', resolvedFormResponseId);
+        const { data: currentForm, error: fetchError } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('id', resolvedFormResponseId)
+            .single();
+
+        if (fetchError) {
+            console.error('❌ Error obteniendo formulario:', fetchError);
+            console.error('❌ Detalles del error:', {
+                code: fetchError.code,
+                message: fetchError.message,
+                details: fetchError.details
+            });
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado', details: fetchError.message });
+        }
+
+        if (!currentForm) {
+            console.error('❌ Formulario no encontrado con ID:', resolvedFormResponseId);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        console.log('✅ Formulario encontrado:', {
+            id: currentForm.id,
+            form_id: currentForm.form_id,
+            current_approvals: currentForm.approvals
+        });
+
+        // Obtener approvals actuales o inicializar objeto por secciones
+        const currentApprovals = currentForm.approvals || {};
+        console.log('🔍 currentApprovals antes de modificar:', JSON.stringify(currentApprovals, null, 2));
+
+        const sectionsApprovals = currentApprovals.sections || {};
+        console.log('🔍 sectionsApprovals:', JSON.stringify(sectionsApprovals, null, 2));
+
+        // Obtener aprobaciones de la sección específica o inicializar array
+        const sectionApprovals = sectionsApprovals[section] || [];
+        console.log('🔍 sectionApprovals para sección', section, ':', JSON.stringify(sectionApprovals, null, 2));
+
+        // Crear nueva aprobación
+        const newApproval = {
+            user_id: userId,
+            user_name: user_name || 'Usuario',
+            role: role || 'auditor',
+            status: status,
+            timestamp: new Date().toISOString(),
+            comments: comments || ''
+        };
+
+        console.log('📝 Nueva aprobación a agregar:', JSON.stringify(newApproval, null, 2));
+
+        // Agregar nueva aprobación al array de la sección
+        sectionApprovals.push(newApproval);
+        console.log('📝 sectionApprovals después de push:', JSON.stringify(sectionApprovals, null, 2));
+
+        // Construir objeto approvals completo
+        const newApprovals = {
+            sections: {
+                ...sectionsApprovals,
+                [section]: sectionApprovals
+            },
+            last_updated: new Date().toISOString(),
+            last_status: status,
+            last_section: section
+        };
+
+        console.log('📝 newApprovals a guardar:', JSON.stringify(newApprovals, null, 2));
+
+        // Actualizar approvals en la base de datos con estructura por secciones
+        console.log('💾 Actualizando formulario en BD...');
+        const { data: updatedForm, error: updateError } = await supabase
+            .from('form_responses')
+            .update({
+                approvals: newApprovals,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', resolvedFormResponseId)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('❌ Error actualizando aprobación:', updateError);
+            console.error('❌ Detalles del error:', {
+                code: updateError.code,
+                message: updateError.message,
+                details: updateError.details,
+                hint: updateError.hint
+            });
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error al guardar la aprobación',
+                details: updateError.message 
+            });
+        }
+
+        console.log('✅ Aprobación guardada exitosamente para sección:', section);
+        console.log('✅ Formulario actualizado:', {
+            id: updatedForm.id,
+            approvals: updatedForm.approvals
+        });
+
+        res.json({
+            success: true,
+            message: 'Aprobación guardada exitosamente',
+            approval: newApproval,
+            section: section,
+            formulario: updatedForm
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/approval:', error);
+        console.error('❌ Stack trace:', error.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error interno del servidor',
+            details: error.message 
+        });
+    }
+});
+
+// Quitar / deshacer aprobación de una sección
+app.post('/api/formularios/approval/remove', async (req, res) => {
+    try {
+        console.log('=== INICIO POST /api/formularios/approval/remove ===');
+        console.log('📥 Body recibido:', JSON.stringify(req.body, null, 2));
+
+        const userId = req.user?.id || req.headers['user-id'];
+        const {
+            form_response_id,
+            form_id,
+            entity_id,
+            commitment_id,
+            section,
+            view_all = false
+        } = req.body;
+
+        if (!userId) {
+            console.error('❌ Usuario no autenticado');
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!section) {
+            console.error('❌ Falta campo section');
+            return res.status(400).json({ success: false, error: 'Falta el campo requerido: section' });
+        }
+
+        let resolvedFormResponseId = form_response_id;
+        let targetFormId = form_id || section;
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        if (!resolvedFormResponseId) {
+            let query = supabase
+                .from('form_responses')
+                .select('id')
+                .eq('form_id', targetFormId);
+
+            if (!view_all) {
+                query = query.eq('created_by', userId);
+            }
+
+            if (entity_id && uuidRegex.test(entity_id)) {
+                query = query.eq('entity_id', entity_id);
+            }
+            if (commitment_id && uuidRegex.test(commitment_id)) {
+                query = query.eq('commitment_id', commitment_id);
+            }
+
+            const { data: existing, error: findError } = await query.maybeSingle();
+
+            if (findError) {
+                console.error('❌ Error buscando formulario:', findError);
+                return res.status(500).json({ success: false, error: 'Error buscando formulario', details: findError.message });
+            }
+
+            if (existing?.id) {
+                resolvedFormResponseId = existing.id;
+            } else {
+                console.log('ℹ️ No existe formulario para quitar aprobación:', { targetFormId, entity_id, commitment_id });
+                return res.status(404).json({ success: false, error: 'No se encontró el formulario para quitar la aprobación' });
+            }
+        }
+
+        // Obtener el formulario actual
+        console.log('🔍 Buscando formulario con ID:', resolvedFormResponseId);
+        const { data: currentForm, error: fetchError } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('id', resolvedFormResponseId)
+            .single();
+
+        if (fetchError || !currentForm) {
+            console.error('❌ Error obteniendo formulario:', fetchError);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        const currentApprovals = currentForm.approvals || {};
+        const sectionsApprovals = currentApprovals.sections || {};
+        const sectionApprovals = sectionsApprovals[section] || [];
+
+        // Eliminar la aprobación del usuario actual en esa sección
+        const updatedSectionApprovals = sectionApprovals.filter(a => a.user_id !== userId);
+
+        const newSections = { ...sectionsApprovals };
+        if (updatedSectionApprovals.length > 0) {
+            newSections[section] = updatedSectionApprovals;
+        } else {
+            delete newSections[section];
+        }
+
+        const newApprovals = {
+            sections: newSections,
+            last_updated: new Date().toISOString(),
+            last_status: 'removed',
+            last_section: section
+        };
+
+        console.log('💾 Eliminando aprobación en BD...');
+        const { data: updatedForm, error: updateError } = await supabase
+            .from('form_responses')
+            .update({
+                approvals: newApprovals,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', resolvedFormResponseId)
+            .select()
+            .single();
+
+        if (updateError) {
+            console.error('❌ Error quitando aprobación:', updateError);
+            return res.status(500).json({ success: false, error: 'Error al quitar la aprobación', details: updateError.message });
+        }
+
+        console.log('✅ Aprobación eliminada exitosamente para sección:', section);
+        res.json({
+            success: true,
+            message: 'Aprobación eliminada exitosamente',
+            section: section,
+            formulario: updatedForm
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/formularios/approval/remove:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor', details: error.message });
+    }
+});
+
+// Obtener aprobaciones de un formulario (todas o por sección específica)
+app.get('/api/formularios/approval/:formResponseId', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { formResponseId } = req.params;
+        const { section } = req.query; // Parámetro opcional para filtrar por sección
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        console.log('🔍 Obteniendo aprobaciones del formulario:', formResponseId, section ? `(sección: ${section})` : '(todas las secciones)');
+
+        const { data: formulario, error } = await supabase
+            .from('form_responses')
+            .select('id, approvals, created_at, updated_at')
+            .eq('id', formResponseId)
+            .single();
+
+        if (error || !formulario) {
+            console.error('❌ Error obteniendo aprobaciones:', error);
+            return res.status(404).json({ success: false, error: 'Formulario no encontrado' });
+        }
+
+        const approvals = formulario.approvals || { sections: {} };
+
+        // Si se solicita una sección específica, devolver solo esa
+        if (section) {
+            const sectionApprovals = approvals.sections?.[section] || [];
+            console.log('✅ Aprobaciones de sección obtenidas:', section, sectionApprovals.length);
+            return res.json({
+                success: true,
+                section: section,
+                approvals: sectionApprovals,
+                formulario
+            });
+        }
+
+        // Devolver todas las aprobaciones organizadas por sección
+        console.log('✅ Aprobaciones obtenidas:', approvals);
+        res.json({
+            success: true,
+            approvals: approvals,
+            formulario
+        });
+
+    } catch (error) {
+        console.error('❌ Error en endpoint GET /api/formularios/approval:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint de prueba para verificar tabla entities
+app.get('/api/test-entities', async (req, res) => {
+    try {
+        console.log('🔍 Verificando tabla entities...');
+        
+        const { data, error } = await supabase
+            .from('entities')
+            .select('*')
+            .limit(5);
+            
+        if (error) {
+            console.error('❌ Error en tabla entities:', error);
+            return res.json({ 
+                success: false, 
+                error: error.message,
+                code: error.code,
+                details: error.details
+            });
+        }
+        
+        console.log('✅ Tabla entities funciona. Registros encontrados:', data?.length || 0);
+        
+        res.json({ 
+            success: true, 
+            message: 'Tabla entities funciona correctamente',
+            count: data?.length || 0,
+            sample: data
+        });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint test-entities:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
 });
 

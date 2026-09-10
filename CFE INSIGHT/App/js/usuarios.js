@@ -300,17 +300,17 @@
 
             console.log(`✅ Usuario: ${window.currentUser.name} (${window.currentUser.role})`);
 
-            // 🔒 VALIDAR SOLO ROLE = 'admin'
+            // 🔒 VALIDAR ROLES PERMITIDOS: admin y auditor_senior
             const userRole = window.currentUser.role;
 
-            if (userRole !== 'admin') {
+            if (userRole !== 'admin' && userRole !== 'auditor_senior') {
                 console.warn(`⚠️ Acceso denegado - Role: ${userRole}`);
-                showErrorMsg('❌ Acceso denegado. Solo administradores pueden gestionar usuarios.');
+                showErrorMsg('❌ Acceso denegado. Solo administradores y auditores senior pueden gestionar usuarios.');
                 disableUI();
                 return false;
             }
 
-            console.log(`✅ Acceso permitido - Admin: ${window.currentUser.name}`);
+            console.log(`✅ Acceso permitido - ${userRole === 'admin' ? 'Admin' : 'Auditor Senior'}: ${window.currentUser.name}`);
 
             // Setear variables de módulo
             currentUserProfile = window.currentUser;
@@ -594,11 +594,11 @@
             btnEdit.innerHTML = '<i class="bi bi-pencil-fill"></i>';
             btnEdit.title = 'Editar usuario';
             
-            // Solo permitir editar si el usuario actual es admin
-            if (currentUserRole === 'admin') {
+            // Permitir editar si el usuario actual es admin o auditor_senior
+            if (currentUserRole === 'admin' || currentUserRole === 'auditor_senior') {
                 btnEdit.addEventListener('click', () => openEditModal(user.id));
             } else {
-                disableWithTooltip(btnEdit, 'Solo administradores pueden editar usuarios');
+                disableWithTooltip(btnEdit, 'Solo administradores y auditores senior pueden editar usuarios');
             }
             actionsDiv.appendChild(btnEdit);
 
@@ -624,13 +624,13 @@
             btnReset.innerHTML = '<i class="bi bi-key-fill"></i>';
             btnReset.title = 'Restablecer contraseña';
             
-            // Solo permitir restablecer si el usuario actual es admin y no es el mismo usuario
-            if (currentUserRole === 'admin' && user.id !== currentUserProfile?.id) {
+            // Permitir restablecer si el usuario actual es admin o auditor_senior y no es el mismo usuario
+            if ((currentUserRole === 'admin' || currentUserRole === 'auditor_senior') && user.id !== currentUserProfile?.id) {
                 btnReset.addEventListener('click', () => openResetPasswordModal(user.id, user.name || user.email));
             } else {
                 disableWithTooltip(btnReset, user.id === currentUserProfile?.id ? 
                     'No puedes restablecer tu propia contraseña' : 
-                    'Solo administradores pueden restablecer contraseñas');
+                    'Solo administradores y auditores senior pueden restablecer contraseñas');
             }
             actionsDiv.appendChild(btnReset);
 
@@ -655,9 +655,9 @@
                 return;
             }
 
-            // Validar que sea administrador
-            if (!PermissionsHelper.isAdmin()) {
-                showErrorMsg('No tienes permiso para cambiar roles. Solo administradores pueden hacerlo.');
+            // Validar que sea administrador o auditor_senior
+            if (!PermissionsHelper.isAdmin() && !PermissionsHelper.isAuditorSenior()) {
+                showErrorMsg('No tienes permisos para cambiar roles. Solo administradores y auditores senior pueden hacerlo.');
                 return;
             }
 
@@ -666,6 +666,22 @@
                 showErrorMsg('Rol inválido. Solo se permiten roles globales: admin, auditor, auditor_senior, socio, cliente');
                 loadUsers();
                 return;
+            }
+
+            // Prevenir que auditor_senior cambie roles a admin
+            if (PermissionsHelper.isAuditorSenior() && normalizedRole === 'admin') {
+                showErrorMsg('No puedes asignar el rol de administrador. Solo los administradores pueden asignar este rol.');
+                return;
+            }
+
+            // Obtener información del usuario para validar
+            const targetUser = allUsers.find(u => u.id === userId);
+            if (targetUser && targetUser.role === 'admin') {
+                // Prevenir cambiar el rol de un administrador existente
+                if (PermissionsHelper.isAuditorSenior()) {
+                    showErrorMsg('No puedes modificar el rol de un administrador. Solo los administradores pueden modificar roles de otros administradores.');
+                    return;
+                }
             }
 
             showLoading(true);
@@ -807,8 +823,8 @@
      * Abrir modal de restablecer contraseña
      */
     function openResetPasswordModal(userId, userName) {
-        // Verificar permisos
-        if (!PermissionsHelper.isAdmin()) {
+        // Verificar permisos (admin o auditor_senior)
+        if (!PermissionsHelper.isAdmin() && !PermissionsHelper.isAuditorSenior()) {
             showErrorMsg('No tienes permisos para restablecer contraseñas');
             return;
         }
@@ -938,8 +954,8 @@
      * Abrir modal de agregar usuario
      */
     function openAddModal() {
-        // Verificar permisos
-        if (!canChangeRoles) {
+        // Verificar permisos (admin o auditor_senior)
+        if (!PermissionsHelper.isAdmin() && !PermissionsHelper.isAuditorSenior()) {
             showErrorMsg('No tienes permisos para crear usuarios');
             return;
         }
@@ -965,8 +981,8 @@
      * Abrir modal de editar usuario
      */
     function openEditModal(userId) {
-        // Verificar permisos
-        if (!PermissionsHelper.isAdmin()) {
+        // Verificar permisos (admin o auditor_senior)
+        if (!PermissionsHelper.isAdmin() && !PermissionsHelper.isAuditorSenior()) {
             showErrorMsg('No tienes permisos para editar usuarios');
             return;
         }
@@ -1251,8 +1267,10 @@
             if (addUserBtn) {
                 if (!hasAccessToUsers) {
                     disableWithTooltip(addUserBtn, 'No tienes permiso para crear usuarios');
-                } else {
+                } else if (PermissionsHelper.isAdmin() || PermissionsHelper.isAuditorSenior()) {
                     addUserBtn.addEventListener('click', openAddModal);
+                } else {
+                    disableWithTooltip(addUserBtn, 'No tienes permiso para crear usuarios');
                 }
             }
 
