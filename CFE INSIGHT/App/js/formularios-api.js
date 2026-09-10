@@ -17,28 +17,60 @@ function buildApiUrl(path) {
     return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+// Obtener ID de usuario de forma robusta, esperando a auth-guard si es necesario
+async function getFormulariosApiUserId() {
+    if (window.currentUser && window.currentUser.id) {
+        return window.currentUser.id;
+    }
+
+    if (typeof getCurrentUserId === 'function') {
+        const id = getCurrentUserId();
+        if (id) return id;
+    }
+
+    if (typeof window.getUserUI === 'function') {
+        const user = window.getUserUI();
+        if (user && (user.id || user.user_id)) {
+            return user.id || user.user_id;
+        }
+    }
+
+    if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+        try {
+            await window.currentUserReady;
+            if (window.currentUser && window.currentUser.id) {
+                return window.currentUser.id;
+            }
+        } catch (e) { }
+    }
+
+    try {
+        const sessionUser = sessionStorage.getItem('userUI');
+        if (sessionUser) {
+            const user = JSON.parse(sessionUser);
+            if (user.id || user.user_id) return user.id || user.user_id;
+        }
+    } catch (e) { }
+
+    try {
+        const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
+        if (userData) {
+            const user = JSON.parse(userData);
+            if (user.id || user.user_id) return user.id || user.user_id;
+        }
+    } catch (e) { }
+
+    return null;
+}
+
 // Función principal para guardar formulario en la BD usando API existente
 async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId = null) {
     try {
         console.log('💾 Guardando formulario en BD via API:', { formId, formTitle, formData });
         
-        // Obtener ID del usuario actual (usar el mismo método que subcategorias-data.js)
-        let userId = null;
-        
-        // Intentar obtener desde window.currentUser
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        }
-        
-        // Intentar desde localStorage
-        if (!userId) {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        // Obtener ID del usuario actual de forma robusta
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }
@@ -151,22 +183,12 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
 // Función para obtener formulario guardado previamente
 async function getFormularioGuardado(formId, subdocumentId = null) {
     try {
-        let userId = null;
-        
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        } else {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }
-        
+
         // Obtener contexto actual de entidad/compromiso
         const entityDropdown = document.getElementById('entidad');
         const commitmentDropdown = document.getElementById('commitmentDropdownToggle');
@@ -226,18 +248,8 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
 // Función para listar todos los formularios del usuario
 async function listarFormulariosUsuario() {
     try {
-        let userId = null;
-        
-        if (window.currentUser && window.currentUser.id) {
-            userId = window.currentUser.id;
-        } else {
-            const userData = localStorage.getItem('currentUser') || localStorage.getItem('auth_user');
-            if (userData) {
-                const user = JSON.parse(userData);
-                userId = user.id || user.user_id;
-            }
-        }
-        
+        const userId = await getFormulariosApiUserId();
+
         if (!userId) {
             throw new Error('No se encontró ID de usuario');
         }
