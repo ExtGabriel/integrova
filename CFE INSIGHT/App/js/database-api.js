@@ -1809,6 +1809,40 @@ async function deleteFile(fileId, entityId = null, commitmentId = null) {
     }
 }
 
+async function getUploadedFiles(entityId = null, commitmentId = null, tipo = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) return [];
+
+        const params = new URLSearchParams();
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+        if (tipo) params.append('tipo', tipo);
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/context?${params}`, {
+            headers: {
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            }
+        });
+
+        const result = await response.json();
+        if (!result.success) return [];
+
+        return (result.documents || []).map(doc => ({
+            id: doc.id,
+            fileName: doc.metadata?.fileName || doc.titulo || 'Archivo',
+            titulo: doc.titulo || '',
+            metadata: doc.metadata || {},
+            type: doc.tipo
+        }));
+    } catch (error) {
+        console.error('Error in getUploadedFiles:', error);
+        return [];
+    }
+}
+
 // Exportar funciones para uso global
 window.saveAccountAssignment = saveAccountAssignment;
 window.getAccountAssignments = getAccountAssignments;
@@ -1840,6 +1874,7 @@ window.loadFormData = loadFormData;
 window.uploadFile = uploadFile;
 window.listFiles = listFiles;
 window.deleteFile = deleteFile;
+window.getUploadedFiles = getUploadedFiles;
 
 // Nuevas funciones para grupos financieros y cuentas
 window.saveFinancialGroup = saveFinancialGroup;
@@ -2178,6 +2213,159 @@ async function removeApprovalForSection(formId, section, viewAll = false) {
     }
 }
 
+// Referencias en celdas de BG (hojas-trabajo)
+async function saveBgReference(rowId, bgType, colIndex, file, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('Usuario no autenticado');
+
+        const formId = `ref_bg_${bgType}_${rowId}_${colIndex}`;
+        const fileName = file ? (file.fileName || file.nombre || file.titulo || file.name || 'Archivo') : '';
+        const payload = {
+            form_id: formId,
+            form_title: `Referencia BG ${bgType} - ${rowId}`,
+            form_data: file ? { rowId, bgType, colIndex, fileId: file.id, fileName, fileType: file.type || '', url: file.url || '' } : { removed: true },
+            subdocument_id: null,
+            metadata: {},
+            entity_id: entityId,
+            commitment_id: commitmentId
+        };
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error guardando referencia');
+        return result.formulario;
+    } catch (error) {
+        console.error('Error in saveBgReference:', error);
+        throw error;
+    }
+}
+
+async function getBgReferences(bgType, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) return [];
+
+        const params = new URLSearchParams();
+        params.append('form_id_prefix', `ref_bg_${bgType}_`);
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/list?${params}`, {
+            headers: {
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            }
+        });
+
+        const result = await response.json();
+        if (!result.success) return [];
+        return result.formularios || [];
+    } catch (error) {
+        console.error('Error in getBgReferences:', error);
+        return [];
+    }
+}
+
+async function deleteBgReference(rowId, bgType, colIndex, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('Usuario no autenticado');
+
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId,
+                ...(entityId ? { 'entity-id': entityId } : {}),
+                ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+            },
+            body: JSON.stringify({
+                form_id: `ref_bg_${bgType}_${rowId}_${colIndex}`,
+                entity_id: entityId,
+                commitment_id: commitmentId
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error eliminando referencia');
+        return result;
+    } catch (error) {
+        console.error('Error in deleteBgReference:', error);
+        throw error;
+    }
+}
+
+async function syncBgReferencesToDocument(documentId, bgType, entityId = null, commitmentId = null) {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId || !documentId) return;
+
+        const refs = await getBgReferences(bgType, entityId, commitmentId);
+        const references = (refs || []).map(ref => {
+            const fd = ref.form_data || {};
+            return {
+                rowId: fd.rowId,
+                col: fd.colIndex !== undefined ? fd.colIndex : fd.col,
+                fileId: fd.fileId,
+                fileName: fd.fileName,
+                updatedAt: ref.updated_at || ref.created_at
+            };
+        }).filter(r => r.rowId !== undefined && r.fileId);
+
+        const getRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/get`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({ documentId })
+        });
+        const getResult = await getRes.json();
+        if (!getResult.success || !getResult.document) {
+            console.warn('No se pudo obtener subdocumento para sincronizar referencias:', getResult.error);
+            return;
+        }
+
+        const doc = getResult.document;
+        const updatedMetadata = { ...(doc.metadata || {}), bgType, references };
+
+        const updateRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/update`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({
+                documentId,
+                titulo: doc.titulo,
+                contenido: doc.contenido,
+                metadata: updatedMetadata
+            })
+        });
+
+        const updateResult = await updateRes.json();
+        if (!updateResult.success) {
+            console.warn('No se pudo actualizar metadata del subdocumento:', updateResult.error);
+        } else {
+            console.log('✅ Referencias sincronizadas en metadata del documento BG:', { documentId, count: references.length });
+        }
+    } catch (error) {
+        console.error('Error in syncBgReferencesToDocument:', error);
+    }
+}
+
 // Exponer funciones globalmente
 window.saveFormApproval = saveFormApproval;
 window.getFormApprovals = getFormApprovals;
@@ -2187,6 +2375,10 @@ window.getCurrentUserRole = getCurrentUserRole;
 window.saveApprovalForSection = saveApprovalForSection;
 window.removeApprovalForSection = removeApprovalForSection;
 window.getFormApprovalsForSection = getFormApprovalsForSection;
+window.saveBgReference = saveBgReference;
+window.getBgReferences = getBgReferences;
+window.deleteBgReference = deleteBgReference;
+window.syncBgReferencesToDocument = syncBgReferencesToDocument;
 
 // Funciones duales (localStorage + base de datos)
 window.saveFinancialGroupDual = saveFinancialGroupDual;

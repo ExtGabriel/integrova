@@ -870,11 +870,24 @@
     window.viewSubdocument = async (docId) => {
         try {
             console.log('👁️ Iniciando vista de documento:', docId);
-            
+
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
-            
+
             if (docData.tipo === 'hoja-trabajo') {
+                const docTitle = (docData.titulo || '').toUpperCase();
+                const titleBgType = docTitle.startsWith('BG-1') ? 'activo' : docTitle.startsWith('BG-2') ? 'pasivo' : docTitle.startsWith('BG-3') ? 'resultados' : null;
+                const bgType = docData.metadata?.bgType || titleBgType;
+                const resolvedEntityId = docData.entity_id ||
+                                       window.commitmentDropdownState?.currentEntityId ||
+                                       (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().entityId : null) ||
+                                       document.getElementById('entidad')?.value ||
+                                       '';
+                const resolvedCommitmentId = docData.commitment_id ||
+                                          window.commitmentDropdownState?.selectedCommitmentId ||
+                                          (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
+                                          '';
+
                 try {
                     const payload = {
                         id: docData.id,
@@ -882,7 +895,9 @@
                         tipo: docData.tipo,
                         categoria: docData.categoria,
                         subcategoria: docData.subcategoria,
-                        metadata: docData.metadata || {}
+                        entityId: resolvedEntityId,
+                        commitmentId: resolvedCommitmentId,
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
                     };
                     localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
                 } catch (storageError) {
@@ -890,7 +905,7 @@
                 }
 
                 // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
-                if (docData.metadata?.bgType) {
+                if (bgType) {
                     console.log('🔄 Redirigiendo a página de BG...');
                     window.location.href = 'hojas-trabajo.html';
                 } else {
@@ -899,9 +914,9 @@
                 }
                 return;
             }
-            
+
             console.log('📄 Visualizando documento de tipo:', docData.tipo);
-            
+
         } catch (error) {
             console.error('❌ Error al ver documento:', error);
             console.error('📍 Stack trace:', error.stack);
@@ -912,11 +927,24 @@
     window.editSubdocument = async (docId) => {
         try {
             console.log('🔧 Iniciando edición de documento:', docId);
-            
+
             const docData = await window.subcategoriasManager.getSubdocument(docId);
             console.log('📄 Datos del documento obtenidos:', docData);
-            
+
             if (docData.tipo === 'hoja-trabajo') {
+                const docTitle = (docData.titulo || '').toUpperCase();
+                const titleBgType = docTitle.startsWith('BG-1') ? 'activo' : docTitle.startsWith('BG-2') ? 'pasivo' : docTitle.startsWith('BG-3') ? 'resultados' : null;
+                const bgType = docData.metadata?.bgType || titleBgType;
+                const resolvedEntityId = docData.entity_id ||
+                                       window.commitmentDropdownState?.currentEntityId ||
+                                       (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().entityId : null) ||
+                                       document.getElementById('entidad')?.value ||
+                                       '';
+                const resolvedCommitmentId = docData.commitment_id ||
+                                          window.commitmentDropdownState?.selectedCommitmentId ||
+                                          (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
+                                          '';
+
                 try {
                     const payload = {
                         id: docData.id,
@@ -924,7 +952,9 @@
                         tipo: docData.tipo,
                         categoria: docData.categoria,
                         subcategoria: docData.subcategoria,
-                        metadata: docData.metadata || {}
+                        entityId: resolvedEntityId,
+                        commitmentId: resolvedCommitmentId,
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
                     };
                     localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
                 } catch (storageError) {
@@ -932,7 +962,7 @@
                 }
 
                 // BGs van a hojas-trabajo.html; hojas de trabajo normales a sumarias.html
-                if (docData.metadata?.bgType) {
+                if (bgType) {
                     console.log('🔄 Redirigiendo a página de BG para editar...');
                     window.location.href = 'hojas-trabajo.html';
                 } else {
