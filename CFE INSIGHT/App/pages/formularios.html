@@ -2243,11 +2243,18 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // URL base para llamadas a la API (usa env/ventana y fallback a relativo)
-        const API_BASE_URL = (window.API_BASE_URL)
-            || (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL))
-            || (window.location && window.location.origin ? window.location.origin : '');
-        
+        // URL base para llamadas a la API: siempre usar la configuración global
+        // window.API_BASE_URL es configurado dinámicamente en js/config.js
+        function getApiBaseUrl() {
+            if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
+                return window.APP_CONFIG.API_BASE_URL;
+            }
+            if (window.API_BASE_URL) {
+                return window.API_BASE_URL;
+            }
+            return (window.location && window.location.origin) ? window.location.origin : '';
+        }
+
         // Variable para almacenar datos temporales del Excel
         let tempExcelData = null;
         
@@ -2378,7 +2385,7 @@
         async function loadExcelDataForMapping() {
             try {
                 // Obtener el último Excel procesado del usuario actual
-                const response = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                const response = await fetch(`${getApiBaseUrl()}/api/excel/latest`, {
                     headers: {
                         'user-id': getCurrentUserId()
                     }
@@ -2796,7 +2803,7 @@
                 
                 // Primero guardar los datos temporales en la base de datos
                 console.log('💾 Guardando datos temporales en la base de datos...');
-                const saveResponse = await fetch(`${API_BASE_URL}/api/excel/save-temp-data`, {
+                const saveResponse = await fetch(`${getApiBaseUrl()}/api/excel/save-temp-data`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2838,7 +2845,7 @@
                 console.log('🔍 window.currentDatasetId sincronizado:', window.currentDatasetId);
                 
                 // Ahora procesar el mapeo
-                const mappingResponse = await fetch(`${API_BASE_URL}/api/excel/process-mapping`, {
+                const mappingResponse = await fetch(`${getApiBaseUrl()}/api/excel/process-mapping`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -3964,7 +3971,7 @@
                 const currentCommitment = commitmentId || commitmentDropdownState.selectedCommitmentId;
                 
                 // Construir URL con contexto
-                let apiUrl = `${API_BASE_URL}/api/excel/latest`;
+                let apiUrl = `${getApiBaseUrl()}/api/excel/latest`;
                 const params = new URLSearchParams();
                 
                 if (currentEntity) {
@@ -4253,7 +4260,7 @@
                 // Limpiar cache del servidor para este contexto antes de cargar nuevas cuentas
                 if (context.entityId && context.commitmentId) {
                     try {
-                        await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                        await fetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
                             method: 'POST',
                             headers: {
                                 'user-id': userId,
@@ -4270,7 +4277,7 @@
                 // Primero verificar si hay un dataset válido para esta entidad/compromiso
                 if (context.entityId && context.commitmentId) {
                     console.log('🔍 Verificando si hay dataset para entidad:', context.entityId, 'compromiso:', context.commitmentId);
-                    const datasetCheck = await fetch(`${API_BASE_URL}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
+                    const datasetCheck = await fetch(`${getApiBaseUrl()}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
                         headers: {
                             'user-id': userId
                         }
@@ -4301,7 +4308,7 @@
                 
                 // Limpiar cache de cuentas en el servidor para el contexto actual
                 try {
-                    const clearCacheResponse = await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                    const clearCacheResponse = await fetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
                         method: 'POST',
                         headers: {
                             'user-id': userId,
@@ -4333,7 +4340,7 @@
                 }
                 
                 // Cargar cuentas desde la API
-                const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
+                const response = await fetch(`${getApiBaseUrl()}/api/accounts/unassigned`, {
                     headers: {
                         'user-id': userId,
                         ...(context.entityId ? { 'entity-id': context.entityId } : {}),
@@ -27756,7 +27763,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (!currentDatasetId) {
                 console.log('📡 Intentando obtener dataset actual desde el último Excel...');
                 try {
-                    const latestResponse = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                    const latestResponse = await fetch(`${getApiBaseUrl()}/api/excel/latest`, {
                         headers: {
                             'user-id': getCurrentUserId()
                         }
@@ -29632,7 +29639,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const commitmentId = commitmentDropdownState.selectedCommitmentId;
 
                 // Construir URL con filtros de contexto
-                let apiUrl = `${API_BASE_URL}/api/excel/datasets`;
+                let apiUrl = `${getApiBaseUrl()}/api/excel/datasets`;
                 const params = new URLSearchParams();
                 if (entityId) params.append('entity_id', entityId);
                 if (commitmentId) params.append('commitment_id', commitmentId);
@@ -29746,7 +29753,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (entityId) headers['entity-id'] = entityId;
                 if (commitmentId) headers['commitment-id'] = commitmentId;
 
-                const response = await fetch(`${API_BASE_URL}/api/conjuntos/${datasetId}`, {
+                const response = await fetch(`${getApiBaseUrl()}/api/conjuntos/${datasetId}`, {
                     method: 'DELETE',
                     headers
                 });
@@ -29838,7 +29845,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const commitmentId = commitmentDropdownState.selectedCommitmentId;
 
                 // Construir URL con filtros de contexto
-                let latestUrl = `${API_BASE_URL}/api/excel/latest`;
+                let latestUrl = `${getApiBaseUrl()}/api/excel/latest`;
                 const latestParams = new URLSearchParams();
                 if (entityId) latestParams.append('entity_id', entityId);
                 if (commitmentId) latestParams.append('commitment_id', commitmentId);
