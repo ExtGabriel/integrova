@@ -23,6 +23,30 @@ window.APP_CONFIG = {
     }
 };
 
+// Configuración dinámica de la URL base de la API para distintos entornos
+// - En Vercel (dominios *.vercel.app) y en integrovagt.com, apuntamos siempre al backend en Railway
+// - En otros entornos (desarrollo local, Railway sirviendo frontend), usamos el origin actual
+(function configureApiBaseUrl() {
+    try {
+        const host = window.location.hostname || '';
+        let apiBase = window.location.origin;
+
+        if (
+            host.endsWith('vercel.app') ||
+            host === 'www.integrovagt.com' ||
+            host === 'integrovagt.com'
+        ) {
+            apiBase = 'https://integrova-production-5b1b.up.railway.app';
+        }
+
+        window.APP_CONFIG.API_BASE_URL = apiBase;
+        window.API_BASE_URL = apiBase;
+    } catch (e) {
+        // Si algo falla, mantener el valor por defecto basado en window.location.origin
+        window.API_BASE_URL = window.APP_CONFIG.API_BASE_URL || window.location.origin;
+    }
+})();
+
 /**
  * Configuración de APIs de IA - CLIENTE SIDE
  * NOTA DE SEGURIDAD: Las API keys han sido movidas al servidor backend.
