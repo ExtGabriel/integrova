@@ -8487,30 +8487,30 @@ app.put('/api/subdocuments/update', async (req, res) => {
         
         console.log(`📝 Actualizando subdocumento: ${documentId}`);
         
-        // Primero verificar que el documento pertenezca al usuario
+        // Primero verificar que el documento exista
+        // No filtramos por user_id para mantener compatibilidad con documentos antiguos
         const { data: existingDoc, error: fetchError } = await supabase
             .from('subdocumentos')
             .select('*')
             .eq('id', documentId)
-            .eq('user_id', userId)
             .single();
             
         if (fetchError || !existingDoc) {
-            console.error('❌ Documento no encontrado o no pertenece al usuario:', fetchError);
+            console.error('❌ Documento no encontrado:', fetchError);
             return res.status(404).json({ success: false, error: 'Documento no encontrado' });
         }
         
-        // Actualizar el documento
+        // Actualizar el documento, asegurando user_id si estaba vacío
         const { data: document, error: updateError } = await supabase
             .from('subdocumentos')
             .update({
                 titulo,
                 contenido: contenido || existingDoc.contenido,
                 metadata: metadata || existingDoc.metadata,
+                user_id: existingDoc.user_id || userId,
                 updated_at: new Date().toISOString()
             })
             .eq('id', documentId)
-            .eq('user_id', userId)
             .select()
             .single();
         

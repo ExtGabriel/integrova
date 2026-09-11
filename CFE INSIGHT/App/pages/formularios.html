@@ -7219,7 +7219,7 @@
                 }
 
                 // Cargar todos los formularios del contexto
-                const response = await fetch('/api/formularios/get', {
+                const response = await fetch(`${getApiBaseUrl()}/api/formularios/get`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -7291,7 +7291,7 @@
                     
                     console.log('🔍 DEBUG payload para', sectionId, ':', payload);
 
-                    const response = await fetch('/api/formularios/save', {
+                    const response = await fetch(`${getApiBaseUrl()}/api/formularios/save`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -10252,7 +10252,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const fileData = await fileToBase64(file);
                 
                 // Enviar archivo al backend con la categoría y subcategoría reales
-                const response = await fetch('/api/subdocuments/upload', {
+                const response = await fetch(`${getApiBaseUrl()}/api/subdocuments/upload`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -10749,7 +10749,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('🔍 Descargando documento:', documentId);
             
             // Obtener información del documento primero
-            fetch(`/api/subdocuments/document/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser?.id || 'anonymous'
                 }
@@ -10807,7 +10807,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function downloadUploadedFile(documentId, fileName) {
             console.log('📥 Iniciando descarga de:', fileName);
             
-            fetch(`/api/subdocuments/download/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser?.id || 'anonymous'
                 }
@@ -21409,7 +21409,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const entityId = commitmentDropdownState?.currentEntityId || '';
                 const commitmentId = commitmentDropdownState?.selectedCommitmentId || '';
 
-                let contextUrl = '/api/subdocuments/context?tipo=archivo';
+                let contextUrl = `${getApiBaseUrl()}/api/subdocuments/context?tipo=archivo`;
                 if (entityId) {
                     contextUrl += `&entity_id=${encodeURIComponent(entityId)}`;
                 }
@@ -21572,7 +21572,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 // Si no hay entidad seleccionada, no mostrar vínculos para evitar mezclar contextos
                 if (!entityId) return;
 
-                let url = `/api/formularios/list?form_id_prefix=vinculo_&entity_id=${encodeURIComponent(entityId)}`;
+                let url = `${getApiBaseUrl()}/api/formularios/list?form_id_prefix=vinculo_&entity_id=${encodeURIComponent(entityId)}`;
                 url += `&commitment_id=${encodeURIComponent(commitmentId || '')}`;
 
                 const response = await fetch(url, {
@@ -21634,7 +21634,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!entityId) entityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
                 if (!commitmentId) commitmentId = commitmentDropdownState?.selectedCommitmentId || window.currentCommitmentId || null;
 
-                const response = await fetch('/api/formularios/delete', {
+                const response = await fetch(`${getApiBaseUrl()}/api/formularios/delete`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -23592,7 +23592,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const commitmentId = commitmentDropdownState?.selectedCommitmentId || null;
 
                 // Buscar el formulario MATRIZ_A300 en la base de datos
-                const response = await fetch('/api/formularios/get', {
+                const response = await fetch(`${getApiBaseUrl()}/api/formularios/get`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -23738,7 +23738,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('Guardando matriz A300 en BD:', payload);
 
                 // Enviar al endpoint
-                const response = await fetch('/api/formularios/save', {
+                const response = await fetch(`${getApiBaseUrl()}/api/formularios/save`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -43817,7 +43817,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para cargar archivos de una sección específica
         async function loadFilesForSection({ section, categoria, subcategoria, contentId }, userId) {
             try {
-                const response = await fetch(`/api/subdocuments/${categoria}/${subcategoria}`, {
+                const response = await fetch(`${getApiBaseUrl()}/api/subdocuments/${categoria}/${subcategoria}`, {
                     headers: {
                         'user-id': userId
                     }
@@ -43916,7 +43916,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('🔍 Usando userId:', userId);
             
             // Obtener información del documento
-            fetch(`/api/subdocuments/document/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
                 headers: {
                     'user-id': userId
                 }
@@ -43955,7 +43955,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function updateDocumentTitle(documentId, newTitle) {
-            fetch(`/api/subdocuments/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -43988,7 +43988,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function downloadUploadedDocument(documentId) {
-            fetch(`/api/subdocuments/download/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser.id
                 }
@@ -44026,7 +44026,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
 
-            fetch(`/api/subdocuments/${documentId}`, {
+            fetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
                 method: 'DELETE',
                 headers: {
                     'user-id': window.currentUser.id
@@ -44107,7 +44107,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                     try {
                         if (isDevelopment) console.log('🌐 Cargando catálogo completo de usuarios');
-                        const response = await fetch('/api/users');
+                        const response = await fetch(`${getApiBaseUrl()}/api/users`);
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         const data = await response.json();
                         if (isDevelopment) console.log('📋 Respuesta de /api/users:', data);
