@@ -276,7 +276,16 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'entity-id', 'commitment-id'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'user-id',
+        'entity-id',
+        'commitment-id',
+        // Cabeceras adicionales usadas por el navegador
+        'cache-control',
+        'pragma'
+    ],
     maxAge: 86400 // 24 horas
 };
 
