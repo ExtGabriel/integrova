@@ -1880,7 +1880,8 @@ function applyDashboardRoleVisibility() {
 
     console.log(`🔍 Aplicando visibilidad para rol: ${role}`);
 
-    const selectorsToHide = [
+    // Selectores generales para botones de acciones rápidas
+    const allRoleRestrictedSelectors = [
         'a.action-btn[href="usuarios.html"]',
         'a.action-btn[href="grupos.html"]',
         'a.action-btn[href="entidades.html"]',
@@ -1888,16 +1889,48 @@ function applyDashboardRoleVisibility() {
         '#iaChatBtn'
     ];
 
-    // Ocultar botones para roles que no deben verlos
-    if (role === 'auditor' || role === 'cliente') {
-        console.log(`🚫 Ocultando botones para rol: ${role}`);
-        selectorsToHide.forEach(selector => {
+    // Para auditor básico: permitir ENTIDADES, pero ocultar USUARIOS, GRUPOS e IA
+    if (role === 'auditor') {
+        console.log('🚫 Ocultando botones restringidos para rol auditor');
+
+        const auditorHideSelectors = [
+            'a.action-btn[href="usuarios.html"]',
+            'a.action-btn[href="grupos.html"]',
+            '#iaChatBtn'
+        ];
+
+        auditorHideSelectors.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {
                 el.style.display = 'none';
-                console.log(`✅ Botón oculto: ${selector}`);
+                console.log(`✅ Botón oculto (auditor): ${selector}`);
             } else {
-                console.warn(`⚠️ No se encontró botón: ${selector}`);
+                console.warn(`⚠️ No se encontró botón (auditor): ${selector}`);
+            }
+        });
+
+        // Asegurar que Entidades siga visible para auditor
+        const auditorShowSelectors = [
+            'a.action-btn[href="entidades.html"]',
+            'button.action-btn[onclick*="Entidades"]'
+        ];
+        auditorShowSelectors.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = '';
+                console.log(`✅ Botón mostrado (auditor): ${selector}`);
+            }
+        });
+    } else if (role === 'cliente') {
+        console.log('🚫 Ocultando botones restringidos para rol cliente');
+        // Cliente no debe ver botones administrativos
+        allRoleRestrictedSelectors.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.style.display = 'none';
+                console.log(`✅ Botón oculto (cliente): ${selector}`);
+            } else {
+                console.warn(`⚠️ No se encontró botón (cliente): ${selector}`);
             }
         });
     } else if (role === 'auditor_senior') {
@@ -1933,7 +1966,7 @@ function applyDashboardRoleVisibility() {
     } else {
         console.log(`✅ Mostrando todos los botones para rol: ${role}`);
         // Asegurarse de que los botones sean visibles para otros roles
-        selectorsToHide.forEach(selector => {
+        allRoleRestrictedSelectors.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {
                 el.style.display = '';
