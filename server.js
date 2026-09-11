@@ -9460,7 +9460,14 @@ app.post('/api/formularios/get', async (req, res) => {
             .select('*');
         
         if (!view_all) {
-            query = query.eq('created_by', userId);
+            // Comportamiento opción A:
+            // - Si HAY contexto de entidad/compromiso, no filtramos por created_by
+            //   para que todos los usuarios vean las mismas respuestas de ese contexto.
+            // - Si NO hay contexto (sin entity_id y sin commitment_id), mantenemos
+            //   los formularios privados por usuario.
+            if (!entity_id && !commitment_id) {
+                query = query.eq('created_by', userId);
+            }
         }
             
         if (form_id) {

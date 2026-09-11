@@ -14842,9 +14842,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
-        function guardarFormularioComunicacionesGerenciaGobierno() {
-            showNotification('Comunicaciones con la gerencia guardadas correctamente', 'success');
-            cerrarFormularioComunicacionesGerenciaGobierno();
+        async function guardarFormularioComunicacionesGerenciaGobierno() {
+            try {
+                const modal = document.querySelector('.formulario-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Comunicaciones con la gerencia');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario COMUNICACIONES_GERENCIA_GOBIERNO:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'COMUNICACIONES_GERENCIA_GOBIERNO',
+                        'Comunicaciones con la gerencia y los encargados del gobierno de la entidad',
+                        respuestas
+                    );
+                    cerrarFormularioComunicacionesGerenciaGobierno();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Comunicaciones con la gerencia guardadas localmente (API no disponible)', 'warning');
+                    cerrarFormularioComunicacionesGerenciaGobierno();
+                }
+            } catch (error) {
+                console.error('Error guardando COMUNICACIONES_GERENCIA_GOBIERNO:', error);
+                // El error de red/BD ya se muestra en guardarFormularioEnBD
+            }
         }
 
         // Función para aprobar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
@@ -15066,9 +15103,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Finalización de auditoría
-        function guardarFormularioFinalizacionAuditoria() {
-            showNotification('Finalización de auditoría guardada correctamente', 'success');
-            cerrarFormularioFinalizacionAuditoria();
+        async function guardarFormularioFinalizacionAuditoria() {
+            try {
+                const modal = document.querySelector('.formulario-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Finalización de auditoría');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario FINALIZACION_AUDITORIA:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'FINALIZACION_AUDITORIA',
+                        'Finalización de auditoría / Cierre del compromiso',
+                        respuestas
+                    );
+                    cerrarFormularioFinalizacionAuditoria();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Finalización de auditoría guardada localmente (API no disponible)', 'warning');
+                    cerrarFormularioFinalizacionAuditoria();
+                }
+            } catch (error) {
+                console.error('Error guardando FINALIZACION_AUDITORIA:', error);
+                // El error de red/BD ya se muestra en guardarFormularioEnBD
+            }
         }
 
         // Función para mostrar el formulario Revisión analítica
@@ -16275,9 +16349,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Hechos posteriores
-        function guardarFormularioHechosPosteriores() {
-            showNotification('Hechos posteriores guardados correctamente', 'success');
-            cerrarFormularioHechosPosteriores();
+        async function guardarFormularioHechosPosteriores() {
+            try {
+                const modal = document.querySelector('.formulario-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Hechos posteriores');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario HECHOS_POSTERIORES:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'HECHOS_POSTERIORES',
+                        'Hechos posteriores',
+                        respuestas
+                    );
+                    cerrarFormularioHechosPosteriores();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Hechos posteriores guardados localmente (API no disponible)', 'warning');
+                    cerrarFormularioHechosPosteriores();
+                }
+            } catch (error) {
+                console.error('Error guardando HECHOS_POSTERIORES:', error);
+                // El error de red/BD ya se muestra en guardarFormularioEnBD
+            }
         }
 
         // Función para aprobar el formulario Hechos posteriores
@@ -18116,9 +18227,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Calidad informe de auditoría
-        function guardarFormularioCalidadInformeAuditoria() {
-            showNotification('Calidad informe de auditoría guardado correctamente', 'success');
-            cerrarFormularioCalidadInformeAuditoria();
+        async function guardarFormularioCalidadInformeAuditoria() {
+            try {
+                const modal = document.querySelector('.formulario-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Calidad informe de auditoría');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario CALIDAD_INFORME_AUDITORIA:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'CALIDAD_INFORME_AUDITORIA',
+                        'Calidad informe de auditoría',
+                        respuestas
+                    );
+                    cerrarFormularioCalidadInformeAuditoria();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Calidad informe de auditoría guardado localmente (API no disponible)', 'warning');
+                    cerrarFormularioCalidadInformeAuditoria();
+                }
+            } catch (error) {
+                console.error('Error guardando CALIDAD_INFORME_AUDITORIA:', error);
+                // El error de red/BD ya se muestra en guardarFormularioEnBD
+            }
         }
 
         // Función para mostrar el formulario Cierre del compromiso
@@ -19452,9 +19600,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Cierre del compromiso
-        function guardarFormularioCierreCompromiso() {
-            showNotification('Cierre del compromiso guardado correctamente', 'success');
-            cerrarFormularioCierreCompromiso();
+        async function guardarFormularioCierreCompromiso() {
+            try {
+                const modal = document.querySelector('.formulario-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Cierre del compromiso');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario CIERRE_COMPROMISO:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'CIERRE_COMPROMISO',
+                        'Cierre del compromiso',
+                        respuestas
+                    );
+                    cerrarFormularioCierreCompromiso();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Cierre del compromiso guardado localmente (API no disponible)', 'warning');
+                    cerrarFormularioCierreCompromiso();
+                }
+            } catch (error) {
+                console.error('Error guardando CIERRE_COMPROMISO:', error);
+                // El error de red/BD ya se muestra en guardarFormularioEnBD
+            }
         }
 
         // Función para mostrar el formulario B400
@@ -41853,7 +42038,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario A500
-        function guardarFormularioA500() {
+        async function guardarFormularioA500() {
             // Recopilar datos de usuarios
             const usuarios = [];
             const usuarioRows = document.querySelectorAll('.usuario-row');
@@ -41922,10 +42107,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('Datos del formulario A500:', datosFormulario);
             
             // Guardar en la base de datos usando el sistema de subdocumentos
-            if (window.subcategoriasManager) {
-                guardarFormularioEnBD('A500', 'Materialidad y Equipo del Trabajo', datosFormulario);
+            if (window.guardarFormularioEnBD) {
+                try {
+                    await guardarFormularioEnBD('A500', 'Materialidad y Equipo del Trabajo', datosFormulario);
+                    cerrarFormularioA500();
+                } catch (error) {
+                    console.error('Error guardando A500:', error);
+                    showNotification('No se pudo guardar el formulario A500: ' + (error.message || 'error desconocido'), 'error');
+                }
             } else {
-                console.warn('⚠️ SubcategoriasDataManager no disponible, guardando solo localmente');
+                console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
                 showNotification('Formulario A500 guardado localmente', 'warning');
                 cerrarFormularioA500();
             }
