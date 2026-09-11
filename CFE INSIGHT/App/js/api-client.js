@@ -579,9 +579,10 @@
                 }
 
                 const userRole = window.currentUser.role;
+                const allowedEntityAdminRoles = ['admin', 'auditor', 'auditor_senior'];
 
-                // Solo admins pueden crear entidades
-                if (userRole !== 'admin') {
+                // Solo roles autorizados pueden crear entidades
+                if (!allowedEntityAdminRoles.includes(userRole)) {
                     console.error('❌ [Entities.create] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden crear entidades' };
                 }
@@ -651,9 +652,10 @@
                 }
 
                 const userRole = window.currentUser.role;
+                const allowedEntityAdminRoles = ['admin', 'auditor', 'auditor_senior'];
 
-                // Solo admins pueden asignar usuarios
-                if (userRole !== 'admin') {
+                // Solo roles autorizados pueden asignar usuarios
+                if (!allowedEntityAdminRoles.includes(userRole)) {
                     console.error('❌ [Entities.assignUser] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden asignar usuarios' };
                 }
@@ -751,9 +753,10 @@
                 }
 
                 const userRole = window.currentUser.role;
+                const allowedEntityAdminRoles = ['admin', 'auditor', 'auditor_senior'];
 
-                // Solo admins pueden actualizar entidades
-                if (userRole !== 'admin') {
+                // Solo roles autorizados pueden actualizar entidades
+                if (!allowedEntityAdminRoles.includes(userRole)) {
                     console.error('❌ [Entities.update] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden actualizar entidades' };
                 }
@@ -815,9 +818,10 @@
                 }
 
                 const userRole = window.currentUser.role;
+                const allowedEntityAdminRoles = ['admin', 'auditor', 'auditor_senior'];
 
-                // Solo admins pueden eliminar entidades
-                if (userRole !== 'admin') {
+                // Solo roles autorizados pueden eliminar entidades
+                if (!allowedEntityAdminRoles.includes(userRole)) {
                     console.error('❌ [Entities.delete] Permiso denegado. Rol:', userRole);
                     return { data: null, error: 'Solo administradores pueden eliminar entidades' };
                 }

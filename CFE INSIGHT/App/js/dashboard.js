@@ -887,8 +887,11 @@ async function generateRealNotifications() {
 
     try {
         // First, get existing notifications from database
-        // Using relative URL for Vercel proxy
-        const existingNotificationsResponse = await fetch(`/api/notifications?user_id=${userId}`);
+        const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
+            ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
+            : (typeof window !== 'undefined' ? window.location.origin : '');
+
+        const existingNotificationsResponse = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
         let existingNotifications = [];
         
         if (existingNotificationsResponse.ok) {
@@ -945,7 +948,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`/api/notifications`, {
+                        const createResponse = await fetch(`${apiBaseUrl}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1030,7 +1033,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`/api/notifications`, {
+                        const createResponse = await fetch(`${apiBaseUrl}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
