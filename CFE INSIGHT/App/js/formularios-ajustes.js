@@ -3147,6 +3147,8 @@ function updateNumeroField() {
             } else {
                 console.log('🧹 Sin dataset activo, limpiando ajustes');
                 ajustes = [];
+                renderAjustes();
+                broadcastAdjustmentsUpdate();
             }
 
             window.ajustes = ajustes;

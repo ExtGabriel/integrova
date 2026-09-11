@@ -1179,9 +1179,13 @@ async function syncNotificationAsRead(notificationId) {
             return;
         }
 
-        console.log(`📡 Enviando PUT a /api/notifications/${notificationId}/read con user-id: ${userId}`);
+        const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
+            ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
+            : (typeof window !== 'undefined' ? window.location.origin : '');
 
-        const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        console.log(`📡 Enviando PUT a ${apiBaseUrl}/api/notifications/${notificationId}/read con user-id: ${userId}`);
+
+        const response = await fetch(`${apiBaseUrl}/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
