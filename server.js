@@ -282,9 +282,14 @@ const corsOptions = {
         'user-id',
         'entity-id',
         'commitment-id',
-        // Cabeceras adicionales usadas por el navegador
+        // Cabeceras adicionales usadas por el navegador / navegadores modernos
         'cache-control',
-        'pragma'
+        'pragma',
+        'expires',
+        // Algunas cabeceras comunes adicionales (defensivo)
+        'x-requested-with',
+        'accept',
+        'origin'
     ],
     maxAge: 86400 // 24 horas
 };
