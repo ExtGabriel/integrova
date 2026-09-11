@@ -2720,9 +2720,11 @@
 
             if (!datasetId && typeof window.getExcelDatasets === 'function') {
                 try {
-                    const entityId = window.currentEntity?.id || window.currentEntityId ||
+                    const entityId = currentWorksheetDoc?.entityId ||
+                                    window.currentEntity?.id || window.currentEntityId ||
                                     (window.formDataManager && window.formDataManager.currentEntity?.id);
-                    const commitmentId = window.currentCommitment?.id || window.currentCommitmentId ||
+                    const commitmentId = currentWorksheetDoc?.commitmentId ||
+                                        window.currentCommitment?.id || window.currentCommitmentId ||
                                         (window.formDataManager && window.formDataManager.currentCommitment?.id);
                     const datasets = await window.getExcelDatasets(entityId, commitmentId);
                     if (Array.isArray(datasets) && datasets.length > 0) {
