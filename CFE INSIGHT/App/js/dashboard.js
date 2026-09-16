@@ -2171,6 +2171,25 @@ function handleSmallCalendarDayClick(date) {
                         <h5>Crear Nuevo Evento</h5>
                         <form id="newEventForm" onsubmit="saveNewEvent(event)">
                             <div class="form-group">
+                                <label>¿Para quién es este evento?</label>
+                                <div class="event-scope-options">
+                                    <label class="scope-option">
+                                        <input type="radio" name="eventScope" value="personal" checked>
+                                        <span>Solo para mí</span>
+                                    </label>
+                                    <label class="scope-option">
+                                        <input type="radio" name="eventScope" value="team">
+                                        <span>Para un equipo</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group" id="eventTeamContainer" style="display: none;">
+                                <label for="eventTeam">Equipo</label>
+                                <select id="eventTeam">
+                                    <option value="">Selecciona un equipo...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label for="eventTitle">Título del Evento</label>
                                 <input type="text" id="eventTitle" required placeholder="Ej: Reunión importante">
                             </div>
@@ -2201,11 +2220,79 @@ function handleSmallCalendarDayClick(date) {
     
     // Add modal to body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Inicializar formulario de evento (alcance y equipos)
+    setupCalendarEventForm();
     
     // Show modal with animation
     setTimeout(() => {
         document.getElementById('calendarEventModal').classList.add('show');
     }, 10);
+}
+
+function setupCalendarEventForm() {
+    const scopeInputs = document.querySelectorAll('input[name="eventScope"]');
+    const teamContainer = document.getElementById('eventTeamContainer');
+    const teamSelect = document.getElementById('eventTeam');
+
+    if (!scopeInputs.length || !teamContainer) {
+        return;
+    }
+
+    const updateVisibility = () => {
+        const selected = document.querySelector('input[name="eventScope"]:checked');
+        const value = selected ? selected.value : 'personal';
+
+        if (value === 'team') {
+            teamContainer.style.display = '';
+            if (teamSelect && !teamSelect.dataset.loaded) {
+                loadCalendarTeams(teamSelect);
+            }
+        } else {
+            teamContainer.style.display = 'none';
+        }
+    };
+
+    scopeInputs.forEach(input => {
+        input.addEventListener('change', updateVisibility);
+    });
+
+    updateVisibility();
+}
+
+async function loadCalendarTeams(selectElement) {
+    if (!selectElement) return;
+
+    try {
+        selectElement.innerHTML = '<option value="">Cargando equipos...</option>';
+
+        const response = API?.Teams?.getAll
+            ? await API.Teams.getAll()
+            : { success: false, data: [] };
+
+        if (!response) {
+            console.warn('⚠️ API.Teams no disponible en loadCalendarTeams, usando lista vacía');
+        }
+
+        const teams = response.success && Array.isArray(response.data) ? response.data : [];
+
+        if (!teams.length) {
+            selectElement.innerHTML = '<option value="">No hay equipos disponibles</option>';
+            selectElement.dataset.loaded = 'true';
+            return;
+        }
+
+        selectElement.innerHTML = [
+            '<option value="">Selecciona un equipo...</option>',
+            ...teams.map(team => `<option value="${team.id}">${team.name || 'Equipo sin nombre'}</option>`)
+        ].join('');
+
+        selectElement.dataset.loaded = 'true';
+    } catch (error) {
+        console.error('❌ Error cargando equipos para el calendario:', error);
+        selectElement.innerHTML = '<option value="">Error al cargar equipos</option>';
+        selectElement.dataset.loaded = 'true';
+    }
 }
 
 // Show events list
@@ -2240,6 +2327,12 @@ function saveNewEvent(e) {
     const title = document.getElementById('eventTitle').value;
     const time = document.getElementById('eventTime').value;
     const description = document.getElementById('eventDescription').value;
+
+    // Alcance del evento
+    const scopeInput = document.querySelector('input[name="eventScope"]:checked');
+    const scope = scopeInput ? scopeInput.value : 'personal';
+    const teamSelect = document.getElementById('eventTeam');
+    const teamId = scope === 'team' && teamSelect ? (teamSelect.value || null) : null;
     
     console.log('📅 selectedDate al guardar:', selectedDate);
     console.log('📅 selectedDate formateada:', selectedDate ? formatDateLocal(selectedDate) : 'NULL');
@@ -2250,6 +2343,8 @@ function saveNewEvent(e) {
         title: title,
         time: time,
         description: description,
+        scope: scope,
+        teamId: teamId,
         createdAt: new Date().toISOString()
     };
     
