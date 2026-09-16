@@ -1108,6 +1108,7 @@ app.post('/api/commitments', async (req, res) => {
         preparer,
         reviewer_id,
         reviewer,
+        team_id,
         user_id
     } = req.body;
     
@@ -1128,6 +1129,7 @@ app.post('/api/commitments', async (req, res) => {
         preparer,
         reviewer_id,
         reviewer,
+        team_id,
         user_id
     });
     
@@ -1150,13 +1152,17 @@ app.post('/api/commitments', async (req, res) => {
         // Agregar campos opcionales si existen
         if (budget_hours !== undefined && budget_hours !== null) insertData.budget_hours = budget_hours;
         if (budget_amount !== undefined && budget_amount !== null) insertData.budget_amount = budget_amount;
-        if (preparer_id) {
-            insertData.preparer_id = preparer_id;
-            insertData.preparer = preparer;
+        // Guardar preparador/revisor aunque el _id sea null (asignación de equipo)
+        if (preparer_id || preparer) {
+            insertData.preparer_id = preparer_id ?? null;
+            insertData.preparer = preparer ?? null;
         }
-        if (reviewer_id) {
-            insertData.reviewer_id = reviewer_id;
-            insertData.reviewer = reviewer;
+        if (reviewer_id || reviewer) {
+            insertData.reviewer_id = reviewer_id ?? null;
+            insertData.reviewer = reviewer ?? null;
+        }
+        if (team_id) {
+            insertData.team_id = team_id;
         }
         if (user_id) {
             insertData.user_id = user_id;
@@ -1197,7 +1203,8 @@ app.put('/api/commitments/:id', async (req, res) => {
         preparer_id,
         preparer,
         reviewer_id,
-        reviewer
+        reviewer,
+        team_id
     } = req.body;
     
     console.log('🔍 PUT /api/commitments/:id - Datos recibidos:', {
@@ -1217,7 +1224,8 @@ app.put('/api/commitments/:id', async (req, res) => {
         preparer_id,
         preparer,
         reviewer_id,
-        reviewer
+        reviewer,
+        team_id
     });
     
     try {
@@ -1245,15 +1253,21 @@ app.put('/api/commitments/:id', async (req, res) => {
             updateData.budget_amount = budget_amount;
             console.log('✅ Agregando budget_amount:', budget_amount);
         }
-        if (preparer_id) {
-            updateData.preparer_id = preparer_id;
-            updateData.preparer = preparer;
-            console.log('✅ Agregando preparer:', preparer_id, preparer);
+        // Actualizar preparador/revisor siempre que vengan en el body
+        // (permite equipos con _id null y limpiar asignaciones previas)
+        if (preparer_id !== undefined || preparer !== undefined) {
+            updateData.preparer_id = preparer_id ?? null;
+            updateData.preparer = preparer ?? null;
+            console.log('✅ Agregando preparer:', updateData.preparer_id, updateData.preparer);
         }
-        if (reviewer_id) {
-            updateData.reviewer_id = reviewer_id;
-            updateData.reviewer = reviewer;
-            console.log('✅ Agregando reviewer:', reviewer_id, reviewer);
+        if (reviewer_id !== undefined || reviewer !== undefined) {
+            updateData.reviewer_id = reviewer_id ?? null;
+            updateData.reviewer = reviewer ?? null;
+            console.log('✅ Agregando reviewer:', updateData.reviewer_id, updateData.reviewer);
+        }
+        if (team_id !== undefined) {
+            updateData.team_id = team_id ?? null;
+            console.log('✅ Agregando team_id:', updateData.team_id);
         }
         
         console.log('📋 Datos finales a actualizar:', updateData);
