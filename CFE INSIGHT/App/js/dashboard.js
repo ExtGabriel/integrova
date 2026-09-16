@@ -1644,15 +1644,26 @@ async function exportData(type) {
                 commitmentsResponse = { success: false, data: [] };
             }
             if (commitmentsResponse.success && commitmentsResponse.data && Array.isArray(commitmentsResponse.data)) {
+                // Resolver nombres de entidades para mostrar nombre en vez de UUID
+                const entitiesResponse = API?.Entities?.getAll
+                    ? await API.Entities.getAll()
+                    : { success: false, data: [] };
+                const entityNames = {};
+                if (entitiesResponse?.success && Array.isArray(entitiesResponse.data)) {
+                    entitiesResponse.data.forEach(e => { entityNames[e.id] = e.name; });
+                }
+
                 data = commitmentsResponse.data.map(commitment => ({
                     id: commitment.id,
-                    nombre: commitment.title,
+                    nombre: commitment.name || commitment.title || '',
                     descripcion: commitment.description || '',
-                    estado: commitment.status,
-                    fecha_creacion: commitment.created_at || '',
-                    fecha_limite: commitment.due_date || '',
-                    entidad: commitment.entity_id || '',
-                    responsable: commitment.assigned_to || ''
+                    estado: commitment.status || '',
+                    fecha_inicio: commitment.start_date || '',
+                    fecha_fin: commitment.end_date || '',
+                    entidad: entityNames[commitment.entity_id] || commitment.entity_id || '',
+                    preparador: commitment.preparer || '',
+                    revisor: commitment.reviewer || '',
+                    fecha_creacion: commitment.created_at || ''
                 }));
             }
             filename = 'compromisos_cfe_insight.csv';
@@ -1668,11 +1679,18 @@ async function exportData(type) {
             if (entitiesResponse.success && entitiesResponse.data && Array.isArray(entitiesResponse.data)) {
                 data = entitiesResponse.data.map(entity => ({
                     id: entity.id,
-                    nombre: entity.name,
-                    comercial: entity.commercial || '',
-                    pais: entity.country,
-                    estado: entity.state,
-                    fecha_registro: entity.created_at || entity.date || ''
+                    nombre: entity.name || '',
+                    entidad_id: entity.entity_id || '',
+                    razon_social: entity.business_name || '',
+                    descripcion: entity.description || '',
+                    pais: entity.country || '',
+                    direccion: entity.address || '',
+                    email: entity.email || '',
+                    telefono: entity.phone || '',
+                    nit: entity.nit || '',
+                    estado: entity.status || '',
+                    encargado: entity.encargado || entity.responsible || '',
+                    fecha_registro: entity.created_at || ''
                 }));
             }
             filename = 'entidades_cfe_insight.csv';
@@ -1683,15 +1701,21 @@ async function exportData(type) {
             return;
         }
 
-        // Convert to CSV
-        const headers = Object.keys(data[0]);
+        // Usar solo columnas que tengan al menos un valor en alguna fila
+        const allHeaders = Object.keys(data[0]);
+        const headers = allHeaders.filter(header =>
+            data.some(row => row[header] !== '' && row[header] !== null && row[header] !== undefined)
+        );
+
+        // Convert to CSV (escapando comillas internas)
+        const escapeCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
         const csvContent = [
-            headers.join(','),
-            ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+            headers.map(escapeCell).join(','),
+            ...data.map(row => headers.map(header => escapeCell(row[header])).join(','))
         ].join('\n');
 
-        // Download file
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Download file (BOM para que Excel respete acentos/UTF-8)
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
