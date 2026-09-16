@@ -1004,6 +1004,9 @@
                 // Almacenar usuarios para ambos selects
                 window.auditUsersData = auditUsers;
 
+                // Cargar equipos disponibles para los selects
+                await loadTeamsForSelects();
+
                 // Cargar en selects de preparador y revisor
                 if (populateCreateSelects) {
                     loadPreparersSelect();
@@ -1019,7 +1022,7 @@
         }
 
         // Función fallback si la API falla
-        function loadAuditUsersFallback(options = {}) {
+        async function loadAuditUsersFallback(options = {}) {
             const { populateCreateSelects = true } = options;
             console.log('🔄 Usando datos de ejemplo para usuarios de auditoría');
             
@@ -1032,6 +1035,7 @@
             ];
 
             window.auditUsersData = fallbackUsers;
+            await loadTeamsForSelects();
             if (populateCreateSelects) {
                 loadPreparersSelect();
                 loadReviewersSelect();
@@ -1063,6 +1067,9 @@
                 select.appendChild(option);
                 console.log(`✅ Agregado preparador: ${userName} (${roleLabel})`);
             });
+
+            // Agregar equipos como opción adicional
+            appendTeamOptions(select);
         }
 
         // Función para cargar select de revisores
@@ -1088,6 +1095,9 @@
                 select.appendChild(option);
                 console.log(`✅ Agregado revisor: ${userName} (${roleLabel})`);
             });
+
+            // Agregar equipos como opción adicional
+            appendTeamOptions(select);
         }
 
         // Función para cargar select de preparadores en edición
@@ -1113,6 +1123,9 @@
                 select.appendChild(option);
                 console.log(`✅ Agregado preparador (edición): ${userName} (${roleLabel})`);
             });
+
+            // Agregar equipos como opción adicional
+            appendTeamOptions(select);
         }
 
         // Función para cargar select de revisores en edición
@@ -1138,6 +1151,9 @@
                 select.appendChild(option);
                 console.log(`✅ Agregado revisor (edición): ${userName} (${roleLabel})`);
             });
+
+            // Agregar equipos como opción adicional
+            appendTeamOptions(select);
         }
 
         
@@ -1147,6 +1163,59 @@
             const user = users.find(u => u.id === userId);
             if (!user) return '';
             return user.name || user.full_name || user.username || user.email || '';
+        }
+
+        // Variable global para equipos disponibles en selects de preparador/revisor
+        window.auditTeamsData = window.auditTeamsData || [];
+
+        // Cargar equipos (tabla teams) para los selects de preparador/revisor
+        async function loadTeamsForSelects() {
+            try {
+                if (!API?.Teams?.getAll) {
+                    console.warn('⚠️ API.Teams.getAll no disponible');
+                    window.auditTeamsData = [];
+                    return;
+                }
+                const response = await API.Teams.getAll();
+                window.auditTeamsData = (response && response.success && Array.isArray(response.data)) ? response.data : [];
+                console.log('👥 Equipos cargados para selects:', window.auditTeamsData.length);
+            } catch (error) {
+                console.error('❌ Error cargando equipos:', error);
+                window.auditTeamsData = [];
+            }
+        }
+
+        // Agrega un optgroup con los equipos al select indicado (valor: "team:<id>")
+        function appendTeamOptions(select) {
+            const teams = window.auditTeamsData || [];
+            if (!select || teams.length === 0) return;
+
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = 'Equipos';
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = `team:${team.id}`;
+                option.textContent = `👥 ${team.name || 'Equipo sin nombre'}`;
+                optgroup.appendChild(option);
+            });
+            select.appendChild(optgroup);
+        }
+
+        // Obtiene el nombre de un equipo por ID
+        function getTeamNameById(teamId) {
+            const teams = window.auditTeamsData || [];
+            const team = teams.find(t => String(t.id) === String(teamId));
+            return team ? (team.name || '') : '';
+        }
+
+        // Si el texto guardado es "Equipo: <nombre>", devuelve el value "team:<id>" correspondiente
+        function findTeamSelectValue(savedText) {
+            if (!savedText || typeof savedText !== 'string') return '';
+            const match = savedText.match(/^Equipo:\s*(.+)$/i);
+            if (!match) return '';
+            const teamName = match[1].trim().toLowerCase();
+            const team = (window.auditTeamsData || []).find(t => (t.name || '').trim().toLowerCase() === teamName);
+            return team ? `team:${team.id}` : '';
         }
 
         // Función para abrir modal de crear compromiso
@@ -1518,9 +1587,15 @@
                 return;
             }
 
-            // Obtener nombres de usuario desde los datos cargados
-            const preparer = preparerId ? getUserNameById(preparerId) : '';
-            const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
+            // Obtener nombres (usuario individual o equipo) desde los datos cargados
+            const preparerIsTeam = preparerId.startsWith('team:');
+            const reviewerIsTeam = reviewerId.startsWith('team:');
+            const preparer = preparerId
+                ? (preparerIsTeam ? `Equipo: ${getTeamNameById(preparerId.slice(5)) || 'sin nombre'}` : getUserNameById(preparerId))
+                : '';
+            const reviewer = reviewerId
+                ? (reviewerIsTeam ? `Equipo: ${getTeamNameById(reviewerId.slice(5)) || 'sin nombre'}` : getUserNameById(reviewerId))
+                : '';
 
             const budgetHours = budgetHoursInput === '' ? null : parseFloat(budgetHoursInput);
             const budgetAmount = budgetAmountInput === '' ? null : parseFloat(budgetAmountInput);
@@ -1564,13 +1639,20 @@
             }
 
             if (preparerId) {
-                newCommitment.preparer_id = preparerId;
                 newCommitment.preparer = preparer;
+                newCommitment.preparer_id = preparerIsTeam ? null : preparerId;
             }
 
             if (reviewerId) {
-                newCommitment.reviewer_id = reviewerId;
                 newCommitment.reviewer = reviewer;
+                newCommitment.reviewer_id = reviewerIsTeam ? null : reviewerId;
+            }
+
+            // Vincular el compromiso al equipo seleccionado (si aplica)
+            const assignedTeamId = preparerIsTeam ? preparerId.slice(5)
+                : (reviewerIsTeam ? reviewerId.slice(5) : null);
+            if (assignedTeamId) {
+                newCommitment.team_id = assignedTeamId;
             }
 
             console.log(' Enviando commitment a la API:', newCommitment);
@@ -1925,8 +2007,11 @@
             // Llenar campos opcionales (pueden ser undefined o null)
             document.getElementById('editCommitmentBudgetHours').value = commitment.budget_hours || '';
             document.getElementById('editCommitmentBudgetAmount').value = commitment.budget_amount || '';
-            document.getElementById('editCommitmentPreparer').value = commitment.preparer_id || '';
-            document.getElementById('editCommitmentReviewer').value = commitment.reviewer_id || '';
+            // Preseleccionar preparador/revisor (usuario individual o equipo)
+            document.getElementById('editCommitmentPreparer').value =
+                commitment.preparer_id || findTeamSelectValue(commitment.preparer);
+            document.getElementById('editCommitmentReviewer').value =
+                commitment.reviewer_id || findTeamSelectValue(commitment.reviewer);
 
             // Mostrar modal
             const modal = new bootstrap.Modal(document.getElementById('editCommitmentModal'));
@@ -2035,9 +2120,15 @@
                 return;
             }
 
-            // Obtener nombres de usuario desde los datos cargados
-            const preparer = preparerId ? getUserNameById(preparerId) : '';
-            const reviewer = reviewerId ? getUserNameById(reviewerId) : '';
+            // Obtener nombres (usuario individual o equipo) desde los datos cargados
+            const preparerIsTeam = preparerId.startsWith('team:');
+            const reviewerIsTeam = reviewerId.startsWith('team:');
+            const preparer = preparerId
+                ? (preparerIsTeam ? `Equipo: ${getTeamNameById(preparerId.slice(5)) || 'sin nombre'}` : getUserNameById(preparerId))
+                : '';
+            const reviewer = reviewerId
+                ? (reviewerIsTeam ? `Equipo: ${getTeamNameById(reviewerId.slice(5)) || 'sin nombre'}` : getUserNameById(reviewerId))
+                : '';
 
             const budgetHours = budgetHoursInput === '' ? null : parseFloat(budgetHoursInput);
             const budgetAmount = budgetAmountInput === '' ? null : parseFloat(budgetAmountInput);
@@ -2076,14 +2167,17 @@
                 updatedCommitment.budget_amount = budgetAmount;
             }
 
-            if (preparerId) {
-                updatedCommitment.preparer_id = preparerId;
-                updatedCommitment.preparer = preparer;
-            }
+            // Siempre enviar los campos para poder limpiar asignaciones previas
+            updatedCommitment.preparer_id = (preparerId && !preparerIsTeam) ? preparerId : null;
+            updatedCommitment.preparer = preparer || null;
+            updatedCommitment.reviewer_id = (reviewerId && !reviewerIsTeam) ? reviewerId : null;
+            updatedCommitment.reviewer = reviewer || null;
 
-            if (reviewerId) {
-                updatedCommitment.reviewer_id = reviewerId;
-                updatedCommitment.reviewer = reviewer;
+            // Vincular el compromiso al equipo seleccionado (si aplica)
+            const editAssignedTeamId = preparerIsTeam ? preparerId.slice(5)
+                : (reviewerIsTeam ? reviewerId.slice(5) : null);
+            if (editAssignedTeamId) {
+                updatedCommitment.team_id = editAssignedTeamId;
             }
 
             try {
