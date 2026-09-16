@@ -2031,13 +2031,17 @@ function showCalendarEvents() {
     const month = calendarCurrentDate.getMonth();
     
     const currentMonthEvents = calendarEvents.filter(event => {
-        const eventDate = new Date(event.date);
-        return eventDate.getFullYear() === year && eventDate.getMonth() === month;
+        if (!event.date) return false;
+        const parts = String(event.date).split('-');
+        if (parts.length < 2) return false;
+        const eventYear = parseInt(parts[0], 10);
+        const eventMonth = parseInt(parts[1], 10) - 1; // 0-based
+        return eventYear === year && eventMonth === month;
     });
     
-    // Sort events by date and time
+    // Sort events by date and time (lexicográfica sobre YYYY-MM-DD)
     currentMonthEvents.sort((a, b) => {
-        const dateCompare = new Date(a.date) - new Date(b.date);
+        const dateCompare = String(a.date).localeCompare(String(b.date));
         if (dateCompare !== 0) return dateCompare;
         return (a.time || '').localeCompare(b.time || '');
     });
@@ -2050,15 +2054,21 @@ function showCalendarEvents() {
             </div>
         `;
     } else {
-        calendarEventsContainer.innerHTML = currentMonthEvents.map(event => `
+        calendarEventsContainer.innerHTML = currentMonthEvents.map(event => {
+            let day = '';
+            if (event.date) {
+                const parts = String(event.date).split('-');
+                day = parts.length === 3 ? parseInt(parts[2], 10) : '';
+            }
+            return `
             <div class="calendar-event">
-                <div class="event-date">${new Date(event.date).getDate()}</div>
+                <div class="event-date">${day}</div>
                 <div class="event-content">
                     <div class="event-title">${event.title}</div>
                     <div class="event-time">${event.time || 'Todo el día'}</div>
                 </div>
             </div>
-        `).join('');
+        `; }).join('');
     }
 }
 
@@ -2084,17 +2094,43 @@ async function loadCalendarEventsFromDB() {
             ? await API.TeamMembers.getAll()
             : { success: false, data: [] };
 
+        // Notificaciones del usuario actual (para vincular eventos aunque scope/team_id no existan)
+        const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
+            ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
+            : (typeof window !== 'undefined' ? window.location.origin : '');
+
+        let notificationEventIds = new Set();
+        try {
+            const notifResponse = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
+            if (notifResponse.ok) {
+                const notifResult = await notifResponse.json();
+                const notifs = notifResult.success && Array.isArray(notifResult.data) ? notifResult.data : [];
+                notificationEventIds = new Set(
+                    notifs
+                        .map(n => n.metadata && n.metadata.event_id)
+                        .filter(id => !!id)
+                        .map(id => String(id))
+                );
+            }
+        } catch (e) {
+            console.warn('⚠️ No se pudieron cargar notificaciones para vincular eventos:', e);
+        }
+
         // Equipos a los que pertenece el usuario actual
         const myTeamIds = new Set(
             (membersResponse.success && Array.isArray(membersResponse.data) ? membersResponse.data : [])
-                .filter(tm => tm.user_id === userId)
-                .map(tm => tm.team_id)
+                .filter(tm => String(tm.user_id) === String(userId))
+                .map(tm => String(tm.team_id))
         );
 
         const dbEvents = (eventsResponse.success && Array.isArray(eventsResponse.data) ? eventsResponse.data : [])
             .filter(ev => {
-                if (ev.created_by === userId) return true;
-                return ev.scope === 'team' && ev.team_id && myTeamIds.has(ev.team_id);
+                if (String(ev.created_by) === String(userId)) return true;
+                const evScope = String(ev.scope || '').toLowerCase();
+                if (evScope === 'team' && ev.team_id && myTeamIds.has(String(ev.team_id))) return true;
+                // Fallback: si hay una notificación para este usuario ligada al evento, también debe verlo
+                if (notificationEventIds.has(String(ev.id))) return true;
+                return false;
             })
             .map(ev => ({
                 id: ev.id,
@@ -2517,8 +2553,8 @@ async function notifyTeamMembers(event, teamId) {
         const dateObj = new Date(event.date + 'T00:00:00');
         const dateStr = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
         const timeStr = event.time ? ` a las ${event.time}` : '';
-        const notificationTitle = `Nuevo evento${teamName ? ` en ${teamName}` : ''}: "${event.title}"`;
-        const notificationMessage = `${creatorName ? `${creatorName} creó` : 'Se creó'} el evento "${event.title}" para el ${dateStr}${timeStr}${teamName ? ` en el equipo ${teamName}` : ''}.`;
+        const notificationTitle = `${creatorName ? `${creatorName} creó` : 'Se creó'} un nuevo evento${teamName ? ` en ${teamName}` : ''}: "${event.title}"`;
+        const notificationMessage = `Evento programado para el ${dateStr}${timeStr}${teamName ? ` en el equipo ${teamName}` : ''}.`;
 
         for (const memberId of memberIds) {
             try {
