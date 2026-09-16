@@ -301,9 +301,11 @@
                 if (commitmentsResponse.success && commitmentsResponse.data) {
                     const apiCommitments = Array.isArray(commitmentsResponse.data) ? commitmentsResponse.data :
                         (commitmentsResponse.data.data ? commitmentsResponse.data.data : []);
+                    // Conservar team_id para poder contar y listar compromisos por equipo
                     commitments = apiCommitments.map(c => ({
                         id: c.id,
-                        name: c.title || c.name || 'Compromiso sin nombre'
+                        name: c.title || c.name || 'Compromiso sin nombre',
+                        team_id: c.team_id || null
                     }));
                 } else {
                     showError('Error al cargar compromisos: ' + (commitmentsResponse.error || 'Error desconocido'));
@@ -632,6 +634,10 @@
                 }
             });
 
+            // Obtener usuario actual para rellenar added_by
+            const sessionUser = getCurrentSession();
+            const addedBy = sessionUser?.id || sessionUser?.email || null;
+
             // Then add all selected members
             const addOperations = selectedMembers.map(memberId => {
                 const user = users.find(u => (u.id || u.username || u.email) === memberId);
@@ -640,7 +646,9 @@
                 return API.TeamMembers.create({
                     team_id: teamId,
                     user_id: userId,
-                    role_in_team: 'member'
+                    role_in_team: 'member',
+                    added_at: new Date().toISOString(),
+                    added_by: addedBy
                 }).then(result => {
                     if (!result?.success) {
                         console.error('❌ Error agregando miembro al equipo', { teamId, memberId, error: result?.error });

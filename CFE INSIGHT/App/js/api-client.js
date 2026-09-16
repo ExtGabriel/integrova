@@ -393,12 +393,13 @@
      * Si la tabla no existe, loguea pero retorna éxito con array vacío
      */
     function handleTableNotFound(err, tableName) {
-        // Detectar errores de tabla no existente (PGRST205, 404)
-        const isTableNotFound =
-            err.message?.includes('PGRST205') ||
-            err.message?.includes('404') ||
-            err.message?.includes('relation') ||
-            err.code === 'PGRST205';
+        // Detectar errores de tabla no existente (PGRST205, 404, "relation ... does not exist")
+        const message = err?.message || '';
+        const isPgrst205 = err.code === 'PGRST205' || message.includes('PGRST205');
+        const isHttp404 = message.includes('404 Not Found');
+        const isRelationDoesNotExist = /relation .* does not exist/i.test(message);
+
+        const isTableNotFound = isPgrst205 || isHttp404 || isRelationDoesNotExist;
 
         if (isTableNotFound) {
             console.warn(`⚠️ Tabla "${tableName}" no existe aún. Retornando array vacío.`);
