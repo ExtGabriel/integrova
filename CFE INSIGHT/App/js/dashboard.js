@@ -652,70 +652,60 @@ async function performGlobalSearch() {
     try {
         showLoading(true);
 
-        // TODO FASE FUTURA: Backend search no disponible en hosting estático
-        throw new Error('Búsqueda global no disponible en esta fase');
+        const term = searchTerm.toLowerCase();
 
-        /*
-        // Usar el nuevo endpoint de búsqueda global
-        const baseUrl = (typeof window !== 'undefined' && window.API_BASE_URL) ||
-            (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-            (typeof process !== 'undefined' && (process.env?.VITE_API_BASE_URL || process.env?.NEXT_PUBLIC_API_BASE_URL)) ||
-            (typeof window !== 'undefined' ? window.location.origin : '');
+        // Búsqueda del lado del cliente usando los módulos API existentes
+        const [entitiesRes, commitmentsRes, usersRes] = await Promise.all([
+            API?.Entities?.getAll ? API.Entities.getAll() : Promise.resolve({ success: false, data: [] }),
+            API?.Commitments?.getAll ? API.Commitments.getAll() : Promise.resolve({ success: false, data: [] }),
+            API?.Users?.getAll ? API.Users.getAll() : Promise.resolve({ success: false, data: [] })
+        ]);
 
-        const response = await fetch(`${baseUrl}/api/search?query=${encodeURIComponent(searchTerm)}&types=entities,commitments,users`);
+        const entities = (entitiesRes?.success && Array.isArray(entitiesRes.data)) ? entitiesRes.data : [];
+        const commitments = (commitmentsRes?.success && Array.isArray(commitmentsRes.data)) ? commitmentsRes.data : [];
+        const users = (usersRes?.success && Array.isArray(usersRes.data)) ? usersRes.data : [];
 
-        if (!response.ok) {
-            throw new Error('Error en la búsqueda');
-        }
-
-        const result = await response.json();
-
-        if (!result.success) {
-            throw new Error(result.error || 'Error en la búsqueda');
-        }
-
-        // Formatear resultados para display
         const formattedResults = {
-            entities: [],
-            commitments: [],
-            users: []
+            entities: entities
+                .filter(e =>
+                    (e.name || '').toLowerCase().includes(term) ||
+                    (e.entity_id || '').toLowerCase().includes(term)
+                )
+                .map(entity => ({
+                    id: entity.id,
+                    title: entity.name,
+                    type: 'Entidad',
+                    meta: `${entity.entity_id || ''} ${entity.status || ''}`.trim(),
+                    link: 'entidades.html'
+                })),
+            commitments: commitments
+                .filter(c =>
+                    (c.name || c.title || '').toLowerCase().includes(term) ||
+                    (c.description || '').toLowerCase().includes(term)
+                )
+                .map(commitment => ({
+                    id: commitment.id,
+                    title: commitment.name || commitment.title,
+                    type: 'Compromiso',
+                    meta: commitment.status || '',
+                    link: 'compromisos.html'
+                })),
+            users: users
+                .filter(u =>
+                    (u.full_name || u.name || '').toLowerCase().includes(term) ||
+                    (u.username || '').toLowerCase().includes(term) ||
+                    (u.email || '').toLowerCase().includes(term)
+                )
+                .map(user => ({
+                    id: user.id,
+                    title: user.full_name || user.name || user.username || user.email,
+                    type: 'Usuario',
+                    meta: user.role || '',
+                    link: 'usuarios.html'
+                }))
         };
 
-        // Formatear entidades
-        if (result.data.entities && Array.isArray(result.data.entities)) {
-            formattedResults.entities = result.data.entities.map(entity => ({
-                id: entity.id,
-                title: entity.name,
-                type: 'Entidad',
-                meta: `${entity.entity_id || ''} - ${entity.status || ''}`,
-                link: `${prefix}entidades.html`
-            }));
-        }
-
-        // Formatear compromisos
-        if (result.data.commitments && Array.isArray(result.data.commitments)) {
-            formattedResults.commitments = result.data.commitments.map(commitment => ({
-                id: commitment.id,
-                title: commitment.title,
-                type: 'Compromiso',
-                meta: commitment.status || '',
-                link: `${prefix}compromisos.html`
-            }));
-        }
-
-        // Formatear usuarios
-        if (result.data.users && Array.isArray(result.data.users)) {
-            formattedResults.users = result.data.users.map(user => ({
-                id: user.id,
-                title: user.name,
-                type: 'Usuario',
-                meta: user.role || '',
-                link: `${prefix}usuarios.html`
-            }));
-        }
-
         displaySearchResults(formattedResults);
-        */
 
     } catch (error) {
         console.error('Error performing search:', error);
