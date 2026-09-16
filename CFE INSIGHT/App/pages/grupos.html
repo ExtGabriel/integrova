@@ -420,7 +420,7 @@
 
             container.innerHTML = currentGroupMembers.map(memberId => {
                 const user = users.find(u => (u.id || u.username || u.email) === memberId);
-                const name = user ? (user.name || user.full_name || user.username || user.email || 'Usuario') : memberId;
+                const name = user ? (user.full_name || user.name || user.username || user.email || 'Usuario') : memberId;
                 return `
                     <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded border">
                         <div><strong>${name}</strong></div>
@@ -470,16 +470,6 @@
                     new bootstrap.Modal(document.getElementById('addMemberModal')).show();
                 }, 10);
                 return;
-            }
-
-            users.forEach(user => {
-                const memberId = user.id || user.username || user.email;
-                const displayName = user.name || user.full_name || user.username || user.email || 'Usuario sin nombre';
-
-                if (!currentGroupMembers.includes(memberId)) {
-                    const option = document.createElement('option');
-                    option.value = memberId;
-                    option.textContent = `${displayName}`;
                     select.appendChild(option);
                 }
             });
@@ -807,8 +797,16 @@
                             <div class="list-group">`;
 
             if (teamMembers.length > 0) {
-                teamMembers.forEach(username => {
-                    detailsHTML += `<div class="list-group-item"><i class="bi bi-person-circle"></i> ${username}</div>`;
+                teamMembers.forEach(memberId => {
+                    const user = users.find(u => (u.id || u.username || u.email) === memberId);
+                    const displayName = user
+                        ? (user.full_name || user.name || user.username || user.email || memberId)
+                        : memberId;
+                    detailsHTML += `
+                        <div class="list-group-item d-flex align-items-center text-truncate">
+                            <i class="bi bi-person-circle me-2"></i>
+                            <span class="member-name text-truncate">${displayName}</span>
+                        </div>`;
                 });
             } else {
                 detailsHTML += '<div class="list-group-item text-muted">Sin miembros</div>';
@@ -824,7 +822,11 @@
             if (teamCommitments.length > 0) {
                 teamCommitments.forEach(commitment => {
                     const name = commitment.name || `#${commitment.id}`;
-                    detailsHTML += `<div class="list-group-item"><i class="bi bi-check-circle"></i> ${name}</div>`;
+                    detailsHTML += `
+                        <div class="list-group-item d-flex align-items-center text-truncate">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <span class="commitment-name text-truncate">${name}</span>
+                        </div>`;
                 });
             } else {
                 detailsHTML += '<div class="list-group-item text-muted">Sin compromisos</div>';
