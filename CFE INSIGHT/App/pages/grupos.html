@@ -215,9 +215,6 @@
     <!-- Alert Container -->
     <div id="alertContainer"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/api-client.js"></script>
     <script>
         const USER_KEY = 'userUI';
 
@@ -470,6 +467,16 @@
                     new bootstrap.Modal(document.getElementById('addMemberModal')).show();
                 }, 10);
                 return;
+            }
+
+            users.forEach(user => {
+                const memberId = user.id || user.username || user.email;
+                const displayName = user.full_name || user.name || user.username || user.email || 'Usuario sin nombre';
+
+                if (!currentGroupMembers.includes(memberId)) {
+                    const option = document.createElement('option');
+                    option.value = memberId;
+                    option.textContent = `${displayName}`;
                     select.appendChild(option);
                 }
             });
