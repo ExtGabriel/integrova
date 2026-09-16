@@ -875,6 +875,8 @@ async function generateRealNotifications() {
         return [];
     }
 
+    let existingNotifications = [];
+
     try {
         // First, get existing notifications from database
         const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
@@ -882,7 +884,6 @@ async function generateRealNotifications() {
             : (typeof window !== 'undefined' ? window.location.origin : '');
 
         const existingNotificationsResponse = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
-        let existingNotifications = [];
         
         if (existingNotificationsResponse.ok) {
             const result = await existingNotificationsResponse.json();
@@ -1107,6 +1108,32 @@ async function generateRealNotifications() {
         // Return empty array if API fails
         return [];
     }
+
+    // Incluir notificaciones persistidas directamente en BD (ej. eventos de equipo)
+    const includedIds = new Set(notifications.map(n => String(n.id)));
+    existingNotifications
+        .filter(n => !includedIds.has(String(n.id)) && !(n.metadata && n.metadata.virtual_id))
+        .forEach(n => {
+            let icon = 'bi-clipboard-check';
+            if (n.metadata && n.metadata.event_id) {
+                icon = 'bi-calendar-event';
+            } else if (n.type === 'deadline') {
+                icon = 'bi-calendar-event';
+            } else if (n.type === 'warning') {
+                icon = 'bi-exclamation-triangle';
+            } else if (n.type === 'info') {
+                icon = 'bi-info-circle';
+            }
+
+            notifications.push({
+                id: n.id,
+                icon: icon,
+                text: n.title,
+                time: formatNotificationRelativeTime(n.created_at),
+                type: n.type || 'activity',
+                read: n.read
+            });
+        });
 
     // Sort by urgency (deadlines first, then activities)
     return notifications.sort((a, b) => {
@@ -1992,7 +2019,7 @@ function applyDashboardRoleVisibility() {
 // Calendar functionality for dashboard
 let calendarCurrentDate = new Date();
 let selectedDate = null;
-let calendarEvents = JSON.parse(localStorage.getItem('dashboardCalendarEvents')) || [];
+let calendarEvents = [];
 
 // Show events in calendar events section
 function showCalendarEvents() {
@@ -2036,13 +2063,56 @@ function showCalendarEvents() {
 }
 
 // Initialize small calendar
-function initializeSmallCalendar() {
-    // Load events from localStorage
-    calendarEvents = JSON.parse(localStorage.getItem('dashboardCalendarEvents')) || [];
+async function initializeSmallCalendar() {
+    await loadCalendarEventsFromDB();
     console.log('📅 Eventos cargados:', calendarEvents);
     
     renderSmallCalendar();
     showCalendarEvents();
+}
+
+// Load events from database (tabla events)
+async function loadCalendarEventsFromDB() {
+    localStorage.removeItem('dashboardCalendarEvents');
+    try {
+        const userId = getCurrentUserId();
+
+        const eventsResponse = API?.Events?.getAll
+            ? await API.Events.getAll()
+            : { success: false, data: [] };
+        const membersResponse = API?.TeamMembers?.getAll
+            ? await API.TeamMembers.getAll()
+            : { success: false, data: [] };
+
+        // Equipos a los que pertenece el usuario actual
+        const myTeamIds = new Set(
+            (membersResponse.success && Array.isArray(membersResponse.data) ? membersResponse.data : [])
+                .filter(tm => tm.user_id === userId)
+                .map(tm => tm.team_id)
+        );
+
+        const dbEvents = (eventsResponse.success && Array.isArray(eventsResponse.data) ? eventsResponse.data : [])
+            .filter(ev => {
+                if (ev.created_by === userId) return true;
+                return ev.scope === 'team' && ev.team_id && myTeamIds.has(ev.team_id);
+            })
+            .map(ev => ({
+                id: ev.id,
+                date: ev.date,
+                title: ev.title,
+                time: ev.time ? String(ev.time).slice(0, 5) : null,
+                description: ev.description || '',
+                scope: ev.scope || 'personal',
+                teamId: ev.team_id || null,
+                createdAt: ev.created_at,
+                localOnly: false
+            }));
+
+        calendarEvents = dbEvents;
+    } catch (error) {
+        console.error('❌ Error cargando eventos del calendario desde BD:', error);
+        calendarEvents = [];
+    }
 }
 
 // Render small calendar
@@ -2321,7 +2391,7 @@ function closeCalendarEventModal() {
 }
 
 // Save new event
-function saveNewEvent(e) {
+async function saveNewEvent(e) {
     e.preventDefault();
     
     const title = document.getElementById('eventTitle').value;
@@ -2333,6 +2403,11 @@ function saveNewEvent(e) {
     const scope = scopeInput ? scopeInput.value : 'personal';
     const teamSelect = document.getElementById('eventTeam');
     const teamId = scope === 'team' && teamSelect ? (teamSelect.value || null) : null;
+
+    if (scope === 'team' && !teamId) {
+        showError('Selecciona un equipo para el evento');
+        return;
+    }
     
     console.log('📅 selectedDate al guardar:', selectedDate);
     console.log('📅 selectedDate formateada:', selectedDate ? formatDateLocal(selectedDate) : 'NULL');
@@ -2349,12 +2424,41 @@ function saveNewEvent(e) {
     };
     
     console.log('📅 Evento a guardar:', newEvent);
+
+    // Guardar en la base de datos (tabla events)
+    try {
+        const payload = {
+            title: title,
+            description: description || null,
+            date: newEvent.date,
+            time: time || null,
+            type: 'meeting',
+            all_day: !time,
+            scope: scope,
+            team_id: teamId,
+            created_by: getCurrentUserId()
+        };
+
+        const response = API?.Events?.create
+            ? await API.Events.create(payload)
+            : { success: false };
+
+        if (response && response.success && response.data) {
+            newEvent.id = response.data.id || newEvent.id;
+            console.log('✅ Evento guardado en BD:', response.data);
+        } else {
+            console.error('❌ No se pudo guardar el evento en BD:', response && response.error);
+            showError('No se pudo guardar el evento en la base de datos');
+            return;
+        }
+    } catch (error) {
+        console.error('❌ Error guardando evento en BD:', error);
+        showError('No se pudo guardar el evento en la base de datos');
+        return;
+    }
     
     // Add to calendar events
     calendarEvents.push(newEvent);
-    
-    // Save to localStorage
-    localStorage.setItem('dashboardCalendarEvents', JSON.stringify(calendarEvents));
     
     // Refresh calendar
     renderSmallCalendar();
@@ -2365,6 +2469,86 @@ function saveNewEvent(e) {
     
     // Show success message
     showSuccess('Evento creado exitosamente');
+
+    // Notificar a los miembros del equipo (sin bloquear la UI)
+    if (scope === 'team' && teamId) {
+        notifyTeamMembers(newEvent, teamId);
+    }
+}
+
+// Notificar a los miembros del equipo sobre el nuevo evento
+async function notifyTeamMembers(event, teamId) {
+    try {
+        const membersResponse = API?.TeamMembers?.getAll
+            ? await API.TeamMembers.getAll()
+            : { success: false, data: [] };
+        const members = membersResponse.success && Array.isArray(membersResponse.data) ? membersResponse.data : [];
+
+        const currentUserId = getCurrentUserId();
+        const memberIds = members
+            .filter(tm => tm.team_id === teamId)
+            .map(tm => tm.user_id)
+            .filter(id => id && id !== currentUserId);
+
+        if (!memberIds.length) {
+            console.log('📅 No hay otros miembros en el equipo para notificar');
+            return;
+        }
+
+        // Nombre del equipo para el mensaje (opcional)
+        let teamName = '';
+        try {
+            const teamResponse = API?.Teams?.getById ? await API.Teams.getById(teamId) : null;
+            teamName = teamResponse?.data?.name || '';
+        } catch (e) { /* sin nombre de equipo, se omite */ }
+
+        // Nombre de quien creó el evento
+        let creatorName = '';
+        try {
+            creatorName = API?.getCurrentUserName
+                ? (await API.getCurrentUserName()) || ''
+                : (window.currentUser?.full_name || window.currentUser?.name || '');
+        } catch (e) { /* sin nombre, se omite */ }
+
+        const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
+            ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
+            : (typeof window !== 'undefined' ? window.location.origin : '');
+
+        const dateObj = new Date(event.date + 'T00:00:00');
+        const dateStr = dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        const timeStr = event.time ? ` a las ${event.time}` : '';
+        const notificationTitle = `Nuevo evento${teamName ? ` en ${teamName}` : ''}: "${event.title}"`;
+        const notificationMessage = `${creatorName ? `${creatorName} creó` : 'Se creó'} el evento "${event.title}" para el ${dateStr}${timeStr}${teamName ? ` en el equipo ${teamName}` : ''}.`;
+
+        for (const memberId of memberIds) {
+            try {
+                await fetch(`${apiBaseUrl}/api/notifications`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'user-id': memberId
+                    },
+                    body: JSON.stringify({
+                        title: notificationTitle,
+                        message: notificationMessage,
+                        type: 'activity',
+                        metadata: {
+                            event_id: event.id,
+                            team_id: teamId,
+                            date: event.date,
+                            time: event.time || null
+                        }
+                    })
+                });
+            } catch (err) {
+                console.warn('⚠️ Error notificando al miembro', memberId, err);
+            }
+        }
+
+        console.log(`✅ Notificación de evento enviada a ${memberIds.length} miembro(s)`);
+    } catch (error) {
+        console.warn('⚠️ Error notificando evento al equipo:', error);
+    }
 }
 
 // Format date to local YYYY-MM-DD (preserves local timezone)
@@ -2373,6 +2557,19 @@ function formatDateLocal(date) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+// Format notification timestamp as relative time
+function formatNotificationRelativeTime(isoDate) {
+    if (!isoDate) return '';
+    const diffMs = Date.now() - new Date(isoDate).getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 1) return 'Ahora mismo';
+    if (minutes < 60) return `Hace ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Hace ${hours} hora${hours !== 1 ? 's' : ''}`;
+    const days = Math.floor(hours / 24);
+    return `Hace ${days} día${days !== 1 ? 's' : ''}`;
 }
 
 // Get events for day
@@ -2394,10 +2591,95 @@ function nextMonth() {
     showCalendarEvents();
 }
 
+// ===== Notificaciones en (casi) tiempo real =====
+let notificationChannel = null;
+let notificationPollInterval = null;
+let lastKnownNotificationTime = null;
+
+// Suscripción Realtime a inserts en la tabla notifications del usuario
+async function setupNotificationRealtime() {
+    try {
+        const userId = getCurrentUserId();
+        const client = window.supabaseClient;
+
+        if (!userId || !client || typeof client.channel !== 'function') {
+            startNotificationPolling();
+            return;
+        }
+
+        notificationChannel = client
+            .channel(`notifications-${userId}`)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${userId}`
+            }, () => {
+                console.log('🔔 Nueva notificación recibida (realtime)');
+                updateNotificationBadge();
+                if (typeof showToast === 'function') {
+                    showToast('Tienes una nueva notificación', 'info');
+                }
+            })
+            .subscribe(status => {
+                console.log('📡 Realtime notifications status:', status);
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    startNotificationPolling();
+                }
+            });
+    } catch (error) {
+        console.warn('⚠️ Realtime no disponible, usando polling:', error);
+        startNotificationPolling();
+    }
+}
+
+// Polling ligero de respaldo: revisa si hay notificaciones más nuevas
+function startNotificationPolling() {
+    if (notificationPollInterval) return;
+
+    notificationPollInterval = setInterval(checkForNewNotifications, 60000);
+}
+
+async function checkForNewNotifications() {
+    try {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+
+        const apiBaseUrl = (typeof window !== 'undefined' && (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL))
+            ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
+            : (typeof window !== 'undefined' ? window.location.origin : '');
+
+        const response = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
+        if (!response.ok) return;
+
+        const result = await response.json();
+        const list = result.success && Array.isArray(result.data) ? result.data : [];
+        const latest = list.length ? list[0].created_at : null;
+
+        if (lastKnownNotificationTime === null) {
+            lastKnownNotificationTime = latest;
+            return;
+        }
+
+        if (latest && new Date(latest) > new Date(lastKnownNotificationTime)) {
+            lastKnownNotificationTime = latest;
+            console.log('🔔 Nueva notificación detectada (polling)');
+            updateNotificationBadge();
+            if (typeof showToast === 'function') {
+                showToast('Tienes una nueva notificación', 'info');
+            }
+        }
+    } catch (error) {
+        // Silencioso: es un chequeo en segundo plano
+    }
+}
+
 // Initialize calendar when dashboard loads
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         initializeSmallCalendar();
+        setupNotificationRealtime();
+        startNotificationPolling();
     }, 1000);
 });
 

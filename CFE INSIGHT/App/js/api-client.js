@@ -2870,6 +2870,7 @@
         Groups: createTableModule('groups'),
         Teams: createTableModule('teams'),
         TeamMembers: createTableModule('team_members'),
+        Events: createTableModule('events'),
         Permissions: createTableModule('permissions'),
         Roles: createTableModule('roles'),
         Logs: createTableModule('logs'),
