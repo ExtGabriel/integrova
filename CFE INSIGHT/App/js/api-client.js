@@ -1577,7 +1577,8 @@
                 // SIEMPRE intentar backend /api/users primero (sin RLS, datos frescos)
                 console.log('👑 Intentando backend /api/users (service role)...');
                 try {
-                    const response = await fetch('/api/users');
+                    const apiBaseUrl = (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL || window.location.origin || '').replace(/\/$/, '');
+                    const response = await fetch(`${apiBaseUrl}/api/users`);
                     if (response.ok) {
                         const result = await response.json();
                         console.log(`✅ Backend /api/users: ${result.data.length} usuarios`);
@@ -2768,16 +2769,37 @@
                     const client = await getSupabaseClient();
                     if (!client) return { success: false, error: 'Supabase client no disponible' };
 
-                    const { data, error } = await client.from(tableName).insert([record]).select();
-                    if (error) {
+                    // Reintentar quitando columnas que no existen en la tabla (PGRST204)
+                    let payload = { ...record };
+                    const maxAttempts = Object.keys(payload).length + 1;
+
+                    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                        const { data, error } = await client.from(tableName).insert([payload]).select();
+
+                        if (!error) {
+                            console.log(`✅ ${tableName}.create SUCCESS:`, data?.[0]);
+                            return { success: true, data: data?.[0] || payload };
+                        }
+
+                        // PGRST204: columna no existe en el schema cache -> quitarla y reintentar
+                        const missingColMatch = error.code === 'PGRST204'
+                            ? (error.message || '').match(/'([^']+)' column/)
+                            : null;
+
+                        if (missingColMatch && missingColMatch[1] && missingColMatch[1] in payload) {
+                            console.warn(`⚠️ ${tableName}.create: columna "${missingColMatch[1]}" no existe, reintentando sin ella`);
+                            delete payload[missingColMatch[1]];
+                            continue;
+                        }
+
                         console.error(`❌ ${tableName}.create ERROR:`, error);
                         if (handleTableNotFound(error, tableName)) {
                             return { success: false, error: `Tabla "${tableName}" no existe` };
                         }
                         return { success: false, error: error.message };
                     }
-                    console.log(`✅ ${tableName}.create SUCCESS:`, data?.[0]);
-                    return { success: true, data: data?.[0] || record };
+
+                    return { success: false, error: 'No se pudo insertar el registro' };
                 } catch (err) {
                     console.error(`❌ ${tableName}.create EXCEPTION:`, err);
                     return { success: false, error: err.message };

@@ -266,9 +266,10 @@
                     const teamMembersData = teamMembersResponse.success ? teamMembersResponse.data || [] : [];
                     
                     groups = apiTeams.map(t => {
+                        // team_members: id, team_id, user_id, role_in_team, added_at, added_by
                         const members = teamMembersData
                             .filter(tm => tm.team_id === t.id)
-                            .map(tm => tm.username);
+                            .map(tm => tm.user_id);
                         
                         return {
                             id: t.id,
@@ -415,13 +416,13 @@
                 return;
             }
 
-            container.innerHTML = currentGroupMembers.map(username => {
-                const user = users.find(u => (u.username || u.email || u.id) === username);
-                const name = user ? (user.name || user.full_name || user.username || user.email || 'Usuario') : username;
+            container.innerHTML = currentGroupMembers.map(memberId => {
+                const user = users.find(u => (u.id || u.username || u.email) === memberId);
+                const name = user ? (user.name || user.full_name || user.username || user.email || 'Usuario') : memberId;
                 return `
                     <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded border">
                         <div><strong>${name}</strong></div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMember('${username}')">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMember('${memberId}')">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -470,12 +471,12 @@
             }
 
             users.forEach(user => {
-                const username = user.username || user.email || user.id;
+                const memberId = user.id || user.username || user.email;
                 const displayName = user.name || user.full_name || user.username || user.email || 'Usuario sin nombre';
 
-                if (!currentGroupMembers.includes(username)) {
+                if (!currentGroupMembers.includes(memberId)) {
                     const option = document.createElement('option');
-                    option.value = username;
+                    option.value = memberId;
                     option.textContent = `${displayName}`;
                     select.appendChild(option);
                 }
@@ -490,17 +491,17 @@
         // Add member to group
         function addMemberToGroup() {
             const select = document.getElementById('memberSelect');
-            const username = select.value;
-            if (username && !currentGroupMembers.includes(username)) {
-                currentGroupMembers.push(username);
+            const memberId = select.value;
+            if (memberId && !currentGroupMembers.includes(memberId)) {
+                currentGroupMembers.push(memberId);
                 updateMembersList();
                 bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
             }
         }
 
         // Remove member from group
-        function removeMember(username) {
-            currentGroupMembers = currentGroupMembers.filter(u => u !== username);
+        function removeMember(memberId) {
+            currentGroupMembers = currentGroupMembers.filter(u => u !== memberId);
             updateMembersList();
         }
 
@@ -632,15 +633,19 @@
             });
 
             // Then add all selected members
-            const addOperations = selectedMembers.map(username => {
-                const user = users.find(u => (u.username || u.email || u.id) === username);
-                const userId = user ? (user.id || user.username || user.email) : username;
+            const addOperations = selectedMembers.map(memberId => {
+                const user = users.find(u => (u.id || u.username || u.email) === memberId);
+                const userId = user ? (user.id || user.username || user.email) : memberId;
                 
                 return API.TeamMembers.create({
                     team_id: teamId,
                     user_id: userId,
-                    username: username,
-                    role: 'member'
+                    role_in_team: 'member'
+                }).then(result => {
+                    if (!result?.success) {
+                        console.error('❌ Error agregando miembro al equipo', { teamId, memberId, error: result?.error });
+                    }
+                    return result;
                 });
             });
 
@@ -723,7 +728,37 @@
                 const handleConfirm = async function () {
                     try {
                         showLoading(true);
-                        const response = await API.Groups.delete(targetId);
+                        console.log('🗑️ Eliminando equipo y relaciones para ID:', targetId);
+
+                        // 1) Eliminar miembros del equipo en team_members
+                        const teamMembersResult = await API.TeamMembers.getAll();
+                        if (teamMembersResult.success && Array.isArray(teamMembersResult.data)) {
+                            const relatedMembers = teamMembersResult.data.filter(tm => String(tm.team_id) === targetId);
+                            console.log('🗑️ Miembros relacionados a eliminar:', relatedMembers.length);
+
+                            if (relatedMembers.length > 0) {
+                                const deleteMemberOps = relatedMembers.map(tm => API.TeamMembers.delete(tm.id));
+                                await Promise.all(deleteMemberOps);
+                            }
+                        }
+
+                        // 2) Desasociar compromisos (set team_id a null)
+                        const relatedCommitments = commitments.filter(c => String(c.team_id) === targetId);
+                        console.log('🗑️ Compromisos relacionados a desasociar:', relatedCommitments.length);
+
+                        if (relatedCommitments.length > 0) {
+                            const unassignOps = relatedCommitments.map(c =>
+                                API.Commitments.update(c.id, { team_id: null }).then(result => {
+                                    if (!result?.success) {
+                                        console.error('❌ Error desasociando compromiso del equipo antes de borrar', { commitmentId: c.id, teamId: targetId, error: result?.error });
+                                    }
+                                })
+                            );
+                            await Promise.all(unassignOps);
+                        }
+
+                        // 3) Eliminar el registro del equipo (tabla teams)
+                        const response = await API.Teams.delete(targetId);
 
                         if (response.success) {
                             showSuccess('Equipo eliminado');
@@ -731,6 +766,7 @@
                             renderGroups();
                             modal.hide();
                         } else {
+                            console.error('❌ Error API.Teams.delete:', response.error);
                             showError('Error: ' + response.error);
                         }
                     } catch (error) {
