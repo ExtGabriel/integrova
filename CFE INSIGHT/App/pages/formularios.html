@@ -10879,18 +10879,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para configurar eventos del modal de documento
         function setupDocumentModalEvents() {
-            // Toggle del esquema de aprobación
-            const approvalToggle = document.getElementById('approvalSchema');
-            const schemaSection = document.getElementById('schemaSection');
-            
-            approvalToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    schemaSection.style.display = 'block';
-                } else {
-                    schemaSection.style.display = 'none';
-                }
-            });
-            
             // Guardar documento
             const saveButton = document.getElementById('saveDocumentBtn');
             if (saveButton) {
@@ -12517,9 +12505,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Aquí puedes agregar la lógica para guardar la hoja de trabajo
             console.log('Guardando hoja de trabajo:', {
                 id: hojaTrabajoId,
-                name: hojaTrabajoName,
-                approval: document.getElementById('hojaTrabajoApproval').checked,
-                scheme: document.querySelector('input[name="hojaTrabajoScheme"]:checked').value
+                name: hojaTrabajoName
             });
             
             // Agregar la hoja de trabajo a la sección actual
@@ -45843,86 +45829,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </label>
                     <input type="text" id="documentName" placeholder="Nombre del documento">
                 </div>
-                <div class="form-group">
-                    <label class="toggle-label">
-                        <i class="bi bi-shield-check"></i>
-                        Esquema de aprobación
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="approvalSchema" checked>
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
-                <div class="form-group" id="schemaSection">
-                    <label>
-                        <i class="bi bi-people"></i>
-                        Seleccionar esquema de aprobación
-                    </label>
-                    <div class="schema-table-container">
-                        <table class="schema-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre de esquema</th>
-                                    <th>Roles de preparadores</th>
-                                    <th>Roles de revisores</th>
-                                    <th>Documentos aplicados</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <label class="radio-label">
-                                            <input type="radio" name="schema" value="roles-predeterminado" checked>
-                                            <span>Roles - Predeterminado</span>
-                                        </label>
-                                    </td>
-                                    <td>1</td>
-                                    <td>1</td>
-                                    <td>298 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <label class="radio-label">
-                                            <input type="radio" name="schema" value="preliminar-final">
-                                            <span>Preliminar/Final</span>
-                                        </label>
-                                    </td>
-                                    <td>2</td>
-                                    <td>2</td>
-                                    <td>4 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <label class="radio-label">
-                                            <input type="radio" name="schema" value="preliminar-final-socio">
-                                            <span>Preliminar/Final/Socio</span>
-                                        </label>
-                                    </td>
-                                    <td>2</td>
-                                    <td>4</td>
-                                    <td>0 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <label class="radio-label">
-                                            <input type="radio" name="schema" value="revision-socio">
-                                            <span>Revisión Socio</span>
-                                        </label>
-                                    </td>
-                                    <td>1</td>
-                                    <td>2</td>
-                                    <td>3 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
             <div class="document-modal-footer">
-                <button class="btn btn-secondary" onclick="editDocumentVisibility()">
-                    <i class="bi bi-eye"></i>
-                    Editar visibilidad
-                </button>
                 <button class="btn btn-cancel" onclick="closeDocumentModal()">
                     <i class="bi bi-x-circle"></i>
                     Cancelar
@@ -46202,80 +46110,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </label>
                     <input type="text" id="hojaTrabajoName" value="Hoja de trabajo" readonly>
                 </div>
-                
-                <div class="form-group">
-                    <label class="toggle-label">
-                        <i class="bi bi-check-circle"></i>
-                        Esquema de aprobación
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="hojaTrabajoApproval">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
-                
-                <div class="form-group" id="hojaTrabajoSchemaSection">
-                    <label>
-                        <i class="bi bi-table"></i>
-                        Esquemas disponibles
-                    </label>
-                    <div class="schemes-table-container">
-                        <table class="schemes-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre de esquema</th>
-                                    <th>Roles de prepar...</th>
-                                    <th>Roles de revisores</th>
-                                    <th>Documentos aplic...</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <input type="radio" name="hojaTrabajoScheme" value="default" checked>
-                                        <label>Roles - Predeterminado</label>
-                                    </td>
-                                    <td>1</td>
-                                    <td>1</td>
-                                    <td>297 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <input type="radio" name="hojaTrabajoScheme" value="preliminary">
-                                        <label>Preliminar/Final</label>
-                                    </td>
-                                    <td>2</td>
-                                    <td>2</td>
-                                    <td>4 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <input type="radio" name="hojaTrabajoScheme" value="preliminary_partner">
-                                        <label>Preliminar/Final/Socio</label>
-                                    </td>
-                                    <td>2</td>
-                                    <td>4</td>
-                                    <td>0 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <input type="radio" name="hojaTrabajoScheme" value="partner_review">
-                                        <label>Revisión Socio</label>
-                                    </td>
-                                    <td>1</td>
-                                    <td>2</td>
-                                    <td>3 <button class="edit-docs-btn" onclick="editAppliedDocuments(event)">EDIT</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
             <div class="modal-footer hoja-trabajo-modal-footer">
-                <button class="btn btn-secondary" onclick="editDocumentVisibility()">
-                    <i class="bi bi-eye"></i>
-                    Editar visibilidad
-                </button>
                 <button class="btn btn-cancel" onclick="closeHojaTrabajoModal()">
                     <i class="bi bi-x-circle"></i>
                     Cancelar
