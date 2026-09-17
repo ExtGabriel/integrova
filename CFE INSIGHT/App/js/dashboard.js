@@ -2132,17 +2132,27 @@ async function loadCalendarEventsFromDB() {
                 if (notificationEventIds.has(String(ev.id))) return true;
                 return false;
             })
-            .map(ev => ({
-                id: ev.id,
-                date: ev.date,
-                title: ev.title,
-                time: ev.time ? String(ev.time).slice(0, 5) : null,
-                description: ev.description || '',
-                scope: ev.scope || 'personal',
-                teamId: ev.team_id || null,
-                createdAt: ev.created_at,
-                localOnly: false
-            }));
+            .map(ev => {
+                // Normalizar fecha a YYYY-MM-DD para evitar problemas de zona horaria / formato
+                let normalizedDate = null;
+                if (ev.date instanceof Date) {
+                    normalizedDate = formatDateLocal(ev.date);
+                } else if (ev.date) {
+                    const iso = String(ev.date);
+                    normalizedDate = iso.length >= 10 ? iso.slice(0, 10) : iso;
+                }
+
+                return {
+                    id: ev.id,
+                    date: normalizedDate,
+                    title: ev.title,
+                    time: ev.time ? String(ev.time).slice(0, 5) : null,
+                    description: ev.description || '',
+                    scope: ev.scope || 'personal',
+                    teamId: ev.team_id || null,
+                    createdAt: ev.created_at
+                };
+            });
 
         calendarEvents = dbEvents;
     } catch (error) {
