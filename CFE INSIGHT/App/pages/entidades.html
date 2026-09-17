@@ -1926,11 +1926,17 @@
             }
         }
 
-        // Función para log de acciones (solo en memoria, sin persistencia)
+        // Función para log de acciones - persiste en tabla records vía API
         function logAction(username, action, entity, commitment, timestamp) {
             actionRecords.push({ id: Date.now(), username, action, entity, commitment, timestamp });
-            // Los logs se mantienen solo mientras la sesión esté activa
             console.log('📝 Acción registrada:', { username, action, entity, timestamp });
+            try {
+                if (window.API && typeof window.API.logAction === 'function') {
+                    window.API.logAction(username, action, entity, commitment, timestamp);
+                }
+            } catch (e) {
+                console.warn('⚠️ logAction: no se pudo persistir en BD', e);
+            }
         }
 
         function logout() {

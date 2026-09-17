@@ -253,6 +253,53 @@
     }
 
     /**
+     * Registrar una acción de usuario en la tabla records (bitácora de Registros)
+     * Soporta dos firmas:
+     *   logAction(action, entity, commitment, details)
+     *   logAction(username, action, entity, commitment, details)
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async function logAction(...args) {
+        try {
+            let username, action, entity, commitment, details;
+
+            if (args.length >= 5) {
+                [username, action, entity, commitment, details] = args;
+            } else {
+                [action, entity, commitment, details] = args;
+                const u = window.currentUser || null;
+                username = u?.username || u?.name || u?.email || 'unknown';
+            }
+
+            const client = await getSupabaseClient();
+            if (!client) {
+                return { success: false, error: 'Supabase client no disponible' };
+            }
+
+            const payload = {
+                username,
+                action,
+                entity: entity ?? null,
+                commitment: commitment ?? null,
+                details: details ?? null,
+                timestamp: new Date().toISOString()
+            };
+
+            const { data, error } = await client.from('records').insert([payload]).select();
+
+            if (error) {
+                console.warn('⚠️ logAction insert error:', error.message);
+                return { success: false, error: error.message };
+            }
+
+            return { success: true, data: data?.[0] };
+        } catch (err) {
+            console.warn('⚠️ logAction exception:', err.message);
+            return { success: false, error: err.message };
+        }
+    }
+
+    /**
      * Registrar evento de auditoría
      * @param {string} action - Tipo de acción (login, logout, create_user, etc.)
      * @param {object} details - Detalles adicionales del evento
@@ -2854,6 +2901,7 @@
         getMyProfile,
         signOut,
         logAuditEvent,
+        logAction,
         supabase: window.supabaseClient || null, // Cliente Supabase directo si lo necesitan
 
         // === Módulos de datos - SIEMPRE EXISTEN, NUNCA UNDEFINED ===
@@ -2871,6 +2919,7 @@
         Teams: createTableModule('teams'),
         TeamMembers: createTableModule('team_members'),
         Events: createTableModule('events'),
+        Records: createTableModule('records'),
         Permissions: createTableModule('permissions'),
         Roles: createTableModule('roles'),
         Logs: createTableModule('logs'),

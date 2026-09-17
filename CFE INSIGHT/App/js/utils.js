@@ -334,11 +334,15 @@ function clearFieldError(field) {
     }
 }
 
-// Function to log actions securely
+// Function to log actions - escribe en la tabla records vía API
 function logAction(username, action, entity, commitment, timestamp) {
-    const records = getSecureItem('appRecords') || [];
-    records.push({ id: Date.now(), username, action, entity, commitment, timestamp });
-    setSecureItem('appRecords', records);
+    try {
+        if (window.API && typeof window.API.logAction === 'function') {
+            window.API.logAction(username, action, entity, commitment, timestamp);
+        }
+    } catch (e) {
+        console.warn('⚠️ logAction: no se pudo registrar la acción', e);
+    }
 }
 
 // ===== FUNCIONES DE IA PARA CFE INSIGHT =====

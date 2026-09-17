@@ -573,7 +573,7 @@
                 // Log de acción
                 const currentUser = getCurrentSession();
                 const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                API.logAction('elimino_documento', null, currentCommitment?.name, { docName, sectionName, by: currentUser?.username, at: timestamp });
+                API.logAction('elimino_documento', currentCommitment?.entity_name || null, currentCommitment?.name, { docName, sectionName, by: currentUser?.username, at: timestamp });
 
                 // Regenera el contenido de la sección actual para reflejar cambios automáticamente
                 switchTab(sectionName);
@@ -679,7 +679,7 @@
             }
 
             // Log de acción
-            API.logAction('lleno_formulario', null, currentCommitment?.name, { form: itemName, section: sectionName, by: currentUser.username, at: timestamp });
+            API.logAction('lleno_formulario', currentCommitment?.entity_name || null, currentCommitment?.name, { form: itemName, section: sectionName, by: currentUser.username, at: timestamp });
 
             // Regenera el contenido de la sección actual
             switchTab(sectionName);
@@ -738,7 +738,7 @@
             }
 
             // Log de acción
-            API.logAction('reviso_elemento', null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
+            API.logAction('reviso_elemento', currentCommitment?.entity_name || null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
 
             // Regenera el contenido de la sección actual para reflejar cambios automáticamente
             switchTab(sectionName);
@@ -797,7 +797,7 @@
 
             // Log de acción
             const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-            API.logAction('quito_revision', null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
+            API.logAction('quito_revision', currentCommitment?.entity_name || null, currentCommitment?.name, { item: itemName, section: sectionName, type: reviewType, by: currentUser.username, at: timestamp });
 
             // Regenera el contenido de la sección actual para reflejar cambios automáticamente
             switchTab(sectionName);
@@ -1178,7 +1178,7 @@
             const session = getCurrentSession();
             const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
             if (session && session.username) {
-                API.logAction(session.username, 'vio_detalles', null, commitmentName, timestamp);
+                API.logAction(session.username, 'vio_detalles', currentCommitment?.entity_name || null, commitmentName, timestamp);
             }
         }
 
@@ -1533,7 +1533,7 @@
                 const session = getCurrentSession();
                 if (session && session.username) {
                     const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-                    API.logAction(session.username, 'vio_detalles', null, currentCommitment.name, timestamp);
+                    API.logAction(session.username, 'vio_detalles', currentCommitment?.entity_name || null, currentCommitment.name, timestamp);
                 }
             } catch (err) {
                 console.error('Error loading commitment details:', err);
@@ -1695,7 +1695,7 @@
 
             // Log de acción
             const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-            API.logAction(currentUser.username, 'subio_documento', null, currentCommitment.name, timestamp);
+            API.logAction(currentUser.username, 'subio_documento', currentCommitment?.entity_name || null, currentCommitment.name, timestamp);
 
             // Cierra modal
             cerrarModalSubida();

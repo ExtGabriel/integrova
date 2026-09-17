@@ -713,11 +713,15 @@
             }
         }
 
-        // Función para Log Acción (Integra con Registro; usa localStorage)
+        // Función para Log Acción - persiste en tabla records vía API
         function logAction(username, action, entity, commitment, timestamp) {
-            const records = getSecureItem('appRecords') || [];
-            records.push({ id: Date.now(), username, action, entity, commitment, timestamp });
-            setSecureItem('appRecords', records);
+            try {
+                if (window.API && typeof window.API.logAction === 'function') {
+                    window.API.logAction(username, action, entity, commitment, timestamp);
+                }
+            } catch (e) {
+                console.warn('⚠️ logAction: no se pudo persistir en BD', e);
+            }
         }
 
         // Lógica del Custom Select (Igual que en Registro)
@@ -1699,7 +1703,15 @@
                 try {
                     const currentUser = getCurrentSession();
                     if (currentUser) {
-                        await API.logAction('creo_compromiso', null, createdCommitment.id, name);
+                        const entitySelectEl = document.getElementById('commitmentEntity');
+                        const entityNameForLog = entitySelectEl?.selectedOptions?.[0]?.textContent?.trim() || null;
+                        await API.logAction(
+                            currentUser.username,
+                            'creo_compromiso',
+                            entityNameForLog,
+                            name,
+                            { commitmentId: createdCommitment.id, entityId: entityId }
+                        );
                     }
                 } catch (logError) {
                     console.warn('⚠️ Error registrando la acción, se omite:', logError);
@@ -2199,7 +2211,14 @@
                 try {
                     const currentUser = getCurrentSession();
                     if (currentUser && typeof API?.logAction === 'function') {
-                        await API.logAction('modifico_compromiso', null, id, name);
+                        const entityNameForLog = allEntities?.[entityId]?.name || null;
+                        await API.logAction(
+                            currentUser.username,
+                            'modifico_compromiso',
+                            entityNameForLog,
+                            name,
+                            { commitmentId: id, entityId: entityId }
+                        );
                     }
                 } catch (logError) {
                     console.warn('⚠️ Error registrando la acción, se omite:', logError);
@@ -2334,7 +2353,18 @@
                 try {
                     const currentUser = getCurrentSession();
                     if (currentUser) {
-                        await API.logAction('elimino_compromiso', null, id, commitmentName);
+                        const deletedCommitment = allCommitments.find(c => String(c.id) === String(id));
+                        const deletedEntityId = deletedCommitment?.entity_id || deletedCommitment?.entity || null;
+                        const entityNameForLog = allEntities?.[deletedEntityId]?.name
+                            || deletedCommitment?.entities?.name
+                            || null;
+                        await API.logAction(
+                            currentUser.username,
+                            'elimino_compromiso',
+                            entityNameForLog,
+                            commitmentName,
+                            { commitmentId: id, entityId: deletedEntityId }
+                        );
                     }
                 } catch (logError) {
                     console.warn('⚠️ Error registrando la acción, se omite:', logError);
