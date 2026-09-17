@@ -568,10 +568,12 @@
                 let html = '<div class="folder-list">';
                 list.forEach(folder => {
                     const menuId = `folder-menu-${folder.id}`;
+                    const childrenId = `folder-children-${folder.id}`;
                     html += `
                         <div class="folder-block" data-id="${folder.id}">
                             <div class="folder-block-header">
-                                <div class="folder-heading">
+                                <div class="folder-heading" onclick="toggleFolderContent(event, '${childrenId}', this)" style="cursor: pointer;">
+                                    <i class="bi bi-chevron-right folder-arrow"></i>
                                     <i class="bi bi-folder-fill"></i>
                                     <div class="folder-title">${folder.nombre}</div>
                                 </div>
@@ -581,17 +583,12 @@
                                     <div class="plus-dropdown-content" id="${menuId}">
                                         <a href="#" onclick="openSubFolderModal(event, '${folder.subcategoria}', ${folder.id})"><i class="bi bi-folder"></i> Subcarpeta</a>
                                         <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'word', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-file-word"></i> Word</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'excel', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-file-excel"></i> Excel</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'carta', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-envelope"></i> Carta</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'memorandum', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-file-text"></i> Memorándum</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'lista-verificacion', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-check-square"></i> Lista de verificación</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'enlace', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-link"></i> Enlace</a>
+                                        <a href="#" onclick="uploadFileDirect(event, '${folder.subcategoria}', ${folder.id})"><i class="bi bi-upload"></i> Cargar</a>
                                     </div>
                                 </div>
                             </div>
                             ${folder.descripcion ? `<div class="folder-description">${folder.descripcion}</div>` : ''}
-                            <div class="folder-children">
+                            <div class="folder-children" id="${childrenId}" style="display: none;">
                                 ${renderDocuments(folder.id)}
                                 ${renderFolders(folder.id)}
                             </div>
@@ -855,6 +852,26 @@
         } catch (error) {
             console.error('Error al eliminar carpeta:', error);
             alert('Error al eliminar la carpeta: ' + error.message);
+        }
+    };
+
+    // Mostrar/ocultar el contenido de una carpeta (como las secciones de formularios)
+    window.toggleFolderContent = function (event, childrenId, headingEl) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const children = document.getElementById(childrenId);
+        if (!children) return;
+
+        const isCollapsed = children.style.display === 'none';
+        children.style.display = isCollapsed ? '' : 'none';
+
+        // Rotar la flecha igual que las secciones de formularios
+        const arrow = headingEl && headingEl.querySelector('.folder-arrow');
+        if (arrow) {
+            arrow.classList.toggle('bi-chevron-down', isCollapsed);
+            arrow.classList.toggle('bi-chevron-right', !isCollapsed);
         }
     };
 

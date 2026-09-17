@@ -10187,7 +10187,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // ==========================================
         
         // Función para cargar archivos directamente
-        function uploadFileDirect(event, section) {
+        function uploadFileDirect(event, section, parentFolderId = null) {
             event.preventDefault();
             event.stopPropagation();
             
@@ -10211,7 +10211,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             }
             
-            console.log('📁 Cargar archivo en:', { categoria, subcategoria });
+            console.log('📁 Cargar archivo en:', { categoria, subcategoria, parentFolderId });
             
             // Crear input de archivo temporal
             const fileInput = document.createElement('input');
@@ -10222,7 +10222,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             fileInput.onchange = function(e) {
                 const file = e.target.files[0];
                 if (file) {
-                    handleDirectUpload(file, categoria, subcategoria);
+                    handleDirectUpload(file, categoria, subcategoria, parentFolderId);
                 }
                 document.body.removeChild(fileInput);
             };
@@ -10232,7 +10232,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para manejar la carga directa de archivos (sección de documentos)
-        async function handleDirectUpload(file, categoria, subcategoria) {
+        async function handleDirectUpload(file, categoria, subcategoria, parentFolderId = null) {
             // En la sección de documentos todo se sube como archivo adjunto.
             // El mapeo de Excel se realiza únicamente en la sección "Conjunto de datos".
             
@@ -10267,6 +10267,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         fileType: file.type,
                         entityId: fileContext.entity_id,
                         commitmentId: fileContext.commitment_id,
+                        parentFolderId: parentFolderId || null,
                         fileData: fileData
                     })
                 });
@@ -13181,16 +13182,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             showNotification(`Subcarpeta "${folderName}" guardada exitosamente`, 'success');
                             closeFolderModal();
                             
-                            if (currentSection !== currentCategory) {
-                                // Subcarpeta: refrescar solo la subcategoría
-                                setTimeout(() => {
-                                    window.subcategoriasManager.updateUI(currentCategory, currentSection);
-                                }, 100);
-                            } else {
-                                // Carpeta de nivel categoría: agregar a la UI sin borrar subcategorías
-                                console.log('Es carpeta de nivel categoría, llamando a appendCategoryRootFolder');
-                                appendCategoryRootFolder(currentCategory, savedSubfolder);
-                            }
+                            // Refrescar siempre la UI dinámica para que la carpeta
+                            // aparezca inmediatamente con sus acciones (+ y eliminar)
+                            setTimeout(() => {
+                                window.subcategoriasManager.updateUI(currentCategory, currentSection);
+                            }, 100);
                             
                         } catch (error) {
                             console.error('Error guardando subcarpeta:', error);

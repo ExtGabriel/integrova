@@ -8573,6 +8573,7 @@ app.post('/api/subdocuments/upload', async (req, res) => {
             fileType, 
             entityId, 
             commitmentId,
+            parentFolderId,
             fileData 
         } = req.body;
         
@@ -8605,7 +8606,7 @@ app.post('/api/subdocuments/upload', async (req, res) => {
                 tipo: 'archivo',
                 categoria,
                 subcategoria,
-                parent_folder_id: null,
+                parent_folder_id: parentFolderId || null,
                 metadata,
                 user_id: userId,
                 entity_id: entityId || null,
