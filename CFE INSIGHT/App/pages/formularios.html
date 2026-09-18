@@ -24541,9 +24541,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
 
             const observations = await loadStoredObservations();
-            const existingObservation = observations.find(obs => obs.formId === formId && obs.status === 'pendiente');
+            // Priorizar la pendiente; si no hay, mostrar la más reciente
+            // aunque esté resuelta, para que la nota siga visible
+            const existingObservation =
+                observations.find(obs => obs.formId === formId && obs.status === 'pendiente') ||
+                observations
+                    .filter(obs => obs.formId === formId)
+                    .sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp))[0] ||
+                null;
 
-            openObservationModal(formId, existingObservation || null);
+            openObservationModal(formId, existingObservation);
         }
 
         function openObservationModal(formId, observation) {
@@ -24574,19 +24581,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 </button>
                                 <button type="button" class="toolbar-btn" onclick="formatTextObservations('underline')" title="Subrayado">
                                     <i class="bi bi-type-underline"></i>
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <button type="button" class="toolbar-btn" onclick="insertLink()" title="Insertar enlace">
-                                    <i class="bi bi-link-45deg"></i>
-                                </button>
-                                <button type="button" class="toolbar-btn" onclick="insertMention()" title="Mencionar (@)">
-                                    <i class="bi bi-at"></i>
-                                </button>
-                                <button type="button" class="toolbar-btn" onclick="insertInference()" title="Insertar inferencia">
-                                    <i class="bi bi-arrow-down-short"></i>
-                                </button>
-                                <button type="button" class="toolbar-btn" onclick="showSpecialCharacters()" title="Insertar carácter especial">
-                                    <i class="bi bi-omega"></i>
                                 </button>
                                 <div class="toolbar-separator"></div>
                                 <button type="button" class="toolbar-btn" onclick="formatTextObservations('insertUnorderedList')" title="Lista con viñetas">
@@ -24677,12 +24671,28 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const saveButton = modal.querySelector('.btn-save-observation');
 
             if (observation && observationElement && observationIdInput) {
-                observationElement.innerHTML = observation.html || observation.text || '';
+                // Mostrar el contenido guardado de la observación
+                const text = observation.description || observation.text || observation.html || '';
+                observationElement.textContent = text;
                 setClassificationSelection(observation.classification);
                 observationIdInput.value = observation.id;
 
+                const isResolved = observation.status === 'resuelto';
+
+                // Aviso de estado resuelto dentro del modal
+                const headerEl = modal.querySelector('.observations-header');
+                if (isResolved && headerEl) {
+                    const notice = document.createElement('div');
+                    notice.className = 'observation-resolved-notice';
+                    notice.style.cssText = 'padding:8px 20px;background:#e8f5e9;color:#2e7d32;font-size:0.85rem;display:flex;align-items:center;gap:6px;';
+                    notice.innerHTML = '<i class="bi bi-check-circle-fill"></i> Esta observación está marcada como resuelta';
+                    headerEl.insertAdjacentElement('afterend', notice);
+                }
+
                 if (saveButton) {
-                    saveButton.innerHTML = '<i class="bi bi-pencil-square"></i> Actualizar pendiente';
+                    saveButton.innerHTML = isResolved
+                        ? '<i class="bi bi-arrow-counterclockwise"></i> Reabrir pendiente'
+                        : '<i class="bi bi-pencil-square"></i> Actualizar pendiente';
                 }
             } else {
                 if (observationElement) {
@@ -25486,6 +25496,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         formId: obs.form_id,
                         classification: obs.classification,
                         description: obs.description,
+                        // Título de la sección / documento donde se hizo la observación
+                        formTitle: obs.form_title || null,
+                        formCategoria: obs.form_categoria || null,
+                        formSubcategoria: obs.form_subcategoria || null,
+                        // Campos legacy que usa la UI de pendientes
+                        text: obs.description,
+                        user: obs.user_email || obs.user_id,
+                        timestamp: obs.created_at,
                         status: obs.status,
                         createdBy: obs.user_id,
                         createdAt: obs.created_at,
@@ -25551,14 +25569,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 let message = `Observación del formulario ${formId} guardada como: ${classificationValue}`;
                 
                 if (observationId) {
-                    // Actualizar observación existente
+                    // Actualizar observación existente (texto y clasificación también)
                     const response = await fetch(`/api/observations/${observationId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            status: 'pendiente'
+                            status: 'pendiente',
+                            description: observationText,
+                            classification: classificationValue
                         })
                     });
                     
@@ -25624,18 +25644,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 if (typeof hasObservation === 'undefined') {
                     const observations = await loadStoredObservations();
-                    const currentUserId = getCurrentUserId();
-                    shouldShowBadge = observations.some(obs => {
-                        if (obs.formId !== formId || obs.status !== 'pendiente') {
-                            return false;
-                        }
-                        // Si no hay usuario autenticado, mostrar todas las pendientes
-                        if (!currentUserId) {
-                            return true;
-                        }
-                        // Solo mostrar si createdBy coincide con el usuario actual
-                        return obs.createdBy === currentUserId;
-                    });
+                    // Badge compartido: mostrar si hay cualquier observación
+                    // en este formulario, sin importar su estado
+                    shouldShowBadge = observations.some(obs => 
+                        obs.formId === formId
+                    );
                 }
 
                 if (shouldShowBadge) {
@@ -25670,45 +25683,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             console.log('🔍 Elementos DOM encontrados:', { issuesList, noIssues, issuesCount });
             
-            // Filtrar solo observaciones pendientes del usuario actual
-            const currentUserId = getCurrentUserId();
-            console.log('🔍 currentUserId:', currentUserId);
-            const pendingObservations = observations.filter(obs => {
-                if (obs.status !== 'pendiente') {
-                    return false;
-                }
-                // Si no hay usuario autenticado, mostrar todas las pendientes
-                if (!currentUserId) {
-                    return true;
-                }
-                // Solo mostrar si createdBy coincide con el usuario actual
-                const matches = obs.createdBy === currentUserId;
-                console.log('🔍 obs.createdBy:', obs.createdBy, 'matches:', matches, 'obs:', obs);
-                return matches;
-            });
+            // Filtrar observaciones del contexto (entidad + compromiso),
+            // compartidas entre todos los usuarios
+            const pendingObservations = observations.filter(obs => obs.status === 'pendiente');
+            const resolvedObservations = observations.filter(obs => obs.status === 'resuelto');
             console.log('🔍 Observaciones pendientes filtradas:', pendingObservations);
-            
-            // Actualizar contador
+            console.log('🔍 Observaciones resueltas filtradas:', resolvedObservations);
+
+            // Actualizar contador (solo cuenta las pendientes)
             const pendingCount = pendingObservations.length;
             issuesCount.textContent = pendingCount === 1 
                 ? '1 pendiente' 
                 : `${pendingCount} pendientes`;
             console.log('🔍 Contador actualizado:', issuesCount.textContent);
-            
-            if (pendingObservations.length === 0) {
+
+            // Pendientes primero, resueltas al final (ambas por fecha desc)
+            const sortByDateDesc = (a, b) => new Date(b.timestamp) - new Date(a.timestamp);
+            pendingObservations.sort(sortByDateDesc);
+            resolvedObservations.sort(sortByDateDesc);
+            const visibleObservations = [...pendingObservations, ...resolvedObservations];
+
+            if (visibleObservations.length === 0) {
                 issuesList.innerHTML = '';
                 issuesList.appendChild(noIssues);
                 noIssues.style.display = 'block';
-                console.log('🔍 No hay pendientes, mostrando mensaje vacío');
+                console.log('🔍 No hay observaciones, mostrando mensaje vacío');
             } else {
                 noIssues.style.display = 'none';
                 issuesList.innerHTML = '';
-                console.log('🔍 Mostrando', pendingObservations.length, 'tarjetas');
-                
-                // Ordenar por fecha (más reciente primero)
-                pendingObservations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                
-                pendingObservations.forEach(observation => {
+                console.log('🔍 Mostrando', visibleObservations.length, 'tarjetas');
+
+                visibleObservations.forEach(observation => {
                     const issueCard = createIssueCard(observation);
                     issuesList.appendChild(issueCard);
                     console.log('🔍 Tarjeta agregada para observación:', observation.id);
@@ -25720,7 +25725,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para crear la tarjeta de observación
         function createIssueCard(observation) {
             const card = document.createElement('div');
-            card.className = 'issue-card';
+            const isResolved = observation.status === 'resuelto';
+            card.className = isResolved ? 'issue-card issue-card--resolved' : 'issue-card';
+            if (isResolved) {
+                card.style.opacity = '0.65';
+            }
 
             const date = new Date(observation.timestamp);
             const formattedDate = date.toLocaleDateString('es-MX', {
@@ -25743,19 +25752,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             };
 
             const formCode = observation.formId || observation.section;
-            const formTitle = formCode ? (FORM_NAME_MAP[formCode.toUpperCase()] || `${formCode} - ${classificationLabels[observation.classification] || 'Formulario'}`) : null;
 
+            // Título preferido: si viene del backend (documento), usarlo.
+            // Si no, usar el mapa de formularios o el código crudo.
+            let formTitle = observation.formTitle || null;
+            if (!formTitle && formCode) {
+                const mapped = FORM_NAME_MAP[String(formCode).toUpperCase()];
+                formTitle = mapped || String(formCode);
+            }
+
+            const baseLabel = classificationLabels[observation.classification] || 'Formulario';
+
+            // Ejemplos:
+            // - "Sumaria Test - Nota registrada"
+            // - "A200 - Requerimiento de información"
             const title = observation.title
-                || formTitle
-                || classificationLabels[observation.classification]
+                || (formTitle ? `${formTitle} - ${baseLabel}` : baseLabel)
                 || 'Observación pendiente';
+
+            // En "Espacio" mostramos solo el nombre de la sección/documento
             const spaceName = formTitle || formCode || 'Sin sección';
             const initials = getInitials(observation.user);
+
+            // Solo quien creó la observación puede eliminarla
+            const currentUserId = typeof getCurrentUserId === 'function' ? getCurrentUserId() : null;
+            const canDelete = !observation.createdBy || String(observation.createdBy) === String(currentUserId);
 
             card.innerHTML = `
                 <div class="issue-main">
                     <div class="issue-column issue-column--meta">
-                        <span class="issue-state">Por hacer</span>
+                        <span class="issue-state">${isResolved ? 'Resuelta' : 'Por hacer'}</span>
                         <div class="issue-avatar">${initials}</div>
                         <div class="issue-author">
                             <span class="issue-author-name">${observation.user}</span>
@@ -25768,19 +25794,20 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <a href="#" class="issue-title" onclick="respondToObservation('${observation.id}')">${title}</a>
                             <div class="issue-top-actions">
                                 <button class="issue-link" onclick="editObservation('${observation.id}')">✎ Editar</button>
-                                <button class="issue-link danger" onclick="deleteObservation('${observation.id}')">🗑 Eliminar</button>
+                                ${canDelete ? `<button class="issue-link danger" onclick="deleteObservation('${observation.id}')">🗑 Eliminar</button>` : ''}
                             </div>
                         </div>
                         <div class="issue-space">Espacio: ${spaceName}</div>
                         <p class="issue-text">${observation.text}</p>
                         <div class="issue-bottom-actions">
-                            <button class="issue-action" onclick="respondToObservation('${observation.id}')">↩ Responder</button>
-                            <button class="issue-action" onclick="resolveObservation('${observation.id}')">✔ Resolver</button>
-                            <button class="issue-action danger" onclick="deleteObservation('${observation.id}')">✕ Eliminar</button>
+                            ${isResolved
+                                ? `<button class="issue-action" onclick="reopenObservation('${observation.id}')">↺ Reabrir</button>`
+                                : `<button class="issue-action" onclick="resolveObservation('${observation.id}')">✔ Resolver</button>`}
+                            ${canDelete ? `<button class="issue-action danger" onclick="deleteObservation('${observation.id}')">✕ Eliminar</button>` : ''}
                         </div>
                     </div>
                     <div class="issue-column issue-column--status">
-                        <span class="issue-status-label">Pendiente</span>
+                        <span class="issue-status-label">${isResolved ? 'Resuelta' : 'Pendiente'}</span>
                     </div>
                 </div>
             `;
@@ -25809,7 +25836,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
 
                 const response = await fetch(`/api/observations/${observationId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'user-id': getCurrentUserId() || ''
+                    }
                 });
                 
                 const data = await response.json();
@@ -25875,6 +25905,38 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } catch (error) {
                 console.error('🔍 Error marcando observación como resuelta:', error);
                 showNotification('Error al marcar la observación como resuelta', 'error');
+            }
+        }
+
+        // Función para reabrir una observación resuelta (vuelve a pendiente)
+        async function reopenObservation(observationId) {
+            try {
+                const response = await fetch(`/api/observations/${observationId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status: 'pendiente'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const observations = await loadStoredObservations();
+                    const observation = observations.find(obs => obs.id === observationId);
+                    if (observation && observation.formId) {
+                        await updateObservationBadge(observation.formId);
+                    }
+
+                    await updateIssuesSection();
+                    showNotification('Observación reabierta como pendiente', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('🔍 Error reabriendo observación:', error);
+                showNotification('Error al reabrir la observación', 'error');
             }
         }
 
@@ -46752,6 +46814,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         });
 
+        // Repinta todas las banderitas de observaciones pendientes sobre los
+        // elementos actualmente renderizados (formularios y documentos dinámicos)
+        window.refreshObservationBadges = async function () {
+            try {
+                document.querySelectorAll('.observation-badge').forEach(b => b.remove());
+                const observations = await loadStoredObservations();
+                if (!Array.isArray(observations)) return;
+                for (const obs of observations) {
+                    // Mostrar puntito rojo siempre que exista al menos
+                    // una observación asociada a ese formulario/documento
+                    if (obs.formId) {
+                        await updateObservationBadge(obs.formId, true);
+                    }
+                }
+            } catch (err) {
+                console.warn('Error en refreshObservationBadges:', err);
+            }
+        };
+
         async function initializeObservations() {
             console.log('🔍 initializeObservations iniciado');
             try {
@@ -46762,23 +46843,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('No se pudo esperar a currentUserReady para observaciones:', err);
             }
 
-            const observations = await loadStoredObservations();
-            console.log('🔍 Observaciones cargadas en initializeObservations:', observations);
-
-            // Validar que observations sea un array antes de usar forEach
-            if (Array.isArray(observations)) {
-                console.log('🔍 Cantidad de observaciones:', observations.length);
-                // Actualizar badges para formularios con observaciones
-                for (const observation of observations) {
-                    console.log('🔍 Procesando observación:', observation.formId, observation.status);
-                    if (observation.status === 'pendiente') {
-                        await updateObservationBadge(observation.formId, true);
-                    }
-                }
-            } else {
-                console.warn('⚠️ loadStoredObservations no devolvió un array:', observations);
-            }
-
+            await window.refreshObservationBadges();
             await updateIssuesSection();
             console.log('🔍 initializeObservations completado');
         }

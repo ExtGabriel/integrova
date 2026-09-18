@@ -619,6 +619,12 @@
             } else {
                 dynamicContainer.innerHTML = '';
             }
+
+            // Repintar las banderitas de observaciones pendientes sobre los
+            // documentos recién renderizados
+            if (typeof window.refreshObservationBadges === 'function') {
+                window.refreshObservationBadges();
+            }
         }
 
         // Obtener ícono según tipo de documento

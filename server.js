@@ -5795,36 +5795,77 @@ app.get('/api/observations/:userId', async (req, res) => {
         let query = supabase
             .from('observaciones')
             .select('*')
-            .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
-        if (entityId) {
-            // Validar que entityId sea un UUID válido antes de filtrar
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-            if (uuidRegex.test(entityId)) {
-                query = query.eq('entity_id', entityId);
-            } else {
-                console.log('⚠️ entityId no es un UUID válido, omitiendo filtro:', entityId);
-                // Si no es un UUID válido, no aplicar el filtro y obtener todas las observaciones
-            }
-        }
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const hasValidEntity = entityId && uuidRegex.test(entityId);
 
-        // Diferenciar entre "no viene el parámetro" y "viene pero vacío" para permitir filtrar por nulos
-        if (Object.prototype.hasOwnProperty.call(req.query, 'commitment_id')) {
-            if (commitmentId) {
-                query = query.eq('commitment_id', commitmentId);
-            } else {
-                query = query.is('commitment_id', null);
+        if (hasValidEntity) {
+            // Vista compartida: observaciones de TODOS los usuarios de esa entidad/compromiso
+            query = query.eq('entity_id', entityId);
+
+            // Diferenciar entre "no viene el parámetro" y "viene pero vacío" para permitir filtrar por nulos
+            if (Object.prototype.hasOwnProperty.call(req.query, 'commitment_id')) {
+                if (commitmentId) {
+                    query = query.eq('commitment_id', commitmentId);
+                } else {
+                    query = query.is('commitment_id', null);
+                }
             }
+        } else {
+            // Sin contexto de entidad: solo las observaciones del propio usuario
+            if (entityId) {
+                console.log('⚠️ entityId no es un UUID válido, usando filtro por usuario:', entityId);
+            }
+            query = query.eq('user_id', userId);
         }
 
         const { data, error } = await query;
 
         if (error) throw error;
 
+        let observations = data || [];
+
+        try {
+            // Enriquecer observaciones con título de subdocumento cuando
+            // form_id corresponde al ID de un documento (sumaria, hoja de trabajo, etc.)
+            const docIds = [...new Set(
+                observations
+                    .map(obs => obs.form_id)
+                    .filter(id => id && !isNaN(Number(id)))
+            )];
+
+            if (docIds.length > 0) {
+                const { data: docs, error: docsError } = await supabase
+                    .from('subdocumentos')
+                    .select('id,titulo,categoria,subcategoria')
+                    .in('id', docIds);
+
+                if (!docsError && Array.isArray(docs)) {
+                    const docMap = new Map(docs.map(doc => [String(doc.id), doc]));
+                    observations = observations.map(obs => {
+                        const doc = docMap.get(String(obs.form_id));
+                        if (doc) {
+                            return {
+                                ...obs,
+                                form_title: doc.titulo,
+                                form_categoria: doc.categoria,
+                                form_subcategoria: doc.subcategoria
+                            };
+                        }
+                        return obs;
+                    });
+                } else if (docsError) {
+                    console.warn('⚠️ No se pudieron cargar títulos de subdocumentos para observaciones:', docsError.message || docsError);
+                }
+            }
+        } catch (joinError) {
+            console.warn('⚠️ Error enriqueciendo observaciones con títulos de documentos:', joinError);
+        }
+
         res.json({ 
             success: true, 
-            observations: data || [] 
+            observations 
         });
 
     } catch (error) {
@@ -5836,25 +5877,27 @@ app.get('/api/observations/:userId', async (req, res) => {
     }
 });
 
-// Actualizar estado de observación
+// Actualizar observación (estado, texto y/o clasificación)
 app.put('/api/observations/:observationId', async (req, res) => {
     try {
         const { observationId } = req.params;
-        const { status } = req.body;
-        
-        if (!status) {
+        const { status, description, classification } = req.body;
+
+        const updates = { updated_at: new Date().toISOString() };
+        if (status) updates.status = status;
+        if (description !== undefined) updates.description = description;
+        if (classification) updates.classification = classification;
+
+        if (Object.keys(updates).length === 1) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'El estado es requerido' 
+                error: 'No se enviaron campos para actualizar' 
             });
         }
 
         const { data, error } = await supabase
             .from('observaciones')
-            .update({ 
-                status: status,
-                updated_at: new Date().toISOString()
-            })
+            .update(updates)
             .eq('id', observationId)
             .select()
             .single();
@@ -5875,11 +5918,28 @@ app.put('/api/observations/:observationId', async (req, res) => {
     }
 });
 
-// Eliminar observación
+// Eliminar observación (solo quien la creó)
 app.delete('/api/observations/:observationId', async (req, res) => {
     try {
         const { observationId } = req.params;
-        
+        const requesterId = req.headers['user-id'] || req.headers['x-user-id'] || req.query.user_id;
+
+        // Verificar autoría antes de borrar
+        const { data: obs, error: fetchError } = await supabase
+            .from('observaciones')
+            .select('id, user_id')
+            .eq('id', observationId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        if (obs && obs.user_id && String(obs.user_id) !== String(requesterId)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Solo quien creó la observación puede eliminarla'
+            });
+        }
+
         const { error } = await supabase
             .from('observaciones')
             .delete()
