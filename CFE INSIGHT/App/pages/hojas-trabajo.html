@@ -3844,16 +3844,21 @@
             const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
 
             if (fileType === 'archivo') {
+                // En referencias de archivo, en lugar de descargar, redirigir a Formularios
+                // en el contexto actual de entidad/compromiso.
                 try {
-                    const response = await fetch(`${apiBase}/api/subdocuments/download/${fileId}`, {
-                        headers: { 'user-id': userId }
-                    });
-                    if (!response.ok) throw new Error('Error descargando archivo');
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, '_blank');
+                    const { entityId, commitmentId } = getBgContext();
+                    const selections = {
+                        entidad: { value: entityId || '', text: null },
+                        compromiso: { id: commitmentId || null },
+                        fromReference: { documentId: fileId }
+                    };
+                    try {
+                        localStorage.setItem('formularios_entity_selections', JSON.stringify(selections));
+                    } catch (e) {}
+                    window.open('formularios.html', '_blank');
                 } catch (err) {
-                    alert('Error abriendo archivo: ' + err.message);
+                    alert('Error abriendo referencia: ' + err.message);
                 }
                 return;
             }

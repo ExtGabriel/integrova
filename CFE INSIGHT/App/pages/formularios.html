@@ -8746,10 +8746,86 @@
 
                 applySelection(entidadValue, entidadText);
 
+                // Navegación desde referencia (sumaria/hoja de trabajo):
+                // aplicar compromiso y llevar al documento referenciado
+                if (selections.fromReference?.documentId) {
+                    handleReferenceNavigation(selections);
+                }
+
                 return true;
             } catch (error) {
                 console.warn('⚠️ Error cargando selecciones guardadas:', error);
                 return false;
+            }
+        }
+
+        // Espera a que un elemento exista en el DOM (polling con timeout)
+        function waitForElement(getter, timeout = 15000, interval = 300) {
+            return new Promise(resolve => {
+                const start = Date.now();
+                const check = () => {
+                    const el = getter();
+                    if (el) return resolve(el);
+                    if (Date.now() - start > timeout) return resolve(null);
+                    setTimeout(check, interval);
+                };
+                check();
+            });
+        }
+
+        // Navega a la sección donde está el documento referenciado
+        async function handleReferenceNavigation(selections) {
+            const refDocId = selections?.fromReference?.documentId;
+            const commitmentId = selections?.compromiso?.id;
+            if (!refDocId) return;
+
+            try {
+                // 1. Aplicar el compromiso cuando el dropdown termine de cargar
+                if (commitmentId) {
+                    const item = await waitForElement(() =>
+                        document.querySelector(`.commitment-dropdown-item[data-commitment-id="${commitmentId}"]`)
+                    , 20000);
+                    if (item) {
+                        selectCommitmentFromDropdown(commitmentId, item.dataset.commitmentName || item.textContent || '');
+                    } else {
+                        console.warn('⚠️ No se encontró el compromiso en el dropdown:', commitmentId);
+                    }
+                }
+
+                // 2. Esperar a que el documento se renderice
+                const docEl = await waitForElement(() =>
+                    document.querySelector(`.document-item[data-id="${refDocId}"]`)
+                , 25000);
+                if (!docEl) {
+                    console.warn('⚠️ No se encontró el documento de referencia:', refDocId);
+                    return;
+                }
+
+                // 3. Expandir los contenedores que lo contienen
+                const subContent = docEl.closest('.subcategoria-lista, .formularios-lista');
+                if (subContent) {
+                    ensureSubcategoriaExpanded(subContent.id.replace('-content', ''));
+                    const parentContent = subContent.closest('.formularios-lista');
+                    if (parentContent && parentContent !== subContent) {
+                        ensureCategoriaExpanded(parentContent.id.replace('-content', ''));
+                    }
+                }
+
+                // 4. Scroll y resaltado temporal
+                docEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                docEl.style.transition = 'box-shadow 0.3s';
+                docEl.style.boxShadow = '0 0 0 2px #0d6efd';
+                setTimeout(() => { docEl.style.boxShadow = ''; }, 4000);
+
+                // 5. Limpiar banderas para no repetir la navegación en recargas normales
+                try {
+                    const saved = JSON.parse(localStorage.getItem('formularios_entity_selections') || '{}');
+                    delete saved.fromReference;
+                    delete saved.compromiso;
+                    localStorage.setItem('formularios_entity_selections', JSON.stringify(saved));
+                } catch (e) {}
+            } catch (error) {
+                console.warn('⚠️ Error navegando a la referencia:', error);
             }
         }
 
