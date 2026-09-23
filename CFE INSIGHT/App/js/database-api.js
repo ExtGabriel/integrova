@@ -1176,6 +1176,8 @@ function convertDatabaseAssignmentToLocalStorage(dbAssignment) {
     const parentAccountId = dbAssignment.parent_account_id || meta.parentAccountId || null;
     const datasetId = (dbAssignment.dataset_id || meta.datasetId || '').toString().trim();
     const position = Number.isFinite(dbAssignment.position) ? dbAssignment.position : (Number.isFinite(meta.position) ? meta.position : 0);
+    const entityId = dbAssignment.entity_id || meta.entity_id || null;
+    const commitmentId = dbAssignment.commitment_id || meta.commitment_id || null;
 
     return {
         id: dbAssignment.id,
@@ -1185,6 +1187,8 @@ function convertDatabaseAssignmentToLocalStorage(dbAssignment) {
         parentAccountId,
         position,
         datasetId,
+        entity_id: entityId,
+        commitment_id: commitmentId,
         code: meta.code || meta.accountCode || '',
         name: meta.name || meta.accountName || '',
         value: meta.value ?? meta.currentValue ?? meta.current ?? 0,

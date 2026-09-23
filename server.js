@@ -4930,10 +4930,11 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         console.log('🔍 Primera cuenta (si existe):', dbAccounts?.[0]);
         console.log('🔍 Todas las cuentas:', dbAccounts);
         
-        // Deduplicar cuentas por número de cuenta para evitar duplicados
+        // Deduplicar cuentas por número de cuenta para evitar duplicados.
+        // Soporta cuentas manuales antiguas/nuevas que pueden venir en numero_cuenta o code.
         const uniqueAccounts = new Map();
         dbAccounts.forEach(account => {
-            const accountNumber = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+            const accountNumber = (account.numero_cuenta || account.code || '').toString().trim();
             if (accountNumber && !uniqueAccounts.has(accountNumber)) {
                 uniqueAccounts.set(accountNumber, account);
             }
@@ -4944,7 +4945,7 @@ app.get('/api/accounts/unassigned', async (req, res) => {
         // Transformar las cuentas de la base de datos al formato que espera el frontend
         const accounts = Array.from(uniqueAccounts.values()).map(account => {
             const meta = parseAccountMeta(account.meta);
-            const key = account.numero_cuenta ? account.numero_cuenta.toString().trim() : '';
+            const key = (account.numero_cuenta || account.code || '').toString().trim();
 
             let lsVal = extractLSValue({ ...account, meta });
             if (!lsVal && meta && meta.ls) {
@@ -4965,15 +4966,24 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             const hasSaldo = typeof account.saldo === 'number' && !Number.isNaN(account.saldo);
             const fallbackCurrent = hasSaldo
                 ? account.saldo
-                : (account.debito_actual - account.credito_actual);
+                : (typeof account.current_year_value === 'number' && !Number.isNaN(account.current_year_value))
+                    ? account.current_year_value
+                    : (typeof account.value === 'number' && !Number.isNaN(account.value))
+                        ? account.value
+                        : (account.debito_actual - account.credito_actual);
 
-            const fallbackPrevious = (account.debito_anterior - account.credito_anterior);
+            const fallbackPrevious = (typeof account.previous_year_value === 'number' && !Number.isNaN(account.previous_year_value))
+                ? account.previous_year_value
+                : (account.debito_anterior - account.credito_anterior);
 
             const signedCurrentValue = originalCurrent !== null ? originalCurrent : fallbackCurrent;
             const signedPreviousValue = originalPrevious !== null ? originalPrevious : fallbackPrevious;
 
+            const resolvedCode = account.numero_cuenta || account.code || '';
+            const resolvedName = account.nombre_cuenta || account.name || '';
+
             // Debug logging para verificar los valores que se envían al frontend
-            console.log(`🔍 Debug cuenta ${account.numero_cuenta}:`);
+            console.log(`🔍 Debug cuenta ${resolvedCode}:`);
             console.log(`   currentYearOriginal (meta):`, meta.currentYearOriginal);
             console.log(`   previousYearOriginal (meta):`, meta.previousYearOriginal);
             console.log(`   Saldo (DB): ${account.saldo}`);
@@ -4982,8 +4992,8 @@ app.get('/api/accounts/unassigned', async (req, res) => {
 
             return {
                 id: account.id, // <- UUID real de la base de datos
-                code: account.numero_cuenta,
-                name: account.nombre_cuenta,
+                code: resolvedCode,
+                name: resolvedName,
                 value: signedCurrentValue,
                 current_year_value: signedCurrentValue,
                 previous_year_value: signedPreviousValue,
@@ -5437,6 +5447,18 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
                 users(id, email)
             `)
             .eq('dataset_id', datasetId);
+
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.query, 'commitment_id')) {
+            if (commitment_id === '' || commitment_id === 'null' || commitment_id === null) {
+                query = query.is('commitment_id', null);
+            } else if (commitment_id) {
+                query = query.eq('commitment_id', commitment_id);
+            }
+        }
         
         const { data, error } = await query.order('position');
 
@@ -6888,13 +6910,13 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
         
         // Obtener cuentas desde la base de datos con sus UUIDs reales (como /api/accounts/unassigned)
         console.log('Obteniendo cuenta desde cuentas_contables...');
-        const { data: dbAccounts, error: dbError } = await supabase
+        let { data: dbAccounts, error: dbError } = await supabase
             .from('cuentas_contables')
             .select('*')
             .eq('conjunto_id', conjunto.id)
-            .eq('code', code)
+            .eq('numero_cuenta', code)
             .single();
-            
+
         if (dbError || !dbAccounts) {
             console.error('Cuenta no encontrada en cuentas_contables:', dbError);
             return res.status(404).json({ 
@@ -6949,16 +6971,20 @@ app.post('/api/accounts/save', async (req, res) => {
             .from('cuentas_contables')
             .insert({
                 conjunto_id: datasetId,
-                code: code,
-                name: name,
-                value: value || 0,
-                current_year_value: currentYearValue || 0,
-                previous_year_value: previousYearValue || 0,
-                debit: debit || 0,
-                credit: credit || 0,
+                numero_cuenta: code,
+                nombre_cuenta: name,
+                debito_actual: value > 0 ? value : 0,
+                credito_actual: value < 0 ? Math.abs(value) : 0,
+                debito_anterior: 0,
+                credito_anterior: 0,
                 entity_id: dataset?.entity_id || null,
                 commitment_id: dataset?.commitment_id || null,
-                meta: meta || null
+                meta: {
+                    ...(meta || {}),
+                    // Guardar valores originales para que /api/accounts/unassigned los use
+                    currentYearOriginal: value || 0,
+                    previousYearOriginal: previousYearValue || 0
+                }
             })
             .select()
             .single();
