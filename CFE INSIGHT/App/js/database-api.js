@@ -104,6 +104,53 @@ async function saveAccountAssignment(assignmentData) {
 }
 
 /**
+ * Guarda un lote de asignaciones de cuentas en una sola llamada HTTP
+ * Usado por la auto-asignación masiva por LS para no saturar el servidor.
+ * Solo usado por ese flujo; la asignación manual sigue usando saveAccountAssignment.
+ * @param {string} datasetId - ID del dataset
+ * @param {Array} items - [{ code, name, ls, value, prevValue, groupContentId, parentAccountId, position }]
+ * @returns {Promise<Object>} { saved, accountsCreated, unresolved }
+ */
+async function saveAccountAssignmentsBatch(datasetId, items) {
+    const userId = getCurrentUserId();
+
+    let entityId = document.getElementById('entidad')?.value
+        || window.commitmentDropdownState?.currentEntityId
+        || '';
+
+    let commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+    if (!commitmentId) {
+        const selectedItem = document.getElementById('commitmentDropdownMenu')
+            ?.querySelector('.commitment-dropdown-item.is-selected');
+        if (selectedItem) commitmentId = selectedItem.dataset.commitmentId || '';
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'user-id': userId
+    };
+    if (entityId) headers['entity-id'] = entityId;
+    if (commitmentId) headers['commitment-id'] = commitmentId;
+
+    const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/batch-save`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            datasetId,
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null,
+            assignments: items
+        })
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+        throw new Error(result.error || 'Error guardando asignaciones en lote');
+    }
+    return result;
+}
+
+/**
  * Obtiene todas las asignaciones de un dataset
  * @param {string} datasetId - ID del dataset
  * @param {string} entityId - ID de la entidad (opcional)
@@ -1849,6 +1896,7 @@ async function getUploadedFiles(entityId = null, commitmentId = null, tipo = nul
 
 // Exportar funciones para uso global
 window.saveAccountAssignment = saveAccountAssignment;
+window.saveAccountAssignmentsBatch = saveAccountAssignmentsBatch;
 window.getAccountAssignments = getAccountAssignments;
 window.deleteAccountAssignment = deleteAccountAssignment;
 window.saveFinancialAdjustment = saveFinancialAdjustment;

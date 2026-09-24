@@ -5740,20 +5740,23 @@
                                         effectiveAmount = -amount;
                                     }
                                     
-                                    // Guardar por código (para compatibilidad)
+                                    // Guardar por código (fuente de verdad)
                                     if (code) {
                                         const currentAmount = adjustmentsMap.get(code) || 0;
                                         adjustmentsMap.set(code, currentAmount + effectiveAmount);
                                     }
-                                    
+
                                     // Guardar por nombre (para Grupos Financieros)
                                     if (name) {
                                         const currentAmountByName = adjustmentsByName.get(name) || 0;
                                         adjustmentsByName.set(name, currentAmountByName + effectiveAmount);
 
-                                        // También guardar en el mismo mapa principal para permitir coincidencias por nombre
-                                        const currentAny = adjustmentsMap.get(name) || 0;
-                                        adjustmentsMap.set(name, currentAny + effectiveAmount);
+                                        // Coincidencia por nombre solo para ajustes SIN código,
+                                        // para no aplicar el ajuste a otra cuenta con el mismo nombre
+                                        if (!code) {
+                                            const currentAny = adjustmentsMap.get(name) || 0;
+                                            adjustmentsMap.set(name, currentAny + effectiveAmount);
+                                        }
                                     }
                                     
                                     console.log(`🔧 Ajuste Grupos Financieros: Cuenta ${code} - ${name}, Origen: ${originSide}, Monto: ${amount}, Efectivo: ${effectiveAmount}`);
@@ -5875,64 +5878,52 @@
                                         effectiveAmount = -amount;
                                     }
                                     
-                                    const currentAmount = newAdjustmentsMap.get(code) || 0;
-                                    newAdjustmentsMap.set(code, currentAmount + effectiveAmount);
-                                    
-                                    // Guardar por nombre para Grupos Financieros
-                                    if (name) {
+                                    if (code) {
+                                        const currentAmount = newAdjustmentsMap.get(code) || 0;
+                                        newAdjustmentsMap.set(code, currentAmount + effectiveAmount);
+                                    }
+
+                                    // Guardar por nombre solo para ajustes SIN código,
+                                    // para no aplicarlos a otras cuentas con el mismo nombre
+                                    if (name && !code) {
                                         const currentAmountByName = adjustmentsByName.get(name) || 0;
                                         adjustmentsByName.set(name, currentAmountByName + effectiveAmount);
                                     }
                                 });
                             });
                             
-                            // Actualizar tabla existente con nuevos ajustes por nombre
+                            // Actualizar tabla existente con nuevos ajustes por código
                             const existingRows = document.querySelectorAll('#gruposFinancierosTableBody tr');
                             existingRows.forEach(row => {
                                 const cells = row.querySelectorAll('td');
                                 if (cells.length >= 4) {
                                     const accountName = cells[0].textContent.trim();
-                                    
-                                    // Buscar ajuste por nombre exacto (para Grupos Financieros)
+
                                     let adjustment = 0;
                                     let matchedName = '';
-                                    
-                                    // Primero buscar coincidencia exacta por nombre
-                                    if (adjustmentsByName.has(accountName)) {
-                                        adjustment = adjustmentsByName.get(accountName);
-                                        matchedName = accountName;
-                                        console.log(`✅ Coincidencia exacta para Grupos Financieros: "${accountName}" → ${adjustment}`);
-                                    } else {
-                                        // Buscar coincidencia parcial (ignorando espacios y guiones)
-                                        const normalizedName = accountName.replace(/[\s\-_]/g, '').toLowerCase();
-                                        for (const [name, amount] of adjustmentsByName) {
-                                            const normalizedDetailName = name.replace(/[\s\-_]/g, '').toLowerCase();
-                                            if (normalizedName === normalizedDetailName || 
-                                                normalizedName.includes(normalizedDetailName) || 
-                                                normalizedDetailName.includes(normalizedName)) {
-                                                adjustment = amount;
-                                                matchedName = name;
-                                                console.log(`✅ Coincidencia parcial para Grupos Financieros: "${accountName}" ≈ "${name}" → ${adjustment}`);
-                                                break;
-                                            }
+
+                                    // 1) Coincidencia por código de cuenta (fuente de verdad)
+                                    let accountCode = row.dataset.accountCode || '';
+                                    if (!accountCode) {
+                                        const codeMatch = accountName.match(/(\d{6,8})/);
+                                        if (codeMatch) {
+                                            accountCode = codeMatch[1];
+                                            row.dataset.accountCode = accountCode;
                                         }
                                     }
-                                    
-                                    // Si no hay coincidencia por nombre, intentar por código (fallback)
-                                    if (adjustment === 0) {
-                                        let accountCode = row.dataset.accountCode || '';
-                                        if (!accountCode) {
-                                            const codeMatch = accountName.match(/(\d{6,8})/);
-                                            if (codeMatch) {
-                                                accountCode = codeMatch[1];
-                                                row.dataset.accountCode = accountCode;
-                                            }
-                                        }
-                                        
-                                        if (accountCode && newAdjustmentsMap.has(accountCode)) {
-                                            adjustment = newAdjustmentsMap.get(accountCode);
-                                            console.log(`✅ Coincidencia por código para Grupos Financieros: "${accountName}" → ${accountCode} → ${adjustment}`);
-                                        }
+                                    if (accountCode && newAdjustmentsMap.has(accountCode)) {
+                                        adjustment = newAdjustmentsMap.get(accountCode);
+                                        matchedName = accountName;
+                                        console.log(`✅ Coincidencia por código para Grupos Financieros: "${accountName}" → ${accountCode} → ${adjustment}`);
+                                    }
+
+                                    // 2) Fallback por nombre exacto SOLO para ajustes sin código
+                                    //    (adjustmentsByName solo contiene detalles sin code,
+                                    //    así no se aplica a cuentas homónimas)
+                                    if (adjustment === 0 && adjustmentsByName.has(accountName)) {
+                                        adjustment = adjustmentsByName.get(accountName);
+                                        matchedName = accountName;
+                                        console.log(`✅ Coincidencia por nombre (ajuste sin código) para Grupos Financieros: "${accountName}" → ${adjustment}`);
                                     }
                                     
                                     const adjustmentCell = cells[2]; // Columna Ajustes
@@ -5944,13 +5935,14 @@
                                         
                                         // Agregar tooltip para mostrar cuentas afectadas
                                         if (adjustment !== 0) {
-                                            adjustmentCell.title = `Ajuste: Q${Number(adjustment).toLocaleString('es-GT')}\nCuenta: ${matchedName || accountName}\nHaga clic para ver detalles del ajuste`;
+                                            const accountRef = accountCode || matchedName || accountName;
+                                            adjustmentCell.title = `Ajuste: Q${Number(adjustment).toLocaleString('es-GT')}\nCuenta: ${accountRef}\nHaga clic para ver detalles del ajuste`;
                                             adjustmentCell.style.cursor = 'pointer';
                                             adjustmentCell.style.fontWeight = 'bold';
                                             adjustmentCell.style.color = adjustment > 0 ? '#28a745' : '#dc3545';
-                                            
+
                                             // Agregar evento click para mostrar detalles
-                                            adjustmentCell.onclick = () => showAdjustmentDetails(matchedName || accountName, adjustment);
+                                            adjustmentCell.onclick = () => showAdjustmentDetails(accountRef, adjustment);
                                         } else {
                                             adjustmentCell.title = '';
                                             adjustmentCell.style.cursor = 'default';
@@ -7100,7 +7092,7 @@
                         : '<span style="width: 14px; display: inline-block;"></span>';
 
                     html += `
-                        <tr class="financial-row" data-row-id="${row.rowId || ''}" data-parent-id="${row.parentId || ''}" data-level="${row.level}" style="${baseStyle}${weight}">
+                        <tr class="financial-row" data-row-id="${row.rowId || ''}" data-parent-id="${row.parentId || ''}" data-level="${row.level}" data-account-code="${row.accountCode || ''}" style="${baseStyle}${weight}">
                             <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; background-color: inherit;">
                                 <div style="display: flex; align-items: center; margin-left: ${indent}px;">
                                     ${toggle}
@@ -27509,6 +27501,46 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         return idKey;
     }
 
+    // Modo lote: solo la auto-asignación masiva por LS acumula asignaciones aquí
+    // y las envía en pocas llamadas a /api/assignments/batch-save.
+    // La asignación manual individual sigue usando el flujo original.
+    let batchAssignmentMode = false;
+    let pendingBatchAssignments = [];
+
+    async function flushPendingBatchAssignments(datasetId) {
+        const items = pendingBatchAssignments;
+        pendingBatchAssignments = [];
+        if (!items.length || !datasetId) return;
+
+        if (typeof window.saveAccountAssignmentsBatch !== 'function') {
+            console.warn('⚠️ saveAccountAssignmentsBatch no disponible; asignaciones quedan solo en localStorage');
+            return;
+        }
+
+        const CHUNK = 400;
+        let saved = 0;
+        let failed = 0;
+        const unresolved = [];
+
+        for (let i = 0; i < items.length; i += CHUNK) {
+            const chunk = items.slice(i, i + CHUNK);
+            try {
+                const result = await window.saveAccountAssignmentsBatch(datasetId, chunk);
+                saved += result?.saved ?? chunk.length;
+                if (Array.isArray(result?.unresolved)) unresolved.push(...result.unresolved);
+            } catch (error) {
+                failed += chunk.length;
+                console.error('❌ Error guardando lote de asignaciones:', error);
+            }
+        }
+
+        if (failed > 0 || unresolved.length > 0) {
+            showNotification(`⚠️ ${saved} asignaciones guardadas; ${failed + unresolved.length} no se pudieron guardar (reintenta Auto-asignar)`, 'warning');
+        } else {
+            showNotification(`✅ ${saved} asignaciones guardadas en la base de datos`, 'success');
+        }
+    }
+
     function persistAssignment(accountData, groupContent, parentAccountId = '') {
         const accountKey = getAccountKey(accountData);
         const groupId = groupContent?.id || '';
@@ -27551,6 +27583,21 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // 2. Guardar en base de datos (nuevo sistema) - SOLO para cuentas del Excel
         if (!isStaticAccount) {
+            // Modo lote (solo auto-asignación por LS): encolar y salir;
+            // flushPendingBatchAssignments las envía una sola vez al final
+            if (batchAssignmentMode) {
+                pendingBatchAssignments.push({
+                    code: accountData?.code || accountKey,
+                    name: accountData?.name || '',
+                    ls: accountData?.ls || '',
+                    value: parseAccountValue(accountData?.value),
+                    prevValue: parseAccountValue(accountData?.prevValue),
+                    groupContentId: groupId,
+                    parentAccountId: parentAccountId || null,
+                    position: pendingBatchAssignments.length
+                });
+                return;
+            }
             console.log(' Intentando guardar asignación en base de datos...');
             console.log(' - accountData:', accountData);
             console.log(' - groupId:', groupId);
@@ -29828,7 +29875,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log(`   • LS "${key}" → Grupo ${groupId} (${staticName})`);
         });
         
-        // Procesar cada cuenta
+        // Procesar cada cuenta en modo lote: persistAssignment encola en vez de
+        // disparar una request HTTP por cuenta (saturaba el servidor con >500)
+        batchAssignmentMode = true;
+        pendingBatchAssignments = [];
+        try {
         unassignedAccounts.forEach((accountElement, index) => {
             console.log(`\n📋 Procesando cuenta ${index + 1}:`);
             console.log(`   Elemento:`, accountElement);
@@ -29873,7 +29924,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log(`ℹ️ Cuenta ${accountData.code} sin LS coincidente (LS: "${accountData.ls}")`);
             }
         });
-        
+        } finally {
+            batchAssignmentMode = false;
+        }
+
+        // Persistir todas las asignaciones en pocas requests agrupadas
+        flushPendingBatchAssignments(currentDatasetId).catch(err =>
+            console.error('❌ Error en flush de asignaciones:', err));
+
         // Mostrar resultado
         if (assignedCount > 0) {
             showNotification(`✅ Se asignaron automáticamente ${assignedCount} cuentas basadas en LS exacto`, 'success');

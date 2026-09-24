@@ -5332,17 +5332,196 @@ app.post('/api/assignments/save', async (req, res) => {
             console.log('Cuenta marcada como clasificada exitosamente');
         }
         
-        res.json({ 
-            success: true, 
-            assignment: data 
+        res.json({
+            success: true,
+            assignment: data
         });
 
     } catch (error) {
         console.error('Error en endpoint de asignaciones:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Error guardando asignación' 
+        res.status(500).json({
+            success: false,
+            error: 'Error guardando asignación'
         });
+    }
+});
+
+// Guardar asignaciones en lote (auto-asignación masiva por LS)
+// Escribe las mismas filas que /api/assignments/save pero en pocas consultas,
+// evitando miles de requests concurrentes que saturan el servidor
+app.post('/api/assignments/batch-save', async (req, res) => {
+    try {
+        const { datasetId, assignments } = req.body;
+        const userId = req.headers['user-id'];
+        const entityId = req.headers['entity-id'] || req.body.entity_id || null;
+        const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
+
+        if (!userId || !datasetId || !Array.isArray(assignments) || assignments.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Faltan datos requeridos: datasetId, assignments (array no vacío), user-id'
+            });
+        }
+
+        let realDatasetId = datasetId;
+        if (datasetId === 'test-dataset-id') {
+            realDatasetId = '00000000-0000-0000-0000-000000000001';
+        }
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const realUserId = uuidRegex.test(String(userId)) ? userId : null;
+        if (!realUserId) {
+            return res.status(400).json({ success: false, error: 'user-id no válido' });
+        }
+
+        const PAGE_SIZE = 1000;
+        const CHUNK = 500;
+
+        // 1. Resolver código de cuenta -> UUID consultando las cuentas del dataset una sola vez
+        const codeToId = new Map();
+        for (let from = 0; ; from += PAGE_SIZE) {
+            const { data: page, error: pageError } = await supabase
+                .from('cuentas_contables')
+                .select('id, numero_cuenta')
+                .eq('conjunto_id', realDatasetId)
+                .range(from, from + PAGE_SIZE - 1);
+
+            if (pageError) {
+                console.error('Error consultando cuentas del dataset:', pageError);
+                return res.status(500).json({ success: false, error: pageError.message });
+            }
+
+            (page || []).forEach(acc => {
+                const code = String(acc.numero_cuenta || '').trim();
+                if (code && !codeToId.has(code)) codeToId.set(code, acc.id);
+            });
+
+            if (!page || page.length < PAGE_SIZE) break;
+        }
+
+        // 2. Crear en lote las cuentas cuyo código no existe en el dataset
+        const missing = assignments.filter(a => a.code && !codeToId.has(String(a.code).trim()));
+        const toCreate = [];
+        const seen = new Set();
+        for (const a of missing) {
+            const code = String(a.code).trim();
+            if (seen.has(code)) continue;
+            seen.add(code);
+            toCreate.push({
+                conjunto_id: realDatasetId,
+                numero_cuenta: code,
+                nombre_cuenta: a.name || `Cuenta ${code}`,
+                debito_actual: a.value > 0 ? a.value : 0,
+                credito_actual: a.value < 0 ? Math.abs(a.value) : 0,
+                debito_anterior: a.prevValue > 0 ? a.prevValue : 0,
+                credito_anterior: a.prevValue < 0 ? Math.abs(a.prevValue) : 0,
+                grupo_financiero: 'General',
+                fecha_clasificacion: new Date().toISOString(),
+                clasificado: false,
+                nivel_cuenta: 1,
+                cuenta_padre_id: null,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
+                meta: { ls: a.ls || '', accountKey: code },
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        for (let i = 0; i < toCreate.length; i += CHUNK) {
+            const { data: created, error: createError } = await supabase
+                .from('cuentas_contables')
+                .insert(toCreate.slice(i, i + CHUNK))
+                .select('id, numero_cuenta');
+
+            if (createError) {
+                console.error('Error creando cuentas en lote:', createError);
+                return res.status(500).json({ success: false, error: `Error creando cuentas: ${createError.message}` });
+            }
+            (created || []).forEach(acc => codeToId.set(String(acc.numero_cuenta).trim(), acc.id));
+        }
+
+        // 3. Armar filas de asignación solo para códigos resueltos
+        const now = new Date().toISOString();
+        const rows = [];
+        const unresolved = [];
+        assignments.forEach((a, index) => {
+            const code = String(a.code || '').trim();
+            const accountId = codeToId.get(code);
+            if (!accountId) {
+                unresolved.push(code);
+                return;
+            }
+            rows.push({
+                dataset_id: realDatasetId,
+                account_id: accountId,
+                group_content_id: a.groupContentId || '',
+                parent_account_id: a.parentAccountId || null,
+                position: typeof a.position === 'number' ? a.position : index,
+                user_id: realUserId,
+                entity_id: entityId || null,
+                commitment_id: commitmentId || null,
+                meta: {
+                    accountKey: code,
+                    code,
+                    name: a.name || '',
+                    ls: a.ls || '',
+                    value: a.value || 0,
+                    prevValue: a.prevValue || 0
+                },
+                created_at: now,
+                updated_at: now
+            });
+        });
+
+        // 4. Eliminar asignaciones previas de esas cuentas en el dataset (reintento idempotente)
+        const accountIds = [...new Set(rows.map(r => r.account_id))];
+        for (let i = 0; i < accountIds.length; i += CHUNK) {
+            const { error: delError } = await supabase
+                .from('account_assignments')
+                .delete()
+                .eq('dataset_id', realDatasetId)
+                .in('account_id', accountIds.slice(i, i + CHUNK));
+            if (delError) {
+                console.error('Error limpiando asignaciones previas:', delError);
+                return res.status(500).json({ success: false, error: delError.message });
+            }
+        }
+
+        // 5. Insertar asignaciones en lotes
+        let saved = 0;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+            const { data: inserted, error: insertError } = await supabase
+                .from('account_assignments')
+                .insert(rows.slice(i, i + CHUNK))
+                .select('id');
+            if (insertError) {
+                console.error('Error insertando asignaciones en lote:', insertError);
+                return res.status(500).json({ success: false, error: insertError.message, saved });
+            }
+            saved += inserted?.length || 0;
+        }
+
+        // 6. Marcar cuentas como clasificadas en lotes
+        for (let i = 0; i < accountIds.length; i += CHUNK) {
+            const { error: updError } = await supabase
+                .from('cuentas_contables')
+                .update({ clasificado: true, updated_at: now })
+                .in('id', accountIds.slice(i, i + CHUNK));
+            if (updError) console.warn('Error marcando cuentas como clasificadas:', updError);
+        }
+
+        console.log(`✅ Batch-save: ${saved} asignaciones, ${toCreate.length} cuentas creadas, ${unresolved.length} sin resolver`);
+        res.json({
+            success: true,
+            saved,
+            accountsCreated: toCreate.length,
+            unresolved
+        });
+
+    } catch (error) {
+        console.error('Error en batch-save de asignaciones:', error);
+        res.status(500).json({ success: false, error: 'Error guardando asignaciones en lote' });
     }
 });
 
