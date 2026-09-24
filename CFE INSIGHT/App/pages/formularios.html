@@ -7609,7 +7609,7 @@
                 entityDataManager.clearContextData();
 
                 // Recargar documentos/subcategorías para el nuevo contexto
-                if (window.subcategoriasManager) {
+                if (window.subcategoriasManager && typeof window.subcategoriasManager.clearContextCache === 'function') {
                     window.subcategoriasManager.clearContextCache();
                 }
                 
@@ -7906,8 +7906,10 @@
                     console.log('📋 formDataManager.context actualizado:', { entity_id: entityValue, commitment_id: commitmentId });
                 }
                 
-                formDataManager.switchTo(entityValue, commitmentId);
-                
+                formDataManager.switchTo(entityValue, commitmentId).catch(err => {
+                    console.warn('⚠️ Error al cambiar contexto de compromiso:', err);
+                });
+
                 // Recargar asignaciones con el nuevo contexto
                 reloadAssignmentsForContext();
 
@@ -7923,7 +7925,9 @@
                 const entityValue = commitmentDropdownState.currentEntityId;
                 if (entityValue) {
                     console.log('🔄 Volviendo a entidad:', entityValue);
-                    formDataManager.switchTo(entityValue);
+                    formDataManager.switchTo(entityValue).catch(err => {
+                        console.warn('⚠️ Error al cambiar contexto de entidad:', err);
+                    });
                     
                     // Recargar asignaciones con el nuevo contexto
                     reloadAssignmentsForContext();
@@ -8442,7 +8446,9 @@
                 console.log('🎯 Actualizando dropdown de compromisos con entidad:', entityValue);
                 
                 // Cambiar a los datos de esta entidad
-                formDataManager.switchTo(entityValue);
+                formDataManager.switchTo(entityValue).catch(err => {
+                    console.warn('⚠️ Error en switchTo de entidad:', err);
+                });
                 
                 updateCommitmentDropdown(entityValue, { force: true }).catch(err => {
                     console.warn('⚠️ No se pudo actualizar el dropdown de compromisos:', err);
@@ -8455,6 +8461,7 @@
         function selectOption(selectId, value, text) {
             const selected = document.getElementById(selectId + 'Selected');
             const hiddenInput = document.getElementById(selectId);
+            const previousEntityId = selectId === 'entidad' ? commitmentDropdownState.currentEntityId : null;
             const searchInput = document.getElementById(selectId + 'Search');
             const clearBtn = searchInput.parentElement.querySelector('.btn-clear-search');
             const items = document.getElementById(selectId + 'Items');
@@ -8482,10 +8489,19 @@
 
             // Guardar en storage
             saveEntitySelectionsToStorage();
-            
+
             // Actualizar compromisos si es necesario
             if (window.updateCommitmentDropdown) {
                 updateCommitmentDropdown(value);
+            }
+
+            // Cambiar el contexto de datos cuando se selecciona una entidad distinta
+            if (selectId === 'entidad' && normalizeValue(value) !== normalizeValue(previousEntityId)) {
+                if (formDataManager && typeof formDataManager.switchTo === 'function') {
+                    formDataManager.switchTo(normalizeValue(value) || null, null).catch(err => {
+                        console.warn('⚠️ Error al cambiar de contexto de entidad:', err);
+                    });
+                }
             }
         }
 
@@ -27081,7 +27097,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
 
             const itemsHtml = filteredAccounts
-                .slice(0, 500)
                 .map((a) => {
                     // Usar los campos del endpoint /api/accounts/unassigned
                     // Corregir mapeo si los campos están intercambiados

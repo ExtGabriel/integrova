@@ -4336,70 +4336,132 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Dataset no encontrado o no pertenece al usuario' });
         }
         
-        // 2. Eliminar cuentas contables relacionadas
-        const { error: cuentasError } = await supabase
-            .from('cuentas_contables')
-            .delete()
-            .eq('conjunto_id', datasetId);
-            
-        if (cuentasError) {
-            console.error('Error eliminando cuentas contables:', cuentasError);
-            // Continuar aunque falle la eliminación de cuentas
-        }
-        
-        // 3. Eliminar asignaciones de cuentas
-        const { error: assignmentsError } = await supabase
-            .from('account_assignments')
-            .delete()
+        // Eliminar en orden de dependencia: primero las tablas hijas,
+        // luego las que referencian directamente a conjuntos_datos, y al final el dataset.
+        // account_assignments.account_id -> cuentas_contables.id
+        // ledger_integrity_rows.run_id -> ledger_integrity_runs.id
+
+        // 2. Eliminar filas de ledger (hijas de ledger_integrity_runs)
+        const { data: ledgerRuns } = await supabase
+            .from('ledger_integrity_runs')
+            .select('id')
             .eq('dataset_id', datasetId);
-            
-        if (assignmentsError) {
-            console.error('Error eliminando asignaciones:', assignmentsError);
-            // Continuar aunque falle la eliminación de asignaciones
+
+        const ledgerRunIds = (ledgerRuns || []).map(r => r.id);
+        if (ledgerRunIds.length) {
+            const { error: ledgerRowsError } = await supabase
+                .from('ledger_integrity_rows')
+                .delete()
+                .in('run_id', ledgerRunIds);
+
+            if (ledgerRowsError) {
+                console.error('Error eliminando filas de ledger:', ledgerRowsError);
+            }
         }
-        
-        // 4. Eliminar ajustes financieros relacionados
-        const { error: adjustmentsError } = await supabase
-            .from('ajustes_financieros')
-            .delete()
-            .eq('dataset_id', datasetId);
-            
-        if (adjustmentsError) {
-            console.error('Error eliminando ajustes:', adjustmentsError);
-            // Continuar aunque falle la eliminación de ajustes
-        }
-        
-        // 5. Eliminar grupos financieros relacionados (snapshots y sus filas)
-        const { error: snapshotsError } = await supabase
-            .from('financial_group_snapshots')
-            .delete()
-            .eq('dataset_id', datasetId);
-            
-        if (snapshotsError) {
-            console.error('Error eliminando snapshots de grupos financieros:', snapshotsError);
-            // Continuar aunque falle la eliminación de snapshots
-        }
-        
-        // 6. Eliminar validaciones de ledger relacionadas
+
+        // 3. Eliminar validaciones de ledger relacionadas
         const { error: ledgerError } = await supabase
             .from('ledger_integrity_runs')
             .delete()
             .eq('dataset_id', datasetId);
-            
+
         if (ledgerError) {
             console.error('Error eliminando validaciones ledger:', ledgerError);
             // Continuar aunque falle la eliminación de validaciones
         }
-        
-        // 7. Finalmente eliminar el dataset principal
+
+        // 4. Eliminar snapshots de grupos financieros relacionados
+        // (las filas de grupos viven dentro de snapshot.meta.groups, no hay tabla hija)
+        const { error: snapshotsError } = await supabase
+            .from('financial_group_snapshots')
+            .delete()
+            .eq('dataset_id', datasetId);
+
+        if (snapshotsError) {
+            console.error('Error eliminando snapshots de grupos financieros:', snapshotsError);
+            // Continuar aunque falle la eliminación de snapshots
+        }
+
+        // 5. Eliminar asignaciones de cuentas (antes que cuentas_contables por la FK account_id)
+        const { error: assignmentsError } = await supabase
+            .from('account_assignments')
+            .delete()
+            .eq('dataset_id', datasetId);
+
+        if (assignmentsError) {
+            console.error('Error eliminando asignaciones:', assignmentsError);
+            // Continuar aunque falle la eliminación de asignaciones
+        }
+
+        // 6. Eliminar ajustes financieros relacionados
+        const { error: adjustmentsError } = await supabase
+            .from('ajustes_financieros')
+            .delete()
+            .eq('dataset_id', datasetId);
+
+        if (adjustmentsError) {
+            console.error('Error eliminando ajustes:', adjustmentsError);
+            // Continuar aunque falle la eliminación de ajustes
+        }
+
+        // 7. Eliminar estados financieros relacionados
+        const { error: estadosError } = await supabase
+            .from('estados_financieros')
+            .delete()
+            .eq('conjunto_id', datasetId);
+
+        if (estadosError) {
+            console.error('Error eliminando estados financieros:', estadosError);
+            // Continuar aunque falle la eliminación de estados financieros
+        }
+
+        // 8. Eliminar cuentas contables relacionadas en lotes (después de asignaciones por la FK).
+        // Se borran por tandas de IDs para que cada statement quede por debajo del
+        // statement_timeout de Supabase en tablas grandes o sin índice en conjunto_id.
+        const CUENTAS_BATCH = 500;
+        let cuentasEliminadas = 0;
+        while (true) {
+            const { data: cuentasPage, error: cuentasSelectError } = await supabase
+                .from('cuentas_contables')
+                .select('id')
+                .eq('conjunto_id', datasetId)
+                .limit(CUENTAS_BATCH);
+
+            if (cuentasSelectError) {
+                console.error('Error obteniendo cuentas para eliminar:', cuentasSelectError);
+                break;
+            }
+            if (!cuentasPage || cuentasPage.length === 0) break;
+
+            const { error: cuentasError } = await supabase
+                .from('cuentas_contables')
+                .delete()
+                .in('id', cuentasPage.map(c => c.id));
+
+            if (cuentasError) {
+                console.error('Error eliminando lote de cuentas contables:', cuentasError);
+                break;
+            }
+            cuentasEliminadas += cuentasPage.length;
+            if (cuentasPage.length < CUENTAS_BATCH) break;
+        }
+        console.log(`🗑️ Cuentas contables eliminadas: ${cuentasEliminadas}`);
+
+        // 9. Finalmente eliminar el dataset principal
         const { error: deleteError } = await supabase
             .from('conjuntos_datos')
             .delete()
             .eq('id', datasetId);
-            
+
         if (deleteError) {
             console.error('Error eliminando dataset principal:', deleteError);
-            throw new Error('Error eliminando el dataset principal');
+            return res.status(500).json({
+                success: false,
+                error: `Error eliminando el dataset principal: ${deleteError.message}`,
+                details: deleteError.details || null,
+                hint: deleteError.hint || null,
+                code: deleteError.code || null
+            });
         }
         
         console.log(`✅ Dataset ${datasetId} eliminado completamente`);
@@ -4912,8 +4974,21 @@ app.get('/api/accounts/unassigned', async (req, res) => {
             console.log('🔍 Filtrando cuentas por commitment_id:', commitmentId);
         }
 
-        const { data: dbAccounts, error: dbError } = await cuentasQuery
-            .order('created_at');
+        // Supabase/PostgREST limita cada respuesta a ~1000 filas (max-rows);
+        // paginar con .range() para no perder cuentas en conjuntos grandes
+        const PAGE_SIZE = 1000;
+        const orderedQuery = cuentasQuery.order('created_at');
+        let dbAccounts = [];
+        let dbError = null;
+        for (let from = 0; ; from += PAGE_SIZE) {
+            const { data: page, error: pageError } = await orderedQuery.range(from, from + PAGE_SIZE - 1);
+            if (pageError) {
+                dbError = pageError;
+                break;
+            }
+            dbAccounts = dbAccounts.concat(page || []);
+            if (!page || page.length < PAGE_SIZE) break;
+        }
 
         if (dbError) {
             console.error('Error obteniendo cuentas de la base de datos:', dbError);
@@ -5436,9 +5511,23 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
                 cuentas_contables(id, numero_cuenta, nombre_cuenta),
                 users(id, email)
             `)
-            .eq('dataset_id', datasetId);
-        
-        const { data, error } = await query.order('position');
+            .eq('dataset_id', datasetId)
+            .order('position');
+
+        // Supabase/PostgREST limita cada respuesta a ~1000 filas (max-rows);
+        // paginar con .range() para no perder asignaciones en datasets grandes
+        const PAGE_SIZE = 1000;
+        let data = [];
+        let error = null;
+        for (let from = 0; ; from += PAGE_SIZE) {
+            const { data: page, error: pageError } = await query.range(from, from + PAGE_SIZE - 1);
+            if (pageError) {
+                error = pageError;
+                break;
+            }
+            data = data.concat(page || []);
+            if (!page || page.length < PAGE_SIZE) break;
+        }
 
         console.log('🔍 Asignaciones filtradas:', {
             datasetId,
@@ -6789,12 +6878,26 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
         
         console.log('Loading assignments for dataset:', datasetId, 'user:', userId);
         
-        const { data, error } = await supabase
+        // Paginar: Supabase/PostgREST limita cada respuesta a ~1000 filas (max-rows)
+        const PAGE_SIZE = 1000;
+        const baseQuery = supabase
             .from('account_assignments')
             .select('*')
             .eq('dataset_id', datasetId)
             .order('position', { ascending: true });
-        
+
+        let data = [];
+        let error = null;
+        for (let from = 0; ; from += PAGE_SIZE) {
+            const { data: page, error: pageError } = await baseQuery.range(from, from + PAGE_SIZE - 1);
+            if (pageError) {
+                error = pageError;
+                break;
+            }
+            data = data.concat(page || []);
+            if (!page || page.length < PAGE_SIZE) break;
+        }
+
         if (error) {
             console.error('Error loading assignments:', error);
             return res.status(500).json({ success: false, error: error.message });

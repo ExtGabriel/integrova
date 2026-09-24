@@ -353,6 +353,57 @@
             }
         }
 
+        // Limpiar cache cuando cambia el contexto de entidad/compromiso
+        clearContextCache() {
+            console.log('🗑️ Limpiando cache de subdocumentos por cambio de contexto');
+            this.cache.clear();
+
+            // Recargar documentos visibles con el nuevo contexto
+            this.reloadVisibleDocuments();
+        }
+
+        // Recargar documentos visibles con el nuevo contexto
+        reloadVisibleDocuments() {
+            console.log('🔄 Recargando documentos visibles con nuevo contexto...');
+
+            const subcategoryToCategory = {
+                // Planificación
+                'configuracion': 'planificacion',
+                'aceptacion': 'planificacion',
+                'estrategia': 'planificacion',
+                'discusiones': 'planificacion',
+                'materialidad': 'planificacion',
+                'revision-analitica': 'planificacion',
+                'comprension-entidad': 'planificacion',
+                // Evaluación
+                'diseno-control': 'evaluacion',
+                'areas-riesgo': 'evaluacion',
+                'resumen-evaluacion': 'evaluacion',
+                'procedimientos-evaluacion': 'evaluacion',
+                // Respuesta
+                'procedimientos-auditoria': 'respuesta',
+                // Planes
+                'incorr-identificadas': 'planes',
+                'eval-evidencia': 'planes',
+                'informes-direccion': 'planes',
+                // Cierre
+                'cierre-compromiso': 'cierre'
+            };
+
+            const visibleContents = document.querySelectorAll('.formularios-lista[id$="-content"], .subcategoria-lista[id$="-content"]');
+            console.log(`🔍 Encontrados ${visibleContents.length} contenedores de subcategorías`);
+
+            visibleContents.forEach(content => {
+                const subcategoria = content.id.replace('-content', '');
+                const categoria = (typeof window.getCurrentCategory === 'function'
+                    ? window.getCurrentCategory(subcategoria)
+                    : null) || subcategoryToCategory[subcategoria] || 'planificacion';
+
+                console.log(`🔄 Recargando documentos para ${categoria}/${subcategoria}`);
+                this.updateUI(categoria, subcategoria);
+            });
+        }
+
         // Actualizar datos en la UI
         async updateUI(categoria, subcategoria) {
             try {
@@ -851,6 +902,13 @@
     }
 
     window.subcategoriasManager = new SubcategoriasDataManager();
+
+    // Exponer función para limpiar cache por contexto
+    window.clearSubdocumentContextCache = () => {
+        if (window.subcategoriasManager && typeof window.subcategoriasManager.clearContextCache === 'function') {
+            window.subcategoriasManager.clearContextCache();
+        }
+    };
 
     window.deleteSubfolder = async (folderId, folderName) => {
         try {
