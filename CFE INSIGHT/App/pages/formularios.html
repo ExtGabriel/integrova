@@ -2385,9 +2385,25 @@
         async function loadExcelDataForMapping() {
             try {
                 // Obtener el último Excel procesado del usuario actual
-                const response = await fetch(`${getApiBaseUrl()}/api/excel/latest`, {
+                const context = (typeof formDataManager !== 'undefined' && typeof formDataManager.getContext === 'function')
+                    ? formDataManager.getContext()
+                    : null;
+                const entityId = context?.entityId || commitmentDropdownState?.currentEntityId || null;
+                const commitmentId = context?.commitmentId || commitmentDropdownState?.selectedCommitmentId || null;
+
+                let latestUrl = `${getApiBaseUrl()}/api/excel/latest`;
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) {
+                    latestUrl += `?${params.toString()}`;
+                }
+
+                const response = await fetch(latestUrl, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': getCurrentUserId(),
+                        ...(entityId ? { 'entity-id': entityId } : {}),
+                        ...(commitmentId ? { 'commitment-id': commitmentId } : {})
                     }
                 });
                 const result = await response.json();
@@ -5440,6 +5456,23 @@
                     renderGruposFinancieros([], 'No hay datos de Excel para esta entidad y compromiso');
                     return;
                 }
+
+                // Asegurar que Grupos Financieros use el dataset del contexto actual,
+                // evitando reutilizar el dataset de la entidad/compromiso anterior.
+                if (datasetResult.success && datasetResult.data && datasetResult.data.id) {
+                    const newDatasetId = normalizeDatasetId(datasetResult.data.id);
+                    const oldDatasetId = normalizeDatasetId(currentDatasetId);
+                    if (newDatasetId && newDatasetId !== oldDatasetId) {
+                        console.log('🔄 Cambio de dataset detectado en Grupos Financieros:', { oldDatasetId, newDatasetId });
+                        currentDatasetId = newDatasetId;
+                        window.currentDatasetId = newDatasetId;
+                        cachedFinancialGroupsLoaded = false;
+                        cachedFinancialGroupStructure = null;
+                        cachedAssignments = [];
+                        cachedGruposFinancierosRows = [];
+                        cachedFinancialGroupsMeta = '';
+                    }
+                }
             }
             
             const resolvedDatasetId = await ensureCurrentDatasetContext();
@@ -5488,7 +5521,8 @@
                     console.log('🔍 Grupos después de limpieza robusta:', cleanedFinancialGroups.length);
                 }
                 
-        if (cleanedFinancialGroups && cleanedFinancialGroups.length > 0) {
+        const useSavedGroupsForView = false;
+        if (useSavedGroupsForView && cleanedFinancialGroups && cleanedFinancialGroups.length > 0) {
                     // Cargar ajustes actuales desde la base de datos
                     console.log('🔍 Cargando ajustes actuales para aplicar a grupos financieros...');
                     const dbAdjustments = await getFinancialAdjustments(resolvedDatasetId, context.entityId, context.commitmentId);
@@ -5678,7 +5712,7 @@
                                 };
                             }
                             
-                            // Convertir ajustes de BD a mapa por nombre para Grupos Financieros
+                            // Convertir ajustes de BD a mapa por código y por nombre para Grupos Financieros
                             dbAdjustments.forEach(ajuste => {
                                 // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
                                 if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
@@ -5716,6 +5750,10 @@
                                     if (name) {
                                         const currentAmountByName = adjustmentsByName.get(name) || 0;
                                         adjustmentsByName.set(name, currentAmountByName + effectiveAmount);
+
+                                        // También guardar en el mismo mapa principal para permitir coincidencias por nombre
+                                        const currentAny = adjustmentsMap.get(name) || 0;
+                                        adjustmentsMap.set(name, currentAny + effectiveAmount);
                                     }
                                     
                                     console.log(`🔧 Ajuste Grupos Financieros: Cuenta ${code} - ${name}, Origen: ${originSide}, Monto: ${amount}, Efectivo: ${effectiveAmount}`);
@@ -7626,6 +7664,10 @@
                 setTimeout(() => {
                     entityDataManager.reloadAllSections();
                 }, 500);
+
+                // Forzar también recarga de "Conjuntos de datos" aunque la sección
+                // no esté visible, para que al abrirla ya venga con el contexto nuevo.
+                entityDataManager.reloadSection('dataset-history');
                 
                 // Recargar observaciones del nuevo contexto
                 try {
@@ -7909,17 +7951,6 @@
                 formDataManager.switchTo(entityValue, commitmentId).catch(err => {
                     console.warn('⚠️ Error al cambiar contexto de compromiso:', err);
                 });
-
-                // Recargar asignaciones con el nuevo contexto
-                reloadAssignmentsForContext();
-
-                // Recargar Cuentas y Grupos Financieros para el nuevo contexto
-                if (typeof formDataManager.reloadCuentas === 'function') {
-                    formDataManager.reloadCuentas();
-                }
-                if (typeof formDataManager.reloadGruposFinancieros === 'function') {
-                    formDataManager.reloadGruposFinancieros();
-                }
             } else {
                 // Si no hay compromiso, usar la entidad actual
                 const entityValue = commitmentDropdownState.currentEntityId;
@@ -7928,17 +7959,6 @@
                     formDataManager.switchTo(entityValue).catch(err => {
                         console.warn('⚠️ Error al cambiar contexto de entidad:', err);
                     });
-                    
-                    // Recargar asignaciones con el nuevo contexto
-                    reloadAssignmentsForContext();
-
-                    // Recargar Cuentas y Grupos Financieros para el nuevo contexto
-                    if (typeof formDataManager.reloadCuentas === 'function') {
-                        formDataManager.reloadCuentas();
-                    }
-                    if (typeof formDataManager.reloadGruposFinancieros === 'function') {
-                        formDataManager.reloadGruposFinancieros();
-                    }
                 }
             }
 
@@ -7956,6 +7976,11 @@
             // Recargar documentos/subcategorías con el nuevo contexto de entidad/compromiso
             if (typeof loadExistingSubcategories === 'function') {
                 loadExistingSubcategories();
+            }
+
+            // Recargar asignaciones de cuentas con el nuevo contexto de entidad/compromiso
+            if (typeof reloadAssignmentsForContext === 'function') {
+                reloadAssignmentsForContext();
             }
 
             closeCommitmentDropdownMenu();
@@ -8013,9 +8038,14 @@
                     console.log('🗑️ cachedLedgerMeta limpiado');
                 }
 
-                // Resetear valores de cuentas estáticas a 0
+                // Resetear y limpiar cuentas estáticas
                 const panel = document.querySelector('.financial-groups-list');
                 if (panel) {
+                    // 1) Eliminar completamente las cuentas estáticas MANUALES (son específicas de entidad/compromiso)
+                    const manualStaticAccounts = panel.querySelectorAll('.static-account.manual-static-account');
+                    manualStaticAccounts.forEach(account => account.remove());
+
+                    // 2) Para las cuentas estáticas "fijas" del DOM, solo resetear sus valores
                     const staticAccounts = panel.querySelectorAll('.static-account');
                     staticAccounts.forEach(account => {
                         account.dataset.accountValue = '0';
@@ -8418,22 +8448,8 @@
                     commitMenu.appendChild(loading);
                 }
 
-                // Recargar asignaciones con el nuevo contexto de entidad
-                reloadAssignmentsForContext();
-
-                // Recargar Cuentas y Grupos Financieros para el nuevo contexto de entidad
-                if (typeof formDataManager.reloadCuentas === 'function') {
-                    formDataManager.reloadCuentas();
-                }
-                if (typeof formDataManager.reloadGruposFinancieros === 'function') {
-                    formDataManager.reloadGruposFinancieros();
-                }
-
-                // Forzar recarga inmediata del dropdown de compromisos
-                const selectedEntityForCommitment = document.getElementById('entidad')?.value || '';
-                updateCommitmentDropdown(selectedEntityForCommitment, { force: true }).catch(err => {
-                    console.warn('⚠️ Error al recargar dropdown de compromisos:', err);
-                });
+                // El recálculo/recarga lo maneja formDataManager.switchTo
+                // para evitar dobles cargas con contexto viejo.
             }
 
             // Eliminar lógica de auto-matching entre padre-hijo
@@ -10516,7 +10532,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     // Solo reseteamos las secciones vinculadas a Excel/formularios
                     if ([
                         'datasetHistory',
-                        'asignarCuentas',
+                        'unassignedAccounts',
                         'ledgerIntegrity',
                         'gruposFinancieros',
                         'cuentas'
@@ -10526,9 +10542,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 });
                 
                 // Limpiar caches específicas
+                currentDatasetId = null;
+                window.currentDatasetId = null;
+                cachedUnassignedAccounts = [];
+                cachedUnassignedDatasetId = null;
                 cachedTrialBalanceAccounts = [];
                 cachedFinancialGroupStructure = null;
                 cachedAssignments = [];
+                cachedFinancialGroupsLoaded = false;
+                cachedFinancialGroupsMeta = '';
+
+                // Limpiar cuentas asignadas visibles para no mezclar contexto anterior.
+                document.querySelectorAll('.assigned-account, .assigned-account-item').forEach(el => el.remove());
                 
                 // Limpiar cache de subdocumentos por contexto
                 if (window.clearSubdocumentContextCache) {
@@ -10596,9 +10621,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Recargar Asignar Cuentas
             reloadAssignAccounts() {
-                dataLoadState.asignarCuentas = false;
-                if (typeof loadAssignAccountsFromLatestExcel === 'function') {
-                    loadAssignAccountsFromLatestExcel();
+                dataLoadState.unassignedAccounts = false;
+                if (typeof loadUnassignedAccountsFromLatestExcel === 'function') {
+                    loadUnassignedAccountsFromLatestExcel();
                 }
             },
             
@@ -26390,8 +26415,23 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const dbAdjustments = await window.getFinancialAdjustments(currentDatasetId);
                 console.log('🔍 Ajustes actuales:', dbAdjustments.length);
                 
-                // Convertir ajustes a mapa
-                const adjustmentsMap = new Map();
+                // Convertir ajustes a mapa (por código y por nombre) usando la misma lógica que en Cuentas
+                const adjustmentsByCode = new Map();
+                const adjustmentsByName = new Map();
+
+                // Asegurar que getAccountOriginSide esté disponible
+                if (typeof getAccountOriginSide === 'undefined') {
+                    window.getAccountOriginSide = function(code) {
+                        const codeNum = parseInt(code);
+                        if (codeNum >= 100 && codeNum < 200) return 'DEBE';
+                        if (codeNum >= 200 && codeNum < 300) return 'HABER';
+                        if (codeNum >= 300 && codeNum < 400) return 'HABER';
+                        if (codeNum >= 4000 && codeNum < 5000) return 'HABER';
+                        if (codeNum >= 5000 && codeNum < 6000) return 'DEBE';
+                        return 'DEBE';
+                    };
+                }
+
                 dbAdjustments.forEach(ajuste => {
                     // EXCLUSIÓN: Los ajustes de tipo "no-registrado-hecho" no afectan las cuentas
                     if (ajuste.tipo === 'no-registrado-hecho' || ajuste.adjustment_type === 'no-registrado-hecho') {
@@ -26403,13 +26443,30 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     detalles.forEach(detail => {
                         if (detail.type !== 'account') return;
                         const code = (detail.code || '').trim();
-                        if (!code) return;
+                        const name = (detail.name || '').trim();
+                        if (!code && !name) return;
                         const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
-                        
-                        // Usar el amount directamente (ya viene con el signo correcto)
-                        const currentAmount = adjustmentsMap.get(code) || 0;
-                        adjustmentsMap.set(code, currentAmount + amount);
+
+                        const originSide = window.getAccountOriginSide(code);
+                        const effectiveAmount = originSide === 'HABER' ? -amount : amount;
+
+                        if (code) {
+                            const currentByCode = adjustmentsByCode.get(code) || 0;
+                            adjustmentsByCode.set(code, currentByCode + effectiveAmount);
+                        }
+
+                        if (name) {
+                            const currentByName = adjustmentsByName.get(name) || 0;
+                            adjustmentsByName.set(name, currentByName + effectiveAmount);
+                        }
                     });
+                });
+
+                // Fusionar mapas de código y nombre en un solo mapa de ajustes
+                const adjustmentsMap = new Map(adjustmentsByCode);
+                adjustmentsByName.forEach((amount, name) => {
+                    const current = adjustmentsMap.get(name) || 0;
+                    adjustmentsMap.set(name, current + amount);
                 });
                 
                 // Si no hay grupos financieros en cache, cargarlos primero
@@ -26421,7 +26478,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 
                 // Actualizar filas existentes y recalcular totales ascendentes
                 const updatedRows = recomputeFinancialGroupTotals(cachedGruposFinancierosRows.map(row => {
-                    const adjustment = adjustmentsMap.get(row.accountCode) || 0;
+                    const codeKey = (row.accountCode || '').toString().trim();
+                    const nameKey = (row.accountName || '').toString().trim();
+                    let adjustment = 0;
+
+                    if (codeKey && adjustmentsMap.has(codeKey)) {
+                        adjustment = adjustmentsMap.get(codeKey) || 0;
+                    } else if (nameKey && adjustmentsMap.has(nameKey)) {
+                        adjustment = adjustmentsMap.get(nameKey) || 0;
+                    }
+
                     const newFinalCurrent = (row.preliminary || 0) + adjustment;
                     
                     return {
@@ -26829,9 +26895,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         async function updateYearsDisplay() {
             try {
                 console.log('🔍 Buscando años en el Excel...');
-                const response = await fetch(`${API_BASE_URL}/api/excel/latest`, {
+                const context = (typeof formDataManager !== 'undefined' && typeof formDataManager.getContext === 'function')
+                    ? formDataManager.getContext()
+                    : null;
+                const entityId = context?.entityId || commitmentDropdownState?.currentEntityId || null;
+                const commitmentId = context?.commitmentId || commitmentDropdownState?.selectedCommitmentId || null;
+
+                let latestUrl = `${API_BASE_URL}/api/excel/latest`;
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) {
+                    latestUrl += `?${params.toString()}`;
+                }
+
+                const response = await fetch(latestUrl, {
                     headers: {
-                        'user-id': getCurrentUserId()
+                        'user-id': getCurrentUserId(),
+                        ...(entityId ? { 'entity-id': entityId } : {}),
+                        ...(commitmentId ? { 'commitment-id': commitmentId } : {})
                     }
                 });
                 
@@ -27686,10 +27768,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('⚠️ Error cargando desde BD, usando localStorage:', error);
             }
 
-            // Si no hay datos de BD, usar localStorage como fallback
+            // Si no hay datos de BD, usar localStorage como fallback PERO filtrando por entidad/compromiso
             if (!assignments.length) {
-                assignments = getStoredAssignments(datasetId) || [];
-                console.log('📦 Cargadas', assignments.length, 'asignaciones desde localStorage');
+                const currentEntity = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const currentCommitment = window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                const rawLocalAssignments = getStoredAssignments(datasetId) || [];
+                assignments = rawLocalAssignments.filter(a => {
+                    // Si hay entidad actual, solo aceptar asignaciones que coincidan explícitamente
+                    if (currentEntity && a.entity_id && a.entity_id !== currentEntity) return false;
+                    if (currentEntity && !a.entity_id) return false;
+
+                    // Si hay compromiso actual, solo aceptar coincidencias explícitas (null permitido solo si currentCommitment está vacío)
+                    if (currentCommitment && a.commitment_id && a.commitment_id !== currentCommitment) return false;
+                    if (currentCommitment && !a.commitment_id) return false;
+
+                    return true;
+                });
+
+                console.log('📦 Cargadas', assignments.length, 'asignaciones desde localStorage (filtradas por contexto)', {
+                    currentEntity,
+                    currentCommitment,
+                    rawCount: rawLocalAssignments.length
+                });
             }
         }
 
@@ -27701,7 +27802,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         console.log('🔄 Procesando', assignments.length, 'asignaciones para restaurar en UI...');
 
         let restoredCount = 0;
+
+        // Procesar primero las cuentas MANUALES raíz (padres) para que existan
+        // antes de intentar colocar sus subcuentas debajo
+        const rootAssignments = [];
+        const otherAssignments = [];
+
         assignments.forEach(assignment => {
+            const meta = assignment.meta || {};
+            const isManualRoot = (meta.source === 'manual' || meta.source === 'MANUAL') && !assignment.parentAccountId;
+            if (isManualRoot) {
+                rootAssignments.push(assignment);
+            } else {
+                otherAssignments.push(assignment);
+            }
+        });
+
+        const orderedAssignments = [...rootAssignments, ...otherAssignments];
+
+        orderedAssignments.forEach(assignment => {
             console.log('🔍 Procesando assignment:', {
                 groupContentId: assignment.groupContentId,
                 accountId: assignment.accountId,
@@ -27715,11 +27834,65 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
 
-            // Usar accountKey o accountId para verificar duplicados
-            const accountKey = assignment.accountKey || assignment.accountId;
-            const existing = groupContent.querySelector(`.assigned-account[data-account-id="${accountKey}"]`);
+            const meta = assignment.meta || {};
+            const isManualRoot = (meta.source === 'manual' || meta.source === 'MANUAL') && !assignment.parentAccountId;
+
+            // Si es una cuenta manual raíz (cuenta padre creada desde el modal),
+            // renderizarla como cuenta estática para que pueda sumar sus subcuentas
+            if (isManualRoot) {
+                const code = meta.code || assignment.code || meta.accountCode || '';
+                const displayName = meta.name || assignment.name || meta.accountName || '';
+                const accountId = assignment.accountId || assignment.accountKey || code;
+
+                // Evitar duplicados de cuentas estáticas manuales
+                const existingStatic = groupContent.querySelector(
+                    `.static-account.manual-static-account[data-account-id="${accountId}"]`
+                );
+                if (!existingStatic) {
+                    const value = typeof meta.value === 'number' ? meta.value : (assignment.value || 0);
+                    const prevValue = typeof meta.prevValue === 'number' ? meta.prevValue : (assignment.prevValue || 0);
+                    const formattedPrev = formatNumberWithoutCurrency(prevValue || 0);
+                    const formattedCurrent = formatNumberWithoutCurrency(value || 0);
+
+                    const div = document.createElement('div');
+                    div.className = 'account-item static-account manual-static-account';
+                    div.dataset.accountId = accountId;
+                    div.dataset.accountDbId = accountId;
+                    div.dataset.accountCode = code;
+                    div.dataset.accountName = `${code} - ${displayName}`;
+                    div.dataset.accountValue = value;
+                    div.dataset.accountPrevValue = prevValue || 0;
+
+                    div.innerHTML = `
+                        <span class="account-name">${code} - ${displayName}</span>
+                        <span class="static-account-value" data-year="previous">${formattedPrev}</span>
+                        <span class="static-account-value" data-year="current">${formattedCurrent}</span>
+                        <button class="btn-remove" onclick="event.stopPropagation(); removeAccount('${code}')">×</button>
+                    `;
+
+                    groupContent.appendChild(div);
+                    attachStaticAccountClickHandler(div);
+                    updateGroupCount(groupContent);
+                } else {
+                    console.log('⏭️ Cuenta estática manual ya existe para', code);
+                }
+
+                restoredCount++;
+                return;
+            }
+
+            // Usar accountKey/accountId/code para verificar duplicados en el mismo grupo.
+            // Algunas restauraciones llegan con IDs distintos (UUID de asignación vs UUID de cuenta)
+            // y eso causaba duplicados visuales tras recargar.
+            const accountKey = (assignment.accountKey || assignment.accountId || '').toString().trim();
+            const accountCodeForCheck = (assignment.code || assignment.meta?.code || '').toString().trim();
+            const existing = Array.from(groupContent.querySelectorAll('.assigned-account')).find((el) => {
+                const elId = (el.dataset.accountId || '').toString().trim();
+                const elCode = (el.dataset.accountCode || '').toString().trim();
+                return (accountKey && elId === accountKey) || (accountCodeForCheck && elCode === accountCodeForCheck);
+            });
             if (existing) {
-                console.log('⏭️ Assignment ya existe en UI, omitiendo:', accountKey);
+                console.log('⏭️ Assignment ya existe en UI, omitiendo:', { accountKey, accountCodeForCheck });
                 return;
             }
 
@@ -27751,9 +27924,27 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const emptyState = groupContent.querySelector('.empty-state');
             if (emptyState) emptyState.remove();
 
-            // Resolver padre por LS/código si no viene parentAccountId
+            // Resolver padre por LS/código.
+            // 1) Si viene parentAccountId, normalizar valores legados (ej: "115.3") a UUID del padre.
+            // 2) Si no viene, intentar resolver por LS/código.
             let resolvedParentId = assignment.parentAccountId || '';
-            if (!resolvedParentId) {
+            
+            if (resolvedParentId) {
+                const parentIdStr = resolvedParentId.toString().trim();
+                // Si el parentId parece un código (sin guiones), buscar cuenta estática por código y tomar su UUID
+                if (parentIdStr && !parentIdStr.includes('-')) {
+                    const staticMatch = groupContent.querySelector(
+                        `.static-account[data-account-id="${parentIdStr}"], .static-account[data-account-code="${parentIdStr}"]`
+                    );
+                    if (staticMatch) {
+                        const normalizedId = staticMatch.dataset.accountId || parentIdStr;
+                        if (normalizedId !== resolvedParentId) {
+                            console.log('🔗 Normalizado parentAccountId legado → UUID:', parentIdStr, '→', normalizedId);
+                            resolvedParentId = normalizedId;
+                        }
+                    }
+                }
+            } else {
                 const normalizedLs = (assignment.ls || assignment.meta?.ls || '').toString().trim();
                 if (normalizedLs) {
                     const staticMatch = groupContent.querySelector(
@@ -27857,6 +28048,57 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     let selectedAccount = null;
     let selectedAccounts = []; // Para selección múltiple
     
+    function attachStaticAccountClickHandler(account) {
+        if (!account) return;
+        
+        console.log('🔧 Configurando evento clic para cuenta estática dinámica:', account);
+        
+        account.addEventListener('click', function(e) {
+            console.log('🖱️ Clic en cuenta estática detectado');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Verificar si hay cuentas seleccionadas (individual o múltiple)
+            if (!selectedAccount && selectedAccounts.length === 0) {
+                console.log('⚠️ No hay cuentas seleccionadas del Excel');
+                showNotification('Por favor, selecciona primero una cuenta del lado izquierdo (Excel)', 'warning');
+                return;
+            }
+            
+            // Obtener el grupo contenedor de esta cuenta estática
+            const groupContent = this.closest('.group-content') || this.closest('.sub-group-content');
+            if (!groupContent) {
+                console.error('❌ No se encontró el grupo contenedor');
+                return;
+            }
+            
+            // Si hay selección múltiple, asignar todas las cuentas
+            if (selectedAccounts.length > 0) {
+                let assignedCount = 0;
+                selectedAccounts.forEach(accountData => {
+                    console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', accountData.code, '→', this);
+                    appendExcelAccountToStaticAccount(accountData, this, groupContent);
+                    assignedCount++;
+                });
+                
+                // Limpiar selección múltiple después de asignar
+                selectedAccounts = [];
+                document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta estática`, 'success');
+                // Crear carpeta "General" automáticamente en Planes y Procedimientos
+                createGeneralFolderIfNotExists();
+            } else {
+                // Asignación individual (comportamiento original)
+                console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
+                console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', selectedAccount.code, '→', this);
+                appendExcelAccountToStaticAccount(selectedAccount, this, groupContent);
+            }
+        });
+    }
+
     function initializeClickAssignment() {
         console.log('🚀 Inicializando sistema de asignación por clic...');
         
@@ -27988,50 +28230,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         staticAccountItems.forEach((account, index) => {
             console.log(`🔧 Configurando evento clic para cuenta estática ${index}:`, account);
-            account.addEventListener('click', function(e) {
-                console.log('🖱️ Clic en cuenta estática detectado');
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Verificar si hay cuentas seleccionadas (individual o múltiple)
-                if (!selectedAccount && selectedAccounts.length === 0) {
-                    console.log('⚠️ No hay cuentas seleccionadas del Excel');
-                    showNotification('Por favor, selecciona primero una cuenta del lado izquierdo (Excel)', 'warning');
-                    return;
-                }
-                
-                // Obtener el grupo contenedor de esta cuenta estática
-                const groupContent = this.closest('.group-content') || this.closest('.sub-group-content');
-                if (!groupContent) {
-                    console.error('❌ No se encontró el grupo contenedor');
-                    return;
-                }
-                
-                // Si hay selección múltiple, asignar todas las cuentas
-                if (selectedAccounts.length > 0) {
-                    let assignedCount = 0;
-                    selectedAccounts.forEach(accountData => {
-                        console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', accountData.code, '→', this);
-                        appendExcelAccountToStaticAccount(accountData, this, groupContent);
-                        assignedCount++;
-                    });
-                    
-                    // Limpiar selección múltiple después de asignar
-                    selectedAccounts = [];
-                    document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    
-                    showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta estática`, 'success');
-                    // Crear carpeta "General" automáticamente en Planes y Procedimientos
-                    createGeneralFolderIfNotExists();
-                } else {
-                    // Asignación individual (comportamiento original)
-                    console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
-                    console.log('🎯 Asignando cuenta del Excel debajo de cuenta estática:', selectedAccount.code, '→', this);
-                    appendExcelAccountToStaticAccount(selectedAccount, this, groupContent);
-                }
-            });
+            attachStaticAccountClickHandler(account);
         });
         
         console.log(' Sistema de asignación por clic inicializado');
@@ -28083,9 +28282,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             if (!currentDatasetId) {
                 console.log('📡 Intentando obtener dataset actual desde el último Excel...');
                 try {
-                    const latestResponse = await fetch(`${getApiBaseUrl()}/api/excel/latest`, {
+                    const context = (typeof formDataManager !== 'undefined' && typeof formDataManager.getContext === 'function')
+                        ? formDataManager.getContext()
+                        : null;
+                    const entityId = context?.entityId || commitmentDropdownState?.currentEntityId || null;
+                    const commitmentId = context?.commitmentId || commitmentDropdownState?.selectedCommitmentId || null;
+
+                    let latestUrl = `${getApiBaseUrl()}/api/excel/latest`;
+                    const params = new URLSearchParams();
+                    if (entityId) params.append('entity_id', entityId);
+                    if (commitmentId) params.append('commitment_id', commitmentId);
+                    if (params.toString()) {
+                        latestUrl += `?${params.toString()}`;
+                    }
+
+                    const latestResponse = await fetch(latestUrl, {
                         headers: {
-                            'user-id': getCurrentUserId()
+                            'user-id': getCurrentUserId(),
+                            ...(entityId ? { 'entity-id': entityId } : {}),
+                            ...(commitmentId ? { 'commitment-id': commitmentId } : {})
                         }
                     });
                     const latestResult = await latestResponse.json();
@@ -29201,14 +29416,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         const assignedAccount = createAssignedAccountElement(excelAccount);
         assignedAccount.classList.add('assigned-subaccount');
-        assignedAccount.dataset.parentAccountId = staticAccountElement.dataset.accountId || '';
+        const parentAccountId = staticAccountElement.dataset.accountDbId || staticAccountElement.dataset.accountId || '';
+        assignedAccount.dataset.parentAccountId = parentAccountId;
 
         staticAccountElement.insertAdjacentElement('afterend', assignedAccount);
 
         updateStaticAccountTotals(staticAccountElement, groupContent);
 
         console.log('Llamando a persistAssignment con...');
-        persistAssignment(excelAccount, groupContent, staticAccountElement.dataset.accountId || '');
+        persistAssignment(excelAccount, groupContent, parentAccountId);
 
         // Remove any leftover account-value spans from assigned subaccounts
         assignedAccount.querySelectorAll('.account-value').forEach(value => value.remove());
@@ -30577,7 +30793,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
         }
 
-        function saveNewAccount() {
+        async function saveNewAccount() {
             const code = document.getElementById('accountCode').value.trim();
             const name = document.getElementById('accountName').value.trim();
             const group = document.getElementById('accountGroup').value;
@@ -30587,15 +30803,45 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 alert('Por favor complete todos los campos requeridos');
                 return;
             }
+
+            if (!currentDatasetId) {
+                alert('No hay dataset activo para guardar la cuenta.');
+                return;
+            }
+
+            let savedAccount = null;
+            try {
+                if (typeof window.saveAccount !== 'function') {
+                    throw new Error('saveAccount no está disponible');
+                }
+
+                savedAccount = await window.saveAccount({
+                    datasetId: currentDatasetId,
+                    code,
+                    name,
+                    value,
+                    currentYearValue: value,
+                    previousYearValue: 0,
+                    meta: {
+                        source: 'manual',
+                        group
+                    }
+                });
+                console.log('✅ Cuenta manual guardada en BD:', savedAccount);
+            } catch (error) {
+                console.error('❌ Error guardando cuenta manual en BD:', error);
+                alert('No se pudo guardar la cuenta en base de datos. Revisa la consola.');
+                return;
+            }
             
-            // Crear el nuevo elemento de cuenta
+            // Crear el nuevo elemento de cuenta como cuenta estática manual (padre)
+            const formattedCurrent = formatNumberWithoutCurrency(value || 0);
             const newAccountHtml = `
-                <div class="account-item assigned-account" data-account-id="${code}" data-account-code="${code}" data-account-name="${code} - ${name}" data-account-value="${value}" data-account-prev-value="0" style="cursor: pointer;">
+                <div class="account-item static-account manual-static-account" data-account-id="${savedAccount?.id || code}" data-account-db-id="${savedAccount?.id || ''}" data-account-code="${code}" data-account-name="${code} - ${name}" data-account-value="${value}" data-account-prev-value="0" style="cursor: pointer;">
                     <span class="account-name">${code} - ${name}</span>
-                    <span class="account-value">${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <button class="btn btn-sm btn-outline-danger remove-account-btn" onclick="event.stopPropagation(); removeAccount('${code}')">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <span class="static-account-value" data-year="previous">${formatNumberWithoutCurrency(0)}</span>
+                    <span class="static-account-value" data-year="current">${formattedCurrent}</span>
+                    <button class="btn-remove" onclick="event.stopPropagation(); removeAccount('${code}')">×</button>
                 </div>
             `;
             
@@ -30636,7 +30882,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             
                             // Configurar cuenta seleccionada
                             selectedAccount = {
-                                id: this.dataset.accountId,
+                                id: this.dataset.accountDbId || this.dataset.accountId,
                                 code: accountCode,
                                 name: accountName,
                                 value: numericValue,
@@ -30683,6 +30929,35 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 
                 // Actualizar el contador del grupo
                 updateGroupCount(groupContent);
+
+                // Guardar también la asignación de la cuenta manual al grupo para restaurarla al recargar
+                try {
+                    if (typeof window.saveAccountAssignment === 'function' && savedAccount?.id) {
+                        const currentEntityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                        const currentCommitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                        await window.saveAccountAssignment({
+                            accountId: savedAccount.id,
+                            groupContentId: `${group}-content`,
+                            parentAccountId: null,
+                            position: 0,
+                            datasetId: currentDatasetId,
+                            entity_id: currentEntityId,
+                            commitment_id: currentCommitmentId,
+                            meta: {
+                                accountKey: code,
+                                code,
+                                name: `${code} - ${name}`,
+                                value,
+                                prevValue: 0,
+                                source: 'manual',
+                                group
+                            }
+                        });
+                        console.log('✅ Asignación de cuenta manual guardada en BD');
+                    }
+                } catch (assignmentError) {
+                    console.warn('⚠️ No se pudo guardar asignación de cuenta manual:', assignmentError);
+                }
                 
                 // Cerrar el modal
                 const modalElement = document.getElementById('addAccountModal');
