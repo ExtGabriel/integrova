@@ -7552,6 +7552,8 @@ CREATE TABLE public.consultas (
     question_sets JSONB DEFAULT '[]',
     archivos_adjuntos JSONB DEFAULT '[]',
     metadata JSONB DEFAULT '{}',
+    entity_id TEXT,
+    commitment_id TEXT,
     creada_por VARCHAR(100),
     activa BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -7704,10 +7706,21 @@ CREATE TABLE public.contacts (
 // ============================================
 app.get('/api/consultas', async (req, res) => {
     try {
-        const { data: consultas, error } = await supabase
+        const { entity_id, commitment_id } = req.query;
+
+        let query = supabase
             .from('consultas')
             .select('*')
-            .eq('activa', true)
+            .eq('activa', true);
+
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { data: consultas, error } = await query
             .order('fecha_creacion', { ascending: false });
 
         if (error) {
@@ -7778,10 +7791,22 @@ function calcularProgreso(consulta) {
 // ============================================
 app.get('/api/historial-consultas', async (req, res) => {
     try {
-        // Obtener todas las consultas ordenadas por fecha de creación
-        const { data: consultas, error } = await supabase
+        const { entity_id, commitment_id } = req.query;
+
+        // Obtener consultas ordenadas por fecha de creación,
+        // filtradas por entidad/compromiso cuando vienen en el query
+        let query = supabase
             .from('consultas')
-            .select('*')
+            .select('*');
+
+        if (entity_id) {
+            query = query.eq('entity_id', entity_id);
+        }
+        if (commitment_id) {
+            query = query.eq('commitment_id', commitment_id);
+        }
+
+        const { data: consultas, error } = await query
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -7881,7 +7906,10 @@ app.post('/api/guardar-consulta', async (req, res) => {
             mensaje,
             asignarTodos,
             usuario,
-            questionSets
+            questionSets,
+            entity_id,
+            commitment_id,
+            workspaceData
         } = req.body;
 
         // Validar datos requeridos
@@ -7893,6 +7921,9 @@ app.post('/api/guardar-consulta', async (req, res) => {
         }
 
         const normalizedQuestionSets = Array.isArray(questionSets) ? questionSets : [];
+        const normalizedWorkspaceData = (workspaceData && typeof workspaceData === 'object' && !Array.isArray(workspaceData))
+            ? workspaceData
+            : {};
         const archivosCount = normalizedQuestionSets.reduce((total, set) => {
             if (!set || !Array.isArray(set.uploadedFiles)) return total;
             return total + set.uploadedFiles.length;
@@ -7921,6 +7952,9 @@ app.post('/api/guardar-consulta', async (req, res) => {
                     usuario_asignado: usuario || null,
                     question_sets: normalizedQuestionSets,
                     archivos_count: archivosCount,
+                    entity_id: entity_id || null,
+                    commitment_id: commitment_id || null,
+                    workspace_data: normalizedWorkspaceData,
                     estado: 'borrador',
                     updated_at: new Date().toISOString()
                 })
@@ -7945,6 +7979,9 @@ app.post('/api/guardar-consulta', async (req, res) => {
                     usuario_asignado: usuario || null,
                     question_sets: normalizedQuestionSets,
                     archivos_count: archivosCount,
+                    entity_id: entity_id || null,
+                    commitment_id: commitment_id || null,
+                    ...(workspaceData !== undefined ? { workspace_data: normalizedWorkspaceData } : {}),
                     updated_at: new Date().toISOString()
                 })
                 .eq('numero', numero)

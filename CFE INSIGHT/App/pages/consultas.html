@@ -14,10 +14,15 @@
     <link rel="stylesheet" href="../css/formularios.css">
     
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
         .consultas-container {
             max-width: 1800px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0 20px 20px;
             min-height: 100vh;
         }
         
@@ -32,7 +37,6 @@
             box-shadow: 0 8px 25px rgba(30, 58, 138, 0.4);
             position: relative;
             overflow: hidden;
-            top: -10px;
         }
         
                 
@@ -1079,6 +1083,11 @@ Por favor, desarrolle:
             }
         };
 
+        // Contexto de entidad/compromiso recibido desde formularios.html
+        const consultaContextParams = new URLSearchParams(window.location.search);
+        const consultaEntityId = consultaContextParams.get('entity_id') || null;
+        const consultaCommitmentId = consultaContextParams.get('commitment_id') || null;
+
         function openConsultaForm(codigo, nombre, tipo) {
             const consulta = consultasContent[tipo];
             if (consulta) {
@@ -1132,6 +1141,8 @@ Por favor, desarrolle:
             if (extraData.tipo) workspaceUrl.searchParams.set('tipo', extraData.tipo);
             if (extraData.descripcion) workspaceUrl.searchParams.set('descripcion', extraData.descripcion);
             if (extraData.objetivos) workspaceUrl.searchParams.set('objetivos', extraData.objetivos);
+            if (consultaEntityId) workspaceUrl.searchParams.set('entity_id', consultaEntityId);
+            if (consultaCommitmentId) workspaceUrl.searchParams.set('commitment_id', consultaCommitmentId);
 
             window.location.href = workspaceUrl.toString();
         }
@@ -1189,7 +1200,11 @@ Por favor, desarrolle:
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(datos)
+                    body: JSON.stringify({
+                        ...datos,
+                        entity_id: datos.entity_id ?? consultaEntityId,
+                        commitment_id: datos.commitment_id ?? consultaCommitmentId
+                    })
                 });
                 
                 const result = await response.json();
@@ -1203,7 +1218,9 @@ Por favor, desarrolle:
                         onSuccess(result);
                     }
 
-                    cargarConsultasDesdeSupabase();
+                    if (typeof cargarConsultasDesdeSupabase === 'function') {
+                        cargarConsultasDesdeSupabase();
+                    }
                 } else {
                     const message = result.error || 'Error al crear la consulta';
                     if (showAlert && !silent) {

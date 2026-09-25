@@ -3016,6 +3016,9 @@
                     if (targetSection) {
                         targetSection.style.display = 'block';
                     }
+                    if (section === 'queries' && typeof updateQueriesSection === 'function') {
+                        updateQueriesSection();
+                    }
                     if (menuBar) {
                         menuBar.style.display = 'flex';
                     }
@@ -7975,6 +7978,11 @@
                 reloadAssignmentsForContext();
             }
 
+            // Recargar consultas del contexto seleccionado
+            if (typeof updateQueriesSection === 'function') {
+                updateQueriesSection();
+            }
+
             closeCommitmentDropdownMenu();
         }
 
@@ -8160,6 +8168,11 @@
                 
                 // Recargar asignaciones cuando cambia la entidad
                 reloadAssignmentsForContext();
+            }
+
+            // Recargar consultas del contexto (entidad/compromiso) actualizado
+            if (typeof updateQueriesSection === 'function') {
+                updateQueriesSection();
             }
 
             label.textContent = 'Cargando...';
@@ -8426,6 +8439,11 @@
                 if (formDataManager && formDataManager.setContext) {
                     formDataManager.setContext(normalizedValue, null);
                     console.log('📋 formDataManager.context actualizado con entity_id:', normalizedValue);
+                }
+
+                // Recargar consultas de la entidad seleccionada
+                if (typeof updateQueriesSection === 'function') {
+                    updateQueriesSection();
                 }
 
                 // limpiar UI del dropdown de compromisos mientras se recarga
@@ -11290,8 +11308,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para abrir la página de consultas
         function openConsultasPage(event) {
             event.preventDefault();
+            // Pasar el contexto de entidad/compromiso seleccionado
+            const entityId = commitmentDropdownState?.currentEntityId || formDataManager?.currentEntityId || '';
+            const commitmentId = commitmentDropdownState?.selectedCommitmentId || formDataManager?.currentCommitmentId || '';
+            const params = new URLSearchParams();
+            if (entityId) params.set('entity_id', entityId);
+            if (commitmentId) params.set('commitment_id', commitmentId);
+            const query = params.toString();
             // Abrir la página de consultas en una nueva pestaña
-            window.open('consultas.html', '_blank');
+            window.open('consultas.html' + (query ? `?${query}` : ''), '_blank');
         }
 
         // Función para abrir la interfaz de lista de verificación
@@ -47276,16 +47301,54 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             initializeObservations();
         });
 
+        // Token para ignorar respuestas de peticiones viejas que llegan tarde
+        window._queriesRequestToken = window._queriesRequestToken || 0;
+
         // Función para actualizar la sección de Consultas
         async function updateQueriesSection() {
             console.log('🔍 updateQueriesSection iniciado');
-            
-            // Cargar consultas desde Supabase en lugar de localStorage
+
+            const queriesList = document.getElementById('queriesList');
+            // noQueries puede haber sido destruido por un innerHTML='' previo; recrearlo si falta
+            let noQueries = document.getElementById('noQueries');
+            if (!noQueries) {
+                noQueries = document.createElement('div');
+                noQueries.className = 'no-queries';
+                noQueries.id = 'noQueries';
+                noQueries.innerHTML = '<i class="bi bi-chat-dots"></i><p>No hay consultas registradas</p>';
+            }
+
+            // Limpiar de inmediato para no mostrar consultas del contexto anterior
+            if (queriesList) {
+                queriesList.innerHTML = '';
+                queriesList.appendChild(noQueries);
+                noQueries.style.display = 'block';
+            }
+
+            // Token de esta petición: si cambia el contexto y se lanza otra
+            // actualización, esta respuesta queda obsoleta y no se pinta
+            const requestToken = ++window._queriesRequestToken;
+
+            // Cargar consultas desde Supabase filtradas por el contexto actual
             let queries = [];
             try {
-                const response = await fetch('/api/historial-consultas');
+                const queryEntityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const queryCommitmentId = commitmentDropdownState?.selectedCommitmentId || '';
+                const queryParams = new URLSearchParams();
+                if (queryEntityId) queryParams.set('entity_id', queryEntityId);
+                if (queryCommitmentId) queryParams.set('commitment_id', queryCommitmentId);
+                const queryString = queryParams.toString();
+                const url = '/api/historial-consultas' + (queryString ? `?${queryString}` : '');
+                console.log('🔍 Consultando:', url);
+                const response = await fetch(url);
                 const data = await response.json();
-                
+
+                // Si llegó una petición más nueva mientras tanto, descartar esta
+                if (requestToken !== window._queriesRequestToken) {
+                    console.log('🔍 Respuesta obsoleta descartada (contexto cambió)');
+                    return;
+                }
+
                 if (data.success) {
                     // Convertir datos del historial al formato esperado
                     queries = data.historial.map(consulta => ({
@@ -47302,13 +47365,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     console.error('❌ Error cargando consultas:', data.error);
                 }
             } catch (error) {
+                if (requestToken !== window._queriesRequestToken) return;
                 console.error('❌ Error en la llamada a la API:', error);
-                // Fallback a localStorage si hay error
-                queries = JSON.parse(localStorage.getItem('cfe_queries') || '[]');
             }
-            
-            const queriesList = document.getElementById('queriesList');
-            const noQueries = document.getElementById('noQueries');
             
             console.log('🔍 Elementos DOM encontrados:', { queriesList, noQueries });
             
@@ -48127,23 +48186,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             });
             
-            if (noteButton) {
-                noteButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const ajusteId = this.dataset.ajusteId;
-                    console.log('📝 Agregar nota a ajuste:', ajusteId);
-                    if (typeof window.openNotesModal === 'function') {
-                        const ajustesLocales = (window.ajustes || []);
-                        const ajusteSeleccionado = ajustesLocales.find(a => a.id === ajusteId) || ajuste;
-                        window.openNotesModal(ajusteSeleccionado);
-                    } else {
-                        alert('No se pudo abrir las notas para este ajuste.');
-                    }
-                });
-            }
-        }
-        
         // Función para crear tarjeta de ajuste
         function createAdjustmentCard(ajuste) {
             // ... código existente para crear tarjeta ...

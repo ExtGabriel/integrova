@@ -1438,6 +1438,16 @@
         const consultaTipo = params.get('tipo') || '';
         const consultaDescripcion = params.get('descripcion') || '';
         const consultaObjetivos = params.get('objetivos') || '';
+        const consultaEntityId = params.get('entity_id') || null;
+        const consultaCommitmentId = params.get('commitment_id') || null;
+
+        function conContextoConsulta(datos) {
+            return {
+                ...datos,
+                entity_id: datos.entity_id ?? consultaEntityId,
+                commitment_id: datos.commitment_id ?? consultaCommitmentId
+            };
+        }
 
         const storageKey = `consulta_workspace_${consultaNumero}`;
 
@@ -1525,11 +1535,15 @@
                             if (data.success && data.consulta) {
                                 console.log('✅ Datos cargados desde Supabase:', data.consulta);
                                 
-                                // Cargar datos desde Supabase
-                                state.instructions = data.consulta.instrucciones || '';
-                                state.requirements = [];
-                                state.questionSets = Array.isArray(data.consulta.question_sets) 
-                                    ? data.consulta.question_sets.map(set => ({
+                                // Cargar datos desde Supabase (workspace_data tiene prioridad)
+                                const ws = (data.consulta.workspace_data && typeof data.consulta.workspace_data === 'object')
+                                    ? data.consulta.workspace_data
+                                    : {};
+                                state.instructions = ws.instructions ?? data.consulta.instrucciones ?? '';
+                                state.requirements = Array.isArray(ws.requirements) ? ws.requirements : [];
+                                const rawQuestionSets = Array.isArray(ws.questionSets) ? ws.questionSets : data.consulta.question_sets;
+                                state.questionSets = Array.isArray(rawQuestionSets)
+                                    ? rawQuestionSets.map(set => ({
                                         id: set.id,
                                         title: set.title || 'Sin nombre',
                                         type: set.type || null,
@@ -1540,7 +1554,10 @@
                                         createdFromSidebar: typeof set.createdFromSidebar === 'boolean' ? set.createdFromSidebar : true
                                     }))
                                     : [];
-                                state.activeQuestionSetId = state.questionSets.length > 0 ? state.questionSets[0].id : null;
+                                const storedActiveId = ws.activeQuestionSetId;
+                                state.activeQuestionSetId = state.questionSets.some(set => set.id === storedActiveId)
+                                    ? storedActiveId
+                                    : (state.questionSets.length > 0 ? state.questionSets[0].id : null);
                                 state.lastSaved = data.consulta.updated_at || null;
                                 
                                 // También guardar en localStorage como backup
@@ -1650,7 +1667,17 @@
                         numero: consultaNumero,
                         nombre: consultaNombre,
                         instrucciones: state.instructions,
-                        questionSets: state.questionSets
+                        questionSets: state.questionSets,
+                        workspaceData: {
+                            instructions: state.instructions,
+                            descripcion: consultaDescripcion,
+                            objetivos: consultaObjetivos,
+                            tipo: consultaTipo,
+                            requirements: state.requirements,
+                            questionSets: state.questionSets,
+                            activeQuestionSetId: state.activeQuestionSetId,
+                            lastSaved: state.lastSaved
+                        }
                     }, {
                         showAlert: false,
                         silent: true
@@ -2629,7 +2656,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(datos)
+                body: JSON.stringify(conContextoConsulta(datos))
             })
             .then(response => response.json())
             .then(data => {
@@ -2661,7 +2688,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(datos)
+                    body: JSON.stringify(conContextoConsulta(datos))
                 });
 
                 const result = await response.json();
