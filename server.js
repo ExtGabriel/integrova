@@ -8017,19 +8017,68 @@ app.get('/api/historial-consultas', async (req, res) => {
             });
         }
 
+        // Cargar el último envío registrado por consulta para resolver contactos
+        const numeros = (consultas || []).map(c => c.numero).filter(Boolean);
+        const destinatariosPorConsulta = {};
+
+        if (numeros.length) {
+            const { data: envios } = await supabase
+                .from('consulta_envios')
+                .select('consulta_numero, destinatarios, fecha_envio')
+                .in('consulta_numero', numeros)
+                .order('fecha_envio', { ascending: false });
+
+            (envios || []).forEach(envio => {
+                if (!destinatariosPorConsulta[envio.consulta_numero]) {
+                    destinatariosPorConsulta[envio.consulta_numero] = envio.destinatarios;
+                }
+            });
+        }
+
+        // Cache de clientes por entidad para no repetir consultas
+        const clientesPorEntidad = new Map();
+        const getClientesEntidad = async (entityId) => {
+            if (!clientesPorEntidad.has(entityId)) {
+                const clientes = await resolveEntityClients(entityId).catch(() => []);
+                clientesPorEntidad.set(entityId, clientes);
+            }
+            return clientesPorEntidad.get(entityId);
+        };
+
         // Formatear datos para el historial con los campos específicos
-        const historial = consultas.map(consulta => ({
-            documento_consulta: consulta.nombre, // Solo el nombre de la consulta
-            estado: consulta.estado || 'borrador', // Estado
-            progreso: calcularProgreso(consulta), // Progreso calculado
-            fecha_vencimiento: consulta.fecha_vencimiento, // Fecha de vencimiento
-            contactos: consulta.usuario_asignado || 'Sin asignar', // Contactos
-            id: consulta.id,
-            numero: consulta.numero,
-            nombre: consulta.nombre,
-            entity_id: consulta.entity_id,
-            commitment_id: consulta.commitment_id
-        }));
+        const historial = [];
+        for (const consulta of consultas) {
+            let contactos = consulta.usuario_asignado || null;
+
+            // 1) Destinatarios del último envío registrado
+            if (!contactos) {
+                const dest = destinatariosPorConsulta[consulta.numero];
+                if (Array.isArray(dest) && dest.length) {
+                    contactos = dest.map(d => d.name || d.email).join(', ');
+                }
+            }
+
+            // 2) Clientes asignados a la entidad
+            if (!contactos && consulta.entity_id) {
+                const clientes = await getClientesEntidad(consulta.entity_id);
+                if (clientes.length) {
+                    contactos = clientes.map(c => c.name).join(', ');
+                }
+            }
+
+            historial.push({
+                documento_consulta: consulta.nombre, // Solo el nombre de la consulta
+                estado: consulta.estado || 'borrador', // Estado
+                progreso: calcularProgreso(consulta), // Progreso calculado
+                fecha_vencimiento: consulta.fecha_vencimiento, // Fecha de vencimiento
+                contactos: contactos || 'Sin asignar', // Contactos
+                id: consulta.id,
+                numero: consulta.numero,
+                nombre: consulta.nombre,
+                entity_id: consulta.entity_id,
+                commitment_id: consulta.commitment_id
+            });
+        }
 
         res.json({
             success: true,
