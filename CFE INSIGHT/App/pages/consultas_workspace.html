@@ -1431,6 +1431,18 @@
         © 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.
     </footer>
 
+    <!-- Configuración global (APP_CONFIG) y SDK de EmailJS para notificaciones por correo -->
+    <script src="../js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script>
+        if (typeof emailjs !== 'undefined' && window.APP_CONFIG?.EMAILJS?.publicKey) {
+            emailjs.init(window.APP_CONFIG.EMAILJS.publicKey);
+            console.log('✅ EmailJS inicializado en consultas_workspace');
+        } else {
+            console.warn('⚠️ EmailJS no disponible o sin publicKey configurada');
+        }
+    </script>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const consultaNumero = params.get('numero') || 'Consulta sin código';
@@ -1438,8 +1450,8 @@
         const consultaTipo = params.get('tipo') || '';
         const consultaDescripcion = params.get('descripcion') || '';
         const consultaObjetivos = params.get('objetivos') || '';
-        const consultaEntityId = params.get('entity_id') || null;
-        const consultaCommitmentId = params.get('commitment_id') || null;
+        let consultaEntityId = params.get('entity_id') || null;
+        let consultaCommitmentId = params.get('commitment_id') || null;
 
         function conContextoConsulta(datos) {
             return {
@@ -1447,6 +1459,59 @@
                 entity_id: datos.entity_id ?? consultaEntityId,
                 commitment_id: datos.commitment_id ?? consultaCommitmentId
             };
+        }
+
+        // Sube un archivo al bucket de Supabase y devuelve el descriptor a guardar
+        async function subirArchivoConsulta(file, setId) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('numero', consultaNumero || '');
+                formData.append('setId', setId || '');
+                formData.append('entity_id', consultaEntityId || '');
+                formData.append('commitment_id', consultaCommitmentId || '');
+
+                const response = await fetch('/api/consultas/archivo', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.success) {
+                    return { name: file.name, size: file.size, type: file.type, path: data.path };
+                }
+                console.error('❌ No se pudo subir el archivo:', data.error);
+            } catch (error) {
+                console.error('❌ Error subiendo archivo:', error);
+            }
+            return null;
+        }
+
+        // Obtiene una URL firmada y abre el archivo en pestaña nueva
+        async function abrirArchivoConsulta(descriptor) {
+            if (!descriptor || !descriptor.path) return;
+            try {
+                const response = await fetch('/api/consultas/archivo?path=' + encodeURIComponent(descriptor.path));
+                const data = await response.json();
+                if (data.success && data.url) {
+                    window.open(data.url, '_blank');
+                } else {
+                    console.error('❌ No se pudo obtener la URL del archivo:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ Error obteniendo URL del archivo:', error);
+            }
+        }
+
+        // Elimina el archivo del bucket (silencioso si falla)
+        async function eliminarArchivoConsulta(path) {
+            if (!path) return;
+            try {
+                await fetch('/api/consultas/archivo', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+            } catch (error) {
+                console.error('❌ Error eliminando archivo remoto:', error);
+            }
         }
 
         const storageKey = `consulta_workspace_${consultaNumero}`;
@@ -1534,7 +1599,15 @@
                             const data = await response.json();
                             if (data.success && data.consulta) {
                                 console.log('✅ Datos cargados desde Supabase:', data.consulta);
-                                
+
+                                // Si el URL no trae contexto, adoptar el de la consulta guardada
+                                if (!consultaEntityId && data.consulta.entity_id) {
+                                    consultaEntityId = data.consulta.entity_id;
+                                }
+                                if (!consultaCommitmentId && data.consulta.commitment_id) {
+                                    consultaCommitmentId = data.consulta.commitment_id;
+                                }
+
                                 // Cargar datos desde Supabase (workspace_data tiene prioridad)
                                 const ws = (data.consulta.workspace_data && typeof data.consulta.workspace_data === 'object')
                                     ? data.consulta.workspace_data
@@ -1804,7 +1877,7 @@
                     const safeName = escapeHtml(nameValue);
                     const formattedSize = formatFileSize(file.size);
                     const encodedName = encodeURIComponent(nameValue);
-                    return `<div class="file-upload-card__file" data-file="${encodedName}">
+                    return `<div class="file-upload-card__file" data-file="${encodedName}" style="cursor:pointer;">
                         <div class="file-upload-card__file-info">
                             <span class="file-upload-card__file-name">${safeName}</span>
                             ${formattedSize ? `<span class="file-upload-card__file-size">${formattedSize}</span>` : ''}
@@ -2169,7 +2242,7 @@
                     preview.innerHTML = descriptors.map((file) => {
                         const displaySize = formatFileSize(file.size);
                         const encodedName = encodeURIComponent(file.name);
-                        return `<div class="file-upload-card__file" data-file="${encodedName}">
+                        return `<div class="file-upload-card__file" data-file="${encodedName}" style="cursor:pointer;">
                             <div class="file-upload-card__file-info">
                                 <span class="file-upload-card__file-name">${escapeHtml(file.name)}</span>
                                 ${displaySize ? `<span class="file-upload-card__file-size">${displaySize}</span>` : ''}
@@ -2183,32 +2256,33 @@
                     clearLink.style.display = 'inline-flex';
                 };
 
-                const persistFiles = (filesArray) => {
+                const persistFiles = async (filesArray) => {
                     if (!set) return;
-                    
+
                     // Get existing files
                     const existingFiles = runtimeUploads.get(set.id) || [];
                     const existingDescriptors = set.uploadedFiles || [];
-                    
+
                     // Combine new files with existing ones (avoid duplicates by name)
                     const newFiles = Array.from(filesArray || []);
                     const combinedFiles = [...existingFiles];
                     const combinedDescriptors = [...existingDescriptors];
-                    
-                    newFiles.forEach((newFile) => {
+
+                    for (const newFile of newFiles) {
                         // Check if file with same name already exists
-                        const existingIndex = combinedFiles.findIndex(f => f.name === newFile.name);
+                        const existingIndex = combinedDescriptors.findIndex(f => f.name === newFile.name);
                         if (existingIndex === -1) {
+                            const uploaded = await subirArchivoConsulta(newFile, set.id);
                             combinedFiles.push(newFile);
-                            combinedDescriptors.push({
+                            combinedDescriptors.push(uploaded || {
                                 name: newFile.name,
                                 size: newFile.size,
                                 type: newFile.type
                             });
                         }
-                    });
+                    }
 
-                    if (combinedFiles.length) {
+                    if (combinedFiles.length || combinedDescriptors.length) {
                         runtimeUploads.set(set.id, combinedFiles);
                         set.uploadedFiles = combinedDescriptors;
                     } else {
@@ -2287,24 +2361,49 @@
                 }
 
                 if (clearLink) {
-                    clearLink.addEventListener('click', (event) => {
+                    clearLink.addEventListener('click', async (event) => {
                         event.preventDefault();
+                        // Eliminar del bucket todos los archivos del conjunto
+                        const descriptors = set.uploadedFiles || [];
+                        await Promise.all(descriptors.map(d => eliminarArchivoConsulta(d.path)));
+
+                        runtimeUploads.delete(set.id);
+                        set.uploadedFiles = [];
                         if (fileInput) {
-                            handleFilesSelected([]);
+                            fileInput.value = '';
                         }
+                        renderPreview([]);
+                        saveState();
                     });
                 }
 
                 if (preview) {
                     preview.addEventListener('click', (event) => {
                         const removeButton = event.target.closest('button[data-action="remove-file"]');
-                        if (!removeButton) return;
+                        if (!removeButton) {
+                            // Clic en la fila del archivo: abrirlo con URL firmada
+                            const fileRow = event.target.closest('.file-upload-card__file');
+                            if (fileRow && fileRow.dataset.file) {
+                                const fileName = decodeURIComponent(fileRow.dataset.file);
+                                const descriptor = (set.uploadedFiles || []).find(f => f.name === fileName);
+                                if (descriptor && descriptor.path) {
+                                    abrirArchivoConsulta(descriptor);
+                                }
+                            }
+                            return;
+                        }
                         event.preventDefault();
 
                         const encodedName = removeButton.dataset.file;
                         if (!encodedName) return;
 
                         const fileName = decodeURIComponent(encodedName);
+
+                        // Eliminar también el archivo del bucket
+                        const removedDescriptor = (set.uploadedFiles || []).find(f => f.name === fileName);
+                        if (removedDescriptor && removedDescriptor.path) {
+                            eliminarArchivoConsulta(removedDescriptor.path);
+                        }
 
                         const existingFiles = runtimeUploads.get(set.id) || [];
                         const filteredFiles = existingFiles.filter(file => file.name !== fileName);
@@ -2712,13 +2811,13 @@
             }
         }
 
-        function enviarConsulta(datos) {
+        async function enviarConsulta(datos) {
             // Mostrar indicador de carga
             const btnAceptar = document.getElementById('btnAceptarConsulta');
             const textoOriginal = btnAceptar.textContent;
             btnAceptar.textContent = 'Enviando...';
             btnAceptar.disabled = true;
-            
+
             // Preparar datos para enviar al servidor
             const payload = {
                 consultaNumero: datos.consultaNumero,
@@ -2726,58 +2825,131 @@
                 fechaVencimiento: datos.fechaVencimiento,
                 asignarTodos: datos.asignarTodos,
                 usuario: datos.usuario,
+                entity_id: consultaEntityId,
                 mensaje: datos.mensaje,
                 instrucciones: state.instructions,
                 questionSets: state.questionSets,
                 timestamp: new Date().toISOString()
             };
-            
-            // Enviar al servidor
-            fetch('/api/enviar-consulta', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Mostrar notificación de éxito
-                    mostrarNotificacion('Consulta enviada exitosamente', 'success');
-                    
-                    // Limpiar formulario
-                    document.getElementById('fechaVencimiento').value = '';
-                    document.getElementById('asignarTodos').checked = false;
-                    document.getElementById('buscarUsuario').value = '';
-                    document.getElementById('cuerpoCorreo').value = '';
-                    
-                    // Guardar estado de envío
-                    const envioKey = `consulta_enviada_${consultaNumero}`;
-                    localStorage.setItem(envioKey, JSON.stringify({
-                        enviada: true,
-                        fechaEnvio: new Date().toISOString(),
-                        datos: payload
-                    }));
-                    
-                    // Opcional: Redirigir a consultas después de un tiempo
-                    setTimeout(() => {
-                        window.location.href = 'consultas.html';
-                    }, 2000);
-                    
-                } else {
-                    throw new Error(data.message || 'Error al enviar consulta');
+
+            try {
+                // 1. Resolver destinatarios (clientes de la entidad)
+                let destinatarios = [];
+                if (datos.asignarTodos && consultaEntityId) {
+                    const respClientes = await fetch(`/api/entities/${consultaEntityId}/clients`);
+                    const dataClientes = await respClientes.json();
+                    if (!dataClientes.success) {
+                        throw new Error(dataClientes.error || 'Error al obtener los clientes de la entidad');
+                    }
+                    destinatarios = (dataClientes.data || []).filter(c => c.email);
+                } else if (datos.usuario) {
+                    destinatarios = [{ email: datos.usuario, name: datos.usuario.split('@')[0] }];
                 }
-            })
-            .catch(error => {
+
+                if (destinatarios.length === 0) {
+                    throw new Error('No se encontraron destinatarios válidos');
+                }
+
+                // 2. Enviar correos reales con EmailJS
+                const cfg = window.APP_CONFIG?.EMAILJS;
+                // Usa la plantilla de consultas si está configurada; si no, la genérica
+                const consultaTemplate = cfg?.consultaTemplateId || cfg?.templateId;
+                const emailJsListo = typeof emailjs !== 'undefined'
+                    && cfg?.serviceId && cfg?.publicKey && consultaTemplate;
+
+                let correosEnviados = 0;
+                let correosFallidos = 0;
+
+                if (emailJsListo) {
+                    const fechaLegible = datos.fechaVencimiento
+                        ? new Date(datos.fechaVencimiento + 'T00:00:00').toLocaleDateString('es-MX')
+                        : 'Sin fecha';
+
+                    // Enlace directo al espacio de la consulta para que el cliente suba documentos
+                    const consultaUrl = `${window.location.origin}/pages/consultas_workspace.html?numero=${encodeURIComponent(datos.consultaNumero)}&nombre=${encodeURIComponent(datos.consultaNombre)}&entity_id=${encodeURIComponent(consultaEntityId || '')}`;
+
+                    for (const destinatario of destinatarios) {
+                        try {
+                            await emailjs.send(cfg.serviceId, consultaTemplate, {
+                                to_email: destinatario.email,
+                                to_name: destinatario.name || destinatario.email,
+                                subject: `Documentación solicitada: ${datos.consultaNombre} - ${datos.consultaNumero}`,
+                                message: `Se ha habilitado un espacio en INTEGROVA para que subas la documentación solicitada por el auditor.\n\nConsulta: ${datos.consultaNombre}\n\n${datos.mensaje}`,
+                                consulta_numero: datos.consultaNumero,
+                                consulta_nombre: datos.consultaNombre,
+                                fecha_vencimiento: fechaLegible,
+                                mensaje: datos.mensaje,
+                                instrucciones: state.instructions || '',
+                                consulta_url: consultaUrl,
+                                app_name: 'INTEGROVA',
+                                enviado_por: window.currentUser?.name || window.currentUser?.email || 'Auditor'
+                            });
+                            correosEnviados++;
+                            console.log(`📧 Correo enviado a ${destinatario.email}`);
+                        } catch (emailError) {
+                            correosFallidos++;
+                            console.error(`❌ Error enviando correo a ${destinatario.email}:`, emailError);
+                        }
+                    }
+                } else {
+                    console.warn('⚠️ EmailJS no configurado (falta templateId/consultaTemplateId en config.js). Se omite envío de correos.');
+                }
+
+                // 3. Registrar el envío en el servidor (estado 'enviada' + consulta_envios)
+                const response = await fetch('/api/enviar-consulta', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || data.error || 'Error al registrar el envío');
+                }
+
+                // 4. Notificación de resultado
+                if (emailJsListo) {
+                    mostrarNotificacion(
+                        `Consulta enviada: ${correosEnviados} correo(s) enviado(s)${correosFallidos ? `, ${correosFallidos} fallido(s)` : ''}`,
+                        correosFallidos ? 'info' : 'success'
+                    );
+                } else {
+                    mostrarNotificacion('Consulta registrada (correos no enviados: EmailJS sin configurar)', 'info');
+                }
+
+                // Limpiar formulario
+                document.getElementById('fechaVencimiento').value = '';
+                document.getElementById('asignarTodos').checked = false;
+                const listaClientes = document.getElementById('listaClientesEntidad');
+                if (listaClientes) {
+                    listaClientes.style.display = 'none';
+                    listaClientes.innerHTML = '';
+                }
+                document.getElementById('cuerpoCorreo').value = '';
+
+                // Guardar estado de envío
+                const envioKey = `consulta_enviada_${consultaNumero}`;
+                localStorage.setItem(envioKey, JSON.stringify({
+                    enviada: true,
+                    fechaEnvio: new Date().toISOString(),
+                    datos: payload
+                }));
+
+                // Opcional: Redirigir a consultas después de un tiempo
+                setTimeout(() => {
+                    window.location.href = 'consultas.html';
+                }, 2000);
+
+            } catch (error) {
                 console.error('Error al enviar consulta:', error);
                 mostrarNotificacion('Error al enviar la consulta: ' + error.message, 'error');
-            })
-            .finally(() => {
+            } finally {
                 // Restaurar botón
                 btnAceptar.textContent = textoOriginal;
                 btnAceptar.disabled = false;
-            });
+            }
         }
         
         function mostrarNotificacion(mensaje, tipo = 'info') {
@@ -2894,6 +3066,49 @@
             const btnCancelar = document.getElementById('btnCancelarConsulta');
             const btnAceptar = document.getElementById('btnAceptarConsulta');
             const modal = document.getElementById('abrirConsultaModal');
+            const chkAsignarTodos = document.getElementById('asignarTodos');
+            const listaClientes = document.getElementById('listaClientesEntidad');
+
+            if (chkAsignarTodos && listaClientes) {
+                chkAsignarTodos.addEventListener('change', async function() {
+                    if (!this.checked) {
+                        listaClientes.style.display = 'none';
+                        listaClientes.innerHTML = '';
+                        return;
+                    }
+
+                    listaClientes.style.display = 'block';
+                    listaClientes.innerHTML = '<small style="color:#64748b;">Cargando clientes...</small>';
+
+                    if (!consultaEntityId) {
+                        listaClientes.innerHTML = '<small style="color:#b45309;">La consulta no tiene una entidad asociada.</small>';
+                        return;
+                    }
+
+                    try {
+                        const resp = await fetch(`/api/entities/${consultaEntityId}/clients`);
+                        const data = await resp.json();
+
+                        if (!data.success) {
+                            throw new Error(data.error || 'Error al obtener los clientes');
+                        }
+
+                        const clientes = data.data || [];
+                        if (clientes.length === 0) {
+                            listaClientes.innerHTML = '<small style="color:#b45309;">La entidad no tiene clientes asignados.</small>';
+                        } else {
+                            listaClientes.innerHTML = `
+                                <small style="color:#334155;"><strong>Se enviará a ${clientes.length} cliente${clientes.length !== 1 ? 's' : ''}:</strong></small>
+                                <ul style="margin:6px 0 0 0; padding-left:18px; color:#334155;">
+                                    ${clientes.map(c => `<li>${c.name}${c.email ? ` <span style="color:#64748b;">(${c.email})</span>` : ''}</li>`).join('')}
+                                </ul>`;
+                        }
+                    } catch (error) {
+                        console.error('Error cargando clientes de la entidad:', error);
+                        listaClientes.innerHTML = '<small style="color:#dc2626;">No se pudo cargar la lista de clientes.</small>';
+                    }
+                });
+            }
 
             if (btnEnviar) {
                 btnEnviar.addEventListener('click', function() {
@@ -2912,7 +3127,7 @@
                     // Recolectar datos del formulario
                     const fechaVencimiento = document.getElementById('fechaVencimiento').value;
                     const asignarTodos = document.getElementById('asignarTodos').checked;
-                    const buscarUsuario = document.getElementById('buscarUsuario').value;
+                    const buscarUsuario = '';
                     const cuerpoCorreo = document.getElementById('cuerpoCorreo').value;
                     
                     // Validar campos obligatorios
@@ -2926,8 +3141,8 @@
                         return;
                     }
                     
-                    if (!asignarTodos && !buscarUsuario.trim()) {
-                        alert('Por favor asigna a todos los contactos o especifica un usuario');
+                    if (!asignarTodos) {
+                        alert('Por favor marca la opción de enviar a todos los clientes de la entidad');
                         return;
                     }
                     
@@ -2999,10 +3214,9 @@
                 <label>Personas asignadas</label>
                 <div class="checkbox-group">
                     <input type="checkbox" id="asignarTodos">
-                    <label for="asignarTodos">Enviar a todos los contactos</label>
+                    <label for="asignarTodos">Enviar a todos los clientes de la entidad</label>
                 </div>
-                <input type="text" id="buscarUsuario" placeholder="Buscar usuario">
-                <a href="#" class="link">Crear nuevo contacto</a>
+                <div id="listaClientesEntidad" style="display:none; margin: 8px 0 12px 24px; padding: 10px 14px; background: #f1f5f9; border-radius: 6px; font-size: 0.9em; max-height: 160px; overflow-y: auto;"></div>
             </div>
             <div class="form-group">
                 <label for="cuerpoCorreo">Cuerpo de correo electrónico</label>

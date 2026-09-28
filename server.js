@@ -772,6 +772,95 @@ app.get('/api/entities/:id', async (req, res) => {
     }
 });
 
+// Resuelve los clientes asignados a una entidad.
+// Los clientes pueden vivir en la columna jsonb `clients` de `entities`
+// (array de user IDs) y/o en `entity_users` con role = 'cliente'.
+async function resolveEntityClients(entityRef) {
+    if (!entityRef) return [];
+
+    // Buscar la entidad por id (uuid) o por la columna entity_id (texto tipo ENT_...)
+    let entity = null;
+    const { data: byId, error: byIdError } = await supabase
+        .from('entities')
+        .select('id, entity_id, clients')
+        .eq('id', entityRef)
+        .maybeSingle();
+
+    if (byIdError && byIdError.code !== 'PGRST116') {
+        // Puede fallar si entityRef no es un uuid válido; intentamos por entity_id
+        const { data: byCode } = await supabase
+            .from('entities')
+            .select('id, entity_id, clients')
+            .eq('entity_id', entityRef)
+            .maybeSingle();
+        entity = byCode;
+    } else {
+        entity = byId;
+        if (!entity) {
+            const { data: byCode } = await supabase
+                .from('entities')
+                .select('id, entity_id, clients')
+                .eq('entity_id', entityRef)
+                .maybeSingle();
+            entity = byCode;
+        }
+    }
+
+    const userIds = new Set();
+
+    // Fuente 1: columna clients (jsonb) de la entidad
+    if (entity && entity.clients) {
+        let raw = entity.clients;
+        if (typeof raw === 'string') {
+            try { raw = JSON.parse(raw); } catch { raw = [raw]; }
+        }
+        if (!Array.isArray(raw)) raw = [raw];
+        raw.forEach(item => {
+            const uid = item?.id || item?.user_id || item;
+            if (uid) userIds.add(String(uid));
+        });
+    }
+
+    // Fuente 2: entity_users con rol 'cliente'
+    if (entity) {
+        const { data: assignments, error: assignError } = await supabase
+            .from('entity_users')
+            .select('user_id')
+            .eq('entity_id', entity.id)
+            .eq('role', 'cliente');
+
+        if (!assignError && assignments) {
+            assignments.forEach(a => a.user_id && userIds.add(String(a.user_id)));
+        }
+    }
+
+    if (userIds.size === 0) return [];
+
+    const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, email, full_name')
+        .in('id', [...userIds]);
+
+    if (usersError) throw usersError;
+
+    return (users || []).map(u => ({
+        id: u.id,
+        name: u.full_name || u.email || 'Sin nombre',
+        email: u.email || null
+    }));
+}
+
+// Get clients assigned to an entity
+app.get('/api/entities/:id/clients', async (req, res) => {
+    try {
+        const clients = await resolveEntityClients(req.params.id);
+        res.json({ success: true, data: clients });
+    } catch (error) {
+        console.error('Error fetching entity clients:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch entity clients' });
+    }
+});
+
 // Create a new entity
 app.post('/api/entities', async (req, res) => {
     const body = req.body || {};
@@ -7787,6 +7876,117 @@ function calcularProgreso(consulta) {
 }
 
 // ============================================
+// ENDPOINTS PARA ARCHIVOS DE CONSULTAS (Supabase Storage)
+// ============================================
+const CONSULTAS_BUCKET = 'consultas-archivos';
+
+// Multer para archivos de consultas: acepta cualquier tipo (el input usa accept="*/*")
+const consultaUpload = multer({
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+function sanitizeFileName(name) {
+    return (name || 'archivo')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+// Subir un archivo de consulta al bucket
+app.post('/api/consultas/archivo', consultaUpload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No se recibió ningún archivo' });
+        }
+
+        const { numero, setId, entity_id, commitment_id } = req.body;
+        const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+        const safeName = sanitizeFileName(originalName);
+        const filePath = [
+            entity_id || 'sin-entidad',
+            commitment_id || 'sin-compromiso',
+            numero || 'sin-numero',
+            setId || 'general',
+            `${Date.now()}_${safeName}`
+        ].join('/');
+
+        const { error } = await supabase.storage
+            .from(CONSULTAS_BUCKET)
+            .upload(filePath, req.file.buffer, {
+                contentType: req.file.mimetype || 'application/octet-stream',
+                upsert: true
+            });
+
+        if (error) {
+            console.error('Error subiendo archivo a Storage:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Error al subir el archivo: ' + error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            path: filePath,
+            name: originalName,
+            size: req.file.size,
+            type: req.file.mimetype
+        });
+    } catch (error) {
+        console.error('Error en POST /api/consultas/archivo:', error);
+        res.status(500).json({ success: false, error: 'Error interno al subir el archivo' });
+    }
+});
+
+// Generar URL firmada temporal para abrir/descargar un archivo
+app.get('/api/consultas/archivo', async (req, res) => {
+    try {
+        const filePath = req.query.path;
+        if (!filePath) {
+            return res.status(400).json({ success: false, error: 'Falta el parámetro path' });
+        }
+
+        const { data, error } = await supabase.storage
+            .from(CONSULTAS_BUCKET)
+            .createSignedUrl(filePath, 60 * 60);
+
+        if (error || !data || !data.signedUrl) {
+            console.error('Error generando URL firmada:', error);
+            return res.status(404).json({ success: false, error: 'No se pudo generar la URL del archivo' });
+        }
+
+        res.json({ success: true, url: data.signedUrl });
+    } catch (error) {
+        console.error('Error en GET /api/consultas/archivo:', error);
+        res.status(500).json({ success: false, error: 'Error interno al obtener el archivo' });
+    }
+});
+
+// Eliminar un archivo del bucket
+app.delete('/api/consultas/archivo', async (req, res) => {
+    try {
+        const filePath = req.body?.path || req.query.path;
+        if (!filePath) {
+            return res.status(400).json({ success: false, error: 'Falta el parámetro path' });
+        }
+
+        const { error } = await supabase.storage
+            .from(CONSULTAS_BUCKET)
+            .remove([filePath]);
+
+        if (error) {
+            console.error('Error eliminando archivo de Storage:', error);
+            return res.status(500).json({ success: false, error: 'Error al eliminar el archivo: ' + error.message });
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error en DELETE /api/consultas/archivo:', error);
+        res.status(500).json({ success: false, error: 'Error interno al eliminar el archivo' });
+    }
+});
+
+// ============================================
 // ENDPOINT PARA OBTENER HISTORIAL DE CONSULTAS
 // ============================================
 app.get('/api/historial-consultas', async (req, res) => {
@@ -7826,7 +8026,9 @@ app.get('/api/historial-consultas', async (req, res) => {
             contactos: consulta.usuario_asignado || 'Sin asignar', // Contactos
             id: consulta.id,
             numero: consulta.numero,
-            nombre: consulta.nombre
+            nombre: consulta.nombre,
+            entity_id: consulta.entity_id,
+            commitment_id: consulta.commitment_id
         }));
 
         res.json({
@@ -7979,8 +8181,10 @@ app.post('/api/guardar-consulta', async (req, res) => {
                     usuario_asignado: usuario || null,
                     question_sets: normalizedQuestionSets,
                     archivos_count: archivosCount,
-                    entity_id: entity_id || null,
-                    commitment_id: commitment_id || null,
+                    // Solo actualizar contexto si viene con valor: evita que un guardado
+                    // sin entity_id/commitment_id borre el contexto ya guardado
+                    ...(entity_id ? { entity_id } : {}),
+                    ...(commitment_id ? { commitment_id } : {}),
                     ...(workspaceData !== undefined ? { workspace_data: normalizedWorkspaceData } : {}),
                     updated_at: new Date().toISOString()
                 })
@@ -8026,6 +8230,7 @@ app.post('/api/enviar-consulta', async (req, res) => {
             fechaVencimiento,
             asignarTodos,
             usuario,
+            entity_id,
             mensaje,
             instrucciones,
             questionSets,
@@ -8044,24 +8249,50 @@ app.post('/api/enviar-consulta', async (req, res) => {
         let destinatarios = [];
         
         if (asignarTodos) {
-            // Obtener todos los contactos de la base de datos
-            const { data: contacts, error } = await supabase
-                .from('contacts')
-                .select('email, name')
-                .eq('active', true);
-                
-            if (error) {
-                console.error('Error obteniendo contactos:', error);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Error al obtener los contactos'
-                });
+            if (entity_id) {
+                // Obtener los usuarios asignados como 'cliente' de la entidad
+                try {
+                    const clientUsers = await resolveEntityClients(entity_id);
+                    destinatarios = clientUsers
+                        .filter(u => u.email)
+                        .map(u => ({
+                            email: u.email,
+                            name: u.name || u.email.split('@')[0]
+                        }));
+                } catch (clientsError) {
+                    console.error('Error obteniendo clientes de la entidad:', clientsError);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Error al obtener los clientes de la entidad'
+                    });
+                }
+
+                if (destinatarios.length === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'La entidad no tiene clientes asignados'
+                    });
+                }
+            } else {
+                // Sin entidad asociada: obtener todos los contactos de la base de datos
+                const { data: contacts, error } = await supabase
+                    .from('contacts')
+                    .select('email, name')
+                    .eq('active', true);
+
+                if (error) {
+                    console.error('Error obteniendo contactos:', error);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Error al obtener los contactos'
+                    });
+                }
+
+                destinatarios = contacts.map(contact => ({
+                    email: contact.email,
+                    name: contact.name || 'Contacto'
+                }));
             }
-            
-            destinatarios = contacts.map(contact => ({
-                email: contact.email,
-                name: contact.name || 'Contacto'
-            }));
         } else if (usuario) {
             // Validar formato de email del usuario
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8209,20 +8440,34 @@ app.post('/api/enviar-consulta', async (req, res) => {
 
         // Guardar registro del envío en la base de datos
         try {
-            const { error: dbError } = await supabase
+            const envioRecord = {
+                consulta_numero: consultaNumero,
+                consulta_nombre: consultaNombre,
+                fecha_vencimiento: fechaVencimiento,
+                mensaje: mensaje,
+                destinatarios: destinatarios,
+                resultados_envio: resultados,
+                fecha_envio: new Date().toISOString()
+            };
+
+            // La columna de contadores puede llamarse 'exitos' (schema original)
+            // o no existir; intentamos con ella y sin ella como respaldo.
+            let { error: dbError } = await supabase
                 .from('consulta_envios')
-                .insert({
-                    consulta_numero: consultaNumero,
-                    consulta_nombre: consultaNombre,
-                    fecha_vencimiento: fechaVencimiento,
-                    mensaje: mensaje,
-                    destinatarios: destinatarios,
-                    resultados_envio: resultados,
-                    fecha_envio: new Date().toISOString(),
-                    exitosos: exitosos.length,
-                    fallidos: fallidos.length
-                });
-                
+                .insert({ ...envioRecord, exitos: exitosos.length, fallidos: fallidos.length });
+
+            if (dbError && dbError.code === 'PGRST204') {
+                ({ error: dbError } = await supabase
+                    .from('consulta_envios')
+                    .insert({ ...envioRecord, exitosos: exitosos.length, fallidos: fallidos.length }));
+            }
+
+            if (dbError && dbError.code === 'PGRST204') {
+                ({ error: dbError } = await supabase
+                    .from('consulta_envios')
+                    .insert(envioRecord));
+            }
+
             if (dbError) {
                 console.error('Error guardando registro de envío:', dbError);
             }

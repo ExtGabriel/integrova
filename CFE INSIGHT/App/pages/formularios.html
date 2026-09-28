@@ -47358,7 +47358,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         status: consulta.estado,
                         dueDate: consulta.fecha_vencimiento,
                         contacts: consulta.contactos,
-                        progress: consulta.progreso.porcentaje
+                        progress: consulta.progreso.porcentaje,
+                        entityId: consulta.entity_id,
+                        commitmentId: consulta.commitment_id
                     }));
                     console.log('✅ Consultas cargadas desde Supabase:', queries);
                 } else {
@@ -47471,8 +47473,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const queryNumber = query.number;
                 const queryTitle = query.title;
                 
-                // Construir URL del workspace
-                const workspaceUrl = `consultas_workspace.html?numero=${encodeURIComponent(queryNumber)}&nombre=${encodeURIComponent(queryTitle)}`;
+                // Construir URL del workspace con el contexto de la consulta
+                let workspaceUrl = `consultas_workspace.html?numero=${encodeURIComponent(queryNumber)}&nombre=${encodeURIComponent(queryTitle)}`;
+                if (query.entityId) workspaceUrl += `&entity_id=${encodeURIComponent(query.entityId)}`;
+                if (query.commitmentId) workspaceUrl += `&commitment_id=${encodeURIComponent(query.commitmentId)}`;
                 
                 console.log('🔗 Abriendo workspace:', workspaceUrl);
                 

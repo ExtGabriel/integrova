@@ -16,8 +16,8 @@ window.APP_CONFIG = {
          * IDs proporcionados por el usuario desde https://dashboard.emailjs.com/
          */
         serviceId: 'service_bpky4pq',
-        templateId: 'template_t7jze9v', // Plantilla de restablecimiento de contraseña
-        welcomeTemplateId: 'template_munblu4', // Plantilla de bienvenida
+        templateId: 'template_t7jze9v', // Plantilla genérica de notificaciones (bienvenida, reset, etc.)
+        consultaTemplateId: 'template_mnyc1pt', // Plantilla de notificación de consultas (Documentación solicitada)
         publicKey: 'F9y4MfQXgCZr5Wi87',
         loginUrl: 'https://integrovagt.com/login', // URL de login para nuevos usuarios
     }

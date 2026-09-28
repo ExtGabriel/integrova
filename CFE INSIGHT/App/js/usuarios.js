@@ -208,10 +208,9 @@
             const templateParams = {
                 to_email: email,
                 to_name: name || email,
-                new_password: newPassword,
-                admin_name: adminName,
+                subject: 'Restablecimiento de acceso - INTEGROVA',
+                message: `Se ha restablecido tu clave.\n\nTu nuevo acceso es: ${newPassword}\n\n.\n\nRestablecida por: ${adminName}\nFecha: ${new Date().toLocaleString()}`,
                 app_name: 'INTEGROVA',
-                reset_timestamp: new Date().toLocaleString(),
             };
 
             console.log('✉️ Enviando correo de restablecimiento con EmailJS...', templateParams);
@@ -247,24 +246,20 @@
             return { success: false, error: 'EmailJS no configurado' };
         }
 
-        if (!cfg.welcomeTemplateId) {
-            console.warn('⚠️ Plantilla de bienvenida no configurada (welcomeTemplateId vacío). Se omite envío.');
-            return { success: false, error: 'Plantilla de bienvenida no configurada' };
-        }
-
         try {
+            const loginUrl = cfg.loginUrl || 'http://localhost:3000/login';
+
             const templateParams = {
                 to_email: email,
                 to_name: name || email,
-                new_password: password,
-                login_url: cfg.loginUrl || 'http://localhost:3000/login',
+                subject: 'Bienvenido a INTEGROVA',
+                message: `Tu cuenta ha sido creada exitosamente.\n\nContraseña temporal: ${password}\n\nInicia sesión en: ${loginUrl}\n\nPor seguridad, cambia tu contraseña al ingresar.`,
                 app_name: 'INTEGROVA',
-                welcome_timestamp: new Date().toLocaleString(),
             };
 
             console.log('🎉 Enviando correo de bienvenida con EmailJS...', templateParams);
 
-            await emailjs.send(cfg.serviceId, cfg.welcomeTemplateId, templateParams);
+            await emailjs.send(cfg.serviceId, cfg.templateId, templateParams);
 
             console.log(`📧 EmailJS: correo de bienvenida enviado correctamente a ${email}`);
             return { success: true };
