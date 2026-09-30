@@ -2987,7 +2987,16 @@
                     finalCurrent: totals.finalCurrent,
                     finalPrevious: totals.finalPrevious,
                     level: parent.level || 0,
-                    orderIndex: parent.orderIndex || 0
+                    orderIndex: parent.orderIndex || 0,
+                    children: children.map(c => ({
+                        rowId: c.rowId || '',
+                        accountName: c.accountName,
+                        accountCode: c.accountCode,
+                        preliminary: Number(c.preliminary) || 0,
+                        adjustments: Number(c.adjustments) || 0,
+                        finalCurrent: Number(c.finalCurrent) || 0,
+                        finalPrevious: Number(c.finalPrevious) || 0
+                    }))
                 });
             });
 
@@ -3061,15 +3070,18 @@
             };
         }
 
-        function buildRowHtml(row, bgType) {
+        function buildRowHtml(row, bgType, toggleGroupId = null) {
             const { preliminary, adjustments, finalCurrent, finalPrevious } = sumRowValues(row);
             const variation = finalCurrent - finalPrevious;
             const rowId = (row.rowId || row.accountCode || row.id || '').toString().replace(/"/g, '&quot;');
             const plusBtn = (col) => `<button type="button" class="btn-ref-add" title="Agregar referencia" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}"><i class="bi bi-plus-lg"></i></button>`;
+            const toggleBtn = toggleGroupId
+                ? `<button type="button" class="bg-children-toggle" data-bg-group="${toggleGroupId}" aria-expanded="true" title="Mostrar/ocultar cuentas" style="border: none; background: transparent; padding: 0; margin: 0 6px 0 0; cursor: pointer; color: #64748b;"><i class="bi bi-chevron-down"></i></button>`
+                : '';
 
             return `
-                <tr>
-                    <td class="col-description">${row.accountName || ''}</td>
+                <tr${toggleGroupId ? ` data-bg-group="${toggleGroupId}"` : ''}>
+                    <td class="col-description">${toggleBtn}${row.accountName || ''}</td>
                     <td class="col-ref" data-ref-row-id="${rowId}" data-ref-col="0" data-ref-bg-type="${bgType}">${plusBtn(0)}</td>
                     <td class="col-amount">${formatCurrency(preliminary)}</td>
                     <td class="col-amount">${formatCurrency(adjustments)}</td>
@@ -3103,7 +3115,40 @@
             `;
         }
 
+        let bgChildSeq = 0;
+
+        function buildChildRowHtml(row, groupId) {
+            const { preliminary, adjustments, finalCurrent, finalPrevious } = sumRowValues(row);
+            const variation = finalCurrent - finalPrevious;
+            const label = row.accountCode ? `${row.accountCode} · ${row.accountName || ''}` : (row.accountName || '');
+
+            return `
+                <tr data-bg-parent="${groupId}" class="bg-child-row" style="color: #64748b;">
+                    <td class="col-description" style="padding-left: 32px; font-weight: 400;">${label}</td>
+                    <td class="col-ref"></td>
+                    <td class="col-amount">${formatCurrency(preliminary)}</td>
+                    <td class="col-amount">${formatCurrency(adjustments)}</td>
+                    <td class="col-amount">${formatCurrency(finalCurrent)}</td>
+                    <td class="col-ref"></td>
+                    <td class="col-amount">${formatCurrency(finalPrevious)}</td>
+                    <td class="col-variation">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct">${calculateVariationPercentage(finalCurrent, finalPrevious)}</td>
+                </tr>
+            `;
+        }
+
+        function buildRowWithChildrenHtml(row, bgType) {
+            const children = Array.isArray(row.children) ? row.children : [];
+            const groupId = `bg-${bgType}-${bgChildSeq++}`;
+            let html = buildRowHtml(row, bgType, children.length ? groupId : null);
+            if (children.length) {
+                html += children.map(c => buildChildRowHtml(c, groupId)).join('');
+            }
+            return html;
+        }
+
         function generateBgTableBody(filteredRows, bgType) {
+            bgChildSeq = 0;
             if (bgType !== 'activo') {
                 let totalPreliminary = 0;
                 let totalAdjustments = 0;
@@ -3116,7 +3161,7 @@
                     totalAdjustments += values.adjustments;
                     totalFinalCurrent += values.finalCurrent;
                     totalFinalPrevious += values.finalPrevious;
-                    return buildRowHtml(row, bgType);
+                    return buildRowWithChildrenHtml(row, bgType);
                 }).join('');
 
                 return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
@@ -3149,7 +3194,7 @@
                     corrienteTotals.adjustments += values.adjustments;
                     corrienteTotals.finalCurrent += values.finalCurrent;
                     corrienteTotals.finalPrevious += values.finalPrevious;
-                    bodyHtml += buildRowHtml(row, bgType);
+                    bodyHtml += buildRowWithChildrenHtml(row, bgType);
                 });
                 bodyHtml += buildSubtotalHtml('TOTAL ACTIVO CORRIENTE', corrienteTotals, true, false);
             }
@@ -3164,7 +3209,7 @@
                     noCorrienteTotals.adjustments += values.adjustments;
                     noCorrienteTotals.finalCurrent += values.finalCurrent;
                     noCorrienteTotals.finalPrevious += values.finalPrevious;
-                    bodyHtml += buildRowHtml(row, bgType);
+                    bodyHtml += buildRowWithChildrenHtml(row, bgType);
                 });
                 bodyHtml += buildSubtotalHtml('TOTAL ACTIVO NO CORRIENTE', noCorrienteTotals, true, true);
             }
@@ -3773,6 +3818,20 @@
             if (rowId !== undefined && col !== undefined) {
                 openBgRefModal(rowId, parseInt(col, 10), bgType);
             }
+        });
+
+        document.body.addEventListener('click', function(e) {
+            const toggle = e.target.closest('.bg-children-toggle');
+            if (!toggle) return;
+            const groupId = toggle.dataset.bgGroup;
+            const tbody = toggle.closest('tbody');
+            if (!groupId || !tbody) return;
+            const children = Array.from(tbody.querySelectorAll(`tr[data-bg-parent="${groupId}"]`));
+            const isHidden = children.length > 0 && children[0].style.display === 'none';
+            children.forEach(tr => { tr.style.display = isHidden ? '' : 'none'; });
+            const icon = toggle.querySelector('i');
+            if (icon) icon.className = isHidden ? 'bi bi-chevron-down' : 'bi bi-chevron-right';
+            toggle.setAttribute('aria-expanded', String(isHidden));
         });
 
         async function clearAllBgReferences(bgType) {
