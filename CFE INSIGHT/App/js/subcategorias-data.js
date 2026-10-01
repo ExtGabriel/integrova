@@ -968,6 +968,10 @@
                                           window.commitmentDropdownState?.selectedCommitmentId ||
                                           (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
                                           '';
+                const entidadSel = document.getElementById('entidadSelected');
+                const resolvedEntityName = docData.metadata?.entityName ||
+                                          ((entidadSel && entidadSel.classList.contains('selected')) ? entidadSel.textContent.trim() : '') ||
+                                          '';
 
                 try {
                     const payload = {
@@ -978,7 +982,7 @@
                         subcategoria: docData.subcategoria,
                         entityId: resolvedEntityId,
                         commitmentId: resolvedCommitmentId,
-                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType, entityName: resolvedEntityName || null }
                     };
                     localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
                 } catch (storageError) {
@@ -1025,6 +1029,10 @@
                                           window.commitmentDropdownState?.selectedCommitmentId ||
                                           (window.formDataManager && window.formDataManager.getContext ? window.formDataManager.getContext().commitmentId : null) ||
                                           '';
+                const entidadSel = document.getElementById('entidadSelected');
+                const resolvedEntityName = docData.metadata?.entityName ||
+                                          ((entidadSel && entidadSel.classList.contains('selected')) ? entidadSel.textContent.trim() : '') ||
+                                          '';
 
                 try {
                     const payload = {
@@ -1035,7 +1043,7 @@
                         subcategoria: docData.subcategoria,
                         entityId: resolvedEntityId,
                         commitmentId: resolvedCommitmentId,
-                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType }
+                        metadata: { ...(docData.metadata || {}), bgType: bgType || docData.metadata?.bgType || titleBgType, entityName: resolvedEntityName || null }
                     };
                     localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
                 } catch (storageError) {

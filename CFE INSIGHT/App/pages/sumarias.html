@@ -423,7 +423,7 @@
         </div>
 
         <div class="worksheet-layout" id="worksheetLayout">
-            <aside class="worksheet-sidebar" id="worksheetSidebar">
+            <aside class="worksheet-sidebar" id="worksheetSidebar" style="display: none;">
                 <div class="sidebar-header">
                     <span>Áreas</span>
                     <button class="toolbar-actions" title="Cargar grupos" onclick="loadAreas()" style="width:auto; height:auto; padding:6px 8px;">
@@ -750,7 +750,10 @@
             if (element) element.classList.add('active');
 
             const summaryTitle = document.querySelector('.summary-title');
-            if (summaryTitle) summaryTitle.textContent = `SUMARIA - ${areaName}`;
+            if (summaryTitle) {
+                const cleanName = String(areaName).replace(/^[\s\-–—]+/, '').trim();
+                summaryTitle.textContent = cleanName ? `SUMARIA - ${cleanName}` : 'SUMARIA';
+            }
 
             const areaRow = typeof area === 'object' ? area : allAreas.find(a => a.name === areaName);
             renderAreaRows(areaRow);
@@ -915,9 +918,9 @@
         }
 
         async function loadSavedContent() {
-            if (!currentWorksheetDoc?.id) return;
+            if (!currentWorksheetDoc?.id) return false;
             const hasManager = await waitForManager();
-            if (!hasManager) return;
+            if (!hasManager) return false;
 
             try {
                 const doc = await window.subcategoriasManager.getSubdocument(currentWorksheetDoc.id);
@@ -926,9 +929,64 @@
                     console.log('✅ Contenido de sumaria restaurado');
                     // Adaptar tablas antiguas para soportar referencias con "+"
                     upgradeLegacySumariaRefCells();
+                    return true;
                 }
             } catch (e) {
                 console.warn('No se pudo cargar contenido guardado:', e);
+            }
+            return false;
+        }
+
+        // Selecciona automáticamente el área elegida al crear el documento
+        function autoSelectMetadataArea() {
+            const meta = currentWorksheetDoc?.metadata || {};
+            if (!meta.areaRowId && !meta.areaName) return;
+
+            const target = allAreas.find(a => String(a.rowId || '') === String(meta.areaRowId || ''))
+                || allAreas.find(a => a.name.toLowerCase() === String(meta.areaName || '').trim().toLowerCase());
+            if (!target) return;
+
+            const li = Array.from(document.querySelectorAll('.area-item'))
+                .find(el => el.textContent.trim() === target.name);
+            selectArea(target, li || null);
+            console.log('✅ Área auto-seleccionada desde metadata:', target.name);
+        }
+
+        // Pone el nombre de la entidad en el encabezado y normaliza el título
+        async function applyHeaderContext() {
+            const entityEl = document.querySelector('#sumariaContent .entity-name');
+            if (entityEl) {
+                const current = entityEl.textContent.trim();
+                if (!current || current === 'Nombre de la entidad') {
+                    let name = currentWorksheetDoc?.metadata?.entityName ||
+                               currentWorksheetDoc?.entityName ||
+                               window.currentEntity?.name ||
+                               window.currentEntity?.nombre ||
+                               '';
+                    if (!name) {
+                        const { entityId } = getBgContext();
+                        if (entityId) {
+                            try {
+                                const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+                                const resp = await fetch(`${apiBase}/api/entities/${entityId}`, {
+                                    headers: { 'user-id': getCurrentUserId() }
+                                });
+                                const data = await resp.json().catch(() => null);
+                                name = data?.data?.name || data?.data?.nombre || data?.data?.entity_name || '';
+                            } catch (e) {
+                                console.warn('No se pudo resolver el nombre de la entidad:', e);
+                            }
+                        }
+                    }
+                    if (name) entityEl.textContent = name;
+                }
+            }
+
+            // Un solo guion en "SUMARIA - {área}"
+            const titleEl = document.querySelector('#sumariaContent .summary-title');
+            if (titleEl) {
+                const cleaned = titleEl.textContent.replace(/^(SUMARIA[\s\-–—]*)[-–—]+\s*/i, 'SUMARIA - ');
+                if (cleaned !== titleEl.textContent) titleEl.textContent = cleaned;
             }
         }
 
@@ -1251,8 +1309,11 @@
 
         // Cargar áreas al iniciar
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadSavedContent();
+            const restored = await loadSavedContent();
+            await applyHeaderContext();
             await loadAreas();
+            // Si el documento se creó con un área y no hay contenido guardado, seleccionarla
+            if (!restored) autoSelectMetadataArea();
             await attachSumariaReferences();
 
             const sumariaContent = document.getElementById('sumariaContent');

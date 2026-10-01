@@ -1146,7 +1146,7 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'planes-menu')"></i>
                             <div class="plus-dropdown-content" id="planes-menu">
                                 <a href="#" onclick="openFolderModal(event, 'planes')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#" onclick="openHojaTrabajoModal(event, 'planes')"><i class="bi bi-grid-3x3"></i> Sumaria</a>
+                                <a href="#" onclick="openDocumentModal(event, 'hoja-trabajo', 'planes')"><i class="bi bi-grid-3x3"></i> Sumaria</a>
                                 <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-chat-dots"></i> Consulta</a>
                                 <!-- <a href="#" onclick="createMarcadorPosicion(event, 'Marcador de posición', 'marcador-default', 'planes')"><i class="bi bi-bookmark"></i> Marcador de posición</a> -->
                                 <!-- <a href="#" onclick="openEnlaceModal(event, 'planes')"><i class="bi bi-link"></i> Enlace</a> -->
@@ -1171,7 +1171,7 @@
                             <i class="bi bi-plus-circle categoria-plus-icon" onclick="togglePlusMenu(event, 'cierre-menu')"></i>
                             <div class="plus-dropdown-content" id="cierre-menu">
                                 <a href="#" onclick="openFolderModal(event, 'cierre')"><i class="bi bi-folder"></i> Carpeta</a>
-                                <a href="#" onclick="openHojaTrabajoModal(event, 'cierre')"><i class="bi bi-grid-3x3"></i> Sumaria</a>
+                                <a href="#" onclick="openDocumentModal(event, 'hoja-trabajo', 'cierre')"><i class="bi bi-grid-3x3"></i> Sumaria</a>
                                 <a href="#" onclick="openConsultasPage(event)"><i class="bi bi-chat-dots"></i> Consulta</a>
                                 <!-- <a href="#" onclick="createMarcadorPosicion(event, 'Marcador de posición', 'marcador-default', 'cierre')"><i class="bi bi-bookmark"></i> Marcador de posición</a> -->
                                 <!-- <a href="#" onclick="openEnlaceModal(event, 'cierre')"><i class="bi bi-link"></i> Enlace</a> -->
@@ -6981,32 +6981,33 @@
                 const name = (accountName || '').toLowerCase();
                 const id = (groupContentId || '').toLowerCase();
                 const code = String(accountCode || '').trim();
-                
-                // Priorizar clasificación por código de cuenta (más confiable)
+
+                // Priorizar el contenedor del grupo: indica a qué sección pertenece la fila
+                if (id) {
+                    if (id.includes('bg1') || id.includes('activo')) return 'Activo';
+                    if (id.includes('bg2') || id.includes('pasivo') || id.includes('patrimonio')) return 'Pasivo y Patrimonio';
+                    if (id.includes('bg3') || id.includes('resultado') || id.includes('ingres') || id.includes('gast')) return 'Resultados';
+                }
+
+                // Fallback a clasificación por nombre
+                if (name.includes('activo')) {
+                    return 'Activo';
+                } else if (name.includes('pasivo') || name.includes('patrimonio')) {
+                    return 'Pasivo y Patrimonio';
+                } else if (name.includes('resultado') || name.includes('ingreso') || name.includes('gasto') || name.includes('costo')) {
+                    return 'Resultados';
+                }
+
+                // Último recurso: primer dígito del código de cuenta
                 if (code) {
                     const firstDigit = code.charAt(0);
                     if (firstDigit === '1') {
                         return 'Activo';
-                    } else if (firstDigit === '2') {
+                    } else if (firstDigit === '2' || firstDigit === '3') {
                         return 'Pasivo y Patrimonio';
-                    } else if (firstDigit === '3') {
-                        return 'Pasivo y Patrimonio';
-                    } else if (firstDigit === '4') {
-                        return 'Resultados'; // Ingresos
-                    } else if (firstDigit === '5') {
-                        return 'Resultados'; // Gastos
+                    } else if (firstDigit === '4' || firstDigit === '5') {
+                        return 'Resultados'; // Ingresos / Gastos
                     }
-                }
-                
-                // Fallback a clasificación por nombre o ID
-                if (name.includes('activo') || id.includes('bg1') || id.includes('activo')) {
-                    return 'Activo';
-                } else if (name.includes('pasivo') || name.includes('patrimonio') || 
-                          id.includes('pasivo') || id.includes('patrimonio')) {
-                    return 'Pasivo y Patrimonio';
-                } else if (name.includes('resultado') || name.includes('ingreso') || name.includes('gasto') ||
-                          id.includes('resultado') || id.includes('ingres') || id.includes('gast')) {
-                    return 'Resultados';
                 }
                 return '';
             }
@@ -11006,7 +11007,72 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // ==========================================
         
         // Función para configurar eventos del modal de documento
+        // Áreas excluidas del selector de sumarias (encabezados de alto nivel)
+        const SUMARIA_EXCLUDED_HIGH_LEVEL = new Set([
+            'activo', 'pasivo', 'patrimonio', 'resultados', 'ingresos', 'gastos',
+            'pasivo y patrimonio', 'estado de resultados', 'activo corriente',
+            'activo no corriente', 'pasivo corriente', 'pasivo no corriente'
+        ]);
+
+        // Muestra/oculta el selector de área según el tipo de documento del modal
+        function syncDocumentModalAreaField() {
+            const group = document.getElementById('documentAreaGroup');
+            const select = document.getElementById('documentArea');
+            if (!group || !select) return;
+
+            if (currentDocumentType !== 'hoja-trabajo') {
+                group.style.display = 'none';
+                select.innerHTML = '<option value="">Selecciona un área...</option>';
+                return;
+            }
+            group.style.display = '';
+            populateSumariaAreaSelect(select);
+        }
+
+        // Llena el selector con las cuentas padre del dataset activo
+        async function populateSumariaAreaSelect(select) {
+            select.innerHTML = '<option value="">Cargando áreas...</option>';
+            select.dataset.datasetId = '';
+            try {
+                let datasetId = (window.currentDatasetId || '').toString().trim();
+                if (!datasetId && typeof window.getExcelData === 'function') {
+                    const excelData = await window.getExcelData();
+                    datasetId = (excelData?.id || '').toString().trim();
+                }
+                if (!datasetId || typeof window.getFinancialGroups !== 'function') {
+                    select.innerHTML = '<option value="">Sin datos de cuentas disponibles</option>';
+                    return;
+                }
+                const groups = await window.getFinancialGroups(datasetId);
+                const childParentIds = new Set((groups || []).map(g => String(g.parentId || '').trim()).filter(Boolean));
+                const seenNames = new Set();
+                const parents = (groups || []).filter(g => {
+                    const rowId = String(g.rowId || '').trim();
+                    const name = (g.accountName || g.name || '').trim();
+                    if (!rowId || !name || !childParentIds.has(rowId)) return false;
+                    const lower = name.toLowerCase();
+                    if (SUMARIA_EXCLUDED_HIGH_LEVEL.has(lower) || seenNames.has(lower)) return false;
+                    seenNames.add(lower);
+                    return true;
+                });
+                if (!parents.length) {
+                    select.innerHTML = '<option value="">Sin áreas disponibles</option>';
+                    return;
+                }
+                select.dataset.datasetId = datasetId;
+                select.innerHTML = '<option value="">Selecciona un área...</option>' + parents.map(g =>
+                    `<option value="${String(g.rowId).replace(/"/g, '&quot;')}">${(g.accountName || g.name || '').trim()}</option>`
+                ).join('');
+            } catch (e) {
+                console.warn('No se pudieron cargar áreas para la sumaria:', e);
+                select.innerHTML = '<option value="">Sin datos de cuentas disponibles</option>';
+            }
+        }
+
         function setupDocumentModalEvents() {
+            // Mostrar/ocultar el selector de área según el tipo de documento
+            syncDocumentModalAreaField();
+
             // Guardar documento
             const saveButton = document.getElementById('saveDocumentBtn');
             if (saveButton) {
@@ -11022,12 +11088,35 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         document.getElementById('documentName').focus();
                         return;
                     }
-                    
+
                     // Verificar que tengamos la categoría y subcategoría actuales
                     if (!currentSection || !currentCategory || !currentDocumentType) {
                         showNotification('Error: No se pudo determinar la categoría, subcategoría o tipo de documento', 'error');
                         console.error('❌ Variables faltantes:', { currentSection, currentCategory, currentDocumentType });
                         return;
+                    }
+
+                    // Área seleccionada (solo aplica para Sumarias)
+                    const docMetadata = { identifier: documentId };
+                    if (currentDocumentType === 'hoja-trabajo') {
+                        const areaSelect = document.getElementById('documentArea');
+                        const hasOptions = areaSelect && areaSelect.options.length > 1;
+                        const selectedOption = areaSelect?.selectedOptions?.[0];
+                        if (hasOptions && !areaSelect.value) {
+                            showNotification('Por favor, selecciona un área para la sumaria', 'warning');
+                            areaSelect.focus();
+                            return;
+                        }
+                        docMetadata.areaRowId = areaSelect?.value || null;
+                        docMetadata.areaName = selectedOption?.textContent || null;
+                        if (areaSelect?.dataset?.datasetId) docMetadata.datasetId = areaSelect.dataset.datasetId;
+
+                        // Nombre de la entidad para el encabezado de la sumaria
+                        const entidadSel = document.getElementById('entidadSelected');
+                        const entityName = (entidadSel && entidadSel.classList.contains('selected'))
+                            ? entidadSel.textContent.trim()
+                            : '';
+                        if (entityName) docMetadata.entityName = entityName;
                     }
                     
                     try {
@@ -11048,7 +11137,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             currentDocumentType,
                             documentName,
                             '', // contenido inicial vacío
-                            { identifier: documentId },
+                            docMetadata,
                             currentParentFolderId
                         );
                         
@@ -11066,7 +11155,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                     tipo: currentDocumentType,
                                     categoria: currentCategory,
                                     subcategoria: currentSection,
-                                    metadata: { identifier: documentId }
+                                    entityId: window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '',
+                                    commitmentId: window.commitmentDropdownState?.selectedCommitmentId || '',
+                                    metadata: { ...docMetadata }
                                 };
                                 localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
                             } catch (storageError) {
@@ -46322,7 +46413,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 </button>
             </div>
             <div class="document-modal-body">
-                <div class="form-group">
+                <div class="form-group" style="display: none;">
                     <label for="documentId">
                         <i class="bi bi-type"></i>
                         Identificador
@@ -46335,6 +46426,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         Nombre
                     </label>
                     <input type="text" id="documentName" placeholder="Nombre del documento">
+                </div>
+                <div class="form-group" id="documentAreaGroup" style="display: none;">
+                    <label for="documentArea">
+                        <i class="bi bi-diagram-3"></i>
+                        Área
+                    </label>
+                    <select id="documentArea" style="width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; background: #f8f9fa; box-sizing: border-box;">
+                        <option value="">Selecciona un área...</option>
+                    </select>
                 </div>
             </div>
             <div class="document-modal-footer">
