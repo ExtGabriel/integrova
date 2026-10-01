@@ -24066,11 +24066,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight; // Forzar reflow
             modal.classList.add('show');
             
-            // Cargar aprobaciones guardadas y datos de la matriz
-            setTimeout(() => {
+            // Cargar aprobaciones guardadas, datos de la matriz y auto-completar áreas
+            setTimeout(async () => {
                 cargarAprobacionesA400();
                 cargarAprobacionesMatrizRiesgos();
-                cargarDatosMatrizA300();
+                await cargarDatosMatrizA300();
+                await autoPopulateMatrizA300FromCifras();
             }, 100);
         }
 
@@ -24207,6 +24208,173 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
             } catch (error) {
                 console.error('Error cargando datos de matriz A300:', error);
+            }
+        }
+
+        // Auto-completa la columna Área / Ciclo de la matriz A300
+        // con las cuentas padre/agrupamientos que tienen cuentas asignadas.
+        async function autoPopulateMatrizA300FromCifras() {
+            try {
+                // Asegurar dataset resuelto + estructura de grupos y asignaciones.
+                // Se hace aquí y no solo con el preload porque si la precarga corrió
+                // cuando currentDatasetId aún era null, su promesa quedó resuelta
+                // sin restaurar nada y no se reintenta sola.
+                if (typeof resolveAdjustmentsDatasetId === 'function') {
+                    await resolveAdjustmentsDatasetId();
+                }
+                if (typeof window.preloadAdjustmentsDom === 'function') {
+                    await window.preloadAdjustmentsDom();
+                }
+
+                // Si aun así no hay asignaciones en el DOM, restaurarlas ahora
+                if (currentDatasetId &&
+                    !document.querySelector('.financial-groups-list .assigned-account') &&
+                    typeof restoreAssignedAccounts === 'function') {
+                    try {
+                        await restoreAssignedAccounts();
+                    } catch (e) {
+                        console.warn('⚠️ Matriz A300: no se pudieron restaurar asignaciones:', e);
+                    }
+                }
+
+                // Asegurar que la tabla de Grupos Financieros (fuente del Saldo) exista
+                if (!document.querySelector('#gruposFinancierosTableBody tr[data-account-code]') &&
+                    typeof loadGruposFinancierosFromLatestExcel === 'function') {
+                    try {
+                        await loadGruposFinancierosFromLatestExcel();
+                    } catch (e) {
+                        console.warn('⚠️ Matriz A300: no se pudieron cargar grupos financieros:', e);
+                    }
+                }
+
+                const tbody = document.querySelector('.matriz-table tbody');
+                if (!tbody) return;
+
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                if (!rows.length) return;
+
+                // Áreas ya presentes en la matriz (para no duplicar ni sobreescribir)
+                const existingAreas = new Set();
+                rows.forEach(row => {
+                    const cell = row.querySelector('.area-column');
+                    if (!cell) return;
+                    const name = (cell.textContent || '').trim();
+                    if (name) existingAreas.add(name.toLowerCase());
+                });
+
+                const areas = [];
+                const seen = new Set();
+
+                const isHighLevelName = (name) => {
+                    const lower = String(name || '').trim().toLowerCase();
+                    return (typeof SUMARIA_EXCLUDED_HIGH_LEVEL !== 'undefined' && SUMARIA_EXCLUDED_HIGH_LEVEL.has(lower));
+                };
+
+                const pushArea = (rawName, accountCode) => {
+                    // Quitar prefijo de código contable: "130 - Clientes" -> "Clientes"
+                    const name = String(rawName || '').trim().replace(/^\s*[\d.]+\s*[-–]\s*/, '').trim();
+                    if (!name || isHighLevelName(name)) return;
+                    const lower = name.toLowerCase();
+                    if (seen.has(lower)) return;
+                    seen.add(lower);
+                    areas.push({ name, code: String(accountCode || '').trim() });
+                };
+
+                const financialList = document.querySelector('.financial-groups-list');
+                if (!financialList) return;
+
+                // Recorrer cada cuenta asignada y resolver su "cuenta padre".
+                // Solo se agregan padres que efectivamente tienen cuentas hijo asignadas;
+                // las cuentas sin padre o los padres sin asignaciones no generan fila.
+                financialList.querySelectorAll('.assigned-account').forEach(acc => {
+                    const parentId = (acc.dataset.parentAccountId || '').toString().trim();
+                    if (parentId) {
+                        const parent = financialList.querySelector(
+                            `.static-account[data-account-id="${parentId}"], .static-account[data-account-code="${parentId}"]`
+                        );
+                        if (parent) {
+                            pushArea(
+                                parent.dataset.accountName || parent.querySelector('.account-name')?.textContent || '',
+                                parent.dataset.accountCode || ''
+                            );
+                            return;
+                        }
+                    }
+
+                    const subGroup = acc.closest('.sub-group-item');
+                    if (subGroup) {
+                        const subHeader = subGroup.querySelector('.sub-group-header');
+                        const subCode = (subHeader?.getAttribute('onclick') || '').match(/toggleGroup\('([^']+)'\)/)?.[1] || '';
+                        pushArea(subHeader?.querySelector('.sub-group-name')?.textContent || '', subCode);
+                    }
+                });
+
+                if (!areas.length) return;
+
+                // Quitar las áreas que ya existen en la matriz
+                const pendingAreas = areas.filter(a => !existingAreas.has(a.name.toLowerCase()));
+                if (!pendingAreas.length) return;
+
+                // Mapa código/nombre -> saldo de la columna "31/12/2024 Final"
+                // de la tabla de Grupos Financieros (td[3] de cada fila).
+                const saldoByCode = new Map();
+                const saldoByName = new Map();
+                document.querySelectorAll('#gruposFinancierosTableBody tr').forEach(tr => {
+                    const cells = tr.querySelectorAll('td');
+                    if (cells.length < 4) return;
+                    const saldo = (cells[3].textContent || '').trim();
+                    if (!saldo) return;
+
+                    const code = (tr.dataset.accountCode || '').trim();
+                    const name = (cells[0].textContent || '').trim()
+                        .replace(/^\s*[\d.]+\s*[-–]\s*/, '').trim().toLowerCase();
+                    if (code) saldoByCode.set(code, saldo);
+                    if (name) saldoByName.set(name, saldo);
+                });
+
+                const findSaldo = (area) => {
+                    if (area.code && saldoByCode.has(area.code)) return saldoByCode.get(area.code);
+                    return saldoByName.get(area.name.toLowerCase()) || '';
+                };
+
+                const createEmptyRow = () => {
+                    const template = rows[rows.length - 1];
+                    const clone = template.cloneNode(true);
+                    clone.querySelectorAll('td').forEach(td => {
+                        if (td.hasAttribute('contenteditable')) td.textContent = '';
+                        td.querySelectorAll('select').forEach(sel => { sel.value = ''; });
+                        td.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+                        td.querySelectorAll('input[type="date"], input[type="text"], input:not([type])').forEach(inp => { inp.value = ''; });
+                    });
+                    return clone;
+                };
+
+                let areaIndex = 0;
+                let currentRows = rows.slice();
+                while (areaIndex < pendingAreas.length) {
+                    let row = currentRows.find(r => !(r.querySelector('.area-column')?.textContent || '').trim());
+                    if (!row) {
+                        row = createEmptyRow();
+                        tbody.appendChild(row);
+                        currentRows.push(row);
+                    }
+
+                    const cell = row.querySelector('.area-column');
+                    if (!cell) break;
+                    const area = pendingAreas[areaIndex++];
+                    cell.textContent = area.name;
+
+                    // Llenar Saldo con la cifra de "31/12/2024 Final" si está vacía
+                    const saldoCell = row.querySelector('.saldo-column');
+                    if (saldoCell && !(saldoCell.textContent || '').trim()) {
+                        const saldo = findSaldo(area);
+                        if (saldo) saldoCell.textContent = saldo;
+                    }
+                }
+
+                console.log('✅ Matriz A300 auto-completada con áreas/ciclos desde cifras:', pendingAreas);
+            } catch (error) {
+                console.warn('⚠️ No se pudo auto-completar la matriz A300 desde cifras:', error);
             }
         }
 
