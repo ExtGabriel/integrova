@@ -446,9 +446,19 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
 
         if (addCuentaButton) {
             console.log('✅ Boton "Linea de cuenta" encontrado, registrando event listener');
-            addCuentaButton.addEventListener('click', () => {
+            addCuentaButton.addEventListener('click', async () => {
                 console.log('🔘 Boton "Linea de cuenta" presionado');
                 console.log('🔍 detalleItems antes de seleccionar:', detalleItems.length, detalleItems);
+
+                // Esperar la precarga de cuentas si aún está en curso, con feedback visual
+                if (typeof window.preloadAdjustmentsDom === 'function') {
+                    const prevHtml = addCuentaButton.innerHTML;
+                    addCuentaButton.disabled = true;
+                    addCuentaButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Cargando cuentas...';
+                    try { await window.preloadAdjustmentsDom(); } catch (e) { console.warn(e); }
+                    addCuentaButton.disabled = false;
+                    addCuentaButton.innerHTML = prevHtml;
+                }
 
                 const availableAccounts = collectAssignedAccounts();
                 if (!availableAccounts.length) {
@@ -475,8 +485,18 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
 
         if (addGrupoButton) {
             console.log('✅ Boton "Linea de grupo" encontrado, registrando event listener');
-            addGrupoButton.addEventListener('click', () => {
+            addGrupoButton.addEventListener('click', async () => {
                 console.log('🔘 Boton "Linea de grupo" presionado');
+
+                // Esperar la precarga de grupos si aún está en curso, con feedback visual
+                if (typeof window.preloadAdjustmentsDom === 'function') {
+                    const prevHtml = addGrupoButton.innerHTML;
+                    addGrupoButton.disabled = true;
+                    addGrupoButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Cargando grupos...';
+                    try { await window.preloadAdjustmentsDom(); } catch (e) { console.warn(e); }
+                    addGrupoButton.disabled = false;
+                    addGrupoButton.innerHTML = prevHtml;
+                }
 
                 const availableGroups = collectAssignedGroups();
                 if (!availableGroups.length) {

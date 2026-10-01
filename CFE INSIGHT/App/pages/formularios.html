@@ -2904,6 +2904,82 @@
             }
         }
 
+        // Resuelve el dataset actual para la sección de Ajustes (único requisito
+        // para listar y guardar ajustes), sin pasar por "Datos"
+        async function resolveAdjustmentsDatasetId() {
+            if (currentDatasetId) return currentDatasetId;
+            try {
+                const entityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const commitmentId = commitmentDropdownState?.selectedCommitmentId || '';
+                let url = `${getApiBaseUrl()}/api/excel/latest`;
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) url += `?${params.toString()}`;
+
+                const resp = await fetch(url, {
+                    headers: {
+                        'user-id': getCurrentUserId(),
+                        ...(entityId ? { 'entity-id': entityId } : {}),
+                        ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+                    }
+                });
+                const result = await resp.json();
+                if (resp.ok && result.success && result.data && result.data.status !== 'empty') {
+                    currentDatasetId = result.data.id;
+                    window.currentDatasetId = result.data.id;
+                    console.log('✅ Dataset resuelto para Ajustes:', currentDatasetId);
+                }
+            } catch (e) {
+                console.warn('⚠️ No se pudo resolver el dataset para Ajustes:', e);
+            }
+            return currentDatasetId;
+        }
+
+        // Precarga en segundo plano el DOM que necesita el modal de ajustes
+        // (selector de cuentas y agrupamientos). No bloquea la lista de ajustes.
+        let adjustmentsDomPreloadPromise = null;
+        function preloadAdjustmentsDom() {
+            if (adjustmentsDomPreloadPromise) return adjustmentsDomPreloadPromise;
+            adjustmentsDomPreloadPromise = (async () => {
+                // La tabla de cuentas solo sirve de fallback del selector: cargarla
+                // en segundo plano sin bloquear (es la llamada más pesada)
+                if (!dataLoadState.cuentas && typeof loadCuentasFromLatestExcel === 'function') {
+                    loadCuentasFromLatestExcel().catch(e =>
+                        console.warn('⚠️ No se pudieron cargar cuentas para Ajustes:', e));
+                }
+
+                // Grupos financieros: fuente del selector de agrupamientos
+                if (!dataLoadState.gruposFinancieros && typeof loadGruposFinancierosFromLatestExcel === 'function') {
+                    try {
+                        await loadGruposFinancierosFromLatestExcel();
+                    } catch (e) {
+                        console.warn('⚠️ No se pudieron cargar grupos financieros para Ajustes:', e);
+                    }
+                }
+
+                // Restaurar cuentas asignadas al final: necesita el DOM de grupos ya renderizado
+                if (currentDatasetId &&
+                    !document.querySelector('.financial-groups-list .assigned-account') &&
+                    typeof restoreAssignedAccounts === 'function') {
+                    try {
+                        await restoreAssignedAccounts();
+                    } catch (e) {
+                        console.warn('⚠️ No se pudieron restaurar asignaciones para Ajustes:', e);
+                    }
+                }
+            })();
+            return adjustmentsDomPreloadPromise;
+        }
+
+        async function ensureAdjustmentsDataLoaded() {
+            await resolveAdjustmentsDatasetId();
+            await preloadAdjustmentsDom();
+        }
+
+        // Expuesta para que el modal de ajustes espere la precarga si está en curso
+        window.preloadAdjustmentsDom = preloadAdjustmentsDom;
+
         // Función para seleccionar un elemento del menú
         function selectMenuItem(event, section) {
             event.preventDefault();
@@ -2967,6 +3043,10 @@
                         // Cargar ajustes directamente cuando se muestra la sección
                         (async () => {
                             try {
+                                // Resolver dataset y arrancar precarga del DOM en segundo plano
+                                await resolveAdjustmentsDatasetId();
+                                preloadAdjustmentsDom();
+
                                 console.log('🔄 Cargando ajustes para sección Ajustes...');
                                 const adjustments = await window.getFinancialAdjustments(window.currentDatasetId);
                                 console.log('📥 Ajustes cargados:', adjustments.length);
@@ -7929,6 +8009,9 @@
             commitmentDropdownState.selectedCommitmentId = normalizeValue(commitmentId) || null;
             commitmentDropdownState.selectedCommitmentName = normalizeValue(commitmentName);
 
+            // Invalidar precarga de ajustes del contexto anterior
+            adjustmentsDomPreloadPromise = null;
+
             if (label) {
                 label.textContent = commitmentDropdownState.selectedCommitmentName || 'Selecciona un compromiso';
             }
@@ -7983,6 +8066,12 @@
             if (typeof updateQueriesSection === 'function') {
                 updateQueriesSection();
             }
+
+            // Persistir el compromiso elegido para restaurarlo al regresar a esta página
+            saveEntitySelectionsToStorage();
+
+            // Precalentar datos de Ajustes en segundo plano (dataset + DOM de cuentas/grupos)
+            resolveAdjustmentsDatasetId().then(() => preloadAdjustmentsDom());
 
             closeCommitmentDropdownMenu();
         }
@@ -8514,13 +8603,14 @@
                 restoreOriginalOptions();
             }, 100);
 
-            // Guardar en storage
-            saveEntitySelectionsToStorage();
-
-            // Actualizar compromisos si es necesario
+            // Actualizar compromisos si es necesario (resetea el compromiso si cambió la entidad)
             if (window.updateCommitmentDropdown) {
                 updateCommitmentDropdown(value);
             }
+
+            // Guardar en storage después de que el contexto de compromiso quedó actualizado,
+            // para no persistir el compromiso de la entidad anterior
+            saveEntitySelectionsToStorage();
 
             // Cambiar el contexto de datos cuando se selecciona una entidad distinta
             if (selectId === 'entidad' && normalizeValue(value) !== normalizeValue(previousEntityId)) {
@@ -8755,8 +8845,22 @@
                 const entidadValue = document.getElementById('entidad')?.value || '';
                 const entidadLabel = entidadValue ? getEntityLabelByValue(entidadValue) : getPlaceholderText();
 
+                // Preservar flags previos (p.ej. fromReference de navegación por referencias)
+                let prev = {};
+                try {
+                    prev = JSON.parse(localStorage.getItem('formularios_entity_selections') || '{}') || {};
+                } catch (e) {}
+
                 const selections = {
+                    ...prev,
                     entidad: { value: entidadValue, text: entidadLabel },
+                    compromiso: {
+                        id: commitmentDropdownState?.selectedCommitmentId || '',
+                        name: commitmentDropdownState?.selectedCommitmentName || ''
+                    },
+                    formulariosVisible: document.getElementById('opcionesFormularios')?.style.display === 'flex',
+                    expandedSections: Array.from(document.querySelectorAll('.categoria-section > .formularios-lista.expanded'))
+                        .map(el => el.id.replace(/-content$/, '')),
                     timestamp: new Date().toISOString()
                 };
 
@@ -8789,6 +8893,29 @@
 
                 applySelection(entidadValue, entidadText);
 
+                // Restaurar la vista de formularios si estaba abierta (p.ej. al regresar de una sumaria)
+                const opcionesDiv = document.getElementById('opcionesFormularios');
+                if (selections.formulariosVisible && entidadValue && opcionesDiv && opcionesDiv.style.display === 'none') {
+                    mostrarFormularios();
+                }
+
+                // Restaurar secciones expandidas (categorías, subcategorías)
+                (selections.expandedSections || []).forEach(restoreExpandedSection);
+
+                // Restaurar el compromiso seleccionado cuando el dropdown termine de cargar
+                const savedCommitmentId = selections.compromiso?.id;
+                if (savedCommitmentId) {
+                    waitForElement(() =>
+                        document.querySelector(`.commitment-dropdown-item[data-commitment-id="${savedCommitmentId}"]`)
+                    , 20000).then(item => {
+                        if (item) {
+                            selectCommitmentFromDropdown(savedCommitmentId, item.dataset.commitmentName || item.textContent || '');
+                        } else {
+                            console.warn('⚠️ No se encontró el compromiso guardado en el dropdown:', savedCommitmentId);
+                        }
+                    });
+                }
+
                 // Navegación desde referencia (sumaria/hoja de trabajo):
                 // aplicar compromiso y llevar al documento referenciado
                 if (selections.fromReference?.documentId) {
@@ -8799,6 +8926,22 @@
             } catch (error) {
                 console.warn('⚠️ Error cargando selecciones guardadas:', error);
                 return false;
+            }
+        }
+
+        // Reabre una sección expandida respetando el estilo de flecha (categoría vs subcategoría)
+        function restoreExpandedSection(sectionId) {
+            const content = document.getElementById(`${sectionId}-content`);
+            const arrow = document.getElementById(`${sectionId}-arrow`);
+            if (content && !content.classList.contains('expanded')) {
+                content.classList.add('expanded');
+            }
+            if (arrow) {
+                if (arrow.classList.contains('bi-chevron-right')) {
+                    arrow.classList.replace('bi-chevron-right', 'bi-chevron-down');
+                } else if (arrow.classList.contains('bi-chevron-down')) {
+                    arrow.classList.replace('bi-chevron-down', 'bi-chevron-up');
+                }
             }
         }
 
@@ -8906,10 +9049,12 @@
                 content.classList.add('expanded');
                 arrow.classList.remove('bi-chevron-down');
                 arrow.classList.add('bi-chevron-up');
-                
+
                 // Animación de despliegue
                 content.style.animation = 'slideDown 0.3s ease-out';
             }
+
+            saveEntitySelectionsToStorage();
         }
 
         // Función para abrir modal de documento Excel
@@ -10565,6 +10710,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Limpiar cuentas asignadas visibles para no mezclar contexto anterior.
                 document.querySelectorAll('.assigned-account, .assigned-account-item').forEach(el => el.remove());
+
+                // Invalidar precarga de ajustes del contexto anterior
+                adjustmentsDomPreloadPromise = null;
                 
                 // Limpiar cache de subdocumentos por contexto
                 if (window.clearSubdocumentContextCache) {
@@ -13463,6 +13611,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 arrow.classList.add('bi-chevron-down');
                 content.style.animation = 'slideDown 0.3s ease-out';
             }
+
+            saveEntitySelectionsToStorage();
         }
 
         // Función para asegurar que una categoría esté expandida (sin cerrarla si ya lo está)
@@ -13510,6 +13660,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 arrow.classList.add('bi-chevron-down');
                 content.style.animation = 'slideDown 0.3s ease-out';
             }
+
+            saveEntitySelectionsToStorage();
         }
 
         // ----- FUNCIONES PARA BOTONES DE ACCIÓN -----
@@ -20129,11 +20281,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         async function abrirCartaIndependencia() {
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) {
-                document.body.removeChild(modalExistente);
+                // Suspender el formulario abierto en lugar de eliminarlo,
+                // para restaurarlo al cerrar la carta
+                modalExistente.classList.add('modal-suspended');
+                modalExistente.style.display = 'none';
+                window.__suspendedFormularioModal = modalExistente;
             }
 
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal carta-modal-overlay';
             modal.innerHTML = `
                 <div class="formulario-modal-content carta-independencia-modal">
                     <div class="formulario-header" style="background: linear-gradient(135deg, #0f172a, #1d4ed8); color: white;">
@@ -20390,11 +20546,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar la Carta de Independencia
         function cerrarCartaIndependencia() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal.carta-modal-overlay');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
                     document.body.removeChild(modal);
+
+                    // Restaurar el formulario que quedó suspendido debajo
+                    const suspended = window.__suspendedFormularioModal;
+                    if (suspended) {
+                        suspended.style.display = '';
+                        suspended.classList.remove('modal-suspended');
+                        window.__suspendedFormularioModal = null;
+                    }
                 }, 300);
             }
         }
@@ -20490,13 +20654,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     );
 
                     // Cerrar el modal después de guardar exitosamente
-                    const modal = document.querySelector('.formulario-modal');
-                    if (modal) {
-                        modal.classList.remove('show');
-                        setTimeout(() => {
-                            document.body.removeChild(modal);
-                        }, 300);
-                    }
+                    cerrarCartaIndependencia();
                 } catch (error) {
                     console.error('Error guardando Carta de Independencia:', error);
                     // El error ya se muestra en guardarFormularioEnBD
@@ -26458,6 +26616,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 opcionesDiv.style.display = 'none';
                 menuBar.style.display = 'none';
             }
+
+            // Persistir si la vista de formularios quedó visible (para restaurarla al regresar)
+            saveEntitySelectionsToStorage();
         }
 
         // Funciones para la barra de menú
