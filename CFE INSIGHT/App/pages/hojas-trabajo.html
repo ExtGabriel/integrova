@@ -3076,7 +3076,7 @@
             const rowId = (row.rowId || row.accountCode || row.id || '').toString().replace(/"/g, '&quot;');
             const plusBtn = (col) => `<button type="button" class="btn-ref-add" title="Agregar referencia" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${bgType}"><i class="bi bi-plus-lg"></i></button>`;
             const toggleBtn = toggleGroupId
-                ? `<button type="button" class="bg-children-toggle" data-bg-group="${toggleGroupId}" aria-expanded="true" title="Mostrar/ocultar cuentas" style="border: none; background: transparent; padding: 0; margin: 0 6px 0 0; cursor: pointer; color: #64748b;"><i class="bi bi-chevron-down"></i></button>`
+                ? `<button type="button" class="bg-children-toggle" data-bg-group="${toggleGroupId}" aria-expanded="false" title="Mostrar/ocultar cuentas" style="border: none; background: transparent; padding: 0; margin: 0 6px 0 0; cursor: pointer; color: #64748b;"><i class="bi bi-chevron-right"></i></button>`
                 : '';
 
             return `
@@ -3123,7 +3123,7 @@
             const label = row.accountCode ? `${row.accountCode} · ${row.accountName || ''}` : (row.accountName || '');
 
             return `
-                <tr data-bg-parent="${groupId}" class="bg-child-row" style="color: #64748b;">
+                <tr data-bg-parent="${groupId}" class="bg-child-row" style="color: #64748b; display: none;">
                     <td class="col-description" style="padding-left: 32px; font-weight: 400;">${label}</td>
                     <td class="col-ref"></td>
                     <td class="col-amount">${formatCurrency(preliminary)}</td>
@@ -3997,7 +3997,7 @@
                                         file.type === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet' :
                                         file.type === 'consulta' ? 'bi-chat-dots' : 'bi-file-earmark-text';
                         const typeLabel = file.type === 'archivo' ? 'Archivo' :
-                                          file.type === 'hoja-trabajo' ? 'Hoja de trabajo' :
+                                          file.type === 'hoja-trabajo' ? 'Sumaria' :
                                           file.type === 'consulta' ? 'Consulta' : (file.type || 'Documento');
                         return `
                             <div class="ref-list-item ${selectedClass}" data-file-id="${file.id}" data-file-name="${name.replace(/"/g, '&quot;')}" data-file-type="${(file.type || '').replace(/"/g, '&quot;')}">

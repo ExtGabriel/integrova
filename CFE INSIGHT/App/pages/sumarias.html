@@ -794,8 +794,7 @@
 
             tbody.innerHTML = rows.map((row, idx) => {
                 const description = row.accountName || row.name || areaRow.name || '';
-                const code = row.accountCode || row.account_code || '';
-                const rowId = String(row.rowId || code || row.id || idx).replace(/"/g, '&quot;');
+                const rowId = String(row.rowId || row.accountCode || row.account_code || row.id || idx).replace(/"/g, '&quot;');
                 const current = Number(row.preliminary ?? row.finalCurrent ?? 0);
                 const adjustments = Number(row.adjustments ?? 0);
                 const finalCurrent = Number(row.finalCurrent ?? 0);
@@ -805,7 +804,7 @@
                 return `
                     <tr>
                         <td class="col-description">${description}</td>
-                        <td class="col-ref" data-ref-row-id="${rowId}" data-ref-col="0" data-ref-bg-type="${refScope}">${code ? `${code} ` : ''}${plusBtn(rowId, 0)}</td>
+                        <td class="col-ref" data-ref-row-id="${rowId}" data-ref-col="0" data-ref-bg-type="${refScope}">${plusBtn(rowId, 0)}</td>
                         <td class="col-amount">${formatCurrency(current)}</td>
                         <td class="col-amount">${formatCurrency(adjustments)}</td>
                         <td class="col-amount">${formatCurrency(finalCurrent)}</td>
@@ -815,9 +814,34 @@
                         <td class="col-variation-pct">${calculateVariationPct(finalCurrent, previous)}</td>
                     </tr>
                 `;
-            }).join('');
+            }).join('') + buildSumariaTotalRow(rows, areaRow.name);
 
             attachSumariaReferences();
+        }
+
+        function buildSumariaTotalRow(rows, areaName) {
+            const totals = rows.reduce((acc, row) => ({
+                current: acc.current + Number(row.preliminary ?? row.finalCurrent ?? 0),
+                adjustments: acc.adjustments + Number(row.adjustments ?? 0),
+                finalCurrent: acc.finalCurrent + Number(row.finalCurrent ?? 0),
+                previous: acc.previous + Number(row.finalPrevious ?? 0)
+            }), { current: 0, adjustments: 0, finalCurrent: 0, previous: 0 });
+            const variation = totals.finalCurrent - totals.previous;
+            const cellStyle = 'border-top: 1px solid #000000; border-bottom: 2px solid #000000;';
+
+            return `
+                <tr style="font-weight: 700;">
+                    <td class="col-description" style="${cellStyle}">Total ${areaName || ''}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.current)}</td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.adjustments)}</td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.finalCurrent)}</td>
+                    <td class="col-ref" style="${cellStyle}"></td>
+                    <td class="col-amount" style="${cellStyle}">${formatCurrency(totals.previous)}</td>
+                    <td class="col-variation" style="${cellStyle}">${formatCurrency(variation)}</td>
+                    <td class="col-variation-pct" style="${cellStyle}">${calculateVariationPct(totals.finalCurrent, totals.previous)}</td>
+                </tr>
+            `;
         }
 
         function createEmptyRow() {
@@ -1171,7 +1195,7 @@
                                         file.type === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet' :
                                         file.type === 'consulta' ? 'bi-chat-dots' : 'bi-file-earmark-text';
                         const typeLabel = file.type === 'archivo' ? 'Archivo' :
-                                          file.type === 'hoja-trabajo' ? 'Hoja de trabajo' :
+                                          file.type === 'hoja-trabajo' ? 'Sumaria' :
                                           file.type === 'consulta' ? 'Consulta' : (file.type || 'Documento');
                         return `
                             <div class="ref-list-item ${selectedClass}" data-file-id="${file.id}" data-file-name="${name.replace(/"/g, '&quot;')}" data-file-type="${(file.type || '').replace(/"/g, '&quot;')}">

@@ -633,7 +633,7 @@
                                     <i class="bi bi-trash" onclick="deleteSubfolder(${folder.id}, '${folder.nombre}')" title="Eliminar carpeta" style="color: #dc2626; cursor: pointer;"></i>
                                     <div class="plus-dropdown-content" id="${menuId}">
                                         <a href="#" onclick="openSubFolderModal(event, '${folder.subcategoria}', ${folder.id})"><i class="bi bi-folder"></i> Subcarpeta</a>
-                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-grid-3x3"></i> Hoja de trabajo</a>
+                                        <a href="#" onclick="openSubDocumentModal(event, 'hoja-trabajo', '${folder.subcategoria}', ${folder.id})"><i class="bi bi-grid-3x3"></i> Sumaria</a>
                                         <a href="#" onclick="uploadFileDirect(event, '${folder.subcategoria}', ${folder.id})"><i class="bi bi-upload"></i> Cargar</a>
                                     </div>
                                 </div>
