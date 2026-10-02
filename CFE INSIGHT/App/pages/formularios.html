@@ -23170,7 +23170,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para cerrar el formulario A300
         function cerrarFormularioA300() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.matriz-modal-overlay):not(.modal-suspended)')
+                || document.querySelector('.formulario-modal:not(.modal-suspended)')
+                || document.querySelector('.formulario-modal');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -23178,18 +23180,45 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }, 300);
             }
         }
+
+        // Función para cerrar solo la matriz de riesgos, restaurando
+        // el formulario que quedó suspendido debajo (si lo hay)
+        function cerrarMatrizA300() {
+            const modal = document.querySelector('.matriz-modal-overlay');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+
+                const suspended = window.__suspendedFormularioModal;
+                if (suspended) {
+                    suspended.style.display = '';
+                    suspended.classList.remove('modal-suspended');
+                    window.__suspendedFormularioModal = null;
+                }
+            }, 300);
+        }
         
         // Función para mostrar la matriz de riesgos vinculada al A300
         function mostrarMatrizA300() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            // Si ya hay una matriz abierta, quitarla para reabrirla limpia
+            const matrizAbierta = document.querySelector('.matriz-modal-overlay');
+            if (matrizAbierta) {
+                document.body.removeChild(matrizAbierta);
+            }
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar la matriz
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
-                document.body.removeChild(modalExistente);
+                modalExistente.classList.add('modal-suspended');
+                modalExistente.style.display = 'none';
+                window.__suspendedFormularioModal = modalExistente;
             }
 
             // Crear el modal de la matriz
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal matriz-modal-overlay';
             modal.innerHTML = `
                 <style>
                     .matriz-a300-container {
@@ -23308,7 +23337,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <h2 style="color: white; margin: 0;">Matriz de Riesgos - A300</h2>
                             </div>
                         </div>
-                        <button class="close-formulario" onclick="cerrarFormularioA300()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                        <button class="close-formulario" onclick="cerrarMatrizA300()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -24313,7 +24342,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const commitmentId = commitmentDropdownState?.selectedCommitmentId || null;
 
                 // Recolectar datos de la tabla de la matriz
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.matriz-modal-overlay');
                 if (!modal) {
                     showNotification('Error: No se encontró el modal de la matriz', 'error');
                     return;
@@ -38861,13 +38890,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 q1: document.querySelector('input[name="eto_q1"]:checked')?.value || '',
                 q2: document.getElementById('eto_q2')?.value || '',
                 q3: document.getElementById('eto_q3')?.value || '',
-                q4: document.getElementById('eto_q4')?.files[0]?.name || '',
                 q5: document.getElementById('eto_q5')?.value || '',
                 q6: document.querySelector('input[name="eto_q6"]:checked')?.value || '',
                 q7: document.getElementById('eto_q7')?.value || '',
                 q8: document.getElementById('eto_q8')?.value || '',
                 q9: document.getElementById('eto_q9')?.value || '',
-                q9_file: document.getElementById('eto_q9_file')?.files[0]?.name || '',
                 // Campos de la sección de trabajo de experto
                 experto_naturaleza: document.getElementById('eto_experto_naturaleza')?.value || '',
                 experto_objetivo: document.getElementById('eto_experto_objetivo')?.value || '',
@@ -38888,6 +38915,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 consultas_resultado: document.getElementById('eto_consultas_resultado')?.value || '',
                 consultas_conclusion: document.getElementById('eto_consultas_conclusion')?.value || ''
             };
+
+            // Subir los archivos seleccionados a Storage y guardar su referencia.
+            // Si no hay archivo nuevo pero existía uno guardado, se conserva.
+            const archivoFields = {
+                q4: 'eto_q4',
+                q9_file: 'eto_q9_file',
+                grupo_file: 'eto_grupo_file',
+                consultas_file: 'eto_consultas_file'
+            };
+            for (const [key, inputId] of Object.entries(archivoFields)) {
+                const input = document.getElementById(inputId);
+                if (!input) { formData[key] = ''; continue; }
+
+                if (input.files && input.files[0]) {
+                    try {
+                        formData[key] = await subirArchivoFormulario(input.files[0], 'EVALUACION_TRABAJO_OTROS', inputId);
+                    } catch (e) {
+                        showNotification('No se pudo subir "' + input.files[0].name + '": ' + (e.message || 'error'), 'error');
+                        return;
+                    }
+                } else if (input.dataset.savedFile) {
+                    try {
+                        formData[key] = JSON.parse(input.dataset.savedFile);
+                    } catch (e) {
+                        formData[key] = '';
+                    }
+                } else {
+                    formData[key] = '';
+                }
+            }
 
             console.log('Respuestas Evaluación del trabajo ejecutado por otros:', formData);
 
@@ -38916,13 +38973,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     if (key === 'q1' || key === 'q6') {
                         const radio = modal.querySelector(`input[name="eto_${key}"][value="${value}"]`);
                         if (radio) radio.checked = true;
-                    } else if (key === 'q4' || key === 'q9_file') {
+                    } else if (key === 'q4' || key === 'q9_file' || key === 'grupo_file' || key === 'consultas_file') {
                         const fileInput = document.getElementById(`eto_${key}`);
                         if (fileInput && value) {
-                            const label = document.getElementById(`eto_${key}_label`);
-                            if (label) label.querySelector('span').textContent = value;
-                            const clear = document.getElementById(`eto_${key}_clear`);
-                            if (clear) clear.style.display = 'block';
+                            if (typeof value === 'object' && value.path) {
+                                fileInput.dataset.savedFile = JSON.stringify(value);
+                                mostrarArchivoGuardadoFormulario(fileInput, `eto_${key}`, value);
+                            } else {
+                                // Valor legacy: solo se guardó el nombre del archivo
+                                const label = document.getElementById(`eto_${key}_label`);
+                                if (label) label.querySelector('span').textContent = value;
+                                const clear = document.getElementById(`eto_${key}_clear`);
+                                if (clear) clear.style.display = 'block';
+                            }
                         }
                     } else {
                         const input = document.getElementById(`eto_${key}`);
@@ -40504,6 +40567,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             campos.forEach(campo => {
                 const key = campo.name || campo.id;
                 if (!key) return;
+                if (campo.type === 'file') return; // Se manejan aparte (upload real)
 
                 if (campo.type === 'radio' || campo.type === 'checkbox') {
                     if (campo.checked) respuestas[key] = campo.value;
@@ -40511,6 +40575,29 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     respuestas[key] = campo.value;
                 }
             });
+
+            // Subir los archivos seleccionados a Storage y guardar su referencia.
+            // Si no hay archivo nuevo pero existía uno guardado, se conserva.
+            const fileInputs = modal.querySelectorAll('input[type="file"]');
+            for (const campo of fileInputs) {
+                const key = campo.name || campo.id;
+                if (!key) continue;
+
+                if (campo.files && campo.files[0]) {
+                    try {
+                        respuestas[key] = await subirArchivoFormulario(campo.files[0], 'AREAS_ESPECIFICAS', key);
+                    } catch (e) {
+                        showNotification('No se pudo subir "' + campo.files[0].name + '": ' + (e.message || 'error'), 'error');
+                        return;
+                    }
+                } else if (campo.dataset.savedFile) {
+                    try {
+                        respuestas[key] = JSON.parse(campo.dataset.savedFile);
+                    } catch (e) {
+                        respuestas[key] = '';
+                    }
+                }
+            }
 
             console.log('Respuestas Áreas específicas:', respuestas);
 
@@ -40538,6 +40625,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const key = campo.name || campo.id;
                     if (!key || !(key in data)) return;
 
+                    if (campo.type === 'file') {
+                        delete campo.dataset.savedFile;
+                        const previo = document.getElementById(key + '_saved');
+                        if (previo) previo.remove();
+                        const saved = data[key];
+                        if (saved && typeof saved === 'object' && saved.path) {
+                            campo.dataset.savedFile = JSON.stringify(saved);
+                            mostrarArchivoGuardadoFormulario(campo, key, saved);
+                        }
+                        return;
+                    }
+
                     if (campo.type === 'radio' || campo.type === 'checkbox') {
                         campo.checked = campo.value === data[key];
                     } else {
@@ -40547,6 +40646,114 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             } catch (error) {
                 console.error('Error cargando respuestas Áreas específicas:', error);
             }
+        }
+
+        // ===== Helpers de adjuntos de formularios =====
+
+        // Subir un archivo al servidor (Supabase Storage) y devolver su referencia
+        async function subirArchivoFormulario(file, formId, fieldName) {
+            const userId = getCurrentUserId();
+            if (!userId) throw new Error('Usuario no autenticado');
+
+            const context = (typeof formDataManager !== 'undefined' && formDataManager.getContext)
+                ? formDataManager.getContext() : {};
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('form_id', formId);
+            fd.append('field_name', fieldName);
+            fd.append('entity_id', context.entityId || '');
+            fd.append('commitment_id', context.commitmentId || '');
+
+            const resp = await fetch(`${getApiBaseUrl()}/api/formularios/attachment`, {
+                method: 'POST',
+                headers: { 'user-id': userId },
+                body: fd
+            });
+            const data = await resp.json().catch(() => null);
+            if (!resp.ok || !data || !data.success) {
+                throw new Error(data?.error || `HTTP ${resp.status}`);
+            }
+            return { __file: true, path: data.path, name: data.name, size: data.size, mimetype: data.mimetype };
+        }
+
+        // Mostrar debajo del selector un link con el archivo ya guardado
+        function mostrarArchivoGuardadoFormulario(input, key, meta) {
+            const container = input.parentElement;
+            if (!container) return;
+
+            let div = document.getElementById(key + '_saved');
+            if (!div) {
+                div = document.createElement('div');
+                div.id = key + '_saved';
+                container.insertAdjacentElement('afterend', div);
+            }
+
+            const safeName = String(meta.name || 'archivo').replace(/[<>&"']/g, '');
+            const safePath = String(meta.path || '').replace(/'/g, "\\'");
+            div.style.cssText = 'margin-top: 6px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;';
+            div.innerHTML = `<i class="bi bi-paperclip" style="color: #2563eb;"></i>
+                <a href="#" onclick="descargarArchivoFormulario('${safePath}', '${safeName}'); return false;" style="color: #2563eb; text-decoration: underline;">${safeName}</a>
+                <span style="color: #94a3b8;">(guardado)</span>`;
+
+            // Reflejar el nombre también en el label del selector
+            const label = document.getElementById(key + '_label');
+            if (label) {
+                const span = label.querySelector('span');
+                if (span) span.textContent = meta.name || 'archivo';
+            }
+            const clearBtn = document.getElementById(key + '_clear');
+            if (clearBtn) clearBtn.style.display = 'block';
+        }
+
+        // Descargar el archivo guardado en la BD/Storage
+        async function descargarArchivoFormulario(path, name) {
+            try {
+                const userId = getCurrentUserId();
+                const resp = await fetch(`${getApiBaseUrl()}/api/formularios/attachment?path=${encodeURIComponent(path)}&name=${encodeURIComponent(name || 'archivo')}`, {
+                    headers: { 'user-id': userId }
+                });
+                if (!resp.ok) throw new Error('No se pudo descargar el archivo');
+
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name || 'archivo';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                showNotification(e.message || 'Error al descargar el archivo', 'error');
+            }
+        }
+
+        // Si el usuario limpia un campo de archivo que tenía uno guardado,
+        // quitar la referencia para que al guardar ya no se conserve
+        if (!window.__formFileClearHandlerAdded) {
+            window.__formFileClearHandlerAdded = true;
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('[id$="_clear"]');
+                if (!btn) return;
+                const key = btn.id.slice(0, -6);
+                const input = document.getElementById(key);
+                if (input && input.type === 'file') {
+                    delete input.dataset.savedFile;
+                }
+                const savedDiv = document.getElementById(key + '_saved');
+                if (savedDiv) savedDiv.remove();
+            });
+            // Al elegir un archivo nuevo sobre un campo con archivo guardado,
+            // quitar el indicador de "guardado" para no confundir
+            document.addEventListener('change', (e) => {
+                const input = e.target;
+                if (!input || input.type !== 'file' || !input.id) return;
+                if (input.files && input.files[0]) {
+                    const savedDiv = document.getElementById(input.id + '_saved');
+                    if (savedDiv) savedDiv.remove();
+                }
+            });
         }
 
         // Función para aprobar / deshacer aprobación de secciones del formulario Áreas específicas

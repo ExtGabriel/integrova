@@ -305,7 +305,7 @@ const upload = multer({
     storage: storage,
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB máximo
     fileFilter: (req, file, cb) => {
-        // Permitir archivos Excel, Word, PDF, imágenes y texto
+        // Permitir archivos Excel, Word, PDF, imágenes, texto y comprimidos
         const allowedTypes = [
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -315,7 +315,12 @@ const upload = multer({
             'text/plain',
             'image/jpeg',
             'image/png',
-            'image/gif'
+            'image/gif',
+            'application/zip',
+            'application/x-zip-compressed',
+            'application/x-rar-compressed',
+            'application/vnd.rar',
+            'application/octet-stream'
         ];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
@@ -10766,6 +10771,105 @@ app.get('/api/formularios/approval/:formResponseId', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error en endpoint GET /api/formularios/approval:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// ===== Adjuntos de formularios (Supabase Storage) =====
+const FORM_ATTACHMENTS_BUCKET = 'form-attachments';
+
+async function ensureFormAttachmentsBucket() {
+    try {
+        const { data: buckets, error } = await supabase.storage.listBuckets();
+        if (error) {
+            console.error('❌ Error listando buckets:', error);
+            return;
+        }
+        if (!buckets || !buckets.some(b => b.name === FORM_ATTACHMENTS_BUCKET)) {
+            const { error: createError } = await supabase.storage.createBucket(FORM_ATTACHMENTS_BUCKET, { public: false });
+            if (createError && !/already exists/i.test(createError.message || '')) {
+                console.error('❌ Error creando bucket form-attachments:', createError);
+            } else {
+                console.log('✅ Bucket form-attachments creado');
+            }
+        }
+    } catch (e) {
+        console.error('❌ Error verificando bucket form-attachments:', e);
+    }
+}
+ensureFormAttachmentsBucket();
+
+// Subir un adjunto de formulario (evidencia, conciliación, etc.)
+app.post('/api/formularios/attachment', upload.single('file'), async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No se recibió ningún archivo' });
+        }
+
+        const formId = req.body.form_id || 'general';
+        const fieldName = req.body.field_name || 'archivo';
+        const entityId = req.body.entity_id || 'sin-entidad';
+        const commitmentId = req.body.commitment_id || 'sin-compromiso';
+
+        const safeName = String(req.file.originalname || 'archivo').replace(/[^\w.\-áéíóúüñÁÉÍÓÚÜÑ() ]/g, '_');
+        const storagePath = `${entityId}/${commitmentId}/${formId}/${fieldName}/${Date.now()}_${safeName}`;
+
+        const { error } = await supabase.storage
+            .from(FORM_ATTACHMENTS_BUCKET)
+            .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
+
+        if (error) {
+            console.error('❌ Error subiendo adjunto a Storage:', error);
+            return res.status(500).json({ success: false, error: 'Error al subir el archivo' });
+        }
+
+        console.log('✅ Adjunto subido:', storagePath);
+        res.json({
+            success: true,
+            path: storagePath,
+            name: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        });
+    } catch (error) {
+        console.error('❌ Error en POST /api/formularios/attachment:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Descargar un adjunto de formulario
+app.get('/api/formularios/attachment', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const filePath = req.query.path;
+        if (!filePath || String(filePath).includes('..')) {
+            return res.status(400).json({ success: false, error: 'Ruta de archivo inválida' });
+        }
+
+        const { data, error } = await supabase.storage
+            .from(FORM_ATTACHMENTS_BUCKET)
+            .download(filePath);
+
+        if (error || !data) {
+            console.error('❌ Error descargando adjunto:', error);
+            return res.status(404).json({ success: false, error: 'Archivo no encontrado' });
+        }
+
+        const downloadName = decodeURIComponent(req.query.name || 'archivo');
+        const buffer = Buffer.from(await data.arrayBuffer());
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
+        res.setHeader('Content-Type', data.type || 'application/octet-stream');
+        res.send(buffer);
+    } catch (error) {
+        console.error('❌ Error en GET /api/formularios/attachment:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
