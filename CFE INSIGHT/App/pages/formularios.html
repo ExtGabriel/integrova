@@ -1923,8 +1923,8 @@
                                             <th style="text-align:left; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Nombre de la cuenta</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Preliminar</th>
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Ajustes</th>
-                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2024 Final</th>
-                                            <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2023 Final</th>
+                                            <th class="js-th-final-current" style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2024 Final</th>
+                                            <th class="js-th-final-previous" style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2023 Final</th>
                                             <th style="text-align:center; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -2060,8 +2060,8 @@
                                         <th>Nombre</th>
                                         <th>Preliminar</th>
                                         <th>Ajustes</th>
-                                        <th>31/12/2024 Final</th>
-                                        <th>31/12/2023 Final</th>
+                                        <th class="js-th-final-current">31/12/2024 Final</th>
+                                        <th class="js-th-final-previous">31/12/2023 Final</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
@@ -2907,6 +2907,7 @@
         // Resuelve el dataset actual para la sección de Ajustes (único requisito
         // para listar y guardar ajustes), sin pasar por "Datos"
         async function resolveAdjustmentsDatasetId() {
+            if (typeof ensurePeriodYearHeaders === 'function') ensurePeriodYearHeaders();
             if (currentDatasetId) return currentDatasetId;
             try {
                 const entityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
@@ -7201,6 +7202,7 @@
             });
 
             tbody.innerHTML = html;
+            ensurePeriodYearHeaders();
         }
 
         // Función de prueba para diagnóstico manual desde consola
@@ -10713,6 +10715,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Invalidar precarga de ajustes del contexto anterior
                 adjustmentsDomPreloadPromise = null;
+
+                // Invalidar años del período detectados (pertenecen al contexto anterior)
+                detectedPeriodYears = null;
+                detectedPeriodYearsKey = null;
                 
                 // Limpiar cache de subdocumentos por contexto
                 if (window.clearSubdocumentContextCache) {
@@ -13686,167 +13692,156 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para mostrar auditor que revisó (Sistema de aprobación)
-        async function showReviewedAuditor(event, formId) {
-            event.stopPropagation();
-
-            // Obtener datos guardados
-            const aprobacion = await window.getFormApprovalsForSection(formId, 'reviewed-by');
-
-            // Crear modal de aprobación
-            const modal = document.createElement('div');
-            modal.className = 'reviewed-modal';
+        // Construye el bloque HTML de una etapa de revisión (preliminar/final)
+        function buildReviewStageHtml(opts) {
+            const { formId, stage, stageLabel, aprobacion, currentUserName, approveFn, resetFn, locked, lockReason } = opts;
 
             if (aprobacion) {
-                // Si ya hay datos aprobados, mostrar la información
                 const dateTime = new Date(aprobacion.timestamp);
-                const formattedDate = dateTime.toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-                const formattedTime = dateTime.toLocaleTimeString('es-ES', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-
-                // Verificar si el usuario actual es quien aprobó
-                const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
-                const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
+                const formattedDate = dateTime.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
                 const isApprover = currentUserName === aprobacion.usuario;
+                const resetButton = isApprover
+                    ? `<button class="btn btn-warning btn-sm" onclick="${resetFn}('${formId}', '${stage}')">Eliminar mi aprobación</button>`
+                    : `<button class="btn btn-secondary btn-sm" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
 
-                let resetButton = '';
-                if (isApprover) {
-                    resetButton = `<button class="btn btn-warning" onclick="resetReviewedBy('${formId}')">Eliminar mi aprobación</button>`;
-                } else {
-                    resetButton = `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
-                }
-
-                modal.innerHTML = `
-                    <div class="reviewed-content">
-                        <div class="reviewed-header">
-                            <h4><i class="bi bi-person-check"></i> Revisado por - ${formId}</h4>
-                            <button class="close-btn" onclick="closeReviewedModal()">&times;</button>
+                return `
+                    <div class="review-stage" style="border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #e0f2fe;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong><i class="bi bi-check-circle-fill" style="color: #0284c7;"></i> ${stageLabel}</strong>
+                            <span style="font-size: 0.75rem; color: #0284c7; font-weight: 600;">APROBADA</span>
                         </div>
-                        <div class="reviewed-body">
-                            <div class="reviewed-info">
-                                <div class="info-row">
-                                    <i class="bi bi-person-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Nombre:</strong> ${aprobacion.usuario}
-                                    </div>
-                                </div>
-                                <div class="info-row">
-                                    <i class="bi bi-calendar-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Fecha:</strong> ${formattedDate}
-                                    </div>
-                                </div>
-                                <div class="info-row">
-                                    <i class="bi bi-clock-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Hora:</strong> ${formattedTime}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="reviewed-actions">
-                                <button class="btn btn-secondary" onclick="closeReviewedModal()">Cerrar</button>
-                                ${resetButton}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Si no hay datos, mostrar modal para añadir aprobación
-                // Obtener usuario actual
-                const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
-                const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
-                
-                modal.innerHTML = `
-                    <div class="reviewed-content">
-                        <div class="reviewed-header">
-                            <h4><i class="bi bi-person-check"></i> Añadir aprobación - ${formId}</h4>
-                            <button class="close-btn" onclick="closeReviewedModal()">&times;</button>
-                        </div>
-                        <div class="reviewed-body">
-                            <div class="approval-form">
-                                <p class="approval-text">¿Desea aprobar este formulario como "Revisado por"?</p>
-                                <div class="approval-user-info">
-                                    <div class="info-row">
-                                        <i class="bi bi-person-fill"></i>
-                                        <div class="info-content">
-                                            <strong>Usted está identificado como:</strong> ${userName}
-                                        </div>
-                                    </div>
-                                    <div class="info-row">
-                                        <i class="bi bi-briefcase-fill"></i>
-                                        <div class="info-content">
-                                            <strong>Posición:</strong> ${userPosition}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="reviewed-actions">
-                                <button class="btn btn-secondary" onclick="closeReviewedModal()">Cancelar</button>
-                                <button class="btn btn-primary" onclick="approveReviewedBy('${formId}')">Aprobar</button>
-                            </div>
-                        </div>
+                        <div class="info-row"><i class="bi bi-person-fill"></i><div class="info-content"><strong>Nombre:</strong> ${aprobacion.usuario}</div></div>
+                        <div class="info-row"><i class="bi bi-calendar-fill"></i><div class="info-content"><strong>Fecha:</strong> ${formattedDate}</div></div>
+                        <div class="info-row"><i class="bi bi-clock-fill"></i><div class="info-content"><strong>Hora:</strong> ${formattedTime}</div></div>
+                        <div style="margin-top: 8px; text-align: right;">${resetButton}</div>
                     </div>
                 `;
             }
-            
-            // Agregar modal al body
-            document.body.appendChild(modal);
-            
-            // Mostrar modal con animación
-            setTimeout(() => {
-                modal.classList.add('show');
-            }, 10);
+
+            if (locked) {
+                return `
+                    <div class="review-stage" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #f9fafb; opacity: 0.7;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong><i class="bi bi-lock-fill" style="color: #9ca3af;"></i> ${stageLabel}</strong>
+                            <span style="font-size: 0.75rem; color: #9ca3af; font-weight: 600;">BLOQUEADA</span>
+                        </div>
+                        <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">${lockReason}</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="review-stage" style="border: 1px solid #e0f2fe; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #f0f9ff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong><i class="bi bi-hourglass-split" style="color: #0ea5e9;"></i> ${stageLabel}</strong>
+                        <span style="font-size: 0.75rem; color: #0ea5e9; font-weight: 600;">PENDIENTE</span>
+                    </div>
+                    <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #6b7280;">Aprobar como: <strong>${currentUserName}</strong></p>
+                    <div style="text-align: right;">
+                        <button class="btn btn-primary btn-sm" onclick="${approveFn}('${formId}', '${stage}')">Aprobar ${stageLabel.toLowerCase()}</button>
+                    </div>
+                </div>
+            `;
         }
-        
-        // Función para aprobar como "Revisado por"
-        async function approveReviewedBy(formId) {
-            // Obtener usuario actual automáticamente
+
+        // Obtiene las aprobaciones de ambas etapas para una sección base
+        async function getTwoStageApprovals(formId, baseSection) {
+            const [preliminar, final] = await Promise.all([
+                window.getFormApprovalsForSection(formId, `${baseSection}-preliminar`),
+                window.getFormApprovalsForSection(formId, `${baseSection}-final`)
+            ]);
+            // Compatibilidad: una aprobación legada sin etapa cuenta como preliminar
+            const legacy = preliminar ? null : await window.getFormApprovalsForSection(formId, baseSection);
+            return { preliminar: preliminar || legacy, final };
+        }
+
+        async function showReviewedAuditor(event, formId) {
+            event.stopPropagation();
+
+            const { preliminar, final } = await getTwoStageApprovals(formId, 'reviewed-by');
+            const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
+            const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
+            const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
+
+            const modal = document.createElement('div');
+            modal.className = 'reviewed-modal';
+            modal.innerHTML = `
+                <div class="reviewed-content">
+                    <div class="reviewed-header">
+                        <h4><i class="bi bi-person-check"></i> Revisado por - ${formId}</h4>
+                        <button class="close-btn" onclick="closeReviewedModal()">&times;</button>
+                    </div>
+                    <div class="reviewed-body">
+                        <div class="approval-user-info" style="margin-bottom: 12px;">
+                            <div class="info-row"><i class="bi bi-person-fill"></i><div class="info-content"><strong>Usted está identificado como:</strong> ${currentUserName}</div></div>
+                            <div class="info-row"><i class="bi bi-briefcase-fill"></i><div class="info-content"><strong>Posición:</strong> ${userPosition}</div></div>
+                        </div>
+                        ${buildReviewStageHtml({
+                            formId, stage: 'preliminar', stageLabel: 'Revisión preliminar',
+                            aprobacion: preliminar, currentUserName,
+                            approveFn: 'approveReviewedByStage', resetFn: 'resetReviewedByStage'
+                        })}
+                        ${buildReviewStageHtml({
+                            formId, stage: 'final', stageLabel: 'Revisión final',
+                            aprobacion: final, currentUserName,
+                            approveFn: 'approveReviewedByStage', resetFn: 'resetReviewedByStage',
+                            locked: !preliminar,
+                            lockReason: 'Primero debe completarse la revisión preliminar.'
+                        })}
+                        <div class="reviewed-actions">
+                            <button class="btn btn-secondary" onclick="closeReviewedModal()">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        // Aprueba una etapa de "Revisado por" (preliminar | final)
+        async function approveReviewedByStage(formId, stage) {
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
-            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
 
-            await window.saveApprovalForSection(formId, 'reviewed-by', 'approved', {
+            await window.saveApprovalForSection(formId, `reviewed-by-${stage}`, 'approved', {
                 user_name: userName,
                 role: userPosition,
-                comments: JSON.stringify({ position: userPosition })
+                comments: JSON.stringify({ position: userPosition, stage })
             });
 
-            const aprobacion = await window.getFormApprovalsForSection(formId, 'reviewed-by');
-
-            showNotification(`Formulario ${formId} aprobado por ${aprobacion.usuario}`, 'success');
+            showNotification(`${formId}: revisión ${stage} aprobada por ${userName}`, 'success');
             closeReviewedModal();
-
-            // Actualizar el botón para mostrar que está aprobado
-            updateReviewedButton(formId, aprobacion);
-        }
-        
-        // Función para reiniciar aprobación de "Revisado por"
-        async function resetReviewedBy(formId) {
-            await window.removeApprovalForSection(formId, 'reviewed-by');
-            showNotification(`Su aprobación de ${formId} ha sido eliminada`, 'info');
-            closeReviewedModal();
-            updateReviewedButton(formId, null);
+            showReviewedAuditor({ stopPropagation() {} }, formId);
+            updateReviewedButtonState(formId);
         }
 
-        // Función para actualizar el botón de "Revisado por"
-        function updateReviewedButton(formId, data) {
+        // Elimina la aprobación del usuario actual en una etapa de "Revisado por"
+        async function resetReviewedByStage(formId, stage) {
+            await window.removeApprovalForSection(formId, `reviewed-by-${stage}`);
+            showNotification(`Su aprobación de revisión ${stage} en ${formId} ha sido eliminada`, 'info');
+            closeReviewedModal();
+            showReviewedAuditor({ stopPropagation() {} }, formId);
+            updateReviewedButtonState(formId);
+        }
+
+        // Actualiza el estado visual del botón según las dos etapas
+        async function updateReviewedButtonState(formId) {
+            const { preliminar, final } = await getTwoStageApprovals(formId, 'reviewed-by');
             const button = document.querySelector(`.reviewed-btn[onclick="showReviewedAuditor(event, '${formId}')"]`);
-            if (button) {
-                if (data) {
-                    button.classList.add('approved');
-                    button.title = `Revisado por: ${data.usuario || data.name}`;
-                } else {
-                    button.classList.remove('approved');
-                    button.title = 'Revisado por';
-                }
+            if (!button) return;
+
+            button.classList.remove('approved', 'partial-approved');
+            if (final) {
+                button.classList.add('approved');
+                button.title = `Revisión final por: ${final.usuario}`;
+            } else if (preliminar) {
+                button.classList.add('partial-approved');
+                button.title = `Revisión preliminar por: ${preliminar.usuario} (falta revisión final)`;
+            } else {
+                button.title = 'Revisado por';
             }
         }
 
@@ -14052,164 +14047,89 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         async function showPartner(event, formId) {
             event.stopPropagation();
 
-            // Obtener datos guardados
-            const aprobacion = await window.getFormApprovalsForSection(formId, 'partner');
+            const { preliminar, final } = await getTwoStageApprovals(formId, 'partner');
+            const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
+            const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
+            const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
 
-            // Crear modal de aprobación
             const modal = document.createElement('div');
             modal.className = 'partner-modal';
-
-            if (aprobacion) {
-                // Si ya hay datos aprobados, mostrar la información
-                const dateTime = new Date(aprobacion.timestamp);
-                const formattedDate = dateTime.toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-                const formattedTime = dateTime.toLocaleTimeString('es-ES', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-
-                // Verificar si el usuario actual es quien aprobó
-                const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
-                const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const isApprover = currentUserName === aprobacion.usuario;
-
-                let resetButton = '';
-                if (isApprover) {
-                    resetButton = `<button class="btn btn-warning" onclick="resetPartner('${formId}')">Eliminar mi aprobación</button>`;
-                } else {
-                    resetButton = `<button class="btn btn-secondary" disabled title="Solo el aprobador puede eliminar">No puede eliminar</button>`;
-                }
-
-                modal.innerHTML = `
-                    <div class="partner-content">
-                        <div class="partner-header">
-                            <h4><i class="bi bi-person-badge"></i> Socio - ${formId}</h4>
-                            <button class="close-btn" onclick="closePartnerModal()">&times;</button>
+            modal.innerHTML = `
+                <div class="partner-content">
+                    <div class="partner-header">
+                        <h4><i class="bi bi-person-badge"></i> Socio - ${formId}</h4>
+                        <button class="close-btn" onclick="closePartnerModal()">&times;</button>
+                    </div>
+                    <div class="partner-body">
+                        <div class="approval-user-info" style="margin-bottom: 12px;">
+                            <div class="info-row"><i class="bi bi-person-fill"></i><div class="info-content"><strong>Usted está identificado como:</strong> ${currentUserName}</div></div>
+                            <div class="info-row"><i class="bi bi-briefcase-fill"></i><div class="info-content"><strong>Posición:</strong> ${userPosition}</div></div>
                         </div>
-                        <div class="partner-body">
-                            <div class="partner-info">
-                                <div class="info-row">
-                                    <i class="bi bi-person-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Nombre:</strong> ${aprobacion.usuario}
-                                    </div>
-                                </div>
-                                <div class="info-row">
-                                    <i class="bi bi-calendar-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Fecha:</strong> ${formattedDate}
-                                    </div>
-                                </div>
-                                <div class="info-row">
-                                    <i class="bi bi-clock-fill"></i>
-                                    <div class="info-content">
-                                        <strong>Hora:</strong> ${formattedTime}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="partner-actions">
-                                <button class="btn btn-secondary" onclick="closePartnerModal()">Cerrar</button>
-                                ${resetButton}
-                            </div>
+                        ${buildReviewStageHtml({
+                            formId, stage: 'preliminar', stageLabel: 'Revisión preliminar',
+                            aprobacion: preliminar, currentUserName,
+                            approveFn: 'approvePartnerStage', resetFn: 'resetPartnerStage'
+                        })}
+                        ${buildReviewStageHtml({
+                            formId, stage: 'final', stageLabel: 'Revisión final',
+                            aprobacion: final, currentUserName,
+                            approveFn: 'approvePartnerStage', resetFn: 'resetPartnerStage',
+                            locked: !preliminar,
+                            lockReason: 'Primero debe completarse la revisión preliminar.'
+                        })}
+                        <div class="partner-actions">
+                            <button class="btn btn-secondary" onclick="closePartnerModal()">Cerrar</button>
                         </div>
                     </div>
-                `;
-            } else {
-                // Si no hay datos, mostrar modal para añadir aprobación
-                // Obtener usuario actual
-                const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
-                const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
-                const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
-                
-                modal.innerHTML = `
-                    <div class="partner-content">
-                        <div class="partner-header">
-                            <h4><i class="bi bi-person-badge"></i> Añadir aprobación - ${formId}</h4>
-                            <button class="close-btn" onclick="closePartnerModal()">&times;</button>
-                        </div>
-                        <div class="partner-body">
-                            <div class="approval-form">
-                                <p class="approval-text">¿Desea aprobar este formulario como "Socio"?</p>
-                                <div class="approval-user-info">
-                                    <div class="info-row">
-                                        <i class="bi bi-person-fill"></i>
-                                        <div class="info-content">
-                                            <strong>Usted está identificado como:</strong> ${userName}
-                                        </div>
-                                    </div>
-                                    <div class="info-row">
-                                        <i class="bi bi-briefcase-fill"></i>
-                                        <div class="info-content">
-                                            <strong>Posición:</strong> ${userPosition}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="partner-actions">
-                                <button class="btn btn-secondary" onclick="closePartnerModal()">Cancelar</button>
-                                <button class="btn btn-primary" onclick="approvePartner('${formId}')">Aprobar</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Agregar modal al body
+                </div>
+            `;
+
             document.body.appendChild(modal);
-            
-            // Mostrar modal con animación
-            setTimeout(() => {
-                modal.classList.add('show');
-            }, 10);
+            setTimeout(() => modal.classList.add('show'), 10);
         }
-        
-        // Función para aprobar como "Socio"
-        async function approvePartner(formId) {
-            // Obtener usuario actual automáticamente
+
+        // Aprueba una etapa de "Socio" (preliminar | final)
+        async function approvePartnerStage(formId, stage) {
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
-            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
 
-            await window.saveApprovalForSection(formId, 'partner', 'approved', {
+            await window.saveApprovalForSection(formId, `partner-${stage}`, 'approved', {
                 user_name: userName,
                 role: userPosition,
-                comments: JSON.stringify({ position: userPosition })
+                comments: JSON.stringify({ position: userPosition, stage })
             });
 
-            const aprobacion = await window.getFormApprovalsForSection(formId, 'partner');
-
-            showNotification(`Formulario ${formId} aprobado por socio ${aprobacion.usuario}`, 'success');
+            showNotification(`${formId}: revisión ${stage} de socio aprobada por ${userName}`, 'success');
             closePartnerModal();
-
-            // Actualizar el botón para mostrar que está aprobado
-            updatePartnerButton(formId, aprobacion);
-        }
-        
-        // Función para reiniciar aprobación de "Socio"
-        async function resetPartner(formId) {
-            await window.removeApprovalForSection(formId, 'partner');
-            showNotification(`Su aprobación de ${formId} ha sido eliminada`, 'info');
-            closePartnerModal();
-            updatePartnerButton(formId, null);
+            showPartner({ stopPropagation() {} }, formId);
+            updatePartnerButtonState(formId);
         }
 
-        // Función para actualizar el botón de "Socio"
-        function updatePartnerButton(formId, data) {
+        // Elimina la aprobación del usuario actual en una etapa de "Socio"
+        async function resetPartnerStage(formId, stage) {
+            await window.removeApprovalForSection(formId, `partner-${stage}`);
+            showNotification(`Su aprobación de revisión ${stage} en ${formId} ha sido eliminada`, 'info');
+            closePartnerModal();
+            showPartner({ stopPropagation() {} }, formId);
+            updatePartnerButtonState(formId);
+        }
+
+        // Actualiza el estado visual del botón según las dos etapas
+        async function updatePartnerButtonState(formId) {
+            const { preliminar, final } = await getTwoStageApprovals(formId, 'partner');
             const button = document.querySelector(`.partner-btn[onclick="showPartner(event, '${formId}')"]`);
-            if (button) {
-                if (data) {
-                    button.classList.add('approved');
-                    button.title = `Socio: ${data.usuario || data.name}`;
-                } else {
-                    button.classList.remove('approved');
-                    button.title = 'Socio';
-                }
+            if (!button) return;
+
+            button.classList.remove('approved', 'partial-approved');
+            if (final) {
+                button.classList.add('approved');
+                button.title = `Revisión final por socio: ${final.usuario}`;
+            } else if (preliminar) {
+                button.classList.add('partial-approved');
+                button.title = `Revisión preliminar por: ${preliminar.usuario} (falta revisión final)`;
+            } else {
+                button.title = 'Socio';
             }
         }
 
@@ -27431,6 +27351,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             
                             const years = extractYearsFromHeaders(headers);
                             console.log('📅 Años extraídos:', years);
+                            detectedPeriodYears = years;
+                            detectedPeriodYearsKey = `${entityId || ''}|${commitmentId || ''}`;
+                            applyPeriodYearHeaders(years);
                             
                             // Mostrar siempre los resultados
                             document.getElementById('previousYearDisplay').textContent = years.previous || 'No detectado';
@@ -27562,6 +27485,74 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
             
             return years;
+        }
+
+        // Años del período detectados en el Excel (cache por dataset)
+        let detectedPeriodYears = null;
+        let detectedPeriodYearsKey = null;
+
+        // Escribe "31/12/YYYY Final" en todos los headers marcados
+        // (.js-th-final-current / .js-th-final-previous) con los años detectados.
+        function applyPeriodYearHeaders(years) {
+            if (!years || !years.current) return;
+            const currentLabel = `31/12/${years.current} Final`;
+            const previousLabel = years.previous ? `31/12/${years.previous} Final` : '';
+            document.querySelectorAll('.js-th-final-current').forEach(th => { th.textContent = currentLabel; });
+            if (previousLabel) {
+                document.querySelectorAll('.js-th-final-previous').forEach(th => { th.textContent = previousLabel; });
+            }
+        }
+
+        // Resuelve los años del Excel activo (una sola vez por contexto) y los
+        // aplica a los encabezados de las tablas Cuentas y Grupos Financieros.
+        async function ensurePeriodYearHeaders() {
+            try {
+                const entityId = commitmentDropdownState?.currentEntityId || null;
+                const commitmentId = commitmentDropdownState?.selectedCommitmentId || null;
+                const cacheKey = `${entityId || ''}|${commitmentId || ''}`;
+
+                if (detectedPeriodYears && detectedPeriodYearsKey === cacheKey) {
+                    applyPeriodYearHeaders(detectedPeriodYears);
+                    return;
+                }
+
+                let url = `${getApiBaseUrl()}/api/excel/latest`;
+                const params = new URLSearchParams();
+                if (entityId) params.append('entity_id', entityId);
+                if (commitmentId) params.append('commitment_id', commitmentId);
+                if (params.toString()) url += `?${params.toString()}`;
+
+                const resp = await fetch(url, { headers: { 'user-id': getCurrentUserId() } });
+                const result = await resp.json();
+                const sheetsData = result?.data?.sheets_data;
+                if (!resp.ok || !result?.success || !Array.isArray(sheetsData) || !sheetsData.length) return;
+
+                const mainSheet = sheetsData.find(s => s.name && !s.name.toLowerCase().includes('libro')) || sheetsData[0];
+                if (!mainSheet?.data?.length) return;
+
+                // Localizar la fila de encabezados (misma lógica que updateYearsDisplay)
+                let headers = mainSheet.data[0];
+                const hasStringHeaders = Array.isArray(headers) && headers.some(h => typeof h === 'string' && h.length > 0);
+                if (!hasStringHeaders) {
+                    for (let i = 1; i < Math.min(10, mainSheet.data.length); i++) {
+                        const row = mainSheet.data[i];
+                        if (Array.isArray(row) && row.some(cell => /\d{1,2}\/\d{1,2}\/20\d{2}/.test(String(cell || '')))) {
+                            headers = row;
+                            break;
+                        }
+                    }
+                }
+                if (!Array.isArray(headers)) return;
+
+                const years = extractYearsFromHeaders(headers);
+                if (!years.current) return;
+
+                detectedPeriodYears = years;
+                detectedPeriodYearsKey = cacheKey;
+                applyPeriodYearHeaders(years);
+            } catch (e) {
+                console.warn('⚠️ No se pudieron detectar los años del período:', e);
+            }
         }
 
         function renderUnassignedAccounts(accounts) {
