@@ -3040,22 +3040,45 @@
             });
         }
 
-        function classifyActivoType(code) {
-            const codeStr = String(code || '').trim();
-            // Códigos como 1.1.01, 1.1, 1.1.010 o segmentos con .1 y .2
-            const segments = codeStr.split('.');
+        // Clasificación corriente / no corriente del catálogo del BG.
+        // Patrimonio y Resultados no se clasifican.
+        const BG_CORRIENTE_CODES = new Set([
+            '110', '110.1', '115', '130', '130.1', '135', '135.1', '136', '136.1',
+            '137', '137.1', '140', '150', '180', '180.1',
+            '310', '330', '330.1', '335', '335.1', '336', '336.1', '400', '400.1',
+            '425', '425.1', '426', '426.1', '430', '430.1', '440', '440.1'
+        ]);
+        const BG_NO_CORRIENTE_CODES = new Set([
+            '110.2', '120.2', '130.2', '135.2', '136.2', '137.2', '160.2', '165.2',
+            '170.2', '175.2', '180.2', '190.2', '195.2',
+            '300.2', '325.2', '330.2', '335.2', '336.2', '400.2',
+            '425.2', '426.2', '430.2', '440.2'
+        ]);
+        const BG_PATRIMONIO_CODES = new Set(['200', '201', '202', '203', '204', '205', '206']);
+        const BG_PATRIMONIO_KEYWORDS = ['patrimonio', 'capital autorizado', 'reserva legal', 'aportes por capitalizar', 'resultados acumulados', 'superávit', 'superavit', 'efecto por conversión'];
 
-            if (segments.length >= 2) {
-                const secondSegment = segments[1];
-                if (secondSegment === '1') return 'corriente';
-                if (secondSegment === '2') return 'no_corriente';
+        function classifyBgCurrentType(row) {
+            const code = String(row.accountCode || '').trim();
+            const name = String(row.accountName || '').toLowerCase();
+
+            // Patrimonio: no se clasifica en corriente / no corriente
+            if (BG_PATRIMONIO_CODES.has(code) || BG_PATRIMONIO_KEYWORDS.some(k => name.includes(k))) {
+                return 'patrimonio';
             }
 
-            // Fallback: 11xx corriente, 12/13/14/15xx no corriente
-            if (codeStr.length >= 2) {
-                const secondDigit = codeStr.charAt(1);
-                if (secondDigit === '1') return 'corriente';
-                if (['2', '3', '4', '5'].includes(secondDigit)) return 'no_corriente';
+            // El sufijo del nombre manda ("... - No corriente" / "... - Corriente")
+            if (name.includes('no corriente')) return 'no_corriente';
+            if (name.includes('corriente')) return 'corriente';
+
+            // Luego el mapeo explícito por código del catálogo
+            if (BG_CORRIENTE_CODES.has(code)) return 'corriente';
+            if (BG_NO_CORRIENTE_CODES.has(code)) return 'no_corriente';
+
+            // Fallback: segundo segmento .1 / .2 del código
+            const segments = code.split('.');
+            if (segments.length >= 2) {
+                if (segments[1] === '1') return 'corriente';
+                if (segments[1] === '2') return 'no_corriente';
             }
 
             return 'corriente';
@@ -3149,7 +3172,16 @@
 
         function generateBgTableBody(filteredRows, bgType) {
             bgChildSeq = 0;
-            if (bgType !== 'activo') {
+
+            const accumRow = (totals, row) => {
+                const values = sumRowValues(row);
+                totals.preliminary += values.preliminary;
+                totals.adjustments += values.adjustments;
+                totals.finalCurrent += values.finalCurrent;
+                totals.finalPrevious += values.finalPrevious;
+            };
+
+            if (bgType !== 'activo' && bgType !== 'pasivo') {
                 let totalPreliminary = 0;
                 let totalAdjustments = 0;
                 let totalFinalCurrent = 0;
@@ -3169,55 +3201,64 @@
 
             const corrienteRows = [];
             const noCorrienteRows = [];
+            const patrimonioRows = [];
 
             filteredRows.forEach(row => {
-                const type = classifyActivoType(row.accountCode);
-                if (type === 'corriente') {
-                    corrienteRows.push(row);
-                } else {
+                const type = classifyBgCurrentType(row);
+                if (type === 'patrimonio') {
+                    patrimonioRows.push(row);
+                } else if (type === 'no_corriente') {
                     noCorrienteRows.push(row);
+                } else {
+                    corrienteRows.push(row);
                 }
             });
 
+            const prefix = bgType === 'activo' ? 'ACTIVO' : 'PASIVO';
             const corrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
             const noCorrienteTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
+            const patrimonioTotals = { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 };
 
             let bodyHtml = '';
 
             if (corrienteRows.length > 0) {
                 bodyHtml += `<tr style="font-weight: 600;">
-                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO CORRIENTE</td>
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">${prefix} CORRIENTE</td>
                 </tr>`;
                 corrienteRows.forEach(row => {
-                    const values = sumRowValues(row);
-                    corrienteTotals.preliminary += values.preliminary;
-                    corrienteTotals.adjustments += values.adjustments;
-                    corrienteTotals.finalCurrent += values.finalCurrent;
-                    corrienteTotals.finalPrevious += values.finalPrevious;
+                    accumRow(corrienteTotals, row);
                     bodyHtml += buildRowWithChildrenHtml(row, bgType);
                 });
-                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO CORRIENTE', corrienteTotals, true, false);
+                bodyHtml += buildSubtotalHtml(`TOTAL ${prefix} CORRIENTE`, corrienteTotals, true, false);
             }
 
             if (noCorrienteRows.length > 0) {
                 bodyHtml += `<tr style="font-weight: 600;">
-                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">ACTIVO NO CORRIENTE</td>
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">${prefix} NO CORRIENTE</td>
                 </tr>`;
                 noCorrienteRows.forEach(row => {
-                    const values = sumRowValues(row);
-                    noCorrienteTotals.preliminary += values.preliminary;
-                    noCorrienteTotals.adjustments += values.adjustments;
-                    noCorrienteTotals.finalCurrent += values.finalCurrent;
-                    noCorrienteTotals.finalPrevious += values.finalPrevious;
+                    accumRow(noCorrienteTotals, row);
                     bodyHtml += buildRowWithChildrenHtml(row, bgType);
                 });
-                bodyHtml += buildSubtotalHtml('TOTAL ACTIVO NO CORRIENTE', noCorrienteTotals, true, true);
+                bodyHtml += buildSubtotalHtml(`TOTAL ${prefix} NO CORRIENTE`, noCorrienteTotals, true, true);
             }
 
-            const totalPreliminary = corrienteTotals.preliminary + noCorrienteTotals.preliminary;
-            const totalAdjustments = corrienteTotals.adjustments + noCorrienteTotals.adjustments;
-            const totalFinalCurrent = corrienteTotals.finalCurrent + noCorrienteTotals.finalCurrent;
-            const totalFinalPrevious = corrienteTotals.finalPrevious + noCorrienteTotals.finalPrevious;
+            // Patrimonio no se clasifica en corriente / no corriente: bloque propio
+            if (patrimonioRows.length > 0) {
+                bodyHtml += `<tr style="font-weight: 600;">
+                    <td class="col-description" colspan="9" style="text-align: left; padding: 10px 8px;">PATRIMONIO</td>
+                </tr>`;
+                patrimonioRows.forEach(row => {
+                    accumRow(patrimonioTotals, row);
+                    bodyHtml += buildRowWithChildrenHtml(row, bgType);
+                });
+                bodyHtml += buildSubtotalHtml('TOTAL PATRIMONIO', patrimonioTotals, true, true);
+            }
+
+            const totalPreliminary = corrienteTotals.preliminary + noCorrienteTotals.preliminary + patrimonioTotals.preliminary;
+            const totalAdjustments = corrienteTotals.adjustments + noCorrienteTotals.adjustments + patrimonioTotals.adjustments;
+            const totalFinalCurrent = corrienteTotals.finalCurrent + noCorrienteTotals.finalCurrent + patrimonioTotals.finalCurrent;
+            const totalFinalPrevious = corrienteTotals.finalPrevious + noCorrienteTotals.finalPrevious + patrimonioTotals.finalPrevious;
 
             return { bodyHtml, totalPreliminary, totalAdjustments, totalFinalCurrent, totalFinalPrevious };
         }
