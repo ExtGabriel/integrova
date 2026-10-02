@@ -14226,10 +14226,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para mostrar el formulario Cédula de hallazgo
         function mostrarFormularioCedulaHallazgo() {
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) document.body.removeChild(modalExistente);
+            const abierto = document.querySelector('.cedula-hallazgo-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar la cédula
+            suspenderFormularioModal();
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal cedula-hallazgo-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
@@ -14424,13 +14428,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario Cédula de hallazgo
         function cerrarFormularioCedulaHallazgo() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.cedula-hallazgo-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario Cédula de hallazgo
@@ -14441,10 +14446,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario Minuta
         function mostrarFormularioMinuta() {
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) document.body.removeChild(modalExistente);
+            const abierto = document.querySelector('.minuta-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar la minuta
+            suspenderFormularioModal();
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal minuta-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
                     <div class='formulario-header'>
@@ -14736,13 +14745,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario Minuta
         function cerrarFormularioMinuta() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.minuta-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario Minuta
@@ -14935,7 +14945,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <button type='button' onclick='toggleTooltip("cgg_q1_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
                                             <i class='bi bi-lightbulb'></i>
                                         </button>
-                                        <button type='button' onclick='cerrarFormularioComunicacionesGerenciaGobierno(); setTimeout(() => mostrarFormularioCedulaHallazgo(), 350);' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Cédula de hallazgo'>
+                                        <button type='button' onclick='mostrarFormularioCedulaHallazgo()' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Cédula de hallazgo'>
                                             <i class='bi bi-link-45deg'></i>
                                         </button>
                                     </div>
@@ -14958,7 +14968,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <button type='button' onclick='toggleTooltip("cgg_q2_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
                                             <i class='bi bi-lightbulb'></i>
                                         </button>
-                                        <button type='button' onclick='cerrarFormularioComunicacionesGerenciaGobierno(); setTimeout(() => mostrarFormularioMinuta(), 350);' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Minuta'>
+                                        <button type='button' onclick='mostrarFormularioMinuta()' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Minuta'>
                                             <i class='bi bi-link-45deg'></i>
                                         </button>
                                     </div>
@@ -15050,7 +15060,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         <button type='button' onclick='toggleTooltip("cgg_q6_help")' style='background: none; border: none; color: #FFC107; cursor: pointer; padding: 0; font-size: 1rem;' title='Mostrar ayuda'>
                                             <i class='bi bi-lightbulb'></i>
                                         </button>
-                                        <button type='button' onclick='cerrarFormularioComunicacionesGerenciaGobierno(); setTimeout(() => mostrarFormularioMinuta(), 350);' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Minuta'>
+                                        <button type='button' onclick='mostrarFormularioMinuta()' style='background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 1rem;' title='Abrir Minuta'>
                                             <i class='bi bi-link-45deg'></i>
                                         </button>
                                     </div>
@@ -20197,16 +20207,32 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => cargarAprobacionesA400(), 100);
         }
 
+        // ===== Helpers para modales suspendidos (pila) =====
+        // Permite abrir un modal encima de otro sin destruirlo: se oculta
+        // y queda apilado para restaurarse al cerrar el de arriba.
+        function suspenderFormularioModal() {
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
+            if (!modal) return;
+            modal.classList.add('modal-suspended');
+            modal.style.display = 'none';
+            window.__suspendedFormularioModals = window.__suspendedFormularioModals || [];
+            window.__suspendedFormularioModals.push(modal);
+        }
+
+        function restaurarFormularioSuspendido() {
+            const stack = window.__suspendedFormularioModals;
+            const suspended = stack && stack.pop();
+            if (suspended) {
+                suspended.style.display = '';
+                suspended.classList.remove('modal-suspended');
+            }
+        }
+
         // Función para abrir la Carta de Independencia del Equipo de Compromiso
         async function abrirCartaIndependencia() {
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                // Suspender el formulario abierto en lugar de eliminarlo,
-                // para restaurarlo al cerrar la carta
-                modalExistente.classList.add('modal-suspended');
-                modalExistente.style.display = 'none';
-                window.__suspendedFormularioModal = modalExistente;
-            }
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar la carta
+            suspenderFormularioModal();
 
             const modal = document.createElement('div');
             modal.className = 'formulario-modal carta-modal-overlay';
@@ -20473,12 +20499,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     document.body.removeChild(modal);
 
                     // Restaurar el formulario que quedó suspendido debajo
-                    const suspended = window.__suspendedFormularioModal;
-                    if (suspended) {
-                        suspended.style.display = '';
-                        suspended.classList.remove('modal-suspended');
-                        window.__suspendedFormularioModal = null;
-                    }
+                    restaurarFormularioSuspendido();
                 }, 300);
             }
         }
@@ -20655,12 +20676,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 
         // Función para mostrar el formulario A200
         function mostrarFormularioA200() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
-            
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.getElementById('a200-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
+
             // Crear el modal del formulario
             const modal = document.createElement('div');
             modal.id = 'a200-modal';
@@ -21233,13 +21256,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para cerrar el formulario A200
         function cerrarFormularioA200() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.getElementById('a200-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para aprobar / deshacer aprobación de secciones del formulario A200
@@ -21660,6 +21683,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
         
         // Función para cargar aprobaciones guardadas del formulario Comprensión de la entidad
+        function cerrarFormularioA400ComprensionEntidad() {
+            const modal = document.querySelector('.a400-comprension-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
+        }
+
         async function cargarAprobacionesComprensionEntidad() {
             try {
                 const divs = document.querySelectorAll('[id^="aprobado-"]');
@@ -22198,15 +22231,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario A300
         function mostrarFormularioA300() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.a300-form-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
             
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a300-form-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -23170,15 +23205,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para cerrar el formulario A300
         function cerrarFormularioA300() {
-            const modal = document.querySelector('.formulario-modal:not(.matriz-modal-overlay):not(.modal-suspended)')
-                || document.querySelector('.formulario-modal:not(.modal-suspended)')
-                || document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.a300-form-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para cerrar solo la matriz de riesgos, restaurando
@@ -23190,12 +23223,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 if (modal.parentNode) document.body.removeChild(modal);
 
-                const suspended = window.__suspendedFormularioModal;
-                if (suspended) {
-                    suspended.style.display = '';
-                    suspended.classList.remove('modal-suspended');
-                    window.__suspendedFormularioModal = null;
-                }
+                restaurarFormularioSuspendido();
             }, 300);
         }
         
@@ -23209,12 +23237,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Suspender el formulario abierto en lugar de eliminarlo,
             // para restaurarlo al cerrar la matriz
-            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
-            if (modalExistente) {
-                modalExistente.classList.add('modal-suspended');
-                modalExistente.style.display = 'none';
-                window.__suspendedFormularioModal = modalExistente;
-            }
+            suspenderFormularioModal();
 
             // Crear el modal de la matriz
             const modal = document.createElement('div');
@@ -32261,15 +32284,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario A400
         function mostrarFormularioA400() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno de la familia A400 abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.a400-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
 
             // Crear el modal
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a400-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -32595,13 +32620,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario A400
         function cerrarFormularioA400() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.a400-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para cargar las respuestas guardadas del A400
@@ -32662,15 +32687,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario A400 Tabla (Partes relacionadas)
         function mostrarFormularioA400Tabla() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno de la familia A400 abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.a400-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo
+            suspenderFormularioModal();
 
             // Crear el modal de la tabla
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a400-modal';
             modal.innerHTML = `
                 <style>
                     .a400-tabla-container {
@@ -33098,15 +33124,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Comprensión de la entidad y su ambiente
         function mostrarFormularioA400ComprensionEntidad() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.a400-comprension-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a400-comprension-modal';
             modal.innerHTML = `
                 <style>
                     .a400-comprension-container {
@@ -33220,7 +33248,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <h2 style="color: white; margin: 0;">Comprensión de la entidad y su ambiente</h2>
                             </div>
                         </div>
-                        <button class="close-formulario" onclick="cerrarFormularioA400()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                        <button class="close-formulario" onclick="cerrarFormularioA400ComprensionEntidad()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -33967,15 +33995,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Comprensión de los controles de la entidad
         function mostrarFormularioControlesEntidad() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.controles-entidad-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal controles-entidad-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -34179,13 +34209,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Comprensión de los controles de la entidad
         function cerrarFormularioControlesEntidad() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.controles-entidad-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario de Comprensión de los controles de la entidad
@@ -35479,15 +35509,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Evaluación de riesgos de incorrección material
         function mostrarFormularioEvaluacionRiesgosIncorreccion() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.erim-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal erim-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -36209,13 +36241,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Evaluación de riesgos de incorrección material
         function cerrarFormularioEvaluacionRiesgosIncorreccion() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.erim-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario de Evaluación de riesgos de incorrección material
@@ -39700,15 +39732,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Cambios de materialidad
         function mostrarFormularioCambiosMaterialidad() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.cambios-materialidad-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este modal
+            suspenderFormularioModal();
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal cambios-materialidad-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -39941,13 +39975,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Cambios de materialidad
         function cerrarFormularioCambiosMaterialidad() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.cambios-materialidad-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario de Cambios de materialidad
@@ -40086,15 +40121,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Resumen de incorrecciones
         function mostrarFormularioResumenIncorrecciones() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.resumen-incorrecciones-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este modal
+            suspenderFormularioModal();
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal resumen-incorrecciones-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -40445,13 +40482,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Resumen de incorrecciones
         function cerrarFormularioResumenIncorrecciones() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.resumen-incorrecciones-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para guardar el formulario de Resumen de incorrecciones
@@ -42847,15 +42885,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario A500
         function mostrarFormularioA500() {
-            // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
-            if (modalExistente) {
-                document.body.removeChild(modalExistente);
-            }
+            // Si ya hay uno abierto, quitarlo para reabrirlo limpio
+            const abierto = document.querySelector('.a500-modal');
+            if (abierto) document.body.removeChild(abierto);
+
+            // Suspender el formulario abierto en lugar de eliminarlo,
+            // para restaurarlo al cerrar este formulario
+            suspenderFormularioModal();
 
             // Crear el modal
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a500-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -43095,13 +43135,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario A500
         function cerrarFormularioA500() {
-            const modal = document.querySelector('.formulario-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            }
+            const modal = document.querySelector('.a500-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para agregar usuario
