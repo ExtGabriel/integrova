@@ -8748,24 +8748,50 @@
 
             // Cargar historial de datasets automáticamente
             loadDatasetHistory();
-            
-            // Cargar subcategorías existentes
-            setTimeout(() => {
-                if (window.subcategoriasManager) {
-                    console.log('🚀 Iniciando carga de subcategorías existentes...');
-                    loadExistingSubcategories();
-                } else {
-                    console.warn('⚠️ subcategoriasManager no disponible aún');
-                    // Reintentar después
-                    setTimeout(() => {
-                        if (window.subcategoriasManager) {
-                            loadExistingSubcategories();
-                        } else {
-                            console.error('❌ subcategoriasManager no disponible después de reintentar');
+
+            // Cargar subcategorías existentes en cuanto la sesión esté lista
+            // (sin timeout fijo: esperar la promesa currentUserReady de auth-guard.js)
+            (async () => {
+                try {
+                    if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
+                        await window.currentUserReady.catch(err => {
+                            console.warn('⚠️ currentUserReady rechazado:', err?.message || err);
+                        });
+                    }
+
+                    // Esperar a que subcategoriasManager exista (hasta ~10s)
+                    let attempts = 0;
+                    while (!window.subcategoriasManager && attempts < 100) {
+                        await new Promise(r => setTimeout(r, 100));
+                        attempts++;
+                    }
+
+                    if (window.subcategoriasManager) {
+                        // Si hay un compromiso guardado pendiente de restaurar,
+                        // esperar a que se aplique (hasta 12s) para evitar una
+                        // doble carga: sin contexto y luego con contexto
+                        try {
+                            const savedSel = JSON.parse(localStorage.getItem('formularios_entity_selections') || '{}');
+                            if (savedSel?.compromiso?.id) {
+                                let waited = 0;
+                                while (!window.commitmentDropdownState?.selectedCommitmentId && waited < 12000) {
+                                    await new Promise(r => setTimeout(r, 150));
+                                    waited += 150;
+                                }
+                            }
+                        } catch (selErr) {
+                            console.warn('⚠️ No se pudo leer el compromiso guardado:', selErr);
                         }
-                    }, 1000);
+
+                        console.log('🚀 Iniciando carga de subcategorías existentes...');
+                        loadExistingSubcategories();
+                    } else {
+                        console.error('❌ subcategoriasManager no disponible');
+                    }
+                } catch (initErr) {
+                    console.error('❌ Error esperando inicialización para cargar subcategorías:', initErr);
                 }
-            }, 1500); // Aumentar a 1.5 segundos para dar más tiempo a la inicialización
+            })();
             
             // Intentar cargar desde API (opcional)
             setTimeout(() => {
@@ -8780,7 +8806,49 @@
         // ==========================================
 
         // Función para cargar todas las subcategorías existentes al iniciar la página
+        // Guardia anti-reentrada: si se llama mientras ya corre (p.ej. al restaurar
+        // el compromiso guardado), se re-ejecuta una sola vez al terminar
+        let subcategoriesLoadPromise = null;
+        let subcategoriesLoadDirty = false;
+        let lastSubcategoriesContextKey = null;
+
+        function getSubcategoriesContextKey() {
+            const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+            const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+            return `${entityId}|${commitmentId}`;
+        }
+
         async function loadExistingSubcategories() {
+            // Si el contexto entidad+compromiso no cambió desde la última
+            // carga completada, no hay nada nuevo que recargar
+            if (!subcategoriesLoadPromise &&
+                lastSubcategoriesContextKey &&
+                getSubcategoriesContextKey() === lastSubcategoriesContextKey) {
+                console.log('⏭️ Contexto sin cambios, se omite recarga de subcategorías');
+                return;
+            }
+
+            if (subcategoriesLoadPromise) {
+                subcategoriesLoadDirty = true;
+                return subcategoriesLoadPromise;
+            }
+
+            subcategoriesLoadPromise = (async () => {
+                try {
+                    do {
+                        subcategoriesLoadDirty = false;
+                        await loadExistingSubcategoriesOnce();
+                        lastSubcategoriesContextKey = getSubcategoriesContextKey();
+                    } while (subcategoriesLoadDirty);
+                } finally {
+                    subcategoriesLoadPromise = null;
+                }
+            })();
+
+            return subcategoriesLoadPromise;
+        }
+
+        async function loadExistingSubcategoriesOnce() {
             try {
                 console.log('🔄 Cargando subcategorías existentes...');
                 
@@ -8810,25 +8878,29 @@
                 // Cargar dinámicamente categorías y subcategorías visibles en el DOM
                 const subcategoryContainers = document.querySelectorAll('.formularios-lista[id$="-content"], .subcategoria-lista[id$="-content"]');
                 const processed = new Set();
-                
-                // Cargar cada subcategoría secuencialmente para evitar sobrecarga
+                const tasks = [];
+
                 for (const container of subcategoryContainers) {
-                    try {
-                        const subcategory = container.id.replace('-content', '');
-                        if (processed.has(subcategory)) continue;
-                        processed.add(subcategory);
-                        
-                        // Determinar la categoría correcta
-                        const category = getCurrentCategory(subcategory) || 'planificacion';
-                        
-                        console.log(`📂 Cargando subcategoría: ${subcategory} (${category})`);
-                        
-                        await window.subcategoriasManager.updateUI(category, subcategory);
-                        // Pequeña pausa entre cargas para no saturar
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    } catch (error) {
-                        console.warn(`⚠️ Error cargando subcategoría:`, error);
-                    }
+                    const subcategory = container.id.replace('-content', '');
+                    if (processed.has(subcategory)) continue;
+                    processed.add(subcategory);
+
+                    // Determinar la categoría correcta
+                    const category = getCurrentCategory(subcategory) || 'planificacion';
+                    tasks.push({ category, subcategory });
+                }
+
+                // Cargar en lotes paralelos: más rápido que secuencial sin saturar el servidor
+                const BATCH_SIZE = 5;
+                console.log(`📂 Cargando ${tasks.length} subcategorías en lotes de ${BATCH_SIZE}...`);
+
+                for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+                    const batch = tasks.slice(i, i + BATCH_SIZE);
+                    await Promise.all(batch.map(({ category, subcategory }) =>
+                        window.subcategoriasManager.updateUI(category, subcategory)
+                            .then(() => console.log(`✅ ${category}/${subcategory} cargada`))
+                            .catch(error => console.warn(`⚠️ Error cargando subcategoría ${subcategory}:`, error))
+                    ));
                 }
                 
                 console.log('✅ Carga inicial de subcategorías completada');
@@ -13691,6 +13763,42 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
+        // ----- VALIDACIÓN DE ROLES PARA APROBACIONES -----
+
+        // Roles permitidos para cada tipo de aprobación
+        const APPROVAL_ROLE_RULES = {
+            'prepared-by': ['auditor', 'auditor_senior'],
+            'reviewed-by': ['auditor', 'auditor_senior'],
+            'partner': ['socio']
+        };
+
+        const APPROVAL_ROLE_LABELS = {
+            admin: 'Administrador',
+            auditor: 'Auditor',
+            auditor_senior: 'Auditor Senior',
+            socio: 'Socio',
+            cliente: 'Cliente'
+        };
+
+        // Normaliza el rol del usuario actual ('Auditor Senior' -> 'auditor_senior')
+        function getCurrentUserRoleKey() {
+            const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
+            const raw = currentUser?.role || currentUser?.rol || '';
+            return String(raw).trim().toLowerCase().replace(/[\s-]+/g, '_');
+        }
+
+        // ¿Puede el usuario actual aprobar la sección? (admin siempre puede)
+        function canCurrentUserApprove(baseSection) {
+            const role = getCurrentUserRoleKey();
+            const allowed = APPROVAL_ROLE_RULES[baseSection] || [];
+            return role === 'admin' || allowed.includes(role);
+        }
+
+        function describeAllowedRoles(baseSection) {
+            const allowed = APPROVAL_ROLE_RULES[baseSection] || [];
+            return allowed.map(r => APPROVAL_ROLE_LABELS[r] || r).join(' o ');
+        }
+
         // Función para mostrar auditor que revisó (Sistema de aprobación)
         // Construye el bloque HTML de una etapa de revisión (preliminar/final)
         function buildReviewStageHtml(opts) {
@@ -13719,14 +13827,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 `;
             }
 
-            if (locked) {
+            if (locked || opts.canApprove === false) {
+                const reason = opts.canApprove === false
+                    ? (opts.denyReason || 'Su rol no permite aprobar esta etapa.')
+                    : lockReason;
                 return `
                     <div class="review-stage" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #f9fafb; opacity: 0.7;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <strong><i class="bi bi-lock-fill" style="color: #9ca3af;"></i> ${stageLabel}</strong>
                             <span style="font-size: 0.75rem; color: #9ca3af; font-weight: 600;">BLOQUEADA</span>
                         </div>
-                        <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">${lockReason}</p>
+                        <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">${reason}</p>
                     </div>
                 `;
             }
@@ -13756,13 +13867,110 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             return { preliminar: preliminar || legacy, final };
         }
 
+        // Igual que getTwoStageApprovals pero devuelve los arrays completos
+        // (para secciones que admiten varios aprobadores, p.ej. 'reviewed-by')
+        async function getTwoStageApprovalsList(formId, baseSection) {
+            const [preliminar, final] = await Promise.all([
+                window.getFormApprovalsListForSection(formId, `${baseSection}-preliminar`),
+                window.getFormApprovalsListForSection(formId, `${baseSection}-final`)
+            ]);
+            // Compatibilidad: aprobaciones legadas sin etapa cuentan como preliminar
+            const legacy = preliminar.length ? [] : await window.getFormApprovalsListForSection(formId, baseSection);
+            return { preliminar: [...preliminar, ...legacy], final };
+        }
+
+        // Etapa de "Revisado por": admite hasta 2 aprobadores distintos por etapa
+        const REVIEWED_MAX_APPROVERS = 2;
+
+        function buildReviewedStageHtml(opts) {
+            const { formId, stage, stageLabel, approvals, currentUserName, currentUserId, canApprove, denyReason, locked, lockReason } = opts;
+            const list = Array.isArray(approvals) ? approvals : [];
+            const count = list.length;
+
+            if (locked && count === 0) {
+                return `
+                    <div class="review-stage" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #f9fafb; opacity: 0.7;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong><i class="bi bi-lock-fill" style="color: #9ca3af;"></i> ${stageLabel}</strong>
+                            <span style="font-size: 0.75rem; color: #9ca3af; font-weight: 600;">BLOQUEADA</span>
+                        </div>
+                        <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">${lockReason}</p>
+                    </div>
+                `;
+            }
+
+            const iApproved = list.some(a =>
+                (currentUserId && a.user_id === currentUserId) || a.user_name === currentUserName
+            );
+
+            const badge = count >= REVIEWED_MAX_APPROVERS
+                ? `<span style="font-size: 0.75rem; color: #0284c7; font-weight: 600;">COMPLETA (${count}/${REVIEWED_MAX_APPROVERS})</span>`
+                : count > 0
+                    ? `<span style="font-size: 0.75rem; color: #0ea5e9; font-weight: 600;">PARCIAL (${count}/${REVIEWED_MAX_APPROVERS})</span>`
+                    : `<span style="font-size: 0.75rem; color: #0ea5e9; font-weight: 600;">PENDIENTE (0/${REVIEWED_MAX_APPROVERS})</span>`;
+
+            const approversHtml = list.map(a => {
+                const isMine = (currentUserId && a.user_id === currentUserId) || a.user_name === currentUserName;
+                const dateTime = new Date(a.timestamp);
+                const formattedDate = dateTime.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const formattedTime = dateTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const removeBtn = isMine
+                    ? `<button class="btn btn-warning btn-sm" onclick="resetReviewedByStage('${formId}', '${stage}')">Eliminar mi aprobación</button>`
+                    : '';
+                return `
+                    <div style="border-top: 1px solid #bae6fd; padding-top: 8px; margin-top: 8px;">
+                        <div class="info-row"><i class="bi bi-person-fill"></i><div class="info-content"><strong>Nombre:</strong> ${a.user_name}${isMine ? ' (usted)' : ''}</div></div>
+                        ${a.role ? `<div class="info-row"><i class="bi bi-briefcase-fill"></i><div class="info-content"><strong>Posición:</strong> ${a.role}</div></div>` : ''}
+                        <div class="info-row"><i class="bi bi-calendar-fill"></i><div class="info-content"><strong>Fecha:</strong> ${formattedDate}</div></div>
+                        <div class="info-row"><i class="bi bi-clock-fill"></i><div class="info-content"><strong>Hora:</strong> ${formattedTime}</div></div>
+                        ${removeBtn ? `<div style="margin-top: 6px; text-align: right;">${removeBtn}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            let actionHtml = '';
+            if (count >= REVIEWED_MAX_APPROVERS) {
+                actionHtml = `<p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #6b7280;">Esta etapa ya tiene ${REVIEWED_MAX_APPROVERS} aprobadores.</p>`;
+            } else if (!canApprove) {
+                actionHtml = `<p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #b91c1c;">${denyReason}</p>`;
+            } else if (iApproved) {
+                actionHtml = `<p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #6b7280;">Ya aprobaste esta etapa. Otro revisor puede aprobarla también.</p>`;
+            } else {
+                actionHtml = `
+                    <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: #6b7280;">Aprobar como: <strong>${currentUserName}</strong></p>
+                    <div style="text-align: right;">
+                        <button class="btn btn-primary btn-sm" onclick="approveReviewedByStage('${formId}', '${stage}')">Aprobar ${stageLabel.toLowerCase()}</button>
+                    </div>
+                `;
+            }
+
+            const stageIcon = count > 0 ? 'bi-check-circle-fill' : 'bi-hourglass-split';
+            const stageColor = count >= REVIEWED_MAX_APPROVERS ? '#0284c7' : '#0ea5e9';
+            const bgColor = count > 0 ? '#e0f2fe' : '#f0f9ff';
+            const borderColor = count > 0 ? '#bae6fd' : '#e0f2fe';
+
+            return `
+                <div class="review-stage" style="border: 1px solid ${borderColor}; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: ${bgColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong><i class="bi ${stageIcon}" style="color: ${stageColor};"></i> ${stageLabel}</strong>
+                        ${badge}
+                    </div>
+                    ${approversHtml}
+                    ${actionHtml}
+                </div>
+            `;
+        }
+
         async function showReviewedAuditor(event, formId) {
             event.stopPropagation();
 
-            const { preliminar, final } = await getTwoStageApprovals(formId, 'reviewed-by');
+            const { preliminar, final } = await getTwoStageApprovalsList(formId, 'reviewed-by');
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
+            const currentUserId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
+            const canApprove = canCurrentUserApprove('reviewed-by');
+            const denyReason = `Solo puede aprobar esta revisión un usuario con rol ${describeAllowedRoles('reviewed-by')}.`;
 
             const modal = document.createElement('div');
             modal.className = 'reviewed-modal';
@@ -13777,17 +13985,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             <div class="info-row"><i class="bi bi-person-fill"></i><div class="info-content"><strong>Usted está identificado como:</strong> ${currentUserName}</div></div>
                             <div class="info-row"><i class="bi bi-briefcase-fill"></i><div class="info-content"><strong>Posición:</strong> ${userPosition}</div></div>
                         </div>
-                        ${buildReviewStageHtml({
+                        ${buildReviewedStageHtml({
                             formId, stage: 'preliminar', stageLabel: 'Revisión preliminar',
-                            aprobacion: preliminar, currentUserName,
-                            approveFn: 'approveReviewedByStage', resetFn: 'resetReviewedByStage'
+                            approvals: preliminar, currentUserName, currentUserId,
+                            canApprove, denyReason
                         })}
-                        ${buildReviewStageHtml({
+                        ${buildReviewedStageHtml({
                             formId, stage: 'final', stageLabel: 'Revisión final',
-                            aprobacion: final, currentUserName,
-                            approveFn: 'approveReviewedByStage', resetFn: 'resetReviewedByStage',
-                            locked: !preliminar,
-                            lockReason: 'Primero debe completarse la revisión preliminar.'
+                            approvals: final, currentUserName, currentUserId,
+                            canApprove, denyReason,
+                            locked: preliminar.length === 0,
+                            lockReason: 'Primero debe completarse al menos una revisión preliminar.'
                         })}
                         <div class="reviewed-actions">
                             <button class="btn btn-secondary" onclick="closeReviewedModal()">Cerrar</button>
@@ -13801,16 +14009,38 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Aprueba una etapa de "Revisado por" (preliminar | final)
+        // Cada etapa admite hasta REVIEWED_MAX_APPROVERS aprobadores distintos
         async function approveReviewedByStage(formId, stage) {
+            if (!canCurrentUserApprove('reviewed-by')) {
+                showNotification(`Solo puede aprobar esta revisión un usuario con rol ${describeAllowedRoles('reviewed-by')}.`, 'error');
+                return;
+            }
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
+            const userId = currentUser?.id || currentUser?.user_id || currentUser?.userId || null;
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Revisor';
 
-            await window.saveApprovalForSection(formId, `reviewed-by-${stage}`, 'approved', {
-                user_name: userName,
-                role: userPosition,
-                comments: JSON.stringify({ position: userPosition, stage })
-            });
+            // Evitar duplicados del mismo usuario y limitar a 2 aprobadores por etapa
+            const existing = await window.getFormApprovalsListForSection(formId, `reviewed-by-${stage}`);
+            if (existing.some(a => (userId && a.user_id === userId) || a.user_name === userName)) {
+                showNotification(`Ya aprobaste la revisión ${stage} de ${formId}.`, 'info');
+                return;
+            }
+            if (existing.length >= REVIEWED_MAX_APPROVERS) {
+                showNotification(`La revisión ${stage} de ${formId} ya tiene ${REVIEWED_MAX_APPROVERS} aprobadores.`, 'warning');
+                return;
+            }
+
+            try {
+                await window.saveApprovalForSection(formId, `reviewed-by-${stage}`, 'approved', {
+                    user_name: userName,
+                    role: userPosition,
+                    comments: JSON.stringify({ position: userPosition, stage })
+                });
+            } catch (err) {
+                showNotification(err.message || `No se pudo guardar la revisión ${stage} de ${formId}`, 'error');
+                return;
+            }
 
             showNotification(`${formId}: revisión ${stage} aprobada por ${userName}`, 'success');
             closeReviewedModal();
@@ -13827,19 +14057,21 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             updateReviewedButtonState(formId);
         }
 
-        // Actualiza el estado visual del botón según las dos etapas
+        // Actualiza el estado visual del botón según las dos etapas (hasta 2 aprobadores c/u)
         async function updateReviewedButtonState(formId) {
-            const { preliminar, final } = await getTwoStageApprovals(formId, 'reviewed-by');
+            const { preliminar, final } = await getTwoStageApprovalsList(formId, 'reviewed-by');
             const button = document.querySelector(`.reviewed-btn[onclick="showReviewedAuditor(event, '${formId}')"]`);
             if (!button) return;
 
+            const names = list => list.map(a => a.user_name).join(', ');
+
             button.classList.remove('approved', 'partial-approved');
-            if (final) {
+            if (final.length) {
                 button.classList.add('approved');
-                button.title = `Revisión final por: ${final.usuario}`;
-            } else if (preliminar) {
+                button.title = `Revisión final por: ${names(final)}`;
+            } else if (preliminar.length) {
                 button.classList.add('partial-approved');
-                button.title = `Revisión preliminar por: ${preliminar.usuario} (falta revisión final)`;
+                button.title = `Revisión preliminar por: ${names(preliminar)} (falta revisión final)`;
             } else {
                 button.title = 'Revisado por';
             }
@@ -13922,7 +14154,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
                 const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
                 const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Preparador';
-                
+                const canApprove = canCurrentUserApprove('prepared-by');
+                const approveButton = canApprove
+                    ? `<button class="btn btn-primary" onclick="approvePreparedBy('${formId}')">Aprobar</button>`
+                    : `<button class="btn btn-secondary" disabled title="Solo puede aprobar un usuario con rol ${describeAllowedRoles('prepared-by')}">No autorizado</button>`;
+                const roleWarning = canApprove
+                    ? ''
+                    : `<p class="approval-text" style="color: #b91c1c; font-size: 0.85rem; margin-top: 8px;">Solo puede aprobar esta sección un usuario con rol ${describeAllowedRoles('prepared-by')}.</p>`;
+
                 modal.innerHTML = `
                     <div class="prepared-content">
                         <div class="prepared-header">
@@ -13946,10 +14185,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                         </div>
                                     </div>
                                 </div>
+                                ${roleWarning}
                             </div>
                             <div class="prepared-actions">
                                 <button class="btn btn-secondary" onclick="closePreparedModal()">Cancelar</button>
-                                <button class="btn btn-primary" onclick="approvePreparedBy('${formId}')">Aprobar</button>
+                                ${approveButton}
                             </div>
                         </div>
                     </div>
@@ -13967,6 +14207,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para aprobar como "Preparado por"
         async function approvePreparedBy(formId) {
+            if (!canCurrentUserApprove('prepared-by')) {
+                showNotification(`Solo puede aprobar esta sección un usuario con rol ${describeAllowedRoles('prepared-by')}.`, 'error');
+                return;
+            }
             // Obtener usuario actual automáticamente
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
@@ -14051,6 +14295,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const currentUserName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
+            const canApprove = canCurrentUserApprove('partner');
+            const denyReason = `Solo puede aprobar esta revisión un usuario con rol ${describeAllowedRoles('partner')}.`;
 
             const modal = document.createElement('div');
             modal.className = 'partner-modal';
@@ -14068,14 +14314,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         ${buildReviewStageHtml({
                             formId, stage: 'preliminar', stageLabel: 'Revisión preliminar',
                             aprobacion: preliminar, currentUserName,
-                            approveFn: 'approvePartnerStage', resetFn: 'resetPartnerStage'
+                            approveFn: 'approvePartnerStage', resetFn: 'resetPartnerStage',
+                            canApprove, denyReason
                         })}
                         ${buildReviewStageHtml({
                             formId, stage: 'final', stageLabel: 'Revisión final',
                             aprobacion: final, currentUserName,
                             approveFn: 'approvePartnerStage', resetFn: 'resetPartnerStage',
                             locked: !preliminar,
-                            lockReason: 'Primero debe completarse la revisión preliminar.'
+                            lockReason: 'Primero debe completarse la revisión preliminar.',
+                            canApprove, denyReason
                         })}
                         <div class="partner-actions">
                             <button class="btn btn-secondary" onclick="closePartnerModal()">Cerrar</button>
@@ -14090,6 +14338,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Aprueba una etapa de "Socio" (preliminar | final)
         async function approvePartnerStage(formId, stage) {
+            if (!canCurrentUserApprove('partner')) {
+                showNotification(`Solo puede aprobar esta revisión un usuario con rol ${describeAllowedRoles('partner')}.`, 'error');
+                return;
+            }
             const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null);
             const userName = currentUser?.name || currentUser?.nombre || currentUser?.full_name || currentUser?.email || 'Usuario';
             const userPosition = currentUser?.position || currentUser?.role || currentUser?.rol || 'Socio';
@@ -29122,14 +29374,18 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
             const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
+            const entidadSel = document.getElementById('entidadSelected');
+            const resolvedEntityName = (entidadSel && entidadSel.classList.contains('selected'))
+                ? entidadSel.textContent.trim()
+                : '';
 
             const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, resolvedEntityId, resolvedCommitmentId);
             const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === parentFolderId);
 
             const requiredDocs = [
-                { titulo: 'BG-1 ACTIVO', meta: { bgType: 'activo', datasetId: currentDatasetId } },
-                { titulo: 'BG-2 PASIVO Y PATRIMONIO', meta: { bgType: 'pasivo', datasetId: currentDatasetId } },
-                { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados', datasetId: currentDatasetId } }
+                { titulo: 'BG-1 ACTIVO', meta: { bgType: 'activo', datasetId: currentDatasetId, entityName: resolvedEntityName || null } },
+                { titulo: 'BG-2 PASIVO Y PATRIMONIO', meta: { bgType: 'pasivo', datasetId: currentDatasetId, entityName: resolvedEntityName || null } },
+                { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados', datasetId: currentDatasetId, entityName: resolvedEntityName || null } }
             ];
 
             // Generar contenido de los balances con los datos actuales

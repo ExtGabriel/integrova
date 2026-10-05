@@ -10177,12 +10177,13 @@ app.post('/api/formularios/save', async (req, res) => {
 app.post('/api/formularios/get', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
-        const { 
-            form_id, 
+        const {
+            form_id,
             subdocument_id,
             entity_id = null,
             commitment_id = null,
-            view_all = false
+            view_all = false,
+            multiple = false
         } = req.body;
         
         if (!userId) {
@@ -10232,21 +10233,24 @@ app.post('/api/formularios/get', async (req, res) => {
             query = query.eq('subdocument_id', subdocument_id);
         }
         
-        // Si viene form_id, regresamos solo el último; si no, todos los del contexto
-        const { data, error } = form_id
+        // Si viene form_id, regresamos solo el último (salvo multiple=true,
+        // que devuelve todas las filas — útil para combinar aprobaciones de
+        // varios usuarios que guardaron en registros distintos)
+        const returnSingle = form_id && !multiple;
+        const { data, error } = returnSingle
             ? await query.order('created_at', { ascending: false }).limit(1).single()
             : await query.order('created_at', { ascending: false });
-            
+
         if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
             console.error('❌ Error obteniendo formularios:', error);
             return res.status(500).json({ success: false, error: 'Error al obtener el formulario' });
         }
-        
-        if (form_id) {
+
+        if (returnSingle) {
             console.log(data ? '✅ Formulario encontrado' : 'ℹ️ No se encontró formulario');
             return res.json({ success: true, formulario: data || null });
         }
-        
+
         console.log(`✅ Formularios encontrados: ${(data || []).length}`);
         return res.json({ success: true, formularios: data || [] });
         
@@ -10514,6 +10518,95 @@ app.post('/api/formularios/approval', async (req, res) => {
         // Obtener aprobaciones de la sección específica o inicializar array
         const sectionApprovals = sectionsApprovals[section] || [];
         console.log('🔍 sectionApprovals para sección', section, ':', JSON.stringify(sectionApprovals, null, 2));
+
+        // Reglas para etapas de "Revisado por": hasta 2 aprobadores distintos
+        // por etapa, sin duplicar usuario, la final requiere preliminar, y
+        // solo roles de revisión (auditor / auditor_senior / admin).
+        const REVIEWED_STAGE_RE = /^reviewed-by-(preliminar|final)$/;
+        if (REVIEWED_STAGE_RE.test(section)) {
+            const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            const entityUuid = (entity_id && uuidRe.test(entity_id)) ? entity_id : null;
+            const commitmentUuid = (commitment_id && uuidRe.test(commitment_id)) ? commitment_id : null;
+
+            // Camino garantizado: función SQL con lock transaccional que
+            // serializa aprobaciones concurrentes de la misma etapa
+            // (approve_reviewed_stage en Supabase). Si la función aún no
+            // existe, cae al chequeo best-effort de más abajo.
+            const { data: rpcResult, error: rpcError } = await supabase.rpc('approve_reviewed_stage', {
+                p_form_id: targetFormId,
+                p_entity_id: entityUuid,
+                p_commitment_id: commitmentUuid,
+                p_section: section,
+                p_user_id: userId,
+                p_user_name: user_name || 'Usuario',
+                p_role: role || 'auditor',
+                p_status: status,
+                p_comments: comments || ''
+            });
+
+            if (!rpcError && rpcResult) {
+                if (rpcResult.success) {
+                    console.log('✅ Aprobación guardada vía RPC (con lock):', section);
+                    return res.json({
+                        success: true,
+                        message: rpcResult.message || 'Aprobación guardada exitosamente',
+                        approval: rpcResult.approval,
+                        section: section
+                    });
+                }
+                console.log('⛔ RPC rechazó aprobación:', rpcResult.error);
+                return res.status(409).json({ success: false, error: rpcResult.error });
+            }
+
+            const fnMissing = rpcError && (
+                rpcError.code === 'PGRST202' ||
+                /could not find|not find the function/i.test(rpcError.message || '')
+            );
+            if (rpcError && !fnMissing) {
+                console.error('❌ Error en RPC approve_reviewed_stage:', rpcError);
+                return res.status(500).json({ success: false, error: 'Error al guardar la aprobación' });
+            }
+
+            // ---- Fallback sin lock (la función aún no está desplegada) ----
+            // Las aprobaciones de usuarios distintos pueden estar en filas
+            // separadas (cada uno guarda en su created_by), así que se
+            // agregan todas las filas del contexto form_id+entidad+compromiso.
+            let rowsQuery = supabase
+                .from('form_responses')
+                .select('approvals')
+                .eq('form_id', targetFormId);
+            if (entityUuid) rowsQuery = rowsQuery.eq('entity_id', entityUuid);
+            if (commitmentUuid) rowsQuery = rowsQuery.eq('commitment_id', commitmentUuid);
+
+            const { data: contextRows } = await rowsQuery;
+            const aggregate = sec => (contextRows || []).flatMap(r => {
+                const e = r?.approvals?.sections?.[sec];
+                return Array.isArray(e) ? e : (e ? [e] : []);
+            });
+            const existingInStage = aggregate(section);
+
+            if (existingInStage.some(a => a.user_id === userId)) {
+                return res.status(409).json({ success: false, error: 'Ya registraste una aprobación en esta etapa' });
+            }
+            if (existingInStage.length >= 2) {
+                return res.status(409).json({ success: false, error: 'Esta etapa ya tiene 2 aprobadores' });
+            }
+            if (section === 'reviewed-by-final' && aggregate('reviewed-by-preliminar').length === 0) {
+                return res.status(409).json({ success: false, error: 'Primero debe completarse la revisión preliminar' });
+            }
+
+            // Rol autoritativo desde la tabla de usuarios (el campo `role`
+            // del body lo envía el cliente y podría estar alterado).
+            const { data: userRow } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', userId)
+                .maybeSingle();
+            const userRole = (userRow?.role || '').toString().toLowerCase();
+            if (userRole && !['auditor', 'auditor_senior', 'admin'].includes(userRole)) {
+                return res.status(403).json({ success: false, error: 'Tu rol no puede aprobar la revisión (se requiere auditor o auditor senior)' });
+            }
+        }
 
         // Crear nueva aprobación
         const newApproval = {

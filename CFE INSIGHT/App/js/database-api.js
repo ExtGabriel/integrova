@@ -2173,6 +2173,62 @@ async function getFormApprovalsForSection(formId, section, viewAll = false) {
 }
 
 /**
+ * Devuelve TODAS las aprobaciones de una sección (array completo, no solo la última).
+ * Útil para etapas que admiten varios aprobadores (p.ej. 'reviewed-by').
+ * @returns {Array} Entradas crudas: { user_id, user_name, role, status, timestamp, comments }
+ */
+async function getFormApprovalsListForSection(formId, section, viewAll = false) {
+    try {
+        const userId = getCurrentUserId();
+        const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
+        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+
+        // multiple=true: las aprobaciones de usuarios distintos pueden estar
+        // en registros separados (cada uno guarda en su propio created_by),
+        // así que combinamos las entradas de todas las filas.
+        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': userId
+            },
+            body: JSON.stringify({
+                form_id: formId,
+                entity_id: entityId,
+                commitment_id: commitmentId,
+                view_all: viewAll,
+                multiple: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            return [];
+        }
+
+        const formularios = result.formularios || (result.formulario ? [result.formulario] : []);
+        const seen = new Set();
+        const all = [];
+        for (const f of formularios) {
+            const entries = f?.approvals?.sections?.[section];
+            const list = Array.isArray(entries) ? entries : (entries ? [entries] : []);
+            for (const a of list) {
+                const key = `${a.user_id}|${a.timestamp}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    all.push(a);
+                }
+            }
+        }
+        return all.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    } catch (error) {
+        console.error('❌ Error en getFormApprovalsListForSection:', error);
+        return [];
+    }
+}
+
+/**
  * Función helper para obtener el nombre del usuario actual
  * @returns {string} Nombre del usuario
  */
@@ -2427,6 +2483,7 @@ window.getCurrentUserRole = getCurrentUserRole;
 window.saveApprovalForSection = saveApprovalForSection;
 window.removeApprovalForSection = removeApprovalForSection;
 window.getFormApprovalsForSection = getFormApprovalsForSection;
+window.getFormApprovalsListForSection = getFormApprovalsListForSection;
 window.saveBgReference = saveBgReference;
 window.getBgReferences = getBgReferences;
 window.deleteBgReference = deleteBgReference;

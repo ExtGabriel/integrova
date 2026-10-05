@@ -665,11 +665,32 @@
                 container.appendChild(dynamicContainer);
             }
 
+            // Preservar qué carpetas estaban abiertas antes de re-renderizar,
+            // para que la recarga no las cierre mientras el usuario interactúa
+            const openFolderIds = new Set(
+                Array.from(dynamicContainer.querySelectorAll('.folder-children'))
+                    .filter(el => el.style.display !== 'none')
+                    .map(el => el.id)
+            );
+
             if (rootHtml) {
                 dynamicContainer.innerHTML = rootHtml;
             } else {
                 dynamicContainer.innerHTML = '';
             }
+
+            // Restaurar carpetas abiertas (el re-render las deja colapsadas)
+            openFolderIds.forEach(id => {
+                const children = document.getElementById(id);
+                if (!children) return;
+                children.style.display = '';
+                const arrow = children.closest('.folder-block')
+                    ?.querySelector('.folder-heading .folder-arrow');
+                if (arrow) {
+                    arrow.classList.remove('bi-chevron-right');
+                    arrow.classList.add('bi-chevron-down');
+                }
+            });
 
             // Repintar las banderitas de observaciones pendientes sobre los
             // documentos recién renderizados
@@ -1267,6 +1288,35 @@
         };
     }
 
+    // Roles permitidos para cada tipo de aprobación (admin siempre puede)
+    const APPROVAL_ROLE_RULES = {
+        'prepared-by': ['auditor', 'auditor_senior'],
+        'reviewed-by': ['auditor', 'auditor_senior'],
+        'partner': ['socio']
+    };
+
+    const APPROVAL_ROLE_LABELS = {
+        admin: 'Administrador',
+        auditor: 'Auditor',
+        auditor_senior: 'Auditor Senior',
+        socio: 'Socio',
+        cliente: 'Cliente'
+    };
+
+    function getCurrentApprovalRole() {
+        const currentUser = window.currentUser || (typeof window.getUserUI === 'function' ? window.getUserUI() : null) || {};
+        return String(currentUser.role || currentUser.rol || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    }
+
+    function canApproveSection(section) {
+        const role = getCurrentApprovalRole();
+        return role === 'admin' || (APPROVAL_ROLE_RULES[section] || []).includes(role);
+    }
+
+    function describeAllowedRoles(section) {
+        return (APPROVAL_ROLE_RULES[section] || []).map(r => APPROVAL_ROLE_LABELS[r] || r).join(' o ');
+    }
+
     function closeDocApprovalModal(section) {
         const config = APPROVAL_CONFIG[section];
         if (!config) return;
@@ -1283,6 +1333,10 @@
     window.approveDocApproval = async (docId, section) => {
         const config = APPROVAL_CONFIG[section];
         if (!config) return;
+        if (!canApproveSection(section)) {
+            if (typeof showNotification === 'function') showNotification(`Solo puede aprobar esta sección un usuario con rol ${describeAllowedRoles(section)}.`, 'error');
+            return;
+        }
         try {
             const user = getCurrentApprovalUser();
             await window.saveApprovalForSection(String(docId), section, 'approved', {
@@ -1362,6 +1416,13 @@
                         </div>
                     </div>`;
             } else {
+                const canApprove = canApproveSection(section);
+                const approveButton = canApprove
+                    ? `<button class="btn btn-primary" onclick="approveDocApproval('${docId}', '${section}')">Aprobar</button>`
+                    : `<button class="btn btn-secondary" disabled title="Solo puede aprobar un usuario con rol ${describeAllowedRoles(section)}">No autorizado</button>`;
+                const roleWarning = canApprove
+                    ? ''
+                    : `<p class="approval-text" style="color: #b91c1c; font-size: 0.85rem; margin-top: 8px;">Solo puede aprobar esta sección un usuario con rol ${describeAllowedRoles(section)}.</p>`;
                 modal.innerHTML = `
                     <div class="${config.contentClass}">
                         <div class="${config.headerClass}">
@@ -1381,10 +1442,11 @@
                                         <div class="info-content"><strong>Posición:</strong> ${user.position}</div>
                                     </div>
                                 </div>
+                                ${roleWarning}
                             </div>
                             <div class="${config.actionsClass}">
                                 <button class="btn btn-secondary" onclick="closeDocApprovalModal('${section}')">Cancelar</button>
-                                <button class="btn btn-primary" onclick="approveDocApproval('${docId}', '${section}')">Aprobar</button>
+                                ${approveButton}
                             </div>
                         </div>
                     </div>`;
@@ -1419,9 +1481,9 @@
     window.updateBgApprovalButtons = async (container) => {
         if (!container) return;
         const btns = container.querySelectorAll('.document-actions button[data-form-id][data-approval]');
-        for (const btn of btns) {
-            await window.updateBgApprovalButtonUI(btn.dataset.formId, btn.dataset.approval);
-        }
+        await Promise.all(Array.from(btns).map(btn =>
+            window.updateBgApprovalButtonUI(btn.dataset.formId, btn.dataset.approval)
+        ));
     };
 
 })();

@@ -2891,6 +2891,7 @@
                 `;
 
                 panel.innerHTML = tableHtml;
+                applyHeaderEntityName(panel);
                 attachBgReferences(panel, bgType);
                 console.log('✅ BG renderizado con datos guardados:', { title, rows: summaryRows.length });
             } catch (error) {
@@ -2901,6 +2902,49 @@
                     </div>
                 `;
             }
+        }
+
+        // Pone el nombre de la entidad en el encabezado del documento
+        async function applyHeaderEntityName(panel) {
+            const entityEl = panel && panel.querySelector('.entity-name');
+            if (!entityEl) return;
+
+            const current = entityEl.textContent.trim();
+            if (current && current !== 'Nombre de la entidad') return;
+
+            let name = currentWorksheetDoc?.metadata?.entityName ||
+                       currentWorksheetDoc?.entityName ||
+                       window.currentEntity?.name ||
+                       window.currentEntity?.nombre ||
+                       '';
+
+            if (!name) {
+                const { entityId } = getBgContext();
+                if (entityId) {
+                    try {
+                        const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+                        const resp = await fetch(`${apiBase}/api/entities/${entityId}`, {
+                            headers: { 'user-id': window.getCurrentUserId() }
+                        });
+                        const data = await resp.json().catch(() => null);
+                        name = data?.data?.name || data?.data?.nombre || data?.data?.entity_name || '';
+                    } catch (e) {
+                        console.warn('No se pudo resolver el nombre de la entidad:', e);
+                    }
+                }
+            }
+
+            if (!name) return;
+            entityEl.textContent = name;
+
+            try {
+                if (currentWorksheetDoc) {
+                    currentWorksheetDoc.metadata = { ...(currentWorksheetDoc.metadata || {}), entityName: name };
+                }
+                const payload = JSON.parse(localStorage.getItem('currentWorksheetDocument') || '{}');
+                payload.metadata = { ...(payload.metadata || {}), entityName: name };
+                localStorage.setItem('currentWorksheetDocument', JSON.stringify(payload));
+            } catch (e) {}
         }
 
         function isRowAllZero(row) {
@@ -3322,6 +3366,7 @@
             `;
             
             panel.innerHTML = tableHtml;
+            applyHeaderEntityName(panel);
         }
 
         
