@@ -1458,6 +1458,7 @@
                                 </div>
                                 <div class="selection-info">
                                     <span>0 seleccionados</span>
+                                    <small style="color: #6b7280; display: block;">Clic: seleccionar/quitar · Arrastrar: varios · Shift+clic: rango · <a href="#" onclick="clearAccountSelection(event)" style="color: #007bff;">Limpiar</a></small>
                                 </div>
                                 <div class="unassigned-accounts-list">
                                     <div class="empty-state">
@@ -2110,10 +2111,6 @@
                         <input type="radio" id="balanceFinal" name="balanceType" value="final" checked>
                         <label for="balanceFinal">Balance de comprobación final</label>
                     </div>
-                    <div class="radio-option">
-                        <input type="radio" id="balancePlanificacion" name="balanceType" value="planificacion">
-                        <label for="balancePlanificacion">Balance de comprobación de planificación</label>
-                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2187,8 +2184,6 @@
                                     </select>
                                     <select class="form-select" id="previousYearDebitCredit">
                                         <option value="">Débito y crédito</option>
-                                        <option value="debit">Débito</option>
-                                        <option value="credit">Crédito</option>
                                     </select>
                                 </td>
                                 <td>
@@ -2202,8 +2197,6 @@
                                     </select>
                                     <select class="form-select" id="currentYearDebitCredit">
                                         <option value="">Débito y crédito</option>
-                                        <option value="debit">Débito</option>
-                                        <option value="credit">Crédito</option>
                                     </select>
                                 </td>
                             </tr>
@@ -28834,6 +28827,50 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Sistema de asignación por clic
     let selectedAccount = null;
     let selectedAccounts = []; // Para selección múltiple
+    let lastAccountIndex = null; // Índice del último clic (para rango con Shift)
+
+    // Actualiza el contador "N seleccionados" del panel izquierdo
+    // (hay dos interfaces de asignación con la misma clase; se refrescan todas)
+    function updateSelectionInfoCounter() {
+        const n = selectedAccounts.length || (selectedAccount ? 1 : 0);
+        document.querySelectorAll('.selection-info span').forEach(el => {
+            el.textContent = `${n} seleccionados`;
+        });
+    }
+
+    // Quita toda la selección de cuentas sin asignar
+    function clearAccountSelection(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        selectedAccount = null;
+        selectedAccounts = [];
+        lastAccountIndex = null;
+        document.querySelectorAll('.unassigned-accounts-list .account-item.selected')
+            .forEach(item => item.classList.remove('selected'));
+        updateSelectionInfoCounter();
+    }
+
+    // Extrae los datos de un .account-item del panel izquierdo (cuentas sin asignar)
+    function buildAccountData(el) {
+        const accountValue = el.dataset.accountValue;
+        const accountPrevValue = el.dataset.accountPrevValue;
+        const accountPrevOriginal = el.dataset.accountPrevOriginal || accountPrevValue;
+        const accountCurrentOriginal = el.dataset.accountCurrentOriginal || accountValue;
+        return {
+            element: el,
+            id: el.dataset.accountId || el.dataset.accountCode,
+            code: el.dataset.accountCode || '',
+            name: el.dataset.accountName || el.querySelector('.account-name')?.textContent || '',
+            ls: el.dataset.accountLs || '',
+            value: parseAccountValue(accountValue),
+            prevValue: parseAccountValue(accountPrevValue),
+            prevOriginal: parseAccountValue(accountPrevOriginal),
+            currentOriginal: parseAccountValue(accountCurrentOriginal),
+            datasetId: el.dataset.accountDatasetId || currentDatasetId
+        };
+    }
     
     function attachStaticAccountClickHandler(account) {
         if (!account) return;
@@ -28873,8 +28910,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
                     item.classList.remove('selected');
                 });
-                
-                showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta estática`, 'success');
+                updateSelectionInfoCounter();
+
+                showNotification(`${assignedCount} ${assignedCount === 1 ? 'cuenta asignada' : 'cuentas asignadas'} debajo de esta cuenta estática`, 'success');
                 // Crear carpeta "General" automáticamente en Planes y Procedimientos
                 createGeneralFolderIfNotExists();
             } else {
@@ -28886,8 +28924,65 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
     }
 
+    // Selección por arrastre: al presionar el botón del mouse sobre una cuenta
+    // y deslizar sobre otras, todas las cuentas por las que pase el cursor quedan seleccionadas
+    let dragSelectInitialized = false;
+    let dragSelectState = null;
+
+    function selectUnassignedItemForDrag(item) {
+        if (!item || item.style.display === 'none') return;
+        if (!item.classList.contains('selected')) {
+            item.classList.add('selected');
+            selectedAccounts.push(buildAccountData(item));
+        }
+        const allItems = Array.from(document.querySelectorAll('.unassigned-accounts-list .account-item'));
+        lastAccountIndex = allItems.indexOf(item);
+    }
+
+    function initUnassignedDragSelection() {
+        if (dragSelectInitialized) return;
+        const container = document.querySelector('.unassigned-accounts-list');
+        if (!container) return;
+        dragSelectInitialized = true;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.button !== 0 || e.shiftKey) return;
+            const item = e.target.closest('.account-item');
+            if (!item) return;
+            dragSelectState = { startItem: item, started: false };
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragSelectState) return;
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            const item = el ? el.closest('.unassigned-accounts-list .account-item') : null;
+            if (!dragSelectState.started) {
+                if (!item || item === dragSelectState.startItem) return;
+                dragSelectState.started = true;
+                selectUnassignedItemForDrag(dragSelectState.startItem);
+            }
+            if (item) {
+                selectUnassignedItemForDrag(item);
+                updateSelectionInfoCounter();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (dragSelectState && dragSelectState.started) {
+                selectedAccount = null;
+                updateSelectionInfoCounter();
+                const n = selectedAccounts.length;
+                if (n > 0) {
+                    showNotification(`${n} cuenta(s) seleccionada(s). Haz clic en un grupo del lado derecho para asignarlas.`, 'info');
+                }
+            }
+            dragSelectState = null;
+        });
+    }
+
     function initializeClickAssignment() {
         console.log('🚀 Inicializando sistema de asignación por clic...');
+        initUnassignedDragSelection();
         
         // Asignar clic a las cuentas del lado izquierdo
         const accountItems = document.querySelectorAll('.unassigned-accounts-list .account-item');
@@ -28897,74 +28992,45 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             account.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                
-                // Remover selección anterior y limpiar selección múltiple
-                document.querySelectorAll('.unassigned-accounts-list .account-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-                selectedAccounts = []; // Limpiar selección múltiple
-                
-                // Seleccionar esta cuenta
-                this.classList.add('selected');
-                
-                // Extraer datos de la cuenta - preferir data-attributes, sino extraer del texto
-                let accountCode, accountName, accountValue, accountPrevValue, accountPrevOriginal, accountCurrentOriginal;
-                
-                if (this.dataset.accountCode && this.dataset.accountName) {
-                    // Cuentas dinámicas (lado izquierdo)
-                    accountCode = this.dataset.accountCode;
-                    accountName = this.dataset.accountName;
-                    accountValue = this.dataset.accountValue;
-                    accountPrevValue = this.dataset.accountPrevValue;
-                    accountPrevOriginal = this.dataset.accountPrevOriginal || accountPrevValue;
-                    accountCurrentOriginal = this.dataset.accountCurrentOriginal || accountValue;
-                    console.log('📊 Datos desde data-attributes:', { accountCode, accountName, accountValue, accountPrevValue });
-                } else {
-                    // Cuentas estáticas (lado derecho) - extraer del texto
-                    const nameElement = this.querySelector('.account-name');
-                    const valueElement = this.querySelector('.account-value');
-                    
-                    if (nameElement) {
-                        const text = nameElement.textContent.trim();
-                        // Extraer código (primer número encontrado)
-                        const codeMatch = text.match(/^(\d+(?:\.\d+)*)/);
-                        accountCode = codeMatch ? codeMatch[1] : '';
-                        // El nombre es todo lo demás
-                        accountName = text.replace(/^\d+(?:\.\d+)*\s*/, '').trim();
-                    }
-                    
-                    if (valueElement) {
-                        accountValue = valueElement.textContent.trim();
-                        console.log('🔍 Valor encontrado en elemento:', accountValue);
-                    } else {
-                        console.warn('⚠️ No se encontró elemento de valor para:', this);
-                    }
-                }
-                
-                const numericValue = parseAccountValue(accountValue);
-                const numericPrevValue = parseAccountValue(accountPrevValue);
-                const numericPrevOriginal = parseAccountValue(accountPrevOriginal ?? numericPrevValue);
-                const numericCurrentOriginal = parseAccountValue(accountCurrentOriginal ?? numericValue);
 
-                selectedAccount = {
-                    element: this,
-                    id: this.dataset.accountId || accountCode,
-                    code: accountCode,
-                    name: accountName,
-                    ls: this.dataset.accountLs || '',
-                    value: numericValue,
-                    prevValue: numericPrevValue,
-                    prevOriginal: numericPrevOriginal,
-                    currentOriginal: numericCurrentOriginal,
-                    datasetId: this.dataset.accountDatasetId || currentDatasetId
-                };
-                
-                console.log('✅ Cuenta seleccionada:', selectedAccount);
-                console.log('💰 Valor procesado:', numericValue);
-                showNotification(`Cuenta seleccionada: ${selectedAccount.code} - ${selectedAccount.name}`, 'info');
+                // Shift+clic: seleccionar el rango desde el último clic hasta esta cuenta
+                if (e.shiftKey && lastAccountIndex != null) {
+                    const allItems = Array.from(document.querySelectorAll('.unassigned-accounts-list .account-item'));
+                    const start = Math.min(lastAccountIndex, index);
+                    const end = Math.max(lastAccountIndex, index);
+                    selectedAccounts = [];
+                    for (let i = start; i <= end; i++) {
+                        const el = allItems[i];
+                        if (!el || el.style.display === 'none') continue;
+                        el.classList.add('selected');
+                        selectedAccounts.push(buildAccountData(el));
+                    }
+                    selectedAccount = null;
+                    updateSelectionInfoCounter();
+                    showNotification(`${selectedAccounts.length} cuentas seleccionadas. Haz clic en un grupo del lado derecho para asignarlas.`, 'info');
+                    return;
+                }
+
+                // Clic simple (o Ctrl): alternar esta cuenta en la selección múltiple —
+                // cada clic agrega la cuenta y otro clic la quita
+                lastAccountIndex = index;
+                if (this.classList.contains('selected')) {
+                    this.classList.remove('selected');
+                    selectedAccounts = selectedAccounts.filter(a => a.element !== this);
+                } else {
+                    this.classList.add('selected');
+                    selectedAccounts.push(buildAccountData(this));
+                }
+                selectedAccount = null;
+                updateSelectionInfoCounter();
+
+                const n = selectedAccounts.length;
+                if (n > 0) {
+                    showNotification(`${n} cuenta(s) seleccionada(s). Haz clic en un grupo del lado derecho para asignarlas.`, 'info');
+                }
             });
         });
-        
+
         // Asignar clic a los grupos del lado derecho
         const groupContainers = document.querySelectorAll('.group-content, .sub-group-content');
         console.log('📦 Grupos encontrados:', groupContainers.length);
@@ -29000,8 +29066,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
                         item.classList.remove('selected');
                     });
-                    
-                    showNotification(`${assignedCount} cuentas asignadas al grupo`, 'success');
+                    updateSelectionInfoCounter();
+
+                    showNotification(`${assignedCount} ${assignedCount === 1 ? 'cuenta asignada' : 'cuentas asignadas'} al grupo`, 'success');
                     // Crear carpeta "General" automáticamente en Planes y Procedimientos
                     createGeneralFolderIfNotExists();
                 } else {
@@ -30313,46 +30380,34 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Función para seleccionar todas las cuentas no asignadas
     function selectAllAccounts() {
         console.log('🎯 Seleccionando todas las cuentas...');
-        
-        // Obtener todas las cuentas no asignadas visibles
-        const unassignedAccounts = document.querySelectorAll('.unassigned-accounts-list .account-item');
-        
+
+        // Obtener solo las cuentas no asignadas visibles (respeta el buscador)
+        const unassignedAccounts = Array.from(
+            document.querySelectorAll('.unassigned-accounts-list .account-item')
+        ).filter(item => item.style.display !== 'none');
+
         if (unassignedAccounts.length === 0) {
             showNotification('No hay cuentas disponibles para seleccionar', 'warning');
             return;
         }
-        
+
         // Limpiar selecciones anteriores
         document.querySelectorAll('.unassigned-accounts-list .account-item').forEach(item => {
             item.classList.remove('selected');
         });
-        
-        // Seleccionar todas las cuentas
-        let selectedCount = 0;
-        unassignedAccounts.forEach(accountElement => {
-            accountElement.classList.add('selected');
-            selectedCount++;
-        });
-        
-        // Crear una selección múltiple
+        selectedAccount = null;
+
+        // Seleccionar todas las cuentas visibles
         selectedAccounts = [];
         unassignedAccounts.forEach(accountElement => {
-            selectedAccounts.push({
-                element: accountElement,
-                id: accountElement.dataset.accountId,
-                code: accountElement.dataset.accountCode,
-                name: accountElement.querySelector('.account-name')?.textContent || '',
-                ls: accountElement.dataset.accountLs || '',
-                value: parseAccountValue(accountElement.dataset.accountValue),
-                prevValue: parseAccountValue(accountElement.dataset.accountPrevValue),
-                datasetId: accountElement.dataset.accountDatasetId || currentDatasetId
-            });
+            accountElement.classList.add('selected');
+            selectedAccounts.push(buildAccountData(accountElement));
         });
-        
-        // Mostrar notificación
-        showNotification(`${selectedCount} cuentas seleccionadas. Ahora haz clic en un grupo del lado derecho para asignarlas.`, 'info');
-        
-        console.log(`✅ ${selectedCount} cuentas seleccionadas para asignación múltiple`);
+
+        updateSelectionInfoCounter();
+        showNotification(`${selectedAccounts.length} cuentas seleccionadas. Ahora haz clic en un grupo del lado derecho para asignarlas.`, 'info');
+
+        console.log(`✅ ${selectedAccounts.length} cuentas seleccionadas para asignación múltiple`);
     }
 
     function assignAccountToGroup(accountData, groupContent) {
@@ -31669,10 +31724,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 item.classList.remove('selected');
                             });
                             selectedAccounts = [];
-                            
+                            updateSelectionInfoCounter();
+
                             // Seleccionar esta cuenta
                             this.classList.add('selected');
-                            
+
                             // Extraer datos de la cuenta
                             const accountCode = this.dataset.accountCode;
                             const accountName = this.dataset.accountName;
@@ -31717,8 +31773,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 document.querySelectorAll('.unassigned-accounts-list .account-item.selected').forEach(item => {
                                     item.classList.remove('selected');
                                 });
-                                
-                                showNotification(`${assignedCount} cuentas asignadas debajo de esta cuenta`, 'success');
+                                updateSelectionInfoCounter();
+
+                                showNotification(`${assignedCount} ${assignedCount === 1 ? 'cuenta asignada' : 'cuentas asignadas'} debajo de esta cuenta`, 'success');
                             } else {
                                 // Asignación individual
                                 console.log('📋 Cuenta seleccionada para asignar:', selectedAccount);
@@ -47916,7 +47973,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </div>
                     
                     <div class="selection-info">
-                        Selecciona las cuentas que deseas asignar a grupos financieros
+                        <span>0 seleccionados</span> — Selecciona las cuentas que deseas asignar a grupos financieros
+                        <small style="color: #6b7280; display: block;">Clic: seleccionar/quitar · Shift+clic: rango · <a href="#" onclick="clearAccountSelection(event)" style="color: #007bff;">Limpiar</a></small>
                     </div>
                     
                     <div class="unassigned-accounts-list">
