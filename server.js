@@ -1183,6 +1183,80 @@ app.get('/api/commitments/entity/:entityId', async (req, res) => {
     }
 });
 
+// Get active datasets of an entity with detected period years (para columnas comparativas en Cuentas)
+app.get('/api/entities/:entityId/dataset-years', async (req, res) => {
+    try {
+        const entityId = req.params.entityId;
+        const userId = req.user?.id || req.headers['user-id'];
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const { data: datasets, error } = await supabase
+            .from('conjuntos_datos')
+            .select('id, nombre, commitment_id, fecha_importacion, data')
+            .eq('entity_id', entityId)
+            .eq('is_active', true);
+
+        if (error) throw error;
+
+        const commitmentIds = [...new Set((datasets || []).map(d => d.commitment_id).filter(Boolean))];
+        const commitmentNames = {};
+        if (commitmentIds.length) {
+            const { data: commitments } = await supabase
+                .from('commitments')
+                .select('id, name')
+                .in('id', commitmentIds);
+            (commitments || []).forEach(c => { commitmentNames[c.id] = c.name; });
+        }
+
+        // Convierte serial de Excel a año (epoch 1/1/1900 con ajuste del bug de Excel)
+        const serialToYear = (serial) => {
+            if (typeof serial !== 'number' || isNaN(serial)) return null;
+            const date = new Date(new Date(1900, 0, 1).getTime() + (serial - 2) * 86400000);
+            const year = date.getFullYear();
+            return (year >= 1990 && year <= 2100) ? String(year) : null;
+        };
+
+        const detectYears = (dataset) => {
+            const found = new Set();
+            const sheets = dataset?.data?.sheets || [];
+            sheets.forEach(sheet => {
+                (sheet?.columns || []).forEach(header => {
+                    let year = null;
+                    if (typeof header === 'number') {
+                        year = serialToYear(header);
+                    } else {
+                        const m = String(header || '').match(/\d{1,2}\/\d{1,2}\/(20\d{2})/) || String(header || '').match(/\b(20\d{2})\b/);
+                        if (m) year = m[1];
+                    }
+                    if (year) found.add(year);
+                });
+            });
+            const sorted = [...found].sort();
+            const current = sorted.length ? sorted[sorted.length - 1] : null;
+            const previous = sorted.length > 1
+                ? sorted[sorted.length - 2]
+                : (current ? String(parseInt(current, 10) - 1) : null);
+            return { current, previous };
+        };
+
+        const result = (datasets || []).map(d => ({
+            datasetId: d.id,
+            nombre: d.nombre,
+            commitmentId: d.commitment_id || null,
+            commitmentName: commitmentNames[d.commitment_id] || null,
+            years: detectYears(d)
+        }));
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        console.error('Error en /api/entities/:entityId/dataset-years:', error);
+        res.status(500).json({ success: false, error: 'Error obteniendo años de datasets' });
+    }
+});
+
 // Create a new commitment
 app.post('/api/commitments', async (req, res) => {
     const {
