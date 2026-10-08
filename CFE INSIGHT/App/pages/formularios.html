@@ -1932,12 +1932,11 @@
                                             <th style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Ajustes</th>
                                             <th class="js-th-final-current" style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2024 Final</th>
                                             <th class="js-th-final-previous" style="text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">31/12/2023 Final</th>
-                                            <th style="text-align:center; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody id="cuentasTableBody">
                                         <tr>
-                                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                                                     <i class="bi bi-hourglass-split" style="font-size: 1.2rem;"></i>
                                                     <span>Cargando cuentas...</span>
@@ -2069,7 +2068,6 @@
                                         <th>Ajustes</th>
                                         <th class="js-th-final-current">31/12/2024 Final</th>
                                         <th class="js-th-final-previous">31/12/2023 Final</th>
-                                        <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="gruposFinancierosTableBody">
@@ -4389,7 +4387,7 @@
                         if (cuentasTableBody) {
                             cuentasTableBody.innerHTML = `
                                 <tr>
-                                    <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                    <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
                                             <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                                             <span>No hay datos de Excel para esta entidad y compromiso</span>
@@ -4465,7 +4463,7 @@
                     if (cuentasTableBody) {
                         cuentasTableBody.innerHTML = `
                             <tr>
-                                <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
                                         <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                                         <span>No hay cuentas para esta entidad y compromiso</span>
@@ -4716,7 +4714,7 @@
             lastCuentasRenderArgs = { rows, meta };
             updateCuentasExtraHeaders();
 
-            const totalColspan = 7 + cuentasExtraColumns.length;
+            const totalColspan = 6 + cuentasExtraColumns.length;
             if (!Array.isArray(rows) || rows.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -4744,13 +4742,6 @@
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right; font-weight: 600;">${formatTrialBalanceCell(row.finalCurrent)}</td>
                         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:right;">${formatTrialBalanceCell(row.finalPrevious)}</td>
                         ${extraCells}
-                        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f3f5; text-align:center;">
-                            <div style="display: flex; gap: 4px; justify-content: center;">
-                                <button class="btn btn-sm btn-outline-secondary" style="padding: 4px 8px; font-size: 0.8rem;" title="Asuntos">
-                                    <i class="bi bi-flag"></i>
-                                </button>
-                            </div>
-                        </td>
                     </tr>
                 `;
             }).join('');
@@ -4888,13 +4879,12 @@
             const theadRow = tbody?.closest('table')?.querySelector('thead tr');
             if (!theadRow) return;
             theadRow.querySelectorAll('.js-cuentas-extra-th').forEach(th => th.remove());
-            const accionesTh = theadRow.lastElementChild;
             cuentasExtraColumns.forEach(col => {
                 const th = document.createElement('th');
                 th.className = 'js-cuentas-extra-th';
                 th.style.cssText = 'text-align:right; padding: 12px 8px; border-bottom: 2px solid #dee2e6; font-weight: 600;';
                 th.innerHTML = `31/12/${col.year} Final<div style="font-size: 0.7rem; font-weight: 400; color: #94a3b8;">${col.commitmentName || ''}</div>`;
-                theadRow.insertBefore(th, accionesTh);
+                theadRow.appendChild(th);
             });
         }
 
@@ -7193,7 +7183,7 @@
             if (typeof meta === 'string' && meta.includes('No hay datos')) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
+                        <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
                             <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
                             <div>${meta}</div>
                         </td>
@@ -7269,7 +7259,7 @@
             if (!Array.isArray(cleanedRows) || cleanedRows.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
+                        <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
                             <i class="bi bi-inbox" style="font-size: 1.2rem;"></i>
                             <div>No hay cuentas asignadas para mostrar.</div>
                         </td>
@@ -7332,14 +7322,7 @@
                             <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; text-align:right; background-color: inherit;">${formatLedgerCell(row.preliminary)}</td>
                             <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; text-align:right; background-color: inherit;">${adjustmentsCell}</td>
                             <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; text-align:right; font-weight: 600; background-color: inherit;">${formatLedgerCell(row.finalCurrent)}</td>
-                            <td style="padding: 12px 8px; border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; text-align:right; background-color: inherit;">${formatLedgerCell(row.finalPrevious)}</td>
-                            <td style="padding: 12px 8px; border-bottom: 1px solid #dee2e6; text-align:center; background-color: inherit;">
-                                <div style="display: flex; gap: 4px; justify-content: center;">
-                                    <button class="btn btn-sm btn-outline-secondary" style="padding: 4px 8px; font-size: 0.8rem;" title="Asuntos">
-                                        <i class="bi bi-flag"></i>
-                                    </button>
-                                </div>
-                            </td>
+                            <td style="padding: 12px 8px; border-bottom: 1px solid #dee2e6; text-align:right; background-color: inherit;">${formatLedgerCell(row.finalPrevious)}</td>
                         </tr>
                     `;
                     globalIndex++;
@@ -27449,7 +27432,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (cuentasBody) {
                     cuentasBody.innerHTML = `
                         <tr>
-                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
                                 <i class="bi bi-hourglass-split"></i>
                                 <p>Cargando cuentas...</p>
                             </td>
@@ -27461,7 +27444,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (gruposBody) {
                     gruposBody.innerHTML = `
                         <tr>
-                            <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
                                 <i class="bi bi-hourglass-split"></i>
                                 <p>Cargando grupos financieros...</p>
                             </td>
@@ -32252,7 +32235,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 }
                 
                 // Also search in other columns for more comprehensive search
-                for (let i = 2; i < row.cells.length - 1; i++) { // Exclude last column (Acciones)
+                for (let i = 2; i < row.cells.length; i++) {
                     searchText += row.cells[i].textContent.trim() + ' ';
                 }
                 
@@ -32274,7 +32257,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     noResultsRow = document.createElement('tr');
                     noResultsRow.className = 'no-results-row';
                     noResultsRow.innerHTML = `
-                        <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d; background-color: #f8f9fa;">
+                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d; background-color: #f8f9fa;">
                             <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                                 <i class="bi bi-search" style="font-size: 1.2rem;"></i>
                                 <span>No se encontraron cuentas que coincidan con "${searchInput.value}"</span>
