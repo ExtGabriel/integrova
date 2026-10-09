@@ -4,6 +4,69 @@ const DATABASE_API_BASE_URL = (window.API_BASE_URL)
     || '';
 
 // ============================================
+// AUTENTICACIÓN - HELPER PARA HEADERS JWT
+// ============================================
+
+/**
+ * Obtiene los headers de autenticación incluyendo el token JWT
+ * @param {Object} additionalHeaders - Headers adicionales a incluir
+ * @param {boolean} isFormData - Si el body es FormData (no poner Content-Type)
+ * @returns {Promise<Object>} Headers con Authorization
+ */
+async function getAuthHeaders(additionalHeaders = {}, isFormData = false) {
+    const headers = {
+        ...additionalHeaders
+    };
+
+    // Solo poner Content-Type si NO es FormData
+    // FormData necesita que el navegador genere el boundary automáticamente
+    if (!isFormData && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+        // Obtener sesión de Supabase
+        let session = null;
+        
+        if (typeof window.getSessionSilent === 'function') {
+            session = await window.getSessionSilent();
+        } else if (typeof window.getSupabaseSession === 'function') {
+            const { data } = await window.getSupabaseSession();
+            session = data?.session;
+        }
+
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        } else {
+            console.warn('⚠️ getAuthHeaders: No hay token de sesión disponible');
+        }
+    } catch (error) {
+        console.error('❌ Error obteniendo token de autenticación:', error);
+    }
+
+    return headers;
+}
+
+/**
+ * Wrapper de fetch con autenticación automática
+ * Detecta automáticamente si el body es FormData
+ * @param {string} url - URL del endpoint
+ * @param {Object} options - Opciones de fetch
+ * @returns {Promise<Response>} Respuesta del fetch
+ */
+async function authenticatedFetch(url, options = {}) {
+    // Detectar si el body es FormData
+    const isFormData = options.body instanceof FormData;
+    
+    const authHeaders = await getAuthHeaders(options.headers || {}, isFormData);
+    
+    return fetch(url, {
+        ...options,
+        headers: authHeaders
+    });
+}
+
+// ============================================
 // ACCOUNT ASSIGNMENTS
 // ============================================
 
@@ -66,21 +129,20 @@ async function saveAccountAssignment(assignmentData) {
         
         console.log('Payload a enviar:', payload);
 
-        const headers = {
-            'Content-Type': 'application/json',
+        const additionalHeaders = {
             'user-id': userId
         };
         // Solo enviar headers de contexto si tienen valor real
         if (entityId) {
-            headers['entity-id'] = entityId;
+            additionalHeaders['entity-id'] = entityId;
         }
         if (commitmentId) {
-            headers['commitment-id'] = commitmentId;
+            additionalHeaders['commitment-id'] = commitmentId;
         }
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/assignments/save`, {
             method: 'POST',
-            headers,
+            headers: additionalHeaders,
             body: JSON.stringify(payload)
         });
 
@@ -125,16 +187,15 @@ async function saveAccountAssignmentsBatch(datasetId, items) {
         if (selectedItem) commitmentId = selectedItem.dataset.commitmentId || '';
     }
 
-    const headers = {
-        'Content-Type': 'application/json',
+    const additionalHeaders = {
         'user-id': userId
     };
-    if (entityId) headers['entity-id'] = entityId;
-    if (commitmentId) headers['commitment-id'] = commitmentId;
+    if (entityId) additionalHeaders['entity-id'] = entityId;
+    if (commitmentId) additionalHeaders['commitment-id'] = commitmentId;
 
-    const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/batch-save`, {
+    const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/assignments/batch-save`, {
         method: 'POST',
-        headers,
+        headers: additionalHeaders,
         body: JSON.stringify({
             datasetId,
             entity_id: entityId || null,
@@ -185,20 +246,20 @@ async function getAccountAssignments(datasetId, entityId = null, commitmentId = 
         
         console.log('  URL completa:', url);
         
-        const headers = {
+        const additionalHeaders = {
             'user-id': getCurrentUserId()
         };
         
         if (contextEntityId) {
-            headers['entity-id'] = contextEntityId;
+            additionalHeaders['entity-id'] = contextEntityId;
         }
         if (contextCommitmentId) {
-            headers['commitment-id'] = contextCommitmentId;
+            additionalHeaders['commitment-id'] = contextCommitmentId;
         }
         
-        const response = await fetch(url, {
+        const response = await authenticatedFetch(url, {
             method: 'GET',
-            headers
+            headers: additionalHeaders
         });
 
         console.log('  Response status:', response.status);
@@ -231,7 +292,7 @@ async function deleteAccountAssignment(assignmentId) {
     try {
         console.log('Deleting assignment:', assignmentId);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/assignments/${assignmentId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/assignments/${assignmentId}`, {
             method: 'DELETE',
             headers: {
                 'user-id': getCurrentUserId()
@@ -266,10 +327,9 @@ async function saveFinancialGroup(groupData) {
     try {
         console.log('Saving financial group to database:', groupData);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/financial-groups/save`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'user-id': getCurrentUserId()
             },
             body: JSON.stringify({
@@ -307,7 +367,7 @@ async function getFinancialGroups(datasetId) {
     try {
         console.log('Loading financial groups from database for dataset:', datasetId);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${datasetId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/financial-groups/${datasetId}`, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId()
@@ -342,7 +402,7 @@ async function saveAccount(accountData) {
     try {
         console.log('Saving account to database:', accountData);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/accounts/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -385,7 +445,7 @@ async function saveAccountsBatch(accountsData) {
     try {
         console.log('Saving accounts batch to database:', accountsData.length, 'accounts');
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/batch-save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/accounts/batch-save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -425,7 +485,7 @@ async function saveFinancialAdjustment(adjustmentData) {
     try {
         console.log('Saving adjustment to database:', adjustmentData);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/adjustments/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -548,7 +608,7 @@ async function getLatestFinancialGroupResults(datasetId) {
     }
 
     try {
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/latest`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/latest`, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId()
@@ -594,7 +654,7 @@ async function getFinancialGroupSnapshots(datasetId, limit = 5) {
     const params = new URLSearchParams({ limit: String(limit) });
 
     try {
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/history?${params.toString()}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/${resolvedDatasetId}/history?${params.toString()}`, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId()
@@ -681,7 +741,7 @@ async function saveFinancialGroupsResults(datasetId, results, status = 'complete
         console.log('🔍 DEBUG: Longitud del body:', requestBodyString.length);
         console.log('🔍 DEBUG: Primeros 200 caracteres:', requestBodyString.substring(0, 200));
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/financial-groups-results/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -724,7 +784,7 @@ async function getFinancialAdjustments(datasetId) {
     try {
         console.log('Loading adjustments from database for dataset:', datasetId);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${datasetId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/adjustments/${datasetId}`, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId(),
@@ -759,7 +819,7 @@ async function deleteFinancialAdjustment(adjustmentId, datasetId) {
     try {
         console.log('Deleting adjustment from database:', { adjustmentId, datasetId });
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/adjustments/${adjustmentId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/adjustments/${adjustmentId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -818,7 +878,7 @@ async function saveLedgerIntegrityResults(datasetId, results, status = 'complete
             commitment_id: contextCommitmentId
         });
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/ledger-integrity/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/ledger-integrity/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -895,7 +955,7 @@ async function getLedgerIntegrityResults(datasetId, entityId = null, commitmentI
             url += '?' + params.toString();
         }
 
-        const response = await fetch(url, {
+        const response = await authenticatedFetch(url, {
             method: 'GET',
             headers: {
                 'user-id': getCurrentUserId()
@@ -1340,7 +1400,7 @@ function getStoredAssignments(datasetId = null) {
  */
 async function checkDatabaseConnection() {
     try {
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/health`);
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/health`);
         return response.ok;
     } catch (error) {
         console.error('Database connection check failed:', error);
@@ -1443,7 +1503,7 @@ async function getExcelData(datasetId = null, entityId = null, commitmentId = nu
             headers['commitment-id'] = commitmentId;
         }
         
-        const response = await fetch(apiUrl, {
+        const response = await authenticatedFetch(apiUrl, {
             method: 'GET',
             headers: headers
         });
@@ -1503,7 +1563,7 @@ async function saveExcelData(excelData, entityId, commitmentId, uploadSection = 
             headers['commitment-id'] = commitmentId;
         }
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/conjuntos/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/conjuntos/save`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
@@ -1566,7 +1626,7 @@ async function listExcelDatasets(entityId = null, commitmentId = null, uploadSec
             headers['commitment-id'] = commitmentId;
         }
         
-        const response = await fetch(apiUrl, {
+        const response = await authenticatedFetch(apiUrl, {
             method: 'GET',
             headers: headers
         });
@@ -1610,7 +1670,7 @@ async function deleteExcelData(datasetId, entityId = null, commitmentId = null) 
             headers['commitment-id'] = commitmentId;
         }
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/conjuntos/${datasetId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/conjuntos/${datasetId}`, {
             method: 'DELETE',
             headers: headers
         });
@@ -1653,7 +1713,7 @@ async function saveFormData(formData, entityId, commitmentId = null) {
         if (entityId) headers['entity-id'] = entityId;
         if (commitmentId) headers['commitment-id'] = commitmentId;
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
@@ -1704,7 +1764,7 @@ async function loadFormData(entityId, commitmentId = null) {
         if (entityId) params.append('entity_id', entityId);
         if (commitmentId) params.append('commitment_id', commitmentId);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify({
@@ -1756,7 +1816,7 @@ async function uploadFile(file, entityId, commitmentId = null, section = 'genera
             'user-id': getCurrentUserId()
         };
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/upload`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/files/upload`, {
             method: 'POST',
             headers: headers,
             body: formData
@@ -1801,7 +1861,7 @@ async function listFiles(entityId, commitmentId = null, section = null) {
         if (commitmentId) params.append('commitment_id', commitmentId);
         if (section) params.append('section', section);
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/list?${params}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/files/list?${params}`, {
             method: 'GET',
             headers: headers
         });
@@ -1840,7 +1900,7 @@ async function deleteFile(fileId, entityId = null, commitmentId = null) {
         if (entityId) headers['entity-id'] = entityId;
         if (commitmentId) headers['commitment-id'] = commitmentId;
         
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/files/${fileId}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/files/${fileId}`, {
             method: 'DELETE',
             headers: headers
         });
@@ -1870,7 +1930,7 @@ async function getUploadedFiles(entityId = null, commitmentId = null, tipo = nul
         if (commitmentId) params.append('commitment_id', commitmentId);
         if (tipo) params.append('tipo', tipo);
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/context?${params}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/subdocuments/context?${params}`, {
             headers: {
                 'user-id': userId,
                 ...(entityId ? { 'entity-id': entityId } : {}),
@@ -2025,7 +2085,7 @@ async function saveFormApproval(approvalData) {
             'user-id': userId
         };
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/approval`, {
             method: 'POST',
             headers,
             body: JSON.stringify(payload)
@@ -2089,7 +2149,7 @@ async function getFormApprovals(formResponseId, section = null) {
             'user-id': userId
         };
 
-        const response = await fetch(url, {
+        const response = await authenticatedFetch(url, {
             method: 'GET',
             headers
         });
@@ -2122,7 +2182,7 @@ async function getFormApprovalsForSection(formId, section, viewAll = false) {
         const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
         const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2186,7 +2246,7 @@ async function getFormApprovalsListForSection(formId, section, viewAll = false) 
         // multiple=true: las aprobaciones de usuarios distintos pueden estar
         // en registros separados (cada uno guarda en su propio created_by),
         // así que combinamos las entradas de todas las filas.
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/get`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2297,7 +2357,7 @@ async function removeApprovalForSection(formId, section, viewAll = false) {
             view_all: viewAll
         };
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/approval/remove`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/approval/remove`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2339,7 +2399,7 @@ async function saveBgReference(rowId, bgType, colIndex, file, entityId = null, c
             commitment_id: commitmentId
         };
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2369,7 +2429,7 @@ async function getBgReferences(bgType, entityId = null, commitmentId = null) {
         if (entityId) params.append('entity_id', entityId);
         if (commitmentId) params.append('commitment_id', commitmentId);
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/list?${params}`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/list?${params}`, {
             headers: {
                 'user-id': userId,
                 ...(entityId ? { 'entity-id': entityId } : {}),
@@ -2391,7 +2451,7 @@ async function deleteBgReference(rowId, bgType, colIndex, entityId = null, commi
         const userId = getCurrentUserId();
         if (!userId) throw new Error('Usuario no autenticado');
 
-        const response = await fetch(`${DATABASE_API_BASE_URL}/api/formularios/delete`, {
+        const response = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/formularios/delete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2432,7 +2492,7 @@ async function syncBgReferencesToDocument(documentId, bgType, entityId = null, c
             };
         }).filter(r => r.rowId !== undefined && r.fileId);
 
-        const getRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/get`, {
+        const getRes = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/subdocuments/get`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2449,7 +2509,7 @@ async function syncBgReferencesToDocument(documentId, bgType, entityId = null, c
         const doc = getResult.document;
         const updatedMetadata = { ...(doc.metadata || {}), bgType, references };
 
-        const updateRes = await fetch(`${DATABASE_API_BASE_URL}/api/subdocuments/update`, {
+        const updateRes = await authenticatedFetch(`${DATABASE_API_BASE_URL}/api/subdocuments/update`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

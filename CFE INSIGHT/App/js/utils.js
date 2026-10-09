@@ -1,5 +1,73 @@
+/**
+ * ============================================
+ * AUTENTICACIÓN - FETCH CON JWT AUTOMÁTICO
+ * ============================================
+ * Función global para hacer fetch con autenticación automática.
+ * Incluye el token JWT de Supabase en todas las llamadas.
+ */
 
+/**
+ * Obtiene los headers de autenticación incluyendo el token JWT
+ * @param {Object} additionalHeaders - Headers adicionales a incluir
+ * @param {boolean} isFormData - Si el body es FormData (no poner Content-Type)
+ * @returns {Promise<Object>} Headers con Authorization
+ */
+window.getAuthHeaders = async function(additionalHeaders = {}, isFormData = false) {
+    const headers = {
+        ...additionalHeaders
+    };
 
+    // Solo poner Content-Type si NO es FormData
+    // FormData necesita que el navegador genere el boundary automáticamente
+    if (!isFormData && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+        // Obtener sesión de Supabase
+        let session = null;
+        
+        if (typeof window.getSessionSilent === 'function') {
+            session = await window.getSessionSilent();
+        } else if (typeof window.getSupabaseSession === 'function') {
+            const { data } = await window.getSupabaseSession();
+            session = data?.session;
+        }
+
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        } else {
+            console.warn('⚠️ getAuthHeaders: No hay token de sesión disponible');
+        }
+    } catch (error) {
+        console.error('❌ Error obteniendo token de autenticación:', error);
+    }
+
+    return headers;
+};
+
+/**
+ * Wrapper de fetch con autenticación automática
+ * Usa esta función en lugar de fetch() para llamadas a la API
+ * Detecta automáticamente si el body es FormData
+ * @param {string} url - URL del endpoint
+ * @param {Object} options - Opciones de fetch
+ * @returns {Promise<Response>} Respuesta del fetch
+ */
+window.authenticatedFetch = async function(url, options = {}) {
+    // Detectar si el body es FormData
+    const isFormData = options.body instanceof FormData;
+    
+    const authHeaders = await window.getAuthHeaders(options.headers || {}, isFormData);
+    
+    return fetch(url, {
+        ...options,
+        headers: authHeaders
+    });
+};
+
+// Alias corto para compatibilidad
+window.authFetch = window.authenticatedFetch;
 
 /**
  * ============================================
@@ -358,12 +426,9 @@ async function callAI(prompt, context = 'soporte', provider = 'openai', options 
         const maxTokens = options.maxTokens || AI_CONFIG.maxTokens;
         const temperature = options.temperature || AI_CONFIG.temperature;
 
-        // Llamar al proxy backend
-        const response = await fetch(`${AI_CONFIG.proxy.baseUrl}/call`, {
+        // Llamar al proxy backend (usa authenticatedFetch que está en este mismo archivo)
+        const response = await window.authenticatedFetch(`${AI_CONFIG.proxy.baseUrl}/call`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 prompt,
                 context,
@@ -443,7 +508,7 @@ async function analyzeLogsWithAI(logs, analysisType = 'general') {
             return 'Servicio de IA no disponible.';
         }
 
-        const response = await fetch(`${AI_CONFIG.proxy.baseUrl}/analyze-logs`, {
+        const response = await window.authenticatedFetch(`${AI_CONFIG.proxy.baseUrl}/analyze-logs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -470,7 +535,7 @@ async function generateReportWithAI(data, reportType = 'general') {
             return 'Servicio de IA no disponible.';
         }
 
-        const response = await fetch(`${AI_CONFIG.proxy.baseUrl}/generate-report`, {
+        const response = await window.authenticatedFetch(`${AI_CONFIG.proxy.baseUrl}/generate-report`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

@@ -883,7 +883,7 @@ async function generateRealNotifications() {
             ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
             : (typeof window !== 'undefined' ? window.location.origin : '');
 
-        const existingNotificationsResponse = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
+        const existingNotificationsResponse = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
         
         if (existingNotificationsResponse.ok) {
             const result = await existingNotificationsResponse.json();
@@ -939,7 +939,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`${apiBaseUrl}/api/notifications`, {
+                        const createResponse = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1024,7 +1024,7 @@ async function generateRealNotifications() {
                 } else {
                     // Create new notification in database
                     try {
-                        const createResponse = await fetch(`${apiBaseUrl}/api/notifications`, {
+                        const createResponse = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1205,7 +1205,7 @@ async function syncNotificationAsRead(notificationId) {
 
         console.log(`📡 Enviando PUT a ${apiBaseUrl}/api/notifications/${notificationId}/read con user-id: ${userId}`);
 
-        const response = await fetch(`${apiBaseUrl}/api/notifications/${notificationId}/read`, {
+        const response = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -2101,7 +2101,7 @@ async function loadCalendarEventsFromDB() {
 
         let notificationEventIds = new Set();
         try {
-            const notifResponse = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
+            const notifResponse = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
             if (notifResponse.ok) {
                 const notifResult = await notifResponse.json();
                 const notifs = notifResult.success && Array.isArray(notifResult.data) ? notifResult.data : [];
@@ -2568,7 +2568,7 @@ async function notifyTeamMembers(event, teamId) {
 
         for (const memberId of memberIds) {
             try {
-                await fetch(`${apiBaseUrl}/api/notifications`, {
+                await window.authenticatedFetch(`${apiBaseUrl}/api/notifications`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2695,7 +2695,7 @@ async function checkForNewNotifications() {
             ? (window.API_BASE_URL || window.APP_CONFIG.API_BASE_URL)
             : (typeof window !== 'undefined' ? window.location.origin : '');
 
-        const response = await fetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
+        const response = await window.authenticatedFetch(`${apiBaseUrl}/api/notifications?user_id=${userId}`);
         if (!response.ok) return;
 
         const result = await response.json();

@@ -1471,7 +1471,7 @@
                 formData.append('entity_id', consultaEntityId || '');
                 formData.append('commitment_id', consultaCommitmentId || '');
 
-                const response = await fetch('/api/consultas/archivo', { method: 'POST', body: formData });
+                const response = await window.authenticatedFetch('/api/consultas/archivo', { method: 'POST', body: formData });
                 const data = await response.json();
 
                 if (data.success) {
@@ -1488,7 +1488,7 @@
         async function abrirArchivoConsulta(descriptor) {
             if (!descriptor || !descriptor.path) return;
             try {
-                const response = await fetch('/api/consultas/archivo?path=' + encodeURIComponent(descriptor.path));
+                const response = await window.authenticatedFetch('/api/consultas/archivo?path=' + encodeURIComponent(descriptor.path));
                 const data = await response.json();
                 if (data.success && data.url) {
                     window.open(data.url, '_blank');
@@ -1504,9 +1504,8 @@
         async function eliminarArchivoConsulta(path) {
             if (!path) return;
             try {
-                await fetch('/api/consultas/archivo', {
+                await window.authenticatedFetch('/api/consultas/archivo', {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path })
                 });
             } catch (error) {
@@ -1593,7 +1592,7 @@
                     console.log('✅ Condiciones cumplidas para cargar desde Supabase');
                     try {
                         console.log('🔄 Cargando datos desde Supabase...');
-                        const response = await fetch(`/api/consultas/${consultaNumero}`);
+                        const response = await window.authenticatedFetch(`/api/consultas/${consultaNumero}`);
                         
                         if (response.ok) {
                             const data = await response.json();
@@ -2750,7 +2749,7 @@
         }
 
         function guardarConsulta(datos) {
-            return fetch('/api/guardar-consulta', {
+            return window.authenticatedFetch('/api/guardar-consulta', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2782,11 +2781,8 @@
             try {
                 console.log('📤 Enviando a Supabase:', datos);
                 
-                const response = await fetch('/api/guardar-consulta', {
+                const response = await window.authenticatedFetch('/api/guardar-consulta', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(conContextoConsulta(datos))
                 });
 
@@ -2836,7 +2832,7 @@
                 // 1. Resolver destinatarios (clientes de la entidad)
                 let destinatarios = [];
                 if (datos.asignarTodos && consultaEntityId) {
-                    const respClientes = await fetch(`/api/entities/${consultaEntityId}/clients`);
+                    const respClientes = await window.authenticatedFetch(`/api/entities/${consultaEntityId}/clients`);
                     const dataClientes = await respClientes.json();
                     if (!dataClientes.success) {
                         throw new Error(dataClientes.error || 'Error al obtener los clientes de la entidad');
@@ -2896,11 +2892,8 @@
                 }
 
                 // 3. Registrar el envío en el servidor (estado 'enviada' + consulta_envios)
-                const response = await fetch('/api/enviar-consulta', {
+                const response = await window.authenticatedFetch('/api/enviar-consulta', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
@@ -3086,7 +3079,7 @@
                     }
 
                     try {
-                        const resp = await fetch(`/api/entities/${consultaEntityId}/clients`);
+                        const resp = await window.authenticatedFetch(`/api/entities/${consultaEntityId}/clients`);
                         const data = await resp.json();
 
                         if (!data.success) {
@@ -3228,5 +3221,10 @@
             </div>
         </div>
     </div>
+    
+    <!-- Scripts de autenticación y utilidades -->
+    <script src="../js/supabaseClient.js"></script>
+    <script src="../js/auth-guard.js"></script>
+    <script src="../js/utils.js"></script>
 </body>
 </html>

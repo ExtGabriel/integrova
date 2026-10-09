@@ -1682,11 +1682,8 @@
                     ? window.APP_CONFIG.API_BASE_URL
                     : window.location.origin;
 
-                const response = await fetch(`${apiBaseUrl}/api/commitments`, {
+                const response = await window.authenticatedFetch(`${apiBaseUrl}/api/commitments`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(newCommitment)
                 });
                 const result = await response.json();
@@ -2194,11 +2191,8 @@
 
             try {
                 // Actualizar compromiso via servidor proxy
-                const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
+                const response = await window.authenticatedFetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(updatedCommitment)
                 });
                 const result = await response.json();
@@ -2321,7 +2315,7 @@
             const commitmentName = document.getElementById('deleteCommitmentName').textContent;
 
             try {
-                const response = await fetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
+                const response = await window.authenticatedFetch(`${window.APP_CONFIG.API_BASE_URL}/api/commitments/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',

@@ -593,7 +593,7 @@ class AuditDocumentsManager {
                 formData.append('form_id', this.formId);
             }
 
-            const response = await fetch(`${AUDIT_API_BASE_URL}/api/audit/documents/upload`, {
+            const response = await window.authenticatedFetch(`${AUDIT_API_BASE_URL}/api/audit/documents/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -636,7 +636,7 @@ class AuditDocumentsManager {
                 ? `${AUDIT_API_BASE_URL}/api/audit/documents/form/${this.formId}`
                 : `${AUDIT_API_BASE_URL}/api/audit/documents/commitment/${this.commitmentId}?category=planes_procedimientos`;
 
-            const response = await fetch(url);
+            const response = await window.authenticatedFetch(url);
 
             if (!response.ok) {
                 console.error(`Error al cargar documentos: ${response.status} ${response.statusText}`);
@@ -857,7 +857,7 @@ class AuditDocumentsManager {
         }
 
         try {
-            const response = await fetch(
+            const response = await window.authenticatedFetch(
                 `${AUDIT_API_BASE_URL}/api/audit/documents/${documentId}?user_id=${this.currentUser.id}`,
                 { method: 'DELETE' }
             );

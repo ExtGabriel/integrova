@@ -84,9 +84,8 @@ function toggleSocioUI() {
 async function getPendingFinalReviews() {
     try {
         const session = getCurrentSession();
-        const response = await fetch(`${API_BASE_URL}/api/audit/final-reviews/pending`, {
+        const response = await window.authenticatedFetch(`${API_BASE_URL}/api/audit/final-reviews/pending`, {
             headers: {
-                'Content-Type': 'application/json',
                 'user-role': session.role,
                 'user-id': session.username
             }
@@ -110,9 +109,8 @@ async function getPendingFinalReviews() {
 async function getFinalReviewsByFormId(formId) {
     try {
         const session = getCurrentSession();
-        const response = await fetch(`${API_BASE_URL}/api/audit/final-reviews/${formId}`, {
+        const response = await window.authenticatedFetch(`${API_BASE_URL}/api/audit/final-reviews/${formId}`, {
             headers: {
-                'Content-Type': 'application/json',
                 'user-role': session.role,
                 'user-id': session.username
             }
@@ -137,10 +135,9 @@ async function saveFinalReview(formId, commitmentId, reviewStatus, comments = ''
     try {
         const session = getCurrentSession();
 
-        const response = await fetch(`${API_BASE_URL}/api/audit/final-reviews`, {
+        const response = await window.authenticatedFetch(`${API_BASE_URL}/api/audit/final-reviews`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'user-role': session.role,
                 'user-id': session.username
             },
@@ -173,10 +170,9 @@ async function setRequiresFinalReview(formId, requires = true) {
     try {
         const session = getCurrentSession();
 
-        const response = await fetch(`${API_BASE_URL}/api/audit/forms/${formId}/require-final-review`, {
+        const response = await window.authenticatedFetch(`${API_BASE_URL}/api/audit/forms/${formId}/require-final-review`, {
             method: 'PATCH',
             headers: {
-                'Content-Type': 'application/json',
                 'user-role': session.role,
                 'user-id': session.username
             },
@@ -204,9 +200,8 @@ async function getFinalReviewStats() {
     try {
         const session = getCurrentSession();
 
-        const response = await fetch(`${API_BASE_URL}/api/audit/final-reviews/stats/${session.username}`, {
+        const response = await window.authenticatedFetch(`${API_BASE_URL}/api/audit/final-reviews/stats/${session.username}`, {
             headers: {
-                'Content-Type': 'application/json',
                 'user-role': session.role,
                 'user-id': session.username
             }

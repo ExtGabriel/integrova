@@ -1626,7 +1626,7 @@
                 console.log('👑 Intentando backend /api/users (service role)...');
                 try {
                     const apiBaseUrl = (window.API_BASE_URL || window.APP_CONFIG?.API_BASE_URL || window.location.origin || '').replace(/\/$/, '');
-                    const response = await fetch(`${apiBaseUrl}/api/users`);
+                    const response = await window.authenticatedFetch(`${apiBaseUrl}/api/users`);
                     if (response.ok) {
                         const result = await response.json();
                         console.log(`✅ Backend /api/users: ${result.data.length} usuarios`);
@@ -1959,7 +1959,7 @@
                 }
 
                 // Delegar creación al backend (usa service role y respeta FK)
-                const response = await fetch('/api/usuarios', {
+                const response = await window.authenticatedFetch('/api/usuarios', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -2398,10 +2398,9 @@
                 }
 
                 // Usar el endpoint correcto del servidor
-                const response = await fetch(`/api/usuarios/${userId}`, {
+                const response = await window.authenticatedFetch(`/api/usuarios/${userId}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(updateData)
@@ -2593,10 +2592,9 @@
 
                 console.log(`🔐 Restableciendo contraseña para usuario ${userId}...`);
 
-                const response = await fetch(`/api/users/${userId}/reset-password`, {
+                const response = await window.authenticatedFetch(`/api/users/${userId}/reset-password`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ newPassword })
@@ -2721,7 +2719,7 @@
                 try {
                     const queryParams = new URLSearchParams({ limit: '400' });
                     console.log('📡 Audit.getAll: Intentando backend /api/audit/logs...');
-                    const response = await fetch(`/api/audit/logs?${queryParams.toString()}`);
+                    const response = await window.authenticatedFetch(`/api/audit/logs?${queryParams.toString()}`);
 
                     if (response.ok) {
                         const result = await response.json();

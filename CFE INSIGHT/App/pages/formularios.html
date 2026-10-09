@@ -2252,7 +2252,7 @@
                     latestUrl += `?${params.toString()}`;
                 }
 
-                const response = await fetch(latestUrl, {
+                const response = await window.authenticatedFetch(latestUrl, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         ...(entityId ? { 'entity-id': entityId } : {}),
@@ -2672,7 +2672,7 @@
                 
                 // Primero guardar los datos temporales en la base de datos
                 console.log('💾 Guardando datos temporales en la base de datos...');
-                const saveResponse = await fetch(`${getApiBaseUrl()}/api/excel/save-temp-data`, {
+                const saveResponse = await window.authenticatedFetch(`${getApiBaseUrl()}/api/excel/save-temp-data`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2714,7 +2714,7 @@
                 console.log('🔍 window.currentDatasetId sincronizado:', window.currentDatasetId);
                 
                 // Ahora procesar el mapeo
-                const mappingResponse = await fetch(`${getApiBaseUrl()}/api/excel/process-mapping`, {
+                const mappingResponse = await window.authenticatedFetch(`${getApiBaseUrl()}/api/excel/process-mapping`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2771,7 +2771,7 @@
                 if (commitmentId) params.append('commitment_id', commitmentId);
                 if (params.toString()) url += `?${params.toString()}`;
 
-                const resp = await fetch(url, {
+                const resp = await window.authenticatedFetch(url, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         ...(entityId ? { 'entity-id': entityId } : {}),
@@ -3941,7 +3941,7 @@
                     throw new Error('Usuario no autenticado');
                 }
                 
-                const response = await fetch(apiUrl, {
+                const response = await window.authenticatedFetch(apiUrl, {
                     headers: {
                         'user-id': userId
                     }
@@ -4206,7 +4206,7 @@
                 // Limpiar cache del servidor para este contexto antes de cargar nuevas cuentas
                 if (context.entityId && context.commitmentId) {
                     try {
-                        await fetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
+                        await window.authenticatedFetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
                             method: 'POST',
                             headers: {
                                 'user-id': userId,
@@ -4223,7 +4223,7 @@
                 // Primero verificar si hay un dataset válido para esta entidad/compromiso
                 if (context.entityId && context.commitmentId) {
                     console.log('🔍 Verificando si hay dataset para entidad:', context.entityId, 'compromiso:', context.commitmentId);
-                    const datasetCheck = await fetch(`${getApiBaseUrl()}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
+                    const datasetCheck = await window.authenticatedFetch(`${getApiBaseUrl()}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
                         headers: {
                             'user-id': userId
                         }
@@ -4254,7 +4254,7 @@
                 
                 // Limpiar cache de cuentas en el servidor para el contexto actual
                 try {
-                    const clearCacheResponse = await fetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
+                    const clearCacheResponse = await window.authenticatedFetch(`${getApiBaseUrl()}/api/accounts/clear-cache`, {
                         method: 'POST',
                         headers: {
                             'user-id': userId,
@@ -4286,7 +4286,7 @@
                 }
                 
                 // Cargar cuentas desde la API
-                const response = await fetch(`${getApiBaseUrl()}/api/accounts/unassigned`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/accounts/unassigned`, {
                     headers: {
                         'user-id': userId,
                         ...(context.entityId ? { 'entity-id': context.entityId } : {}),
@@ -4634,7 +4634,7 @@
             if (!cuentasColumnsCatalog) {
                 menu.innerHTML = `<div style="padding: 10px; color: #6c757d; font-size: 0.85rem;">Cargando columnas disponibles...</div>`;
                 try {
-                    const res = await fetch(`${getApiBaseUrl()}/api/entities/${entityId}/dataset-years`, {
+                    const res = await window.authenticatedFetch(`${getApiBaseUrl()}/api/entities/${entityId}/dataset-years`, {
                         headers: { 'user-id': getCurrentUserId() }
                     });
                     const json = await res.json();
@@ -4688,7 +4688,7 @@
         async function fetchExtraCuentaColumnValues(commitmentId, yearType) {
             const values = new Map();
             try {
-                const res = await fetch(`${getApiBaseUrl()}/api/accounts/unassigned`, {
+                const res = await window.authenticatedFetch(`${getApiBaseUrl()}/api/accounts/unassigned`, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         'entity-id': commitmentDropdownState?.currentEntityId || '',
@@ -5512,7 +5512,7 @@
             if (context.entityId && context.commitmentId) {
                 console.log('🔍 Verificando si hay dataset para entidad:', context.entityId, 'compromiso:', context.commitmentId);
                 const userId = getCurrentUserId();
-                const datasetCheck = await fetch(`${API_BASE_URL}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
+                const datasetCheck = await window.authenticatedFetch(`${API_BASE_URL}/api/excel/latest?entity_id=${context.entityId}&commitment_id=${context.commitmentId}`, {
                     headers: {
                         'user-id': userId
                     }
@@ -7321,7 +7321,7 @@
                 }
 
                 // Cargar todos los formularios del contexto
-                const response = await fetch(`${getApiBaseUrl()}/api/formularios/get`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/get`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -7393,7 +7393,7 @@
                     
                     console.log('🔍 DEBUG payload para', sectionId, ':', payload);
 
-                    const response = await fetch(`${getApiBaseUrl()}/api/formularios/save`, {
+                    const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/save`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -10576,7 +10576,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const fileData = await fileToBase64(file);
                 
                 // Enviar archivo al backend con la categoría y subcategoría reales
-                const response = await fetch(`${getApiBaseUrl()}/api/subdocuments/upload`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/upload`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -11096,7 +11096,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('🔍 Descargando documento:', documentId);
             
             // Obtener información del documento primero
-            fetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser?.id || 'anonymous'
                 }
@@ -11154,7 +11154,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         function downloadUploadedFile(documentId, fileName) {
             console.log('📥 Iniciando descarga de:', fileName);
             
-            fetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser?.id || 'anonymous'
                 }
@@ -22163,7 +22163,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 contextUrl += `&commitment_id=${encodeURIComponent(commitmentId || '')}`;
 
                 try {
-                    const response = await fetch(contextUrl, {
+                    const response = await window.authenticatedFetch(contextUrl, {
                         headers: { 'user-id': currentUser.id }
                     });
 
@@ -22267,7 +22267,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!entityId) entityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
                 if (!commitmentId) commitmentId = commitmentDropdownState?.selectedCommitmentId || window.currentCommitmentId || null;
 
-                const response = await fetch('/api/formularios/save', {
+                const response = await window.authenticatedFetch('/api/formularios/save', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -22322,7 +22322,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 let url = `${getApiBaseUrl()}/api/formularios/list?form_id_prefix=vinculo_&entity_id=${encodeURIComponent(entityId)}`;
                 url += `&commitment_id=${encodeURIComponent(commitmentId || '')}`;
 
-                const response = await fetch(url, {
+                const response = await window.authenticatedFetch(url, {
                     headers: { 'user-id': userId }
                 });
 
@@ -22381,7 +22381,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!entityId) entityId = commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || null;
                 if (!commitmentId) commitmentId = commitmentDropdownState?.selectedCommitmentId || window.currentCommitmentId || null;
 
-                const response = await fetch(`${getApiBaseUrl()}/api/formularios/delete`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/delete`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -24359,7 +24359,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const commitmentId = commitmentDropdownState?.selectedCommitmentId || null;
 
                 // Buscar el formulario MATRIZ_A300 en la base de datos
-                const response = await fetch(`${getApiBaseUrl()}/api/formularios/get`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/get`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -24672,7 +24672,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.log('Guardando matriz A300 en BD:', payload);
 
                 // Enviar al endpoint
-                const response = await fetch(`${getApiBaseUrl()}/api/formularios/save`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/save`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -26252,7 +26252,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 console.log('🔍 URL de consulta de observaciones:', url);
 
-                const response = await fetch(url);
+                const response = await window.authenticatedFetch(url);
                 const data = await response.json();
 
                 if (data.success) {
@@ -26337,7 +26337,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 
                 if (observationId) {
                     // Actualizar observación existente (texto y clasificación también)
-                    const response = await fetch(`/api/observations/${observationId}`, {
+                    const response = await window.authenticatedFetch(`/api/observations/${observationId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
@@ -26358,7 +26358,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 } else {
                     // Crear nueva observación
                     const context = formDataManager.getContext();
-                    const response = await fetch('/api/observations', {
+                    const response = await window.authenticatedFetch('/api/observations', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -26602,7 +26602,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     return;
                 }
 
-                const response = await fetch(`/api/observations/${observationId}`, {
+                const response = await window.authenticatedFetch(`/api/observations/${observationId}`, {
                     method: 'DELETE',
                     headers: {
                         'user-id': getCurrentUserId() || ''
@@ -26643,7 +26643,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para marcar como resuelta
         async function resolveObservation(observationId) {
             try {
-                const response = await fetch(`/api/observations/${observationId}`, {
+                const response = await window.authenticatedFetch(`/api/observations/${observationId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -26678,7 +26678,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para reabrir una observación resuelta (vuelve a pendiente)
         async function reopenObservation(observationId) {
             try {
-                const response = await fetch(`/api/observations/${observationId}`, {
+                const response = await window.authenticatedFetch(`/api/observations/${observationId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -27376,6 +27376,66 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('🎉 REINICIO COMPLETO FINALIZADO - Sistema listo para nuevo archivo');
         }
         
+        // Carga "Asignar cuentas" mostrando el resultado final de una sola vez.
+        // Antes se pintaban todas las cuentas como "sin asignar" y, en una segunda
+        // petición disparada con setTimeout, se movían a sus grupos (se veía el salto,
+        // y si la primera carga tardaba más de ~600 ms las asignaciones no se restauraban).
+        // Ahora la lista queda oculta tras un indicador de carga hasta que ambas
+        // operaciones terminan, y la restauración espera a que exista el dataset.
+        async function loadAssignAccountsSectionWithoutFlicker() {
+            const container = document.querySelector('#asignarCuentasSection .unassigned-accounts-list')
+                || document.querySelector('.unassigned-accounts-list');
+
+            let loadingIndicator = null;
+            if (container) {
+                loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'empty-state assign-accounts-loading';
+                loadingIndicator.innerHTML = `
+                    <i class="bi bi-hourglass-split"></i>
+                    <p>Cargando cuentas y asignaciones...</p>
+                `;
+                container.parentNode.insertBefore(loadingIndicator, container);
+                container.style.display = 'none';
+            }
+
+            try {
+                // Las asignaciones se piden en paralelo con las cuentas, en cuanto se conoce el dataset
+                let prefetchedDatasetId = null;
+                let assignmentsPromise = null;
+
+                await loadUnassignedAccountsFromLatestExcel({
+                    onDatasetResolved: (datasetId) => {
+                        if (!window.getAccountAssignments) return;
+                        prefetchedDatasetId = normalizeDatasetId(datasetId);
+                        const entityId = window.commitmentDropdownState?.currentEntityId || null;
+                        const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || null;
+                        assignmentsPromise = window.getAccountAssignments(prefetchedDatasetId, entityId, commitmentId)
+                            .catch(error => {
+                                console.warn('⚠️ Error precargando asignaciones:', error);
+                                return null;
+                            });
+                    }
+                });
+
+                if (currentDatasetId) {
+                    const prefetched = assignmentsPromise ? await assignmentsPromise : null;
+                    const sameDataset = prefetchedDatasetId && prefetchedDatasetId === normalizeDatasetId(currentDatasetId);
+
+                    if (sameDataset && Array.isArray(prefetched) && prefetched.length > 0) {
+                        await restoreAssignedAccounts(prefetched);
+                    } else {
+                        // Sin precarga útil: comportamiento original (BD y, si no hay datos, localStorage)
+                        await restoreAssignedAccounts();
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando la sección Asignar cuentas:', error);
+            } finally {
+                if (loadingIndicator) loadingIndicator.remove();
+                if (container) container.style.display = '';
+            }
+        }
+
         async function selectDataSection(sectionName) {
             // Ocultar todas las secciones
             const asignarCuentasSection = document.getElementById('asignarCuentasSection');
@@ -27397,20 +27457,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     // Solo cargar si no se ha cargado antes
                     if (!dataLoadState.unassignedAccounts) {
                         console.log('📊 Cargando cuentas sin asignar (primera vez)...');
-                        loadUnassignedAccountsFromLatestExcel();
-                        // Esperar a que currentDatasetId esté disponible antes de restaurar asignaciones
-                        setTimeout(async () => {
-                            if (currentDatasetId) {
-                                await restoreAssignedAccounts();
-                            } else {
-                                // Reintentar después de un breve delay
-                                setTimeout(async () => {
-                                    if (currentDatasetId) {
-                                        await restoreAssignedAccounts();
-                                    }
-                                }, 500);
-                            }
-                        }, 100);
+                        loadAssignAccountsSectionWithoutFlicker();
                     } else {
                         console.log('✅ Cuentas sin asignar ya cargadas, omitiendo recarga');
                         // Solo restaurar asignaciones si es necesario
@@ -27562,7 +27609,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     latestUrl += `?${params.toString()}`;
                 }
 
-                const response = await fetch(latestUrl, {
+                const response = await window.authenticatedFetch(latestUrl, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         ...(entityId ? { 'entity-id': entityId } : {}),
@@ -27818,7 +27865,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (commitmentId) params.append('commitment_id', commitmentId);
                 if (params.toString()) url += `?${params.toString()}`;
 
-                const resp = await fetch(url, { headers: { 'user-id': getCurrentUserId() } });
+                const resp = await window.authenticatedFetch(url, { headers: { 'user-id': getCurrentUserId() } });
                 const result = await resp.json();
                 const sheetsData = result?.data?.sheets_data;
                 if (!resp.ok || !result?.success || !Array.isArray(sheetsData) || !sheetsData.length) return;
@@ -28355,7 +28402,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // Función para obtener el UUID correcto desde cuentas_contables
             const getAccountUuidFromCode = async (code) => {
                 try {
-                    const response = await fetch(`${DATABASE_API_BASE_URL}/api/accounts/by-code/${code}`, {
+                    const response = await window.authenticatedFetch(`${DATABASE_API_BASE_URL}/api/accounts/by-code/${code}`, {
                         method: 'GET',
                         headers: {
                             'user-id': getCurrentUserId()
@@ -29149,7 +29196,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         latestUrl += `?${params.toString()}`;
                     }
 
-                    const latestResponse = await fetch(latestUrl, {
+                    const latestResponse = await window.authenticatedFetch(latestUrl, {
                         headers: {
                             'user-id': getCurrentUserId(),
                             ...(entityId ? { 'entity-id': entityId } : {}),
@@ -29965,7 +30012,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         try {
             showNotification('Verificando datos en la base de datos...', 'info');
             
-            const response = await fetch('/api/verify-database-data');
+            const response = await window.authenticatedFetch('/api/verify-database-data');
             const result = await response.json();
             
             if (!result.success) {
@@ -31039,14 +31086,14 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     apiUrl += `?${params.toString()}`;
                 }
 
-                // Headers con contexto para RLS/validación
+                // Headers con contexto para RLS/validación (el token JWT se agrega en authenticatedFetch)
                 const headers = {
                     'user-id': getCurrentUserId()
                 };
                 if (entityId) headers['entity-id'] = entityId;
                 if (commitmentId) headers['commitment-id'] = commitmentId;
 
-                const response = await fetch(apiUrl, { headers });
+                const response = await window.authenticatedFetch(apiUrl, { headers });
                 const result = await response.json();
 
                 if (!response.ok || !result.success) {
@@ -31145,7 +31192,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (entityId) headers['entity-id'] = entityId;
                 if (commitmentId) headers['commitment-id'] = commitmentId;
 
-                const response = await fetch(`${getApiBaseUrl()}/api/conjuntos/${datasetId}`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/conjuntos/${datasetId}`, {
                     method: 'DELETE',
                     headers
                 });
@@ -31205,7 +31252,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         }
 
-        async function loadUnassignedAccountsFromLatestExcel() {
+        // onDatasetResolved (opcional): se llama con el id del dataset en cuanto se conoce,
+        // para que quien llama pueda iniciar otras cargas en paralelo con la de cuentas.
+        async function loadUnassignedAccountsFromLatestExcel({ onDatasetResolved = null } = {}) {
             try {
                 selectedAccount = null;
                 document.querySelectorAll('.unassigned-accounts-list .account-item.selected')
@@ -31241,11 +31290,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const latestParams = new URLSearchParams();
                 if (entityId) latestParams.append('entity_id', entityId);
                 if (commitmentId) latestParams.append('commitment_id', commitmentId);
-                if (latestParams.toString()) {
-                    latestUrl += `?${latestParams.toString()}`;
-                }
+                // Esta sección solo usa el id del dataset: pedir la versión resumida sin las hojas del Excel
+                latestParams.append('summary', '1');
+                latestUrl += `?${latestParams.toString()}`;
 
-                const latestResponse = await fetch(latestUrl, {
+                const latestResponse = await window.authenticatedFetch(latestUrl, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         ...(entityId ? { 'entity-id': entityId } : {}),
@@ -31253,7 +31302,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                 });
                 const latestResult = await latestResponse.json();
-                
+
                 console.log('🔍 Respuesta de /api/excel/latest:', latestResult);
                 console.log('🔍 latestResponse.ok:', latestResponse.ok);
                 console.log('🔍 latestResult.success:', latestResult.success);
@@ -31279,6 +31328,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                     currentDatasetId = latestResult.data.id;
                     window.currentDatasetId = latestResult.data.id;
+                    if (typeof onDatasetResolved === 'function') {
+                        onDatasetResolved(currentDatasetId);
+                    }
                     console.log('✅ Dataset actual establecido (sin localStorage):', currentDatasetId);
                     console.log('🔍 Verificación - currentDatasetId después de asignar:', currentDatasetId);
                     console.log('🔍 Verificación - window.currentDatasetId:', window.currentDatasetId);
@@ -31308,7 +31360,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Limpiar cache de cuentas en el servidor para el contexto actual
                 try {
-                    const clearCacheResponse = await fetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
+                    const clearCacheResponse = await window.authenticatedFetch(`${API_BASE_URL}/api/accounts/clear-cache`, {
                         method: 'POST',
                         headers: {
                             'user-id': getCurrentUserId(),
@@ -31322,7 +31374,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     console.warn('⚠️ Error limpiando cache de cuentas en asignar cuentas:', cacheError);
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/accounts/unassigned`, {
+                const response = await window.authenticatedFetch(`${API_BASE_URL}/api/accounts/unassigned`, {
                     headers: {
                         'user-id': getCurrentUserId(),
                         ...(entityIdForAccounts ? { 'entity-id': entityIdForAccounts } : {}),
@@ -32342,7 +32394,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 console.log('🔍 Upload - Contexto:', { entityId, commitmentId });
 
-                const response = await fetch(`${API_BASE_URL}/api/excel/process-temp`, {
+                const response = await window.authenticatedFetch(`${API_BASE_URL}/api/excel/process-temp`, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -41015,7 +41067,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             fd.append('entity_id', context.entityId || '');
             fd.append('commitment_id', context.commitmentId || '');
 
-            const resp = await fetch(`${getApiBaseUrl()}/api/formularios/attachment`, {
+            const resp = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/attachment`, {
                 method: 'POST',
                 headers: { 'user-id': userId },
                 body: fd
@@ -41060,7 +41112,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         async function descargarArchivoFormulario(path, name) {
             try {
                 const userId = getCurrentUserId();
-                const resp = await fetch(`${getApiBaseUrl()}/api/formularios/attachment?path=${encodeURIComponent(path)}&name=${encodeURIComponent(name || 'archivo')}`, {
+                const resp = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/attachment?path=${encodeURIComponent(path)}&name=${encodeURIComponent(name || 'archivo')}`, {
                     headers: { 'user-id': userId }
                 });
                 if (!resp.ok) throw new Error('No se pudo descargar el archivo');
@@ -45471,7 +45523,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para cargar archivos de una sección específica
         async function loadFilesForSection({ section, categoria, subcategoria, contentId }, userId) {
             try {
-                const response = await fetch(`${getApiBaseUrl()}/api/subdocuments/${categoria}/${subcategoria}`, {
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/${categoria}/${subcategoria}`, {
                     headers: {
                         'user-id': userId
                     }
@@ -45570,7 +45622,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             console.log('🔍 Usando userId:', userId);
             
             // Obtener información del documento
-            fetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
                 headers: {
                     'user-id': userId
                 }
@@ -45609,7 +45661,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function updateDocumentTitle(documentId, newTitle) {
-            fetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45642,7 +45694,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function downloadUploadedDocument(documentId) {
-            fetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/download/${documentId}`, {
                 headers: {
                     'user-id': window.currentUser.id
                 }
@@ -45680,7 +45732,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 return;
             }
 
-            fetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
+            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
                 method: 'DELETE',
                 headers: {
                     'user-id': window.currentUser.id
@@ -45761,7 +45813,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                     try {
                         if (isDevelopment) console.log('🌐 Cargando catálogo completo de usuarios');
-                        const response = await fetch(`${getApiBaseUrl()}/api/users`);
+                        const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/users`);
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         const data = await response.json();
                         if (isDevelopment) console.log('📋 Respuesta de /api/users:', data);
@@ -48290,7 +48342,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const queryString = queryParams.toString();
                 const url = '/api/historial-consultas' + (queryString ? `?${queryString}` : '');
                 console.log('🔍 Consultando:', url);
-                const response = await fetch(url);
+                const response = await window.authenticatedFetch(url);
                 const data = await response.json();
 
                 // Si llegó una petición más nueva mientras tanto, descartar esta

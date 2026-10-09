@@ -138,10 +138,131 @@ function parseNumber(value) {
 // MIDDLEWARES DE SEGURIDAD Y PERMISOS
 // ============================================
 
-// Middleware para verificar rol de socio o admin
+// ============================================
+// MIDDLEWARE DE AUTENTICACIÓN JWT
+// ============================================
+
+// Lista de endpoints públicos que no requieren autenticación
+// NOTA: Usamos req.originalUrl porque app.use('/api/', ...) remueve el prefijo /api
+const PUBLIC_ENDPOINTS = [
+    '/api/health',
+    '/api/auth/login',
+    '/api/auth/logout' // Permitir logout sin token (por si el token expiró)
+];
+
+// Middleware principal de autenticación JWT
+async function authenticateToken(req, res, next) {
+    // Permitir endpoints públicos - usar originalUrl para obtener la ruta completa
+    const requestPath = req.originalUrl || req.url;
+    if (PUBLIC_ENDPOINTS.some(endpoint => requestPath === endpoint || requestPath.startsWith(endpoint))) {
+        return next();
+    }
+
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Token de autenticación requerido',
+            code: 'AUTH_REQUIRED'
+        });
+    }
+
+    const token = authHeader.substring(7);
+    
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+
+        if (error || !user) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Token inválido o expirado',
+                code: 'INVALID_TOKEN'
+            });
+        }
+
+        // Obtener rol del usuario desde la tabla users
+        const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('id, role, full_name, email, username')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError) {
+            console.warn('⚠️ No se pudo obtener perfil de usuario:', profileError.message);
+        }
+
+        // Normalizar el rol
+        const rawRole = (userProfile?.role || '').trim().toLowerCase();
+        
+        req.user = {
+            id: user.id,
+            email: user.email,
+            role: rawRole || 'usuario',
+            profile: userProfile || null
+        };
+        
+        next();
+    } catch (err) {
+        console.error('❌ Error en autenticación:', err);
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Error interno de autenticación',
+            code: 'AUTH_ERROR'
+        });
+    }
+}
+
+// ============================================
+// MIDDLEWARES DE AUTORIZACIÓN POR ROL
+// ============================================
+
+// Roles que pueden crear/editar datos
+const EDITOR_ROLES = ['admin', 'administrador', 'socio', 'auditor', 'auditor senior', 'programador'];
+
+// Roles de administrador
+const ADMIN_ROLES = ['admin', 'administrador', 'programador'];
+
+// Solo administradores (gestión de usuarios)
+function requireAdmin(req, res, next) {
+    if (!req.user || !ADMIN_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Acceso denegado. Se requiere rol de administrador.',
+            code: 'ADMIN_REQUIRED'
+        });
+    }
+    next();
+}
+
+// Roles que pueden crear/editar (socio, admin, auditor, auditor senior)
+function requireEditor(req, res, next) {
+    if (!req.user || !EDITOR_ROLES.includes(req.user.role)) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Acceso denegado. Se requiere rol de socio, administrador o auditor.',
+            code: 'EDITOR_REQUIRED'
+        });
+    }
+    next();
+}
+
+// Cualquier usuario autenticado (ya verificado por authenticateToken)
+function requireAuth(req, res, next) {
+    if (!req.user) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Autenticación requerida',
+            code: 'AUTH_REQUIRED'
+        });
+    }
+    next();
+}
+
+// Middleware legacy para compatibilidad (deprecado)
 function isSocioOrAdmin(req, res, next) {
-    const userRole = req.headers['user-role'];
-    if (!userRole || !['socio', 'administrador', 'programador'].includes(userRole)) {
+    const userRole = req.user?.role || req.headers['user-role'];
+    if (!userRole || !EDITOR_ROLES.includes(userRole.toLowerCase())) {
         return res.status(403).json({
             success: false,
             error: 'No tiene permisos para esta acción. Se requiere rol de socio o administrador.'
@@ -154,39 +275,128 @@ function isSocioOrAdmin(req, res, next) {
 // RATE LIMITING
 // ============================================
 
+// Contadores en memoria: clave -> { count, resetTime }
+// Las claves llevan prefijo (user:, ip:, ai:, upload:, authfail:) para no mezclar límites
 const requestCounts = new Map();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutos
-const RATE_LIMIT_MAX_REQUESTS = 1000;
 
-// Middleware de rate limiting
-function rateLimiter(req, res, next) {
-    const ip = req.ip || req.connection.remoteAddress;
-    const now = Date.now();
+// Límite general por usuario autenticado (cada usuario tiene su propio contador)
+const RATE_LIMIT_MAX_REQUESTS = 5000;
 
-    if (!requestCounts.has(ip)) {
-        requestCounts.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-        return next();
+// Intentos con token inválido o ausente (401) permitidos por IP antes de bloquear.
+// Se cuentan solo los fallos para no afectar a usuarios legítimos que comparten
+// la misma IP pública (por ejemplo, toda una oficina o el proxy de Vercel).
+const RATE_LIMIT_MAX_AUTH_FAILURES_PER_IP = 300;
+
+// Límites estrictos por usuario para operaciones costosas (solo POST)
+const STRICT_RATE_LIMITS = [
+    {
+        name: 'ai',          // consumo de la API de OpenAI
+        max: 60,
+        paths: ['/api/ai/']
+    },
+    {
+        name: 'upload',      // subida y procesamiento de archivos
+        max: 200,
+        paths: [
+            '/api/excel/upload',
+            '/api/excel/preview',
+            '/api/excel/process-temp',
+            '/api/consultas/archivo',
+            '/api/formularios/attachment',
+            '/api/subdocuments/upload'
+        ]
+    }
+];
+
+// Endpoints EXENTOS del límite general (muy usados por la UI)
+const RATE_LIMIT_EXCLUDED_PATHS = [
+    '/api/observations',      // observaciones en formularios
+    '/api/assignments',       // asignaciones de cuentas
+    '/api/excel/datasets'     // historial de datasets
+];
+
+// Suma una petición al contador de `key`.
+// Devuelve los segundos restantes de la ventana si se superó `max`, o null si está dentro del límite.
+function consumeRateLimit(key, max, now = Date.now()) {
+    const record = requestCounts.get(key);
+
+    if (!record || now > record.resetTime) {
+        requestCounts.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+        return null;
     }
 
-    const record = requestCounts.get(ip);
-
-    // Reiniciar contador si pasó la ventana de tiempo
-    if (now > record.resetTime) {
-        record.count = 1;
-        record.resetTime = now + RATE_LIMIT_WINDOW;
-        return next();
-    }
-
-    // Incrementar contador
     record.count++;
 
-    // Verificar límite
-    if (record.count > RATE_LIMIT_MAX_REQUESTS) {
-        return res.status(429).json({
-            success: false,
-            error: 'Demasiadas solicitudes. Por favor, intenta más tarde.',
-            retryAfter: Math.ceil((record.resetTime - now) / 1000)
-        });
+    if (record.count > max) {
+        return Math.ceil((record.resetTime - now) / 1000);
+    }
+
+    return null;
+}
+
+// `code` indica qué límite se superó, para poder diagnosticarlo desde el navegador
+function sendTooManyRequests(req, res, retryAfter, code) {
+    console.warn(`⚠️ Rate limit (${code}) para ${req.user?.id || req.ip} en ${req.method} ${req.originalUrl}`);
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({
+        success: false,
+        error: 'Demasiadas solicitudes. Por favor, intenta más tarde.',
+        code,
+        retryAfter
+    });
+}
+
+// Se aplica ANTES de la autenticación: cuando una IP acumula demasiados 401,
+// se rechazan de inmediato sus peticiones SIN token. Las peticiones que traen
+// un token siguen a authenticateToken, así un usuario con sesión válida nunca
+// queda bloqueado por los fallos de otras peticiones desde la misma IP.
+function authFailureRateLimiter(req, res, next) {
+    const key = `authfail:${req.ip}`;
+    const record = requestCounts.get(key);
+    const now = Date.now();
+    const hasBearerToken = (req.headers.authorization || '').startsWith('Bearer ');
+
+    if (!hasBearerToken && record && now <= record.resetTime && record.count >= RATE_LIMIT_MAX_AUTH_FAILURES_PER_IP) {
+        return sendTooManyRequests(req, res, Math.ceil((record.resetTime - now) / 1000), 'RATE_LIMIT_AUTH_FAILURES');
+    }
+
+    res.on('finish', () => {
+        if (res.statusCode === 401) {
+            consumeRateLimit(key, Infinity);
+        }
+    });
+
+    next();
+}
+
+// Se aplica DESPUÉS de la autenticación: cuenta por usuario (req.user.id).
+// Las rutas públicas (sin req.user) se cuentan por IP.
+function rateLimiter(req, res, next) {
+    const now = Date.now();
+    const path = req.originalUrl || req.url || '';
+    const clientKey = req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`;
+
+    // Límites estrictos para IA y subidas de archivos
+    if (req.method === 'POST') {
+        for (const rule of STRICT_RATE_LIMITS) {
+            if (rule.paths.some(p => path.startsWith(p))) {
+                const retryAfter = consumeRateLimit(`${rule.name}:${clientKey}`, rule.max, now);
+                if (retryAfter !== null) {
+                    return sendTooManyRequests(req, res, retryAfter, `RATE_LIMIT_${rule.name.toUpperCase()}`);
+                }
+            }
+        }
+    }
+
+    // Saltar el límite general para endpoints muy frecuentados por la UI
+    if (RATE_LIMIT_EXCLUDED_PATHS.some(p => path.startsWith(p))) {
+        return next();
+    }
+
+    const retryAfter = consumeRateLimit(clientKey, RATE_LIMIT_MAX_REQUESTS, now);
+    if (retryAfter !== null) {
+        return sendTooManyRequests(req, res, retryAfter, 'RATE_LIMIT_GENERAL');
     }
 
     next();
@@ -195,9 +405,9 @@ function rateLimiter(req, res, next) {
 // Limpiar contadores antiguos cada 5 minutos
 setInterval(() => {
     const now = Date.now();
-    for (const [ip, record] of requestCounts.entries()) {
+    for (const [key, record] of requestCounts.entries()) {
         if (now > record.resetTime + RATE_LIMIT_WINDOW) {
-            requestCounts.delete(ip);
+            requestCounts.delete(key);
         }
     }
 }, 5 * 60 * 1000);
@@ -294,10 +504,30 @@ const corsOptions = {
     maxAge: 86400 // 24 horas
 };
 
+// Confiar solo en el primer proxy (Railway) para obtener la IP del cliente.
+// Con `true` se aceptaría cualquier X-Forwarded-For enviado por el cliente, que es falsificable.
+app.set('trust proxy', 1);
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para archivos
 app.use(express.static(path.join(__dirname, 'CFE INSIGHT/App'))); // Servir archivos estáticos
+
+// ============================================
+// APLICAR SEGURIDAD GLOBAL A TODAS LAS RUTAS /api/
+// ============================================
+
+// Bloqueo por IP de intentos repetidos sin token válido (antes de autenticar)
+app.use('/api/', authFailureRateLimiter);
+
+// Autenticación JWT global para todas las rutas de API
+// (los endpoints públicos se manejan dentro del middleware)
+app.use('/api/', authenticateToken);
+
+// Rate limiting por usuario (después de autenticar, para conocer req.user)
+app.use('/api/', rateLimiter);
+
+console.log('🔒 Seguridad habilitada: Rate Limiting + JWT Authentication en /api/');
 
 // Configuración de multer para manejo de archivos
 const storage = multer.memoryStorage();
@@ -402,7 +632,7 @@ function processImageFile(buffer, filename) {
 }
 
 // Supabase Connection Test Endpoint
-app.get('/api/test-supabase', async (req, res) => {
+app.get('/api/test-supabase', requireAdmin, async (req, res) => {
     try {
         // Test basic connection
         const { data, error } = await supabase
@@ -443,8 +673,10 @@ app.get('/api/test-supabase', async (req, res) => {
 });
 
 // User Management API Endpoints
+// NOTA: Todos estos endpoints requieren autenticación (aplicada globalmente)
+// Los endpoints de creación/eliminación requieren rol de administrador
 
-// Get all users
+// Get all users (requiere autenticación, cualquier usuario puede ver la lista)
 app.get('/api/users', async (req, res) => {
     try {
         // Usar service role para obtener todos los usuarios sin restricciones RLS
@@ -498,8 +730,8 @@ app.get('/api/users/:username', async (req, res) => {
     }
 });
 
-// Create a new user
-app.post('/api/users', async (req, res) => {
+// Create a new user (SOLO ADMINISTRADORES)
+app.post('/api/users', requireAdmin, async (req, res) => {
     const { username, name, email, phone, role } = req.body;
     console.log('📝 Intentando crear usuario:', { username, name, email, role });
     try {
@@ -532,8 +764,8 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
-// Update a user
-app.put('/api/users/:username', async (req, res) => {
+// Update a user (SOLO ADMINISTRADORES)
+app.put('/api/users/:username', requireAdmin, async (req, res) => {
     const username = req.params.username;
     const { name, email, phone, role } = req.body;
     try {
@@ -556,8 +788,8 @@ app.put('/api/users/:username', async (req, res) => {
     }
 });
 
-// Delete a user
-app.delete('/api/users/:username', async (req, res) => {
+// Delete a user (SOLO ADMINISTRADORES)
+app.delete('/api/users/:username', requireAdmin, async (req, res) => {
     const username = req.params.username;
     try {
         const { data, error } = await supabase
@@ -575,7 +807,7 @@ app.delete('/api/users/:username', async (req, res) => {
 });
 
 // Get user password by ID (security message)
-app.get('/api/users/:userId/password', async (req, res) => {
+app.get('/api/users/:userId/password', requireAdmin, async (req, res) => {
     const { userId } = req.params;
     
     try {
@@ -604,7 +836,7 @@ app.get('/api/users/:userId/password', async (req, res) => {
         }
 
         // Solo administradores pueden solicitar información de contraseñas
-        if (userProfile.role !== 'admin') {
+        if (!ADMIN_ROLES.includes((userProfile.role || '').trim().toLowerCase())) {
             return res.status(403).json({ success: false, error: 'Solo administradores pueden acceder a esta información' });
         }
 
@@ -646,8 +878,8 @@ app.get('/api/users/:userId/password', async (req, res) => {
     }
 });
 
-// Reset user password (admin only)
-app.post('/api/users/:userId/reset-password', async (req, res) => {
+// Reset user password (SOLO ADMINISTRADORES)
+app.post('/api/users/:userId/reset-password', requireAdmin, async (req, res) => {
     const { userId } = req.params;
     const { newPassword } = req.body;
     
@@ -660,34 +892,8 @@ app.post('/api/users/:userId/reset-password', async (req, res) => {
             });
         }
         
-        // Verificar que el solicitante sea administrador
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ success: false, error: 'Token de autenticación requerido' });
-        }
-
-        const token = authHeader.substring(7);
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
-            return res.status(401).json({ success: false, error: 'Token inválido' });
-        }
-
-        // Obtener el rol del usuario desde la tabla users
-        const { data: userProfile, error: profileError } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        if (profileError || !userProfile) {
-            return res.status(403).json({ success: false, error: 'No se pudo verificar el rol del usuario' });
-        }
-
-        // Solo administradores pueden restablecer contraseñas
-        if (userProfile.role !== 'admin') {
-            return res.status(403).json({ success: false, error: 'Solo administradores pueden restablecer contraseñas' });
-        }
+        // El middleware requireAdmin ya verificó que es administrador
+        // req.user contiene la información del usuario autenticado
 
         // Obtener información del usuario objetivo
         const { data: targetUser, error: userError } = await supabase
@@ -714,7 +920,7 @@ app.post('/api/users/:userId/reset-password', async (req, res) => {
             });
         }
         
-        console.log(`🔐 Contraseña restablecida para usuario ${userId} (${targetUser.email}) por admin ${user.id}`);
+        console.log(`🔐 Contraseña restablecida para usuario ${userId} (${targetUser.email}) por admin ${req.user.id}`);
         console.log('💡 Notificación por correo: manejada por EmailJS en el frontend');
         
         res.json({ 
@@ -866,8 +1072,8 @@ app.get('/api/entities/:id/clients', async (req, res) => {
     }
 });
 
-// Create a new entity
-app.post('/api/entities', async (req, res) => {
+// Create a new entity (REQUIERE ROL DE EDITOR: socio, admin, auditor, auditor senior)
+app.post('/api/entities', requireEditor, async (req, res) => {
     const body = req.body || {};
     const {
         name,
@@ -978,8 +1184,8 @@ app.post('/api/entities', async (req, res) => {
     }
 });
 
-// Update an entity
-app.put('/api/entities/:id', async (req, res) => {
+// Update an entity (REQUIERE ROL DE EDITOR)
+app.put('/api/entities/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const body = req.body || {};
     const {
@@ -1091,8 +1297,8 @@ app.put('/api/entities/:id', async (req, res) => {
     }
 });
 
-// Delete an entity
-app.delete('/api/entities/:id', async (req, res) => {
+// Delete an entity (REQUIERE ROL DE EDITOR)
+app.delete('/api/entities/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -1257,8 +1463,8 @@ app.get('/api/entities/:entityId/dataset-years', async (req, res) => {
     }
 });
 
-// Create a new commitment
-app.post('/api/commitments', async (req, res) => {
+// Create a new commitment (REQUIERE ROL DE EDITOR)
+app.post('/api/commitments', requireEditor, async (req, res) => {
     const {
         name,
         description,
@@ -1352,8 +1558,8 @@ app.post('/api/commitments', async (req, res) => {
     }
 });
 
-// Update a commitment
-app.put('/api/commitments/:id', async (req, res) => {
+// Update a commitment (REQUIERE ROL DE EDITOR)
+app.put('/api/commitments/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const {
         name,
@@ -1454,8 +1660,8 @@ app.put('/api/commitments/:id', async (req, res) => {
     }
 });
 
-// Delete a commitment
-app.delete('/api/commitments/:id', async (req, res) => {
+// Delete a commitment (REQUIERE ROL DE EDITOR)
+app.delete('/api/commitments/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         // Primero eliminar respuestas de formulario asociadas (cascade delete manual)
@@ -1539,8 +1745,8 @@ app.get('/api/work-groups/:id', async (req, res) => {
     }
 });
 
-// Create a new work group
-app.post('/api/work-groups', async (req, res) => {
+// Create a new work group (REQUIERE ROL DE EDITOR)
+app.post('/api/work-groups', requireEditor, async (req, res) => {
     const { name, description, members, commitments } = req.body;
     try {
         const { data, error } = await supabase
@@ -1556,8 +1762,8 @@ app.post('/api/work-groups', async (req, res) => {
     }
 });
 
-// Update a work group
-app.put('/api/work-groups/:id', async (req, res) => {
+// Update a work group (REQUIERE ROL DE EDITOR)
+app.put('/api/work-groups/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const { name, description, members, commitments } = req.body;
     try {
@@ -1575,8 +1781,8 @@ app.put('/api/work-groups/:id', async (req, res) => {
     }
 });
 
-// Delete a work group
-app.delete('/api/work-groups/:id', async (req, res) => {
+// Delete a work group (REQUIERE ROL DE EDITOR)
+app.delete('/api/work-groups/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -1940,8 +2146,8 @@ app.get('/api/usuarios/:id', async (req, res) => {
     }
 });
 
-// Create user
-app.post('/api/usuarios', async (req, res) => {
+// Create user (SOLO ADMINISTRADORES)
+app.post('/api/usuarios', requireAdmin, async (req, res) => {
     const body = req.body || {};
     const fullName = body.full_name || body.name || body.nombre;
     const email = body.email || body.correo;
@@ -2009,8 +2215,8 @@ app.post('/api/usuarios', async (req, res) => {
     }
 });
 
-// Update user
-app.put('/api/usuarios/:id', async (req, res) => {
+// Update user (SOLO ADMINISTRADORES)
+app.put('/api/usuarios/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const body = req.body || {};
     
@@ -2055,8 +2261,8 @@ app.put('/api/usuarios/:id', async (req, res) => {
     }
 });
 
-// Delete user
-app.delete('/api/usuarios/:id', async (req, res) => {
+// Delete user (SOLO ADMINISTRADORES)
+app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     try {
         const { error } = await supabase
@@ -2126,8 +2332,8 @@ app.get('/api/clientes/:id', async (req, res) => {
     }
 });
 
-// Create a new cliente
-app.post('/api/clientes', async (req, res) => {
+// Create a new cliente (REQUIERE ROL DE EDITOR)
+app.post('/api/clientes', requireEditor, async (req, res) => {
     const { nombre_empresa, nit, direccion, telefono, user_id } = req.body;
     try {
         const { data, error } = await supabase
@@ -2143,8 +2349,8 @@ app.post('/api/clientes', async (req, res) => {
     }
 });
 
-// Update a cliente
-app.put('/api/clientes/:id', async (req, res) => {
+// Update a cliente (REQUIERE ROL DE EDITOR)
+app.put('/api/clientes/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const { nombre_empresa, nit, direccion, telefono, user_id } = req.body;
     try {
@@ -2162,8 +2368,8 @@ app.put('/api/clientes/:id', async (req, res) => {
     }
 });
 
-// Delete a cliente
-app.delete('/api/clientes/:id', async (req, res) => {
+// Delete a cliente (REQUIERE ROL DE EDITOR)
+app.delete('/api/clientes/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -2281,8 +2487,8 @@ app.get('/api/auditorias/cliente/:clienteId', async (req, res) => {
     }
 });
 
-// Create a new auditoria
-app.post('/api/auditorias', async (req, res) => {
+// Create a new auditoria (REQUIERE ROL DE EDITOR)
+app.post('/api/auditorias', requireEditor, async (req, res) => {
     const { cliente_id, auditor_id, creado_por, tipo, fecha_inicio, fecha_fin, estado, comentarios } = req.body;
     try {
         const { data, error } = await supabase
@@ -2298,8 +2504,8 @@ app.post('/api/auditorias', async (req, res) => {
     }
 });
 
-// Update an auditoria
-app.put('/api/auditorias/:id', async (req, res) => {
+// Update an auditoria (REQUIERE ROL DE EDITOR)
+app.put('/api/auditorias/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const { cliente_id, auditor_id, tipo, fecha_inicio, fecha_fin, estado, comentarios } = req.body;
     try {
@@ -2317,8 +2523,8 @@ app.put('/api/auditorias/:id', async (req, res) => {
     }
 });
 
-// Delete an auditoria
-app.delete('/api/auditorias/:id', async (req, res) => {
+// Delete an auditoria (REQUIERE ROL DE EDITOR)
+app.delete('/api/auditorias/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -2434,8 +2640,8 @@ app.get('/api/hallazgos/auditoria/:auditoriaId', async (req, res) => {
     }
 });
 
-// Create a new hallazgo
-app.post('/api/hallazgos', async (req, res) => {
+// Create a new hallazgo (REQUIERE ROL DE EDITOR)
+app.post('/api/hallazgos', requireEditor, async (req, res) => {
     const { auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion } = req.body;
     try {
         const { data, error } = await supabase
@@ -2451,8 +2657,8 @@ app.post('/api/hallazgos', async (req, res) => {
     }
 });
 
-// Update a hallazgo
-app.put('/api/hallazgos/:id', async (req, res) => {
+// Update a hallazgo (REQUIERE ROL DE EDITOR)
+app.put('/api/hallazgos/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const { auditoria_id, registrado_por, descripcion, severidad, impacto, recomendacion } = req.body;
     try {
@@ -2470,8 +2676,8 @@ app.put('/api/hallazgos/:id', async (req, res) => {
     }
 });
 
-// Delete a hallazgo
-app.delete('/api/hallazgos/:id', async (req, res) => {
+// Delete a hallazgo (REQUIERE ROL DE EDITOR)
+app.delete('/api/hallazgos/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -2578,8 +2784,8 @@ app.get('/api/acciones-correctivas/hallazgo/:hallazgoId', async (req, res) => {
     }
 });
 
-// Create a new accion correctiva
-app.post('/api/acciones-correctivas', async (req, res) => {
+// Create a new accion correctiva (REQUIERE ROL DE EDITOR)
+app.post('/api/acciones-correctivas', requireEditor, async (req, res) => {
     const { hallazgo_id, descripcion, responsable, fecha_limite, estado, evidencia_url } = req.body;
     try {
         const { data, error } = await supabase
@@ -2595,8 +2801,8 @@ app.post('/api/acciones-correctivas', async (req, res) => {
     }
 });
 
-// Update an accion correctiva
-app.put('/api/acciones-correctivas/:id', async (req, res) => {
+// Update an accion correctiva (REQUIERE ROL DE EDITOR)
+app.put('/api/acciones-correctivas/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     const { hallazgo_id, descripcion, responsable, fecha_limite, estado, evidencia_url } = req.body;
     try {
@@ -2614,8 +2820,8 @@ app.put('/api/acciones-correctivas/:id', async (req, res) => {
     }
 });
 
-// Delete an accion correctiva
-app.delete('/api/acciones-correctivas/:id', async (req, res) => {
+// Delete an accion correctiva (REQUIERE ROL DE EDITOR)
+app.delete('/api/acciones-correctivas/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
         const { data, error } = await supabase
@@ -3026,7 +3232,10 @@ app.get('/api/excel/latest', async (req, res) => {
     try {
         const userId = req.user?.id || req.headers['user-id'];
         const { entity_id, commitment_id } = req.query;
-        
+        // ?summary=1 devuelve solo los metadatos del dataset (sin las hojas del Excel).
+        // Lo usan las secciones que solo necesitan el id; sin el parámetro la respuesta no cambia.
+        const summaryOnly = req.query.summary === '1' || req.query.summary === 'true';
+
         console.log('🔍🔍🔍 DIAGNÓSTICO /api/excel/latest:');
         console.log('  userId:', userId);
         console.log('  entity_id:', entity_id);
@@ -3040,9 +3249,9 @@ app.get('/api/excel/latest', async (req, res) => {
         
         let query = supabase
             .from('conjuntos_datos')
-            .select('*')
+            .select(summaryOnly ? 'id, nombre, entity_id, commitment_id, created_at, fecha_importacion' : '*')
             .eq('is_active', true);
-        
+
         // Compartir por entidad/compromiso; si no hay contexto, mantener privado por usuario
         if (entity_id && commitment_id) {
             console.log('🔍 Compartiendo dataset por entity_id:', entity_id, 'commitment_id:', commitment_id);
@@ -3083,6 +3292,20 @@ app.get('/api/excel/latest', async (req, res) => {
             
             console.log('✅ Conjunto encontrado, procesando datos...');
             
+            if (summaryOnly) {
+                return res.json({
+                    success: true,
+                    data: {
+                        id: conjunto.id,
+                        filename: conjunto.nombre,
+                        status: 'processed',
+                        sheets_data: [],
+                        uploadedAt: conjunto.created_at,
+                        summary: true
+                    }
+                });
+            }
+
             // Convertir al formato que espera el frontend
             const responseData = {
                 id: conjunto.id,
@@ -6853,7 +7076,7 @@ app.post('/api/financial-groups-results/save', async (req, res) => {
 });
 
 // Endpoint para verificar datos guardados en la base de datos
-app.get('/api/verify-database-data', async (req, res) => {
+app.get('/api/verify-database-data', requireAdmin, async (req, res) => {
     try {
         // Contar registros en cada tabla usando Supabase
         const [conjuntosResult, assignmentsResult, adjustmentsResult, ledgerResult] = await Promise.all([
@@ -6910,8 +7133,8 @@ app.get('/api/verify-database-data', async (req, res) => {
     }
 });
 
-// Endpoint temporal para obtener datasets sin autenticación (solo para debug)
-app.get('/api/debug/datasets', async (req, res) => {
+// Endpoint de debug para obtener datasets (SOLO ADMINISTRADORES)
+app.get('/api/debug/datasets', requireAdmin, async (req, res) => {
     try {
         const { data: datasets, error: datasetsError } = await supabase
             .from('conjuntos_datos')
@@ -6938,7 +7161,7 @@ app.get('/api/debug/datasets', async (req, res) => {
 });
 
 // Endpoint temporal para ver estructura de tablas
-app.get('/api/debug/tables', async (req, res) => {
+app.get('/api/debug/tables', requireAdmin, async (req, res) => {
     try {
         const tableName = req.query.table || 'conjuntos_datos';
         
@@ -7534,7 +7757,7 @@ app.post('/api/accounts/batch-save', async (req, res) => {
 });
 
 // Endpoint temporal para inspeccionar estructura de tabla
-app.get('/api/inspect-table/:tableName', async (req, res) => {
+app.get('/api/inspect-table/:tableName', requireAdmin, async (req, res) => {
     try {
         const { tableName } = req.params;
         
@@ -7568,7 +7791,7 @@ app.get('/api/inspect-table/:tableName', async (req, res) => {
 });
 
 // Endpoint para crear tabla financial_groups directamente
-app.post('/api/create-financial-groups-table', async (req, res) => {
+app.post('/api/create-financial-groups-table', requireAdmin, async (req, res) => {
     try {
         console.log('Creando tabla financial_groups...');
         
@@ -7628,7 +7851,7 @@ app.post('/api/create-financial-groups-table', async (req, res) => {
 });
 
 // Endpoint para verificar columnas de cuentas_contables
-app.post('/api/fix-cuentas-contables', async (req, res) => {
+app.post('/api/fix-cuentas-contables', requireAdmin, async (req, res) => {
     try {
         console.log('Verificando/actualizando tabla cuentas_contables...');
         
@@ -7682,7 +7905,7 @@ app.post('/api/fix-cuentas-contables', async (req, res) => {
 // ============================================
 // ENDPOINT PARA CREAR TABLA DE CONSULTAS
 // ============================================
-app.post('/api/crear-tabla-consultas', async (req, res) => {
+app.post('/api/crear-tabla-consultas', requireAdmin, async (req, res) => {
     try {
         const results = [];
         
@@ -11042,7 +11265,7 @@ app.get('/api/formularios/attachment', async (req, res) => {
 });
 
 // Endpoint de prueba para verificar tabla entities
-app.get('/api/test-entities', async (req, res) => {
+app.get('/api/test-entities', requireAdmin, async (req, res) => {
     try {
         console.log('🔍 Verificando tabla entities...');
         

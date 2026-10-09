@@ -118,7 +118,7 @@
                 const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
                 const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
 
-                const response = await fetch(buildApiUrl('/api/subfolders/save'), {
+                const response = await window.authenticatedFetch(buildApiUrl('/api/subfolders/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -178,7 +178,7 @@
                 const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
                 const resolvedCommitmentId = commitmentId || window.commitmentDropdownState?.selectedCommitmentId || '';
 
-                const response = await fetch(buildApiUrl('/api/subdocuments/save'), {
+                const response = await window.authenticatedFetch(buildApiUrl('/api/subdocuments/save'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -254,7 +254,7 @@
                 if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
                 if (params.toString()) apiUrl += `?${params.toString()}`;
 
-                const response = await fetch(apiUrl, {
+                const response = await window.authenticatedFetch(apiUrl, {
                     headers: {
                         'user-id': this.userId,
                         'entity-id': resolvedEntityId,
@@ -306,7 +306,7 @@
                 if (resolvedCommitmentId) params.append('commitment_id', resolvedCommitmentId);
                 if (params.toString()) apiUrl += `?${params.toString()}`;
 
-                const response = await fetch(apiUrl, {
+                const response = await window.authenticatedFetch(apiUrl, {
                     headers: {
                         'user-id': this.userId,
                         'entity-id': resolvedEntityId,
@@ -728,7 +728,7 @@
                     return;
                 }
 
-                const response = await fetch(buildApiUrl('/api/subfolders/delete'), {
+                const response = await window.authenticatedFetch(buildApiUrl('/api/subfolders/delete'), {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
@@ -785,7 +785,7 @@
                     return;
                 }
 
-                const response = await fetch(buildApiUrl(`/api/subdocuments/${documentId}`), {
+                const response = await window.authenticatedFetch(buildApiUrl(`/api/subdocuments/${documentId}`), {
                     method: 'DELETE',
                     headers: {
                         'user-id': this.userId
@@ -833,7 +833,7 @@
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl('/api/subdocuments/get'), {
+                const response = await window.authenticatedFetch(buildApiUrl('/api/subdocuments/get'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -863,7 +863,7 @@
                     throw new Error('Usuario no autenticado');
                 }
 
-                const response = await fetch(buildApiUrl('/api/subdocuments/update'), {
+                const response = await window.authenticatedFetch(buildApiUrl('/api/subdocuments/update'), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1207,7 +1207,7 @@
         testAPI: async (categoria = 'planificacion', subcategoria = 'configuracion') => {
             console.log(`🌐 Probando API para ${categoria}/${subcategoria}`);
             try {
-                const response = await fetch(`${(window.API_BASE_URL || '').replace(/\/$/, '')}/api/subfolders/${categoria}/${subcategoria}`, {
+                const response = await window.authenticatedFetch(`${(window.API_BASE_URL || '').replace(/\/$/, '')}/api/subfolders/${categoria}/${subcategoria}`, {
                     headers: { 'user-id': window.subcategoriasManager.userId }
                 });
                 const result = await response.json();

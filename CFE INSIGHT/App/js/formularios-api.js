@@ -139,7 +139,7 @@ async function guardarFormularioEnBD(formId, formTitle, formData, subdocumentId 
         });
         
         // Enviar datos a la API
-        const response = await fetch(buildApiUrl('/api/formularios/save'), {
+        const response = await window.authenticatedFetch(buildApiUrl('/api/formularios/save'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ async function getFormularioGuardado(formId, subdocumentId = null) {
             commitmentId: commitmentId || 'SIN COMPROMISO' 
         });
         
-        const response = await fetch(buildApiUrl('/api/formularios/get'), {
+        const response = await window.authenticatedFetch(buildApiUrl('/api/formularios/get'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -254,7 +254,7 @@ async function listarFormulariosUsuario() {
             throw new Error('No se encontró ID de usuario');
         }
         
-        const response = await fetch(buildApiUrl('/api/formularios/list'), {
+        const response = await window.authenticatedFetch(buildApiUrl('/api/formularios/list'), {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
