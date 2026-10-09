@@ -3407,8 +3407,16 @@
                         const { previous, current } = sumAssignedOriginalTotals(assignedAccounts);
                         const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
                         const rowId = nextRowId();
+                        const insertIndex = rows.length;
 
-                        rows.push(buildLedgerRow({
+                        addRowsForContainer(content, level + 1, rowId);
+
+                        // Omitir subgrupos sin cuentas hijas asignadas
+                        if (rows.length === insertIndex) {
+                            return;
+                        }
+
+                        rows.splice(insertIndex, 0, buildLedgerRow({
                             accountName: name,
                             accountNumber: '',
                             previous,
@@ -3422,8 +3430,6 @@
                             parentId,
                             hasChildren: true
                         }));
-
-                        addRowsForContainer(content, level + 1, rowId);
                         return;
                     }
 
@@ -3449,6 +3455,11 @@
                         const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
                         const rowId = nextRowId();
                         const hasChildren = assignedAccounts.length > 0;
+
+                        // Omitir cuentas padre sin cuentas hijas asignadas
+                        if (!hasChildren) {
+                            return;
+                        }
 
                         rows.push(buildLedgerRow({
                             accountName: accountName || accountCode,
@@ -3509,13 +3520,20 @@
                 const groupTotals = sumAssignedOriginalTotals(assignedAccounts);
                 const ledgerTotal = ledgerAvailable ? sumLedgerTotals(assignedAccounts, ledgerMap) : 0;
                 const rowId = nextRowId();
-                const hasChildren = groupContent ? groupContent.children.length > 0 : false;
+                const insertIndex = rows.length;
 
                 totals.previous += groupTotals.previous;
                 totals.current += groupTotals.current;
                 totals.ledger += ledgerTotal;
 
-                rows.push(buildLedgerRow({
+                addRowsForContainer(groupContent, 1, rowId);
+
+                // Omitir grupos sin cuentas hijas asignadas
+                if (rows.length === insertIndex) {
+                    return;
+                }
+
+                rows.splice(insertIndex, 0, buildLedgerRow({
                     accountName: groupName,
                     accountNumber: '',
                     previous: groupTotals.previous,
@@ -3527,10 +3545,8 @@
                     ledgerMissing: !ledgerAvailable,
                     rowId,
                     parentId: '',
-                    hasChildren
+                    hasChildren: true
                 }));
-
-                addRowsForContainer(groupContent, 1, rowId);
             });
 
             if (rows.length) {
@@ -6551,9 +6567,18 @@
                 }
 
                 const finalCurrent = totals.preliminary + totals.adjustments;
-                const hasChildren = childIds.length > 0 || childAssignmentRows.length > 0 || directAssignmentRows.length > 0;
+                const hasChildren = (childRows.length + childAssignmentRows.length + directAssignmentRows.length) > 0;
                 const hasValues = (Math.abs(totals.preliminary) + Math.abs(totals.adjustments) + Math.abs(totals.finalPrevious)) !== 0;
                 const ledgerMissingFlag = ledgerAvailable ? false : !hasValues;
+
+                // Omitir nodos sin cuentas hijas visibles ni valores propios (filas en 0.00)
+                if (!hasChildren && !hasValues) {
+                    return {
+                        totals,
+                        rows: [],
+                        hasContent: false
+                    };
+                }
 
                 const row = {
                     accountName: node.label || node.name || 'Grupo',
