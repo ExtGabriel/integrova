@@ -8476,7 +8476,9 @@
         }
 
         // Función directa para seleccionar opción y cerrar menú
-        function applySelection(value, text) {
+        // deferContextSwitch: al restaurar una selección guardada con compromiso, no recargar
+        // con solo la entidad; la recarga se hace una vez al aplicar el compromiso.
+        function applySelection(value, text, { deferContextSwitch = false } = {}) {
             const normalizedValue = value ? String(value) : '';
             const label = normalizedValue ? text : ENTIDAD_PLACEHOLDER.text;
 
@@ -8550,10 +8552,12 @@
                 console.log('🎯 Actualizando dropdown de compromisos con entidad:', entityValue);
                 
                 // Cambiar a los datos de esta entidad
-                formDataManager.switchTo(entityValue).catch(err => {
-                    console.warn('⚠️ Error en switchTo de entidad:', err);
-                });
-                
+                if (!deferContextSwitch) {
+                    formDataManager.switchTo(entityValue).catch(err => {
+                        console.warn('⚠️ Error en switchTo de entidad:', err);
+                    });
+                }
+
                 updateCommitmentDropdown(entityValue, { force: true }).catch(err => {
                     console.warn('⚠️ No se pudo actualizar el dropdown de compromisos:', err);
                 });
@@ -8738,6 +8742,9 @@
             // Cargar subcategorías existentes en cuanto la sesión esté lista
             // (sin timeout fijo: esperar la promesa currentUserReady de auth-guard.js)
             (async () => {
+                // Indicador de carga en las secciones mientras se restauran entidad,
+                // compromiso, carpetas y archivos (se quita al terminar la carga)
+                setSubcategoriesLoadingIndicator(true);
                 try {
                     if (window.currentUserReady && typeof window.currentUserReady.then === 'function') {
                         await window.currentUserReady.catch(err => {
@@ -8770,12 +8777,14 @@
                         }
 
                         console.log('🚀 Iniciando carga de subcategorías existentes...');
-                        loadExistingSubcategories();
+                        await loadExistingSubcategories();
                     } else {
                         console.error('❌ subcategoriasManager no disponible');
                     }
                 } catch (initErr) {
                     console.error('❌ Error esperando inicialización para cargar subcategorías:', initErr);
+                } finally {
+                    setSubcategoriesLoadingIndicator(false);
                 }
             })();
             
@@ -8797,6 +8806,22 @@
         let subcategoriesLoadPromise = null;
         let subcategoriesLoadDirty = false;
         let lastSubcategoriesContextKey = null;
+        let subcategoriesLoadingContextKey = null;
+
+        // Muestra u oculta "Cargando carpetas y archivos..." al inicio de cada sección.
+        // renderSubcategoriaContent no elimina este elemento, por eso se quita aquí.
+        function setSubcategoriesLoadingIndicator(visible) {
+            document.querySelectorAll('.subcategories-loading-indicator').forEach(el => el.remove());
+            if (!visible) return;
+
+            document.querySelectorAll('.formularios-lista[id$="-content"]').forEach(container => {
+                const indicator = document.createElement('div');
+                indicator.className = 'subcategories-loading-indicator';
+                indicator.style.cssText = 'padding: 8px 12px; color: #6c757d; font-size: 0.9em;';
+                indicator.innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando carpetas y archivos...';
+                container.prepend(indicator);
+            });
+        }
 
         function getSubcategoriesContextKey() {
             const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
@@ -8815,7 +8840,11 @@
             }
 
             if (subcategoriesLoadPromise) {
-                subcategoriesLoadDirty = true;
+                // Repetir al terminar solo si el contexto cambió respecto a la carga en curso;
+                // si es el mismo, la carga en curso ya trae los datos correctos
+                if (getSubcategoriesContextKey() !== subcategoriesLoadingContextKey) {
+                    subcategoriesLoadDirty = true;
+                }
                 return subcategoriesLoadPromise;
             }
 
@@ -8823,8 +8852,9 @@
                 try {
                     do {
                         subcategoriesLoadDirty = false;
+                        subcategoriesLoadingContextKey = getSubcategoriesContextKey();
                         await loadExistingSubcategoriesOnce();
-                        lastSubcategoriesContextKey = getSubcategoriesContextKey();
+                        lastSubcategoriesContextKey = subcategoriesLoadingContextKey;
                     } while (subcategoriesLoadDirty);
                 } finally {
                     subcategoriesLoadPromise = null;
@@ -8931,6 +8961,9 @@
             }
         }
 
+        // Evita restaurar dos veces la misma selección en una carga de página
+        let entitySelectionsRestored = false;
+
         // Función para cargar las selecciones guardadas desde localStorage
         function loadEntitySelectionsFromStorage(reapply = false) {
             try {
@@ -8951,7 +8984,23 @@
                     entidadText = entidadValue ? getEntityLabelByValue(entidadValue) : getPlaceholderText();
                 }
 
-                applySelection(entidadValue, entidadText);
+                // El catálogo de entidades se carga dos veces al iniciar (initFormularios y un
+                // setTimeout). Restaurar otra vez reseteaba el compromiso y, mientras se volvía a
+                // aplicar, las carpetas/archivos se cargaban sin compromiso (desaparecían los de
+                // otros usuarios). Si ya se restauró esta entidad, solo se actualiza la etiqueta.
+                const currentEntityValue = document.getElementById('entidad')?.value || '';
+                if (entitySelectionsRestored && entidadValue && currentEntityValue === entidadValue) {
+                    const selectedLabel = document.getElementById('entidadSelected');
+                    if (selectedLabel && entidadText) selectedLabel.textContent = entidadText;
+                    return true;
+                }
+                entitySelectionsRestored = true;
+
+                // Si hay compromiso guardado, entidad y compromiso se aplican en un solo paso
+                const savedCommitmentId = selections.compromiso?.id;
+                applySelection(entidadValue, entidadText, {
+                    deferContextSwitch: Boolean(entidadValue && savedCommitmentId)
+                });
 
                 // Restaurar la vista de formularios si estaba abierta (p.ej. al regresar de una sumaria)
                 const opcionesDiv = document.getElementById('opcionesFormularios');
@@ -8963,7 +9012,6 @@
                 (selections.expandedSections || []).forEach(restoreExpandedSection);
 
                 // Restaurar el compromiso seleccionado cuando el dropdown termine de cargar
-                const savedCommitmentId = selections.compromiso?.id;
                 if (savedCommitmentId) {
                     waitForElement(() =>
                         document.querySelector(`.commitment-dropdown-item[data-commitment-id="${savedCommitmentId}"]`)
@@ -8972,6 +9020,12 @@
                             selectCommitmentFromDropdown(savedCommitmentId, item.dataset.commitmentName || item.textContent || '');
                         } else {
                             console.warn('⚠️ No se encontró el compromiso guardado en el dropdown:', savedCommitmentId);
+                            // El compromiso ya no existe: cargar al menos los datos de la entidad
+                            if (entidadValue) {
+                                formDataManager.switchTo(entidadValue).catch(err => {
+                                    console.warn('⚠️ Error en switchTo de entidad:', err);
+                                });
+                            }
                         }
                     });
                 }
@@ -45480,8 +45534,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.warn('No se pudo precargar catálogo de usuarios:', error);
             }
             
-            // Cargar archivos desde subdocumentos
-            await loadUploadedFilesFromDatabase(currentUser.id);
+            // Los archivos de subdocumentos los carga loadExistingSubcategories() con el
+            // contexto entidad/compromiso. loadUploadedFilesFromDatabase() pedía los archivos
+            // sin contexto (aparecían archivos de otros compromisos) y el render por
+            // contexto los borraba después, lo que causaba el parpadeo al recargar.
         });
         
         // Función para cargar archivos desde la base de datos

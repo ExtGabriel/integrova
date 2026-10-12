@@ -218,7 +218,7 @@ async function authenticateToken(req, res, next) {
 // ============================================
 
 // Roles que pueden crear/editar datos
-const EDITOR_ROLES = ['admin', 'administrador', 'socio', 'auditor', 'auditor senior', 'programador'];
+const EDITOR_ROLES = ['admin', 'administrador', 'socio', 'auditor', 'auditor senior', 'auditor_senior', 'programador'];
 
 // Roles de administrador
 const ADMIN_ROLES = ['admin', 'administrador', 'programador'];
@@ -1914,7 +1914,7 @@ app.get('/api/records/range/:startDate/:endDate', async (req, res) => {
 app.get('/api/audit/forms/:formType', async (req, res) => {
     const { formType } = req.params;
     // TODO: Get user_id from authenticated session
-    const user_id = req.headers['user-id']; // Temporary, should come from auth middleware
+    const user_id = req.user.id; // identidad verificada por authenticateToken
 
     if (!user_id) {
         return res.status(401).json({ error: 'Usuario no autenticado' });
@@ -5556,7 +5556,7 @@ app.post('/api/assignments/save', async (req, res) => {
             commitmentId
         });
         
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         console.log('User ID from header:', userId);
         
         if (!userId || !datasetId || !accountId || !groupContentId) {
@@ -5743,7 +5743,7 @@ app.post('/api/assignments/save', async (req, res) => {
 app.post('/api/assignments/batch-save', async (req, res) => {
     try {
         const { datasetId, assignments } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         const entityId = req.headers['entity-id'] || req.body.entity_id || null;
         const commitmentId = req.headers['commitment-id'] || req.body.commitment_id || null;
 
@@ -5920,7 +5920,7 @@ app.post('/api/assignments/batch-save', async (req, res) => {
 app.post('/api/group-names/save', async (req, res) => {
     try {
         const { datasetId, groupNames } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         console.log('Guardando nombres personalizados de grupos:', { datasetId, groupNames, userId });
         
@@ -6000,7 +6000,7 @@ app.post('/api/group-names/save', async (req, res) => {
 app.get('/api/group-names/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         console.log('Obteniendo nombres personalizados de grupos:', { datasetId, userId });
         
@@ -6058,7 +6058,7 @@ app.get('/api/group-names/:datasetId', async (req, res) => {
 app.get('/api/assignments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         const { entity_id, commitment_id } = req.query;
         
         console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getAssignments:');
@@ -6159,7 +6159,7 @@ app.get('/api/assignments/:datasetId', async (req, res) => {
 app.delete('/api/assignments/:assignmentId', async (req, res) => {
     try {
         const { assignmentId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         const { error } = await supabase
             .from('account_assignments')
@@ -6203,7 +6203,7 @@ app.post('/api/adjustments/save', async (req, res) => {
             meta
         } = req.body;
         
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         // Prevenir cacheo para asegurar respuestas frescas
         res.set({
@@ -6301,7 +6301,7 @@ app.post('/api/adjustments/save', async (req, res) => {
 app.get('/api/adjustments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         // Prevenir cacheo para asegurar datos frescos
         res.set({
@@ -6340,7 +6340,7 @@ app.get('/api/adjustments/:datasetId', async (req, res) => {
 app.delete('/api/adjustments/:adjustmentId', async (req, res) => {
     try {
         const { adjustmentId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         if (!userId) {
             return res.status(400).json({ 
@@ -6604,7 +6604,7 @@ app.put('/api/observations/:observationId', async (req, res) => {
 app.delete('/api/observations/:observationId', async (req, res) => {
     try {
         const { observationId } = req.params;
-        const requesterId = req.headers['user-id'] || req.headers['x-user-id'] || req.query.user_id;
+        const requesterId = req.user.id; // identidad verificada por authenticateToken
 
         // Verificar autoría antes de borrar
         const { data: obs, error: fetchError } = await supabase
@@ -6650,7 +6650,7 @@ app.delete('/api/observations/:observationId', async (req, res) => {
 app.post('/api/ledger-integrity/save', async (req, res) => {
     try {
         const { datasetId, results, status, entityId, commitmentId } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
 
         console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveLedgerIntegrity:');
         console.log('  userId:', userId);
@@ -6737,7 +6737,7 @@ app.post('/api/ledger-integrity/save', async (req, res) => {
 app.get('/api/ledger-integrity/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         const { entity_id, commitment_id } = req.query;
 
         console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO getLedgerIntegrity:');
@@ -6844,7 +6844,7 @@ app.get('/api/ledger-integrity/:datasetId', async (req, res) => {
 app.post('/api/financial-groups-results/save', async (req, res) => {
     try {
         const { datasetId, results, status, entityId, commitmentId } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         console.log('🔍🔍🔍 DIAGNÓSTICO COMPLETO EN SERVIDOR saveFinancialGroupsResults:');
         console.log('  userId:', userId);
@@ -7203,7 +7203,7 @@ app.get('/api/debug/tables', requireAdmin, async (req, res) => {
 app.post('/api/financial-groups/save', async (req, res) => {
     try {
         const { datasetId, groupId, name, type, parentLabel, value, meta } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         if (!datasetId || !groupId || !name) {
             return res.status(400).json({ 
@@ -7289,7 +7289,7 @@ app.post('/api/financial-groups/save', async (req, res) => {
 app.get('/api/financial-groups/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         console.log('🔍 DEBUG getFinancialGroups:', { datasetId, userId });
         
@@ -7368,7 +7368,7 @@ app.get('/api/financial-groups/:datasetId', async (req, res) => {
 // Obtener el snapshot más reciente de grupos financieros y sus filas
 app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
     const { datasetId } = req.params;
-    const userId = req.headers['user-id'];
+    const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
 
     if (!datasetId || !userId) {
         return res.status(400).json({
@@ -7430,7 +7430,7 @@ app.get('/api/financial-groups-results/:datasetId/latest', async (req, res) => {
 // Listar snapshots previos de grupos financieros
 app.get('/api/financial-groups-results/:datasetId/history', async (req, res) => {
     const { datasetId } = req.params;
-    const userId = req.headers['user-id'];
+    const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
     const { limit = 5 } = req.query;
 
     if (!datasetId || !userId) {
@@ -7467,7 +7467,7 @@ app.get('/api/financial-groups-results/:datasetId/history', async (req, res) => 
 app.get('/api/assignments/:datasetId', async (req, res) => {
     try {
         const { datasetId } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         console.log('Loading assignments for dataset:', datasetId, 'user:', userId);
         
@@ -7538,7 +7538,7 @@ app.get('/api/catalog-accounts', async (req, res) => {
 app.get('/api/accounts/by-code/:code', async (req, res) => {
     try {
         const { code } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         const datasetId = req.headers['dataset-id'];
         
         if (!code || !userId) {
@@ -7619,7 +7619,7 @@ app.get('/api/accounts/by-code/:code', async (req, res) => {
 app.post('/api/accounts/save', async (req, res) => {
     try {
         const { datasetId, code, name, value, currentYearValue, previousYearValue, debit, credit, meta } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
         
         if (!datasetId || !code || !name) {
             return res.status(400).json({
@@ -7690,7 +7690,7 @@ app.post('/api/accounts/save', async (req, res) => {
 app.post('/api/accounts/batch-save', async (req, res) => {
     try {
         const { datasetId, accounts } = req.body;
-        const userId = req.headers['user-id'];
+        const userId = req.user.id; // identidad verificada por authenticateToken (no la cabecera user-id)
 
         if (!datasetId || !accounts || !Array.isArray(accounts)) {
             return res.status(400).json({

@@ -406,6 +406,15 @@
 
         // Actualizar datos en la UI
         async updateUI(categoria, subcategoria) {
+            // Si llegan varias actualizaciones del mismo contenedor a la vez (cambio de
+            // contexto, recarga de documentos visibles, carga inicial), solo pinta la
+            // más reciente; así una respuesta antigua no pisa a una nueva.
+            const uiContainerKey = `${subcategoria}-content`;
+            this.latestUiRequest = this.latestUiRequest || {};
+            const uiRequestId = (this.latestUiRequest[uiContainerKey] || 0) + 1;
+            this.latestUiRequest[uiContainerKey] = uiRequestId;
+            const isSuperseded = () => this.latestUiRequest[uiContainerKey] !== uiRequestId;
+
             try {
                 console.log(`🔄 Actualizando UI para ${categoria}/${subcategoria}`);
                 console.log('🔍 Parámetros recibidos:', { categoria, subcategoria });
@@ -452,6 +461,11 @@
                     this.getSubdocuments(categoria, subcategoria, false)
                 ]);
                 
+                if (isSuperseded()) {
+                    console.log(`⏭️ Actualización obsoleta de ${uiContainerKey}, la pinta una más reciente`);
+                    return;
+                }
+
                 console.log(`📊 Datos cargados: ${subfolders.length} carpetas, ${documents.length} documentos`);
                 console.log('📄 Detalle de documentos:', documents.map(d => ({ id: d.id, titulo: d.titulo, tipo: d.tipo })));
                 
@@ -470,6 +484,7 @@
                 
             } catch (error) {
                 console.error('❌ Error en updateUI:', error);
+                if (isSuperseded()) return;
                 const subcategoriaContent = document.getElementById(`${subcategoria}-content`);
                 if (subcategoriaContent) {
                     const hasStaticContent = subcategoriaContent.querySelector('.form-item-lista');
