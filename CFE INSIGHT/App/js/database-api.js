@@ -1946,7 +1946,10 @@ async function getUploadedFiles(entityId = null, commitmentId = null, tipo = nul
             fileName: doc.metadata?.fileName || doc.titulo || 'Archivo',
             titulo: doc.titulo || '',
             metadata: doc.metadata || {},
-            type: doc.tipo
+            type: doc.tipo,
+            categoria: doc.categoria || '',
+            subcategoria: doc.subcategoria || '',
+            parentFolderId: doc.parent_folder_id || null
         }));
     } catch (error) {
         console.error('Error in getUploadedFiles:', error);

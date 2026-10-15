@@ -1014,9 +1014,25 @@
             return { entityId, commitmentId };
         }
 
+        // Inserta el botón "Limpiar referencias" antes de la tabla si no existe
+        // (necesario porque el contenido guardado reemplaza el HTML de la sección)
+        function ensureClearRefsButton() {
+            const table = document.querySelector('.worksheet-table');
+            if (!table || document.getElementById('clearSumariaRefsBtn')) return;
+            const wrapper = document.createElement('div');
+            wrapper.id = 'clearSumariaRefsBtn';
+            wrapper.style.cssText = 'padding: 10px 0; text-align: right;';
+            wrapper.innerHTML = `
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAllSumariaReferences()">
+                    <i class="bi bi-trash"></i> Limpiar referencias
+                </button>`;
+            table.parentElement.insertBefore(wrapper, table);
+        }
+
         async function attachSumariaReferences() {
             const table = document.querySelector('.worksheet-table');
             if (!table || typeof window.getBgReferences !== 'function') return;
+            ensureClearRefsButton();
             await attachBgReferences(table, sumariaRefScope());
         }
 
@@ -1241,20 +1257,49 @@
                 }
 
                 const files = await window.getUploadedFiles(entityId, commitmentId);
-                const displayFiles = (files || []).filter(file =>
-                    !file.metadata?.bgType &&
-                    !(file.fileName || '').toUpperCase().startsWith('BG-')
-                );
+
+                // Buscar la carpeta "General" de Planes y procedimientos para habilitar las BG
+                let generalFolderId = null;
+                try {
+                    const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+                    const userId = window.currentUser?.id || getCurrentUserId() || '';
+                    const foldersRes = await window.authenticatedFetch(`${apiBase}/api/subfolders/planes/planes?entity_id=${entityId || ''}&commitment_id=${commitmentId || ''}`, {
+                        headers: { 'user-id': userId }
+                    });
+                    const foldersResult = await foldersRes.json();
+                    if (foldersResult.success && foldersResult.subfolders) {
+                        const general = foldersResult.subfolders.find(f =>
+                            String(f.nombre || '').trim().toLowerCase() === 'general'
+                        );
+                        if (general) generalFolderId = String(general.id);
+                    }
+                } catch (e) {
+                    console.warn('No se pudo obtener la carpeta General:', e);
+                }
+
+                const displayFiles = (files || []).filter(file => {
+                    const isBG = !!file.metadata?.bgType ||
+                                 (file.titulo || '').toUpperCase().startsWith('BG-') ||
+                                 (file.fileName || '').toUpperCase().startsWith('BG-');
+                    if (!isBG) return true; // Archivos normales se muestran como antes
+                    // Las BG solo se muestran si están en Planes y procedimientos > General
+                    if (file.categoria !== 'planes') return false;
+                    if (generalFolderId) return String(file.parentFolderId) === generalFolderId;
+                    return true;
+                });
                 if (!Array.isArray(displayFiles) || displayFiles.length === 0) {
                     listEl.innerHTML = '<div class="text-center p-3 text-muted">No hay documentos cargados en esta entidad/compromiso.</div>';
                 } else {
                     listEl.innerHTML = displayFiles.map(file => {
                         const name = file.fileName || file.nombre || file.titulo || file.name || 'Documento';
                         const selectedClass = (sumariaRefState.currentFile && sumariaRefState.currentFile.fileId === file.id) ? 'bg-primary text-white' : '';
-                        const iconClass = file.type === 'archivo' ? 'bi-file-earmark' :
+                        const isBG = !!file.metadata?.bgType || (file.titulo || '').toUpperCase().startsWith('BG-');
+                        const iconClass = isBG ? 'bi-file-earmark-bar-graph' :
+                                        file.type === 'archivo' ? 'bi-file-earmark' :
                                         file.type === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet' :
                                         file.type === 'consulta' ? 'bi-chat-dots' : 'bi-file-earmark-text';
-                        const typeLabel = file.type === 'archivo' ? 'Archivo' :
+                        const typeLabel = isBG ? 'BG' :
+                                          file.type === 'archivo' ? 'Archivo' :
                                           file.type === 'hoja-trabajo' ? 'Sumaria' :
                                           file.type === 'consulta' ? 'Consulta' : (file.type || 'Documento');
                         return `
@@ -1307,6 +1352,38 @@
             };
 
             modal.show();
+        }
+
+        async function clearAllSumariaReferences() {
+            if (!confirm('¿Quieres quitar todas las referencias de esta sumaria?')) return;
+
+            const bgType = sumariaRefScope();
+            const { entityId, commitmentId } = getBgContext();
+            if (!entityId) {
+                alert('No se pudo determinar la entidad/compromiso actual.');
+                return;
+            }
+
+            try {
+                const refs = await window.getBgReferences(bgType, entityId, commitmentId);
+                if (!refs || refs.length === 0) {
+                    alert('No hay referencias para limpiar.');
+                    return;
+                }
+
+                for (const ref of refs) {
+                    const fd = ref.form_data || {};
+                    const col = fd.colIndex !== undefined ? fd.colIndex : (fd.col !== undefined ? fd.col : 0);
+                    await window.deleteBgReference(fd.rowId, bgType, col, entityId, commitmentId);
+                }
+
+                const table = document.querySelector('.worksheet-table');
+                if (table) await attachBgReferences(table, bgType);
+                alert('Referencias limpiadas.');
+            } catch (error) {
+                console.error('Error limpiando referencias:', error);
+                alert('Error limpiando referencias: ' + error.message);
+            }
         }
 
         // Cargar áreas al iniciar
