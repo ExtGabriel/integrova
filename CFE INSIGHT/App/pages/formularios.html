@@ -15568,7 +15568,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal finalizacion-auditoria-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
@@ -15690,6 +15690,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+            agregarBotonesVincular('.finalizacion-auditoria-modal', 'fau_');
         }
 
         // Función para cerrar el formulario Finalización de auditoría
@@ -16275,7 +16276,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal hechos-posteriores-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
@@ -16936,6 +16937,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+            agregarBotonesVincular('.hechos-posteriores-modal', 'hpo_');
         }
 
         // Función para cerrar el formulario Hechos posteriores
@@ -17075,7 +17077,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal calidad-informe-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb);'>
@@ -18814,6 +18816,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+            agregarBotonesVincular('.calidad-informe-modal', 'cia_');
         }
 
         // Función para cerrar el formulario Calidad informe de auditoría
@@ -18875,7 +18878,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const modalExistente = document.querySelector('.formulario-modal');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal cierre-compromiso-modal';
             modal.innerHTML = `
                 <div class='formulario-modal-content' style='max-width: 1000px; width: 90%; display: flex; flex-direction: column; max-height: 90vh;'>
                     <div class='formulario-header' style='background: linear-gradient(135deg, #1e3a8a, #2563eb); flex-shrink: 0;'>
@@ -20187,6 +20190,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+            agregarBotonesVincular('.cierre-compromiso-modal', 'cco_');
         }
 
         // Función para cerrar el formulario Cierre del compromiso
@@ -21563,7 +21567,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.classList.add('show');
             
             // Cargar aprobaciones y respuestas guardadas
-            setTimeout(() => { cargarAprobacionesA200(); cargarRespuestasA200(); }, 100);
+            setTimeout(() => { cargarAprobacionesA200(); cargarRespuestasA200(); agregarBotonesVincular('#a200-modal', 'a200_'); }, 100);
         }
         
         // Función para cerrar el formulario A200
@@ -23512,7 +23516,72 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesA300Secciones();
                 cargarDatosFormularioA300();
+                agregarBotonesVincularA300();
             }, 100);
+        }
+        
+        // Agrega el botón "Vincular Documento" a todas las preguntas de un formulario
+        // que todavía no lo tengan (reutiliza la misma lógica de vincularDocumento).
+        // Si prefijo es '' se procesan todos los campos del body del modal.
+        function agregarBotonesVincular(modalSelector, prefijo) {
+            const modal = document.querySelector(modalSelector);
+            if (!modal) return;
+            const scope = modal.querySelector('.formulario-body') || modal;
+
+            // Procesar primero campos de texto para que el vínculo quede en el
+            // campo de respuesta y no en un radio
+            const campos = Array.from(scope.querySelectorAll('textarea, input, select'))
+                .sort((a, b) => (a.type === 'radio' ? 1 : 0) - (b.type === 'radio' ? 1 : 0));
+
+            const blocksConClip = new Set();
+            let agregados = 0;
+
+            campos.forEach(campo => {
+                const campoId = campo.id || campo.name || '';
+                if (!campoId) return;
+                if (prefijo && !campoId.startsWith(prefijo)) return;
+                // Excluir elementos auxiliares
+                if (campoId.endsWith('_help') || campoId.endsWith('_documento_indicador')) return;
+                if (['hidden', 'checkbox', 'button', 'submit', 'file', 'reset'].includes(campo.type)) return;
+                // No agregar clip a campos dentro de tablas (ej. tabla de firmas)
+                if (campo.closest('table')) return;
+
+                // Bloque de la pregunta (la tarjeta/div que agrupa label + campo)
+                const block = campo.closest('div[style*="margin-bottom: 20px"], div[style*="margin-bottom: 25px"]') || campo.parentElement;
+                if (!block || blocksConClip.has(block)) return;
+                // Si el bloque ya tiene un clip (campo ya configurado u otra parte de la pregunta), no duplicar
+                if (block.querySelector('button[onclick*="vincularDocumento"]')) {
+                    blocksConClip.add(block);
+                    return;
+                }
+                if (modal.querySelector(`button[onclick*="vincularDocumento('${campoId}')"], button[onclick*='vincularDocumento("${campoId}")']`)) return;
+
+                // Fila del label: contenedor del primer label que no sea opción de radio/checkbox
+                const labels = Array.from(block.querySelectorAll('label'));
+                const questionLabel = labels.find(l => !l.querySelector('input')) || labels[0];
+                const labelRow = questionLabel ? questionLabel.parentElement : block;
+                if (!labelRow) return;
+                if (labelRow.querySelector('button[onclick*="vincularDocumento"]')) {
+                    blocksConClip.add(block);
+                    return;
+                }
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('onclick', `vincularDocumento('${campoId}')`);
+                btn.style.cssText = 'background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; font-size: 0.9rem; margin-left: 4px;';
+                btn.title = 'Vincular Documento';
+                btn.innerHTML = '<i class="bi bi-paperclip"></i>';
+                labelRow.appendChild(btn);
+                blocksConClip.add(block);
+                agregados++;
+            });
+
+            console.log(`📎 Botones de vincular agregados en ${modalSelector}: ${agregados}`);
+        }
+
+        function agregarBotonesVincularA300() {
+            agregarBotonesVincular('.a300-form-modal', 'a300_');
         }
         
         // Función para cerrar el formulario A300
@@ -33047,6 +33116,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesA400();
                 cargarRespuestasA400();
+                agregarBotonesVincular('.a400-modal', 'a400_');
             }, 100);
         }
 
@@ -33330,7 +33400,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Crear el modal de la tabla
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal a400-tabla-auditoria-modal';
             modal.innerHTML = `
                 <style>
                     .a400-tabla-auditoria-container {
@@ -33433,7 +33503,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                                 <h2 style="color: white; margin: 0;">Tabla Auditoria Grupo</h2>
                             </div>
                         </div>
-                        <button class="close-formulario" onclick="cerrarFormularioA400()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
+                        <button class="close-formulario" onclick="cerrarFormularioA400TablaAuditoria()" style="color: white; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -33498,6 +33568,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Agregar una fila inicial
             agregarFilaA400TablaAuditoria();
+        }
+
+        // Función para cerrar la Tabla Auditoria Grupo
+        function cerrarFormularioA400TablaAuditoria() {
+            const modal = document.querySelector('.a400-tabla-auditoria-modal');
+            if (!modal) return;
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (modal.parentNode) document.body.removeChild(modal);
+                restaurarFormularioSuspendido();
+            }, 300);
         }
 
         // Función para agregar una fila a la tabla A400 Auditoria
@@ -34422,6 +34503,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesComprensionEntidad();
                 cargarRespuestasA400ComprensionEntidad();
+                agregarBotonesVincular('.a400-comprension-modal', 'a400_comprension_');
             }, 100);
         }
 
@@ -34636,6 +34718,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesControlesEntidad();
                 cargarRespuestasControlesEntidad();
+                agregarBotonesVincular('.controles-entidad-modal', 'controles_');
             }, 100);
         }
 
@@ -35328,7 +35411,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal auditoria-interna-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -35756,7 +35839,51 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesAuditoriaInterna();
                 cargarRespuestasAuditoriaInterna();
+                agregarBotonesVincularAuditoriaInterna();
             }, 100);
+        }
+
+        // Agrega el clip "Vincular Documento" a cada bloque de pregunta del formulario
+        // de Auditoría Interna (usa name en vez de id; un clip por bloque de pregunta)
+        function agregarBotonesVincularAuditoriaInterna() {
+            const modal = document.querySelector('.auditoria-interna-modal');
+            if (!modal) return;
+
+            // Procesar primero campos de texto para que el vínculo quede en el campo
+            // de justificación y no en un radio
+            const campos = Array.from(modal.querySelectorAll('textarea, input, select'))
+                .sort((a, b) => (a.type === 'radio' ? 1 : 0) - (b.type === 'radio' ? 1 : 0));
+
+            const blocksConClip = new Set();
+            let agregados = 0;
+
+            campos.forEach(campo => {
+                const campoId = campo.id || campo.name || '';
+                if (!campoId) return;
+                if (campo.type === 'hidden' || campo.type === 'checkbox' || campo.type === 'button' || campo.type === 'submit') return;
+
+                const block = campo.closest('div[style*="margin-bottom: 25px"]') || campo.closest('div[style*="margin-bottom: 20px"]');
+                if (!block || blocksConClip.has(block)) return;
+                if (block.querySelector('button[onclick*="vincularDocumento"]')) {
+                    blocksConClip.add(block);
+                    return;
+                }
+
+                // Punto de inserción: el texto de la pregunta (primer div hijo) o el primer label
+                const target = block.querySelector('div[style*="margin-bottom: 15px"]') || block.querySelector('label') || block;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('onclick', `vincularDocumento('${campoId}')`);
+                btn.style.cssText = 'background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; font-size: 0.9rem; margin-left: 6px;';
+                btn.title = 'Vincular Documento';
+                btn.innerHTML = '<i class="bi bi-paperclip"></i>';
+                target.appendChild(btn);
+                blocksConClip.add(block);
+                agregados++;
+            });
+
+            console.log(`📎 Botones de vincular agregados en Auditoría Interna: ${agregados}`);
         }
 
         // Función para cerrar el formulario de Auditoria interna
@@ -36668,6 +36795,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesEvaluacionRiesgosIncorreccionSecciones();
                 cargarRespuestasEvaluacionRiesgosIncorreccion();
+                agregarBotonesVincular('.erim-modal', 'erim_');
             }, 100);
         }
 
@@ -36977,7 +37105,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal areas-especificas-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -38528,6 +38656,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesAreasEspecificas();
                 cargarRespuestasAreasEspecificas();
+                agregarBotonesVincular('.areas-especificas-modal', '');
             }, 100);
         }
 
@@ -38541,7 +38670,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
             // Crear el modal del formulario
             const modal = document.createElement('div');
-            modal.className = 'formulario-modal';
+            modal.className = 'formulario-modal evaluacion-trabajo-otros-modal';
             modal.innerHTML = `
                 <div class="formulario-modal-content">
                     <div class="formulario-header">
@@ -39334,6 +39463,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             setTimeout(() => {
                 cargarAprobacionesEvaluacionTrabajoOtros();
                 cargarRespuestasEvaluacionTrabajoOtros();
+                agregarBotonesVincular('.evaluacion-trabajo-otros-modal', 'eto_');
             }, 100);
         }
 
