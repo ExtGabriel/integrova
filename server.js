@@ -9827,6 +9827,64 @@ app.get('/api/subdocuments/download/:documentId', async (req, res) => {
     }
 });
 
+// Obtener URL del documento para el visor de PDF
+app.get('/api/subdocuments/document/:documentId/download', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { documentId } = req.params;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        
+        if (!documentId) {
+            return res.status(400).json({ success: false, error: 'ID de documento requerido' });
+        }
+        
+        console.log(`🔍 Obteniendo URL de documento: ${documentId}`);
+        
+        const { data: document, error } = await supabase
+            .from('subdocumentos')
+            .select('*')
+            .eq('id', documentId)
+            .single();
+            
+        if (error || !document) {
+            console.error('❌ Documento no encontrado:', error);
+            return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+        }
+        
+        const metadata = parseMetadata(document.metadata);
+        
+        // Si tiene storagePath, generar URL firmada desde Storage
+        if (metadata?.storagePath) {
+            const { data, error: urlError } = await supabase.storage
+                .from(FORM_ATTACHMENTS_BUCKET)
+                .createSignedUrl(metadata.storagePath, 60 * 60); // 1 hora
+            
+            if (urlError || !data?.signedUrl) {
+                console.error('❌ Error generando URL firmada:', urlError);
+                return res.status(500).json({ success: false, error: 'Error al generar URL del archivo' });
+            }
+            
+            return res.json({ success: true, url: data.signedUrl });
+        }
+        
+        // Si tiene fileData (base64), servir directamente
+        if (metadata?.fileData) {
+            // Devolver URL al endpoint de descarga existente
+            const downloadUrl = `${req.protocol}://${req.get('host')}/api/subdocuments/download/${documentId}`;
+            return res.json({ success: true, url: downloadUrl });
+        }
+        
+        return res.status(400).json({ success: false, error: 'El documento no tiene archivo asociado' });
+        
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subdocuments/document/:id/download:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Obtener subdocumentos de una subcategoría
 app.get('/api/subdocuments/:categoria/:subcategoria', async (req, res) => {
     try {
@@ -11302,9 +11360,383 @@ app.get('/api/test-entities', requireAdmin, async (req, res) => {
     }
 });
 
+// ============================================
+// ENDPOINTS PARA ANOTACIONES DE PDF
+// ============================================
+
+// Guardar anotaciones de un PDF
+app.post('/api/pdf-annotations', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const { documentId, documentPath, annotations } = req.body;
+        
+        if (!documentId && !documentPath) {
+            return res.status(400).json({ success: false, error: 'Se requiere documentId o documentPath' });
+        }
+
+        // Identificador único del documento
+        const docIdentifier = documentId || documentPath;
+
+        // Obtener contexto de entidad/compromiso desde el propio documento
+        let entityId = null;
+        let commitmentId = null;
+        if (documentId) {
+            const { data: doc } = await supabase
+                .from('subdocumentos')
+                .select('entity_id, commitment_id')
+                .eq('id', documentId)
+                .maybeSingle();
+            if (doc) {
+                entityId = doc.entity_id;
+                commitmentId = doc.commitment_id;
+            }
+        }
+
+        // Las anotaciones se comparten por documento (cualquier usuario que pueda
+        // ver el archivo en esa entidad/compromiso verá las mismas marcas)
+        const { data: existing, error: fetchError } = await supabase
+            .from('pdf_annotations')
+            .select('id')
+            .eq('document_identifier', docIdentifier)
+            .maybeSingle();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            console.error('Error buscando anotaciones existentes:', fetchError);
+        }
+
+        if (existing) {
+            // Actualizar anotaciones existentes
+            const { error: updateError } = await supabase
+                .from('pdf_annotations')
+                .update({
+                    annotations: annotations,
+                    updated_by: userId,
+                    entity_id: entityId || null,
+                    commitment_id: commitmentId || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existing.id);
+
+            if (updateError) {
+                console.error('Error actualizando anotaciones:', updateError);
+                return res.status(500).json({ success: false, error: 'Error al actualizar anotaciones' });
+            }
+        } else {
+            // Crear nuevas anotaciones
+            const { error: insertError } = await supabase
+                .from('pdf_annotations')
+                .insert({
+                    document_identifier: docIdentifier,
+                    document_id: documentId || null,
+                    document_path: documentPath || null,
+                    entity_id: entityId || null,
+                    commitment_id: commitmentId || null,
+                    user_id: userId,
+                    updated_by: userId,
+                    annotations: annotations,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+
+            if (insertError) {
+                console.error('Error insertando anotaciones:', insertError);
+                return res.status(500).json({ success: false, error: 'Error al guardar anotaciones' });
+            }
+        }
+
+        console.log('✅ Anotaciones guardadas para documento:', docIdentifier);
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('❌ Error en POST /api/pdf-annotations:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Obtener anotaciones de un PDF
+app.get('/api/pdf-annotations', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const { documentId, documentPath } = req.query;
+        
+        if (!documentId && !documentPath) {
+            return res.status(400).json({ success: false, error: 'Se requiere documentId o documentPath' });
+        }
+
+        const docIdentifier = documentId || documentPath;
+
+        // Las anotaciones se comparten por documento (entidad/compromiso)
+        const { data, error } = await supabase
+            .from('pdf_annotations')
+            .select('annotations')
+            .eq('document_identifier', docIdentifier)
+            .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error obteniendo anotaciones:', error);
+            return res.status(500).json({ success: false, error: 'Error al obtener anotaciones' });
+        }
+
+        res.json({ 
+            success: true, 
+            annotations: data?.annotations || {} 
+        });
+
+    } catch (error) {
+        console.error('❌ Error en GET /api/pdf-annotations:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Exportar PDF con anotaciones integradas
+app.post('/api/pdf-annotations/export', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const { documentId, documentPath, annotations } = req.body;
+        
+        if (!documentId && !documentPath) {
+            return res.status(400).json({ success: false, error: 'Se requiere documentId o documentPath' });
+        }
+
+        // Obtener el PDF original
+        let pdfBuffer;
+        
+        if (documentPath) {
+            // Descargar desde Storage
+            const { data, error } = await supabase.storage
+                .from(FORM_ATTACHMENTS_BUCKET)
+                .download(documentPath);
+            
+            if (error) {
+                console.error('Error descargando PDF:', error);
+                return res.status(404).json({ success: false, error: 'No se encontró el archivo' });
+            }
+            
+            pdfBuffer = Buffer.from(await data.arrayBuffer());
+        } else if (documentId) {
+            // Obtener documento de subdocumentos
+            const { data: doc, error } = await supabase
+                .from('subdocumentos')
+                .select('metadata')
+                .eq('id', documentId)
+                .single();
+            
+            if (error || !doc) {
+                return res.status(404).json({ success: false, error: 'Documento no encontrado' });
+            }
+            
+            const docMetadata = parseMetadata(doc.metadata);
+            const storagePath = docMetadata?.storagePath;
+            
+            if (storagePath) {
+                // Archivo en Supabase Storage
+                const { data: fileData, error: downloadError } = await supabase.storage
+                    .from(FORM_ATTACHMENTS_BUCKET)
+                    .download(storagePath);
+                
+                if (downloadError) {
+                    return res.status(404).json({ success: false, error: 'No se encontró el archivo' });
+                }
+                
+                pdfBuffer = Buffer.from(await fileData.arrayBuffer());
+            } else if (docMetadata?.fileData) {
+                // Archivo almacenado como base64 en metadata
+                const cleanBase64 = String(docMetadata.fileData).replace(/[^A-Za-z0-9+/=]/g, '');
+                pdfBuffer = Buffer.from(cleanBase64, 'base64');
+            } else {
+                return res.status(400).json({ success: false, error: 'El documento no tiene archivo asociado' });
+            }
+        }
+
+        // Usar pdf-lib para agregar anotaciones
+        const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+        
+        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        const pages = pdfDoc.getPages();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        // Procesar anotaciones por página
+        // Las coordenadas están normalizadas (0-1), hay que convertirlas a píxeles de la página
+        for (const [pageNumStr, pageAnnotations] of Object.entries(annotations)) {
+            const pageNum = parseInt(pageNumStr) - 1; // pdf-lib usa índice 0
+            if (pageNum < 0 || pageNum >= pages.length) continue;
+            
+            const page = pages[pageNum];
+            const { width, height } = page.getSize();
+            
+            // Función para convertir coordenadas normalizadas a píxeles de la página
+            const toPageCoords = (normX, normY) => ({
+                x: normX * width,
+                y: height - (normY * height) // Invertir Y porque PDF tiene origen abajo-izquierda
+            });
+
+            for (const ann of pageAnnotations) {
+                // Convertir color hex a RGB
+                const color = hexToRgb(ann.color || '#ff0000');
+                const rgbColor = rgb(color.r / 255, color.g / 255, color.b / 255);
+                const strokeWidth = ann.strokeWidth || 2;
+
+                switch (ann.type) {
+                    case 'freehand':
+                    case 'highlighter':
+                        if (ann.path && ann.path.length > 1) {
+                            const opacity = ann.type === 'highlighter' ? 0.3 : 1;
+                            const lineWidth = ann.type === 'highlighter' ? strokeWidth * 4 : strokeWidth;
+                            
+                            // Dibujar el trazo como serie de líneas
+                            for (let i = 1; i < ann.path.length; i++) {
+                                const from = toPageCoords(ann.path[i - 1].x, ann.path[i - 1].y);
+                                const to = toPageCoords(ann.path[i].x, ann.path[i].y);
+                                
+                                page.drawLine({
+                                    start: from,
+                                    end: to,
+                                    thickness: lineWidth,
+                                    color: rgbColor,
+                                    opacity: opacity
+                                });
+                            }
+                        }
+                        break;
+
+                    case 'underline':
+                        const ulStart = toPageCoords(ann.startX, ann.startY);
+                        const ulEnd = toPageCoords(ann.endX, ann.endY);
+                        page.drawLine({
+                            start: ulStart,
+                            end: ulEnd,
+                            thickness: strokeWidth,
+                            color: rgbColor
+                        });
+                        break;
+
+                    case 'circle':
+                        const circleStart = toPageCoords(ann.startX, ann.startY);
+                        const circleEnd = toPageCoords(ann.endX, ann.endY);
+                        const centerX = (circleStart.x + circleEnd.x) / 2;
+                        const centerY = (circleStart.y + circleEnd.y) / 2;
+                        const radiusX = Math.abs(circleEnd.x - circleStart.x) / 2;
+                        const radiusY = Math.abs(circleEnd.y - circleStart.y) / 2;
+                        
+                        page.drawEllipse({
+                            x: centerX,
+                            y: centerY,
+                            xScale: radiusX,
+                            yScale: radiusY,
+                            borderColor: rgbColor,
+                            borderWidth: strokeWidth
+                        });
+                        break;
+
+                    case 'rectangle':
+                        const rectStart = toPageCoords(ann.startX, ann.startY);
+                        const rectEnd = toPageCoords(ann.endX, ann.endY);
+                        const rectX = Math.min(rectStart.x, rectEnd.x);
+                        const rectY = Math.min(rectStart.y, rectEnd.y);
+                        const rectWidth = Math.abs(rectEnd.x - rectStart.x);
+                        const rectHeight = Math.abs(rectEnd.y - rectStart.y);
+                        
+                        page.drawRectangle({
+                            x: rectX,
+                            y: rectY,
+                            width: rectWidth,
+                            height: rectHeight,
+                            borderColor: rgbColor,
+                            borderWidth: strokeWidth
+                        });
+                        break;
+
+                    case 'arrow':
+                        const arrowStart = toPageCoords(ann.startX, ann.startY);
+                        const arrowEnd = toPageCoords(ann.endX, ann.endY);
+                        
+                        // Línea principal
+                        page.drawLine({
+                            start: arrowStart,
+                            end: arrowEnd,
+                            thickness: strokeWidth,
+                            color: rgbColor
+                        });
+                        
+                        // Punta de flecha (calcular en coordenadas de página)
+                        const angle = Math.atan2(arrowStart.y - arrowEnd.y, arrowEnd.x - arrowStart.x);
+                        const headLength = 15;
+                        
+                        const arrowX1 = arrowEnd.x - headLength * Math.cos(angle - Math.PI / 6);
+                        const arrowY1 = arrowEnd.y + headLength * Math.sin(angle - Math.PI / 6);
+                        const arrowX2 = arrowEnd.x - headLength * Math.cos(angle + Math.PI / 6);
+                        const arrowY2 = arrowEnd.y + headLength * Math.sin(angle + Math.PI / 6);
+                        
+                        page.drawLine({
+                            start: arrowEnd,
+                            end: { x: arrowX1, y: arrowY1 },
+                            thickness: strokeWidth,
+                            color: rgbColor
+                        });
+                        page.drawLine({
+                            start: arrowEnd,
+                            end: { x: arrowX2, y: arrowY2 },
+                            thickness: strokeWidth,
+                            color: rgbColor
+                        });
+                        break;
+
+                    case 'text':
+                        const textPos = toPageCoords(ann.x, ann.y);
+                        const fontSize = ann.fontSize || 14;
+                        page.drawText(ann.text || '', {
+                            x: textPos.x,
+                            y: textPos.y,
+                            size: fontSize,
+                            font: font,
+                            color: rgbColor
+                        });
+                        break;
+                }
+            }
+        }
+
+        // Generar PDF modificado
+        const modifiedPdfBytes = await pdfDoc.save();
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="documento_anotado.pdf"');
+        res.send(Buffer.from(modifiedPdfBytes));
+
+        console.log('✅ PDF exportado con anotaciones');
+
+    } catch (error) {
+        console.error('❌ Error en POST /api/pdf-annotations/export:', error);
+        res.status(500).json({ success: false, error: 'Error al exportar PDF: ' + error.message });
+    }
+});
+
+// Función auxiliar para convertir hex a RGB
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 255, g: 0, b: 0 };
+}
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`\ud83d\ude80 Servidor CFE INSIGHT corriendo en http://localhost:${PORT}`);
+    console.log(`\ud83d\udcdd Visor de PDF con anotaciones habilitado`);
     console.log(`\ud83d\udcc1 Archivos est\u00e1ticos servidos desde: ${path.join(__dirname, 'App')}`);
     console.log(`\ud83d\udcca Procesamiento de archivos Excel habilitado`);
     console.log(`\ud83d\udcdd Account Assignments API habilitada`);

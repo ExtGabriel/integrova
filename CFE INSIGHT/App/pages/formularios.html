@@ -1940,7 +1940,7 @@
     </button>
 
     <div class="footer-full">
-        <p>&copy; 2025 CFE INSIGHT. Sistema de Auditoría v1.0. Todos los derechos reservados.</p>
+        <p>INTEGROVA - Sistema de auditoria</p>
     </div>
 
     <!-- Modal de Selección de Balance -->
@@ -11147,7 +11147,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para abrir/descargar un documento cargado
         function openUploadedDocument(documentId) {
-            console.log('🔍 Descargando documento:', documentId);
+            console.log('🔍 Abriendo documento:', documentId);
             
             // Obtener información del documento primero
             window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/document/${documentId}`, {
@@ -11166,8 +11166,22 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         return;
                     }
                     
-                    // Descargar el archivo
-                    downloadUploadedFile(documentId, metadata.fileName);
+                    const fileName = metadata.fileName;
+                    const storagePath = metadata.storagePath;
+                    
+                    // Si es un PDF, abrir en el visor de anotaciones
+                    if (fileName.toLowerCase().endsWith('.pdf')) {
+                        console.log('📄 Abriendo PDF en visor de anotaciones:', fileName);
+                        const visorUrl = `visor-pdf.html?id=${documentId}&name=${encodeURIComponent(fileName)}`;
+                        if (storagePath) {
+                            window.location.href = visorUrl + `&path=${encodeURIComponent(storagePath)}`;
+                        } else {
+                            window.location.href = visorUrl;
+                        }
+                    } else {
+                        // Para otros archivos, descargar normalmente
+                        downloadUploadedFile(documentId, fileName);
+                    }
                 } else {
                     showNotification('No se pudo obtener la información del documento', 'error');
                 }
