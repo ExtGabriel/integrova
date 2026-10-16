@@ -8327,8 +8327,15 @@
             }
         }
 
-        function escapeOptionText(text = '') {
-            return String(text).replace(/'/g, "\\'");
+        function renderEntityOptionItems(container, options) {
+            container.innerHTML = '';
+            options.forEach(option => {
+                const item = document.createElement('div');
+                item.dataset.value = option.value;
+                item.textContent = option.text;
+                item.addEventListener('click', () => selectOption('entidad', option.value, option.text));
+                container.appendChild(item);
+            });
         }
 
         function formatEntityLabel(entidad) {
@@ -8456,9 +8463,7 @@
 
             // Actualizar opciones visibles con eventos onclick directos
             if (filteredOptions.length > 0) {
-                items.innerHTML = filteredOptions.map(option =>
-                    `<div data-value="${option.value}" onclick="selectOption('entidad', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
-                ).join('');
+                renderEntityOptionItems(items, filteredOptions);
             } else {
                 items.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No se encontraron resultados</div>';
             }
@@ -8646,9 +8651,7 @@
                 return;
             }
 
-            items.innerHTML = entidadesOriginales.map(option =>
-                `<div data-value="${option.value}" onclick="selectOption('entidad', '${option.value}', '${escapeOptionText(option.text)}')">${option.text}</div>`
-            ).join('');
+            renderEntityOptionItems(items, entidadesOriginales);
             
             console.log('Options rendered successfully');
             
