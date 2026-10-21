@@ -1298,16 +1298,183 @@ app.put('/api/entities/:id', requireEditor, async (req, res) => {
 });
 
 // Delete an entity (REQUIERE ROL DE EDITOR)
+// Elimina en cascada todos los datos relacionados (compromisos, datasets,
+// subcarpetas, consultas, observaciones, etc.) antes de borrar la entidad,
+// para no violar las llaves foráneas (p.ej. subcarpetas_entity_id_fkey).
 app.delete('/api/entities/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
-        const { data, error } = await supabase
+        // Resolver la entidad por id (uuid) o por entity_id (texto tipo ENT_...)
+        const { data: byId } = await supabase
+            .from('entities')
+            .select('id, entity_id, name')
+            .eq('id', id)
+            .maybeSingle();
+
+        let entity = byId;
+        if (!entity) {
+            const { data: byCode } = await supabase
+                .from('entities')
+                .select('id, entity_id, name')
+                .eq('entity_id', id)
+                .maybeSingle();
+            entity = byCode;
+        }
+
+        if (!entity) {
+            return res.status(404).json({ success: false, error: 'Entidad no encontrada' });
+        }
+
+        // Las tablas hijas guardan el contexto como uuid (entities.id) o como
+        // texto (entities.entity_id); cubrimos ambos valores.
+        const entityKeys = [...new Set([entity.id, entity.entity_id].filter(Boolean))];
+
+        const warn = (label, error) =>
+            console.warn(`⚠️ Cascada entidad ${entity.id} - ${label}:`, error?.message || error);
+
+        // SELECT/DELETE tolerantes a errores: si la tabla o columna no existe,
+        // o el tipo no coincide (uuid vs texto), se loguea y se continúa.
+        const selectWhereEq = async (table, columns, column, value) => {
+            try {
+                const { data, error } = await supabase.from(table).select(columns).eq(column, value);
+                if (error) { warn(`${table} where ${column}=${value} (select)`, error); return []; }
+                return data || [];
+            } catch (err) { warn(`${table} where ${column}=${value} (select)`, err); return []; }
+        };
+
+        const deleteWhereEq = async (table, column, value) => {
+            try {
+                const { error } = await supabase.from(table).delete().eq(column, value);
+                if (error) warn(`${table} where ${column}=${value}`, error);
+            } catch (err) { warn(`${table} where ${column}=${value}`, err); }
+        };
+
+        const deleteWhereIn = async (table, column, values) => {
+            if (!values?.length) return;
+            try {
+                const { error } = await supabase.from(table).delete().in(column, values);
+                if (error) warn(`${table} where ${column} IN (${values.length} valores)`, error);
+            } catch (err) { warn(`${table} where ${column} IN (${values.length} valores)`, err); }
+        };
+
+        // 1. Compromisos de la entidad (columnas entity_id y entity)
+        const commitmentIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectWhereEq('commitments', 'id', 'entity_id', key)) commitmentIds.add(r.id);
+            for (const r of await selectWhereEq('commitments', 'id', 'entity', key)) commitmentIds.add(r.id);
+        }
+        const commitmentIdList = [...commitmentIds];
+        const deleteByEntity = (table, column = 'entity_id') =>
+            Promise.all(entityKeys.map(key => deleteWhereEq(table, column, key)));
+        const deleteByCommitments = (table, column = 'commitment_id') =>
+            deleteWhereIn(table, column, commitmentIdList);
+
+        // 2. Datasets de la entidad o de sus compromisos, con toda su cascada
+        const datasetIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectWhereEq('conjuntos_datos', 'id', 'entity_id', key)) datasetIds.add(r.id);
+        }
+        for (const cid of commitmentIdList) {
+            for (const r of await selectWhereEq('conjuntos_datos', 'id', 'commitment_id', cid)) datasetIds.add(r.id);
+        }
+
+        for (const datasetId of datasetIds) {
+            const result = await deleteDatasetCascade(datasetId);
+            if (!result.success) {
+                return res.status(500).json({
+                    success: false,
+                    error: `Error eliminando datos del dataset ${datasetId}: ${result.error.message}`
+                });
+            }
+        }
+
+        // 3. Registros ligados por contexto (entity_id / commitment_id) aunque
+        // no estén asociados a un dataset. Orden: hijas antes que padres.
+
+        // ledger_integrity_rows -> ledger_integrity_runs (run_id)
+        const runIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectWhereEq('ledger_integrity_runs', 'id', 'entity_id', key)) runIds.add(r.id);
+        }
+        for (const cid of commitmentIdList) {
+            for (const r of await selectWhereEq('ledger_integrity_runs', 'id', 'commitment_id', cid)) runIds.add(r.id);
+        }
+        await deleteWhereIn('ledger_integrity_rows', 'run_id', [...runIds]);
+        await deleteByEntity('ledger_integrity_rows');
+        await deleteByCommitments('ledger_integrity_rows');
+        await deleteByEntity('ledger_integrity_runs');
+        await deleteByCommitments('ledger_integrity_runs');
+
+        // consulta_envios -> consultas (consulta_id)
+        const consultaIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectWhereEq('consultas', 'id', 'entity_id', key)) consultaIds.add(r.id);
+        }
+        for (const cid of commitmentIdList) {
+            for (const r of await selectWhereEq('consultas', 'id', 'commitment_id', cid)) consultaIds.add(r.id);
+        }
+        await deleteWhereIn('consulta_envios', 'consulta_id', [...consultaIds]);
+        await deleteByEntity('consultas');
+        await deleteByCommitments('consultas');
+
+        // subdocumentos -> subcarpetas (parent_folder_id)
+        const subfolderIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectWhereEq('subcarpetas', 'id', 'entity_id', key)) subfolderIds.add(r.id);
+        }
+        for (const cid of commitmentIdList) {
+            for (const r of await selectWhereEq('subcarpetas', 'id', 'commitment_id', cid)) subfolderIds.add(r.id);
+        }
+        await deleteWhereIn('subdocumentos', 'parent_folder_id', [...subfolderIds]);
+        await deleteByEntity('subdocumentos');
+        await deleteByCommitments('subdocumentos');
+        // Subcarpetas hijas (parent_folder_id) antes que las carpetas del contexto
+        await deleteWhereIn('subcarpetas', 'parent_folder_id', [...subfolderIds]);
+        await deleteByEntity('subcarpetas');
+        await deleteByCommitments('subcarpetas');
+
+        // Tablas que solo cuelgan del contexto
+        await deleteByEntity('observaciones');
+        await deleteByCommitments('observaciones');
+        await deleteByEntity('account_assignments');
+        await deleteByCommitments('account_assignments');
+        await deleteByEntity('cuentas_contables');
+        await deleteByCommitments('cuentas_contables');
+        await deleteByEntity('form_responses');
+        await deleteByCommitments('form_responses');
+
+        // 4. Compromisos, asignaciones de usuarios y finalmente la entidad
+        await deleteWhereIn('commitments', 'id', commitmentIdList);
+        for (const key of entityKeys) {
+            await deleteWhereEq('commitments', 'entity_id', key);
+            await deleteWhereEq('commitments', 'entity', key);
+        }
+        await deleteByEntity('entity_users');
+
+        const { error: entityDeleteError } = await supabase
             .from('entities')
             .delete()
-            .eq('id', id);
+            .eq('id', entity.id);
 
-        if (error) throw error;
-        res.json({ success: true, data: { message: 'Entity deleted' } });
+        if (entityDeleteError) {
+            console.error('Error eliminando entidad tras cascada:', entityDeleteError);
+            return res.status(500).json({
+                success: false,
+                error: `No se pudo eliminar la entidad: ${entityDeleteError.message}`,
+                details: entityDeleteError.details || null
+            });
+        }
+
+        console.log(`✅ Entidad ${entity.id} (${entity.name}) eliminada en cascada: ${commitmentIdList.length} compromisos, ${datasetIds.size} datasets`);
+        res.json({
+            success: true,
+            data: {
+                message: 'Entity deleted',
+                deletedEntity: { id: entity.id, name: entity.name },
+                deletedCommitments: commitmentIdList.length,
+                deletedDatasets: datasetIds.size
+            }
+        });
     } catch (error) {
         console.error('Error deleting entity:', error);
         res.status(500).json({ success: false, error: 'Failed to delete entity' });
@@ -4704,6 +4871,118 @@ app.get('/api/excel/datasets', async (req, res) => {
 });
 
 // Endpoint para eliminar un dataset completo (conjuntos de datos y relacionados)
+// Elimina un dataset (conjuntos_datos) y todas sus tablas dependientes en orden:
+// primero las tablas hijas, luego las que referencian directamente a conjuntos_datos,
+// y al final el dataset. Lo reutilizan DELETE /api/conjuntos/:id y el borrado en
+// cascada de entidades.
+//   account_assignments.account_id      -> cuentas_contables.id
+//   ledger_integrity_rows.run_id        -> ledger_integrity_runs.id
+//   financial_group_rows.snapshot_id    -> financial_group_snapshots.id
+async function deleteDatasetCascade(datasetId) {
+    const logChildError = (label, error) => {
+        console.error(`Error eliminando ${label} del dataset ${datasetId}:`, error);
+    };
+
+    // Filas de ledger (hijas de ledger_integrity_runs)
+    const { data: ledgerRuns } = await supabase
+        .from('ledger_integrity_runs')
+        .select('id')
+        .eq('dataset_id', datasetId);
+
+    const ledgerRunIds = (ledgerRuns || []).map(r => r.id);
+    if (ledgerRunIds.length) {
+        const { error: ledgerRowsError } = await supabase
+            .from('ledger_integrity_rows')
+            .delete()
+            .in('run_id', ledgerRunIds);
+        if (ledgerRowsError) logChildError('filas de ledger', ledgerRowsError);
+    }
+
+    const { error: ledgerError } = await supabase
+        .from('ledger_integrity_runs')
+        .delete()
+        .eq('dataset_id', datasetId);
+    if (ledgerError) logChildError('validaciones ledger', ledgerError);
+
+    // Filas de grupos financieros (hijas de financial_group_snapshots)
+    const { data: snapshots } = await supabase
+        .from('financial_group_snapshots')
+        .select('id')
+        .eq('dataset_id', datasetId);
+
+    const snapshotIds = (snapshots || []).map(s => s.id);
+    if (snapshotIds.length) {
+        const { error: groupRowsError } = await supabase
+            .from('financial_group_rows')
+            .delete()
+            .in('snapshot_id', snapshotIds);
+        if (groupRowsError) logChildError('filas de grupos financieros', groupRowsError);
+    }
+
+    const { error: snapshotsError } = await supabase
+        .from('financial_group_snapshots')
+        .delete()
+        .eq('dataset_id', datasetId);
+    if (snapshotsError) logChildError('snapshots de grupos financieros', snapshotsError);
+
+    // Asignaciones antes que cuentas_contables por la FK account_id
+    const { error: assignmentsError } = await supabase
+        .from('account_assignments')
+        .delete()
+        .eq('dataset_id', datasetId);
+    if (assignmentsError) logChildError('asignaciones', assignmentsError);
+
+    const { error: adjustmentsError } = await supabase
+        .from('ajustes_financieros')
+        .delete()
+        .eq('dataset_id', datasetId);
+    if (adjustmentsError) logChildError('ajustes', adjustmentsError);
+
+    const { error: estadosError } = await supabase
+        .from('estados_financieros')
+        .delete()
+        .eq('conjunto_id', datasetId);
+    if (estadosError) logChildError('estados financieros', estadosError);
+
+    // Cuentas contables en lotes para que cada statement quede por debajo del
+    // statement_timeout de Supabase en tablas grandes o sin índice en conjunto_id.
+    const CUENTAS_BATCH = 500;
+    let cuentasEliminadas = 0;
+    while (true) {
+        const { data: cuentasPage, error: cuentasSelectError } = await supabase
+            .from('cuentas_contables')
+            .select('id')
+            .eq('conjunto_id', datasetId)
+            .limit(CUENTAS_BATCH);
+
+        if (cuentasSelectError) {
+            logChildError('cuentas contables (select)', cuentasSelectError);
+            break;
+        }
+        if (!cuentasPage || cuentasPage.length === 0) break;
+
+        const { error: cuentasError } = await supabase
+            .from('cuentas_contables')
+            .delete()
+            .in('id', cuentasPage.map(c => c.id));
+
+        if (cuentasError) {
+            logChildError('lote de cuentas contables', cuentasError);
+            break;
+        }
+        cuentasEliminadas += cuentasPage.length;
+        if (cuentasPage.length < CUENTAS_BATCH) break;
+    }
+
+    const { error: deleteError } = await supabase
+        .from('conjuntos_datos')
+        .delete()
+        .eq('id', datasetId);
+
+    if (deleteError) return { success: false, error: deleteError };
+    return { success: true, cuentasEliminadas };
+}
+
 app.delete('/api/conjuntos/:id', async (req, res) => {
     try {
         const datasetId = req.params.id;
@@ -4727,124 +5006,12 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Dataset no encontrado o no pertenece al usuario' });
         }
         
-        // Eliminar en orden de dependencia: primero las tablas hijas,
-        // luego las que referencian directamente a conjuntos_datos, y al final el dataset.
-        // account_assignments.account_id -> cuentas_contables.id
-        // ledger_integrity_rows.run_id -> ledger_integrity_runs.id
+        // Eliminar el dataset y todas sus dependencias en orden de FK
+        const cascadeResult = await deleteDatasetCascade(datasetId);
+        console.log(`🗑️ Cuentas contables eliminadas: ${cascadeResult.cuentasEliminadas || 0}`);
 
-        // 2. Eliminar filas de ledger (hijas de ledger_integrity_runs)
-        const { data: ledgerRuns } = await supabase
-            .from('ledger_integrity_runs')
-            .select('id')
-            .eq('dataset_id', datasetId);
-
-        const ledgerRunIds = (ledgerRuns || []).map(r => r.id);
-        if (ledgerRunIds.length) {
-            const { error: ledgerRowsError } = await supabase
-                .from('ledger_integrity_rows')
-                .delete()
-                .in('run_id', ledgerRunIds);
-
-            if (ledgerRowsError) {
-                console.error('Error eliminando filas de ledger:', ledgerRowsError);
-            }
-        }
-
-        // 3. Eliminar validaciones de ledger relacionadas
-        const { error: ledgerError } = await supabase
-            .from('ledger_integrity_runs')
-            .delete()
-            .eq('dataset_id', datasetId);
-
-        if (ledgerError) {
-            console.error('Error eliminando validaciones ledger:', ledgerError);
-            // Continuar aunque falle la eliminación de validaciones
-        }
-
-        // 4. Eliminar snapshots de grupos financieros relacionados
-        // (las filas de grupos viven dentro de snapshot.meta.groups, no hay tabla hija)
-        const { error: snapshotsError } = await supabase
-            .from('financial_group_snapshots')
-            .delete()
-            .eq('dataset_id', datasetId);
-
-        if (snapshotsError) {
-            console.error('Error eliminando snapshots de grupos financieros:', snapshotsError);
-            // Continuar aunque falle la eliminación de snapshots
-        }
-
-        // 5. Eliminar asignaciones de cuentas (antes que cuentas_contables por la FK account_id)
-        const { error: assignmentsError } = await supabase
-            .from('account_assignments')
-            .delete()
-            .eq('dataset_id', datasetId);
-
-        if (assignmentsError) {
-            console.error('Error eliminando asignaciones:', assignmentsError);
-            // Continuar aunque falle la eliminación de asignaciones
-        }
-
-        // 6. Eliminar ajustes financieros relacionados
-        const { error: adjustmentsError } = await supabase
-            .from('ajustes_financieros')
-            .delete()
-            .eq('dataset_id', datasetId);
-
-        if (adjustmentsError) {
-            console.error('Error eliminando ajustes:', adjustmentsError);
-            // Continuar aunque falle la eliminación de ajustes
-        }
-
-        // 7. Eliminar estados financieros relacionados
-        const { error: estadosError } = await supabase
-            .from('estados_financieros')
-            .delete()
-            .eq('conjunto_id', datasetId);
-
-        if (estadosError) {
-            console.error('Error eliminando estados financieros:', estadosError);
-            // Continuar aunque falle la eliminación de estados financieros
-        }
-
-        // 8. Eliminar cuentas contables relacionadas en lotes (después de asignaciones por la FK).
-        // Se borran por tandas de IDs para que cada statement quede por debajo del
-        // statement_timeout de Supabase en tablas grandes o sin índice en conjunto_id.
-        const CUENTAS_BATCH = 500;
-        let cuentasEliminadas = 0;
-        while (true) {
-            const { data: cuentasPage, error: cuentasSelectError } = await supabase
-                .from('cuentas_contables')
-                .select('id')
-                .eq('conjunto_id', datasetId)
-                .limit(CUENTAS_BATCH);
-
-            if (cuentasSelectError) {
-                console.error('Error obteniendo cuentas para eliminar:', cuentasSelectError);
-                break;
-            }
-            if (!cuentasPage || cuentasPage.length === 0) break;
-
-            const { error: cuentasError } = await supabase
-                .from('cuentas_contables')
-                .delete()
-                .in('id', cuentasPage.map(c => c.id));
-
-            if (cuentasError) {
-                console.error('Error eliminando lote de cuentas contables:', cuentasError);
-                break;
-            }
-            cuentasEliminadas += cuentasPage.length;
-            if (cuentasPage.length < CUENTAS_BATCH) break;
-        }
-        console.log(`🗑️ Cuentas contables eliminadas: ${cuentasEliminadas}`);
-
-        // 9. Finalmente eliminar el dataset principal
-        const { error: deleteError } = await supabase
-            .from('conjuntos_datos')
-            .delete()
-            .eq('id', datasetId);
-
-        if (deleteError) {
+        if (!cascadeResult.success) {
+            const deleteError = cascadeResult.error;
             console.error('Error eliminando dataset principal:', deleteError);
             return res.status(500).json({
                 success: false,
@@ -4854,7 +5021,7 @@ app.delete('/api/conjuntos/:id', async (req, res) => {
                 code: deleteError.code || null
             });
         }
-        
+
         console.log(`✅ Dataset ${datasetId} eliminado completamente`);
         
         // Limpiar cache de cuentas en memoria para este usuario

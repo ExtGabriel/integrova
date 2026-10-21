@@ -48748,11 +48748,15 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         form.reset();
                     }
                     
-                    // Generar número automático
+                    // Generar número automático (misma fuente que computeNextNumber de formularios-ajustes.js)
                     const ajusteNumero = document.getElementById('ajusteNumero');
                     if (ajusteNumero) {
-                        const currentAjustes = JSON.parse(localStorage.getItem('ajustes') || '[]');
-                        ajusteNumero.value = currentAjustes.length + 1;
+                        const listaAjustes = Array.isArray(window.ajustes) ? window.ajustes : [];
+                        const maxNumero = listaAjustes.reduce((max, item) => {
+                            const n = Number(item?.numero ?? item?.meta?.numero) || 0;
+                            return n > max ? n : max;
+                        }, 0);
+                        ajusteNumero.value = maxNumero + 1;
                     }
                     
                     // Ocultar botón eliminar
@@ -48779,6 +48783,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 ajusteForm.addEventListener('submit', function(e) {
                     e.preventDefault();
                     console.log('🔘 Formulario de ajuste enviado');
+                    // Si formularios-ajustes.js ya registró su handleFormSubmit en este form,
+                    // el submit ya fue procesado por ese listener; no invocarlo de nuevo
+                    // para evitar guardar el ajuste duplicado.
+                    if (typeof window.handleFormSubmit === 'function' && window.handleFormSubmit.isPlaceholder !== true) {
+                        return;
+                    }
                     handleAjusteFormSubmit();
                 });
             } else {

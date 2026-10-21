@@ -566,6 +566,159 @@
         return 'Usuario desconocido';
     }
 
+    /**
+     * Elimina un dataset (conjuntos_datos) y sus dependencias en orden de FK.
+     * Réplica del helper del servidor para el borrado directo como respaldo.
+     */
+    async function deleteDatasetCascadeClient(client, datasetId) {
+        const warn = (label, error) => console.warn(`⚠️ [Entities.delete] ${label}:`, error?.message || error);
+
+        const { data: ledgerRuns } = await client
+            .from('ledger_integrity_runs')
+            .select('id')
+            .eq('dataset_id', datasetId);
+        const ledgerRunIds = (ledgerRuns || []).map(r => r.id);
+        if (ledgerRunIds.length) {
+            const { error } = await client.from('ledger_integrity_rows').delete().in('run_id', ledgerRunIds);
+            if (error) warn('filas de ledger', error);
+        }
+        const { error: ledgerError } = await client.from('ledger_integrity_runs').delete().eq('dataset_id', datasetId);
+        if (ledgerError) warn('validaciones ledger', ledgerError);
+
+        const { data: snapshots } = await client
+            .from('financial_group_snapshots')
+            .select('id')
+            .eq('dataset_id', datasetId);
+        const snapshotIds = (snapshots || []).map(s => s.id);
+        if (snapshotIds.length) {
+            const { error } = await client.from('financial_group_rows').delete().in('snapshot_id', snapshotIds);
+            if (error) warn('filas de grupos financieros', error);
+        }
+        const { error: snapshotsError } = await client.from('financial_group_snapshots').delete().eq('dataset_id', datasetId);
+        if (snapshotsError) warn('snapshots de grupos financieros', snapshotsError);
+
+        // Asignaciones antes que cuentas_contables por la FK account_id
+        const { error: assignmentsError } = await client.from('account_assignments').delete().eq('dataset_id', datasetId);
+        if (assignmentsError) warn('asignaciones', assignmentsError);
+
+        const { error: adjustmentsError } = await client.from('ajustes_financieros').delete().eq('dataset_id', datasetId);
+        if (adjustmentsError) warn('ajustes', adjustmentsError);
+
+        const { error: estadosError } = await client.from('estados_financieros').delete().eq('conjunto_id', datasetId);
+        if (estadosError) warn('estados financieros', estadosError);
+
+        const { error: cuentasError } = await client.from('cuentas_contables').delete().eq('conjunto_id', datasetId);
+        if (cuentasError) warn('cuentas contables', cuentasError);
+
+        const { error: datasetError } = await client.from('conjuntos_datos').delete().eq('id', datasetId);
+        if (datasetError) warn('dataset principal', datasetError);
+        return !datasetError;
+    }
+
+    /**
+     * Borrado en cascada directo contra Supabase como respaldo cuando el
+     * endpoint del servidor no está disponible. Sujeto a las políticas RLS
+     * del usuario actual, por eso se prefiere el endpoint con service role.
+     */
+    async function deleteEntityDirectly(client, entityId) {
+        const warn = (label, error) => console.warn(`⚠️ [Entities.delete] ${label}:`, error?.message || error);
+
+        const selectEq = async (table, column, value) => {
+            const { data, error } = await client.from(table).select('id').eq(column, value);
+            if (error) { warn(`${table} where ${column}=${value}`, error); return []; }
+            return data || [];
+        };
+        const delEq = async (table, column, value) => {
+            const { error } = await client.from(table).delete().eq(column, value);
+            if (error) warn(`${table} where ${column}=${value}`, error);
+        };
+        const delIn = async (table, column, values) => {
+            if (!values?.length) return;
+            const { error } = await client.from(table).delete().in(column, values);
+            if (error) warn(`${table} where ${column} IN (...)`, error);
+        };
+
+        // La entidad puede referenciarse por uuid (id) o por código texto (entity_id)
+        const { data: entityRow } = await client
+            .from('entities')
+            .select('id, entity_id')
+            .eq('id', entityId)
+            .maybeSingle();
+        const entityKeys = [...new Set([entityId, entityRow?.entity_id].filter(Boolean))];
+
+        // Compromisos de la entidad (columnas entity_id y entity)
+        const commitmentIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectEq('commitments', 'entity_id', key)) commitmentIds.add(r.id);
+            for (const r of await selectEq('commitments', 'entity', key)) commitmentIds.add(r.id);
+        }
+        const commitmentIdList = [...commitmentIds];
+        const delByEntity = (table, column = 'entity_id') =>
+            Promise.all(entityKeys.map(k => delEq(table, column, k)));
+        const delByCommitments = (table, column = 'commitment_id') =>
+            delIn(table, column, commitmentIdList);
+
+        // Datasets de la entidad/compromisos con toda su cascada
+        const datasetIds = new Set();
+        for (const key of entityKeys) {
+            for (const r of await selectEq('conjuntos_datos', 'entity_id', key)) datasetIds.add(r.id);
+        }
+        for (const cid of commitmentIdList) {
+            for (const r of await selectEq('conjuntos_datos', 'commitment_id', cid)) datasetIds.add(r.id);
+        }
+        for (const datasetId of datasetIds) {
+            await deleteDatasetCascadeClient(client, datasetId);
+        }
+
+        // ledger_integrity_rows -> ledger_integrity_runs (run_id)
+        const runIds = new Set();
+        for (const key of entityKeys) for (const r of await selectEq('ledger_integrity_runs', 'entity_id', key)) runIds.add(r.id);
+        for (const cid of commitmentIdList) for (const r of await selectEq('ledger_integrity_runs', 'commitment_id', cid)) runIds.add(r.id);
+        await delIn('ledger_integrity_rows', 'run_id', [...runIds]);
+        await delByEntity('ledger_integrity_rows'); await delByCommitments('ledger_integrity_rows');
+        await delByEntity('ledger_integrity_runs'); await delByCommitments('ledger_integrity_runs');
+
+        // consulta_envios -> consultas (consulta_id)
+        const consultaIds = new Set();
+        for (const key of entityKeys) for (const r of await selectEq('consultas', 'entity_id', key)) consultaIds.add(r.id);
+        for (const cid of commitmentIdList) for (const r of await selectEq('consultas', 'commitment_id', cid)) consultaIds.add(r.id);
+        await delIn('consulta_envios', 'consulta_id', [...consultaIds]);
+        await delByEntity('consultas'); await delByCommitments('consultas');
+
+        // subdocumentos -> subcarpetas (parent_folder_id)
+        const subfolderIds = new Set();
+        for (const key of entityKeys) for (const r of await selectEq('subcarpetas', 'entity_id', key)) subfolderIds.add(r.id);
+        for (const cid of commitmentIdList) for (const r of await selectEq('subcarpetas', 'commitment_id', cid)) subfolderIds.add(r.id);
+        await delIn('subdocumentos', 'parent_folder_id', [...subfolderIds]);
+        await delByEntity('subdocumentos'); await delByCommitments('subdocumentos');
+        await delIn('subcarpetas', 'parent_folder_id', [...subfolderIds]);
+        await delByEntity('subcarpetas'); await delByCommitments('subcarpetas');
+
+        // Resto de tablas ligadas por contexto
+        await delByEntity('observaciones'); await delByCommitments('observaciones');
+        await delByEntity('account_assignments'); await delByCommitments('account_assignments');
+        await delByEntity('cuentas_contables'); await delByCommitments('cuentas_contables');
+        await delByEntity('form_responses'); await delByCommitments('form_responses');
+
+        // Compromisos, usuarios asignados y finalmente la entidad
+        await delIn('commitments', 'id', commitmentIdList);
+        for (const key of entityKeys) {
+            await delEq('commitments', 'entity_id', key);
+            await delEq('commitments', 'entity', key);
+        }
+        await delByEntity('entity_users');
+
+        const { data, error } = await client
+            .from('entities')
+            .delete()
+            .eq('id', entityId)
+            .select()
+            .single();
+
+        if (error) return { data: null, error: error.message };
+        return { data: data || { id: entityId }, error: null };
+    }
+
     const EntitiesModule = {
         /**
          * Listar todas las entidades visibles para el usuario actual
@@ -880,117 +1033,34 @@
                     return { data: null, error: 'El ID de la entidad es requerido' };
                 }
 
-                // Búsqueda exhaustiva de todas las form_responses relacionadas con la entidad
-                console.log('🔍 [Entities.delete] Buscando todas las form_responses relacionadas con la entidad:', entityId);
-                
-                // 1. Buscar respuestas con entity_id directo
-                const { data: directResponses, error: directError } = await client
-                    .from('form_responses')
-                    .select('id, entity_id, commitment_id')
-                    .eq('entity_id', entityId);
-                
-                if (directError) {
-                    console.warn('⚠️ [Entities.delete] Error buscando respuestas directas:', directError.message);
-                } else {
-                    console.log('📋 [Entities.delete] Respuestas directas encontradas:', directResponses?.length || 0, directResponses);
-                }
-                
-                // 2. Buscar compromisos asociados
-                const { data: entityCommitments, error: commitmentsFetchError } = await client
-                    .from('commitments')
-                    .select('id')
-                    .eq('entity_id', entityId);
+                // Borrado en cascada vía servidor (DELETE /api/entities/:id con
+                // service role): cubre todas las tablas dependientes y no está
+                // sujeto a las políticas RLS del cliente.
+                try {
+                    const apiBase = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL)
+                        || window.API_BASE_URL
+                        || window.location.origin;
+                    const response = await window.authenticatedFetch(`${apiBase}/api/entities/${entityId}`, { method: 'DELETE' });
+                    const result = await response.json().catch(() => ({}));
 
-                if (commitmentsFetchError) {
-                    console.error('❌ [Entities.delete] Error obteniendo compromisos:', commitmentsFetchError.message);
-                    return { data: null, error: 'Error obteniendo compromisos asociados: ' + commitmentsFetchError.message };
-                }
-
-                console.log('📋 [Entities.delete] Compromisos encontrados:', entityCommitments?.length || 0);
-
-                // 3. Buscar respuestas con commitment_id de esos compromisos
-                let commitmentResponses = [];
-                if (entityCommitments && entityCommitments.length > 0) {
-                    const commitmentIds = entityCommitments.map(c => c.id);
-                    const { data: respData, error: respError } = await client
-                        .from('form_responses')
-                        .select('id, entity_id, commitment_id')
-                        .in('commitment_id', commitmentIds);
-                    
-                    if (respError) {
-                        console.warn('⚠️ [Entities.delete] Error buscando respuestas por compromisos:', respError.message);
-                    } else {
-                        commitmentResponses = respData || [];
-                        console.log('📋 [Entities.delete] Respuestas por compromisos encontradas:', commitmentResponses.length, commitmentResponses);
+                    if (response.ok && result.success) {
+                        console.log('✅ [Entities.delete] Entidad eliminada en cascada vía servidor:', entityId);
+                        return { data: result.data?.deletedEntity || result.data || { id: entityId }, error: null };
                     }
-                }
 
-                // 4. Eliminar todas las respuestas encontradas
-                const allResponses = [...(directResponses || []), ...commitmentResponses];
-                if (allResponses.length > 0) {
-                    console.log('🗑️ [Entities.delete] Eliminando todas las respuestas relacionadas:', allResponses.length);
-                    
-                    // Eliminar por entity_id
-                    if (directResponses && directResponses.length > 0) {
-                        const { error: directDeleteError } = await client
-                            .from('form_responses')
-                            .delete()
-                            .eq('entity_id', entityId);
-                        
-                        if (directDeleteError) {
-                            console.error('❌ [Entities.delete] Error eliminando respuestas directas:', directDeleteError.message);
-                            return { data: null, error: 'Error eliminando respuestas directas: ' + directDeleteError.message };
-                        }
-                        console.log('✅ [Entities.delete] Respuestas directas eliminadas:', directResponses.length);
+                    // Si el endpoint no existe (backend sin actualizar), usar el
+                    // borrado directo en cascada como respaldo.
+                    if (response.status === 404) {
+                        console.warn('⚠️ [Entities.delete] Endpoint de cascada no disponible, usando borrado directo');
+                        return await deleteEntityDirectly(client, entityId);
                     }
-                    
-                    // Eliminar por commitment_id
-                    if (commitmentResponses.length > 0) {
-                        const commitmentIds = commitmentResponses.map(r => r.commitment_id);
-                        const { error: commitmentDeleteError } = await client
-                            .from('form_responses')
-                            .delete()
-                            .in('commitment_id', commitmentIds);
-                        
-                        if (commitmentDeleteError) {
-                            console.error('❌ [Entities.delete] Error eliminando respuestas por compromisos:', commitmentDeleteError.message);
-                            return { data: null, error: 'Error eliminando respuestas por compromisos: ' + commitmentDeleteError.message };
-                        }
-                        console.log('✅ [Entities.delete] Respuestas por compromisos eliminadas:', commitmentResponses.length);
-                    }
-                } else {
-                    console.log('📋 [Entities.delete] No se encontraron respuestas relacionadas');
+
+                    console.error('❌ [Entities.delete] Error del servidor:', result.error || response.status);
+                    return { data: null, error: result.error || `Error del servidor (${response.status})` };
+                } catch (fetchError) {
+                    console.warn('⚠️ [Entities.delete] Servidor no disponible, usando borrado directo:', fetchError.message);
+                    return await deleteEntityDirectly(client, entityId);
                 }
-
-                // Luego eliminar compromisos asociados a la entidad
-                console.log('🗑️ [Entities.delete] Eliminando compromisos asociados a la entidad:', entityId);
-                const { error: commitmentsError } = await client
-                    .from('commitments')
-                    .delete()
-                    .eq('entity_id', entityId);
-
-                if (commitmentsError) {
-                    console.error('❌ [Entities.delete] Error eliminando compromisos:', commitmentsError.message);
-                    return { data: null, error: 'Error eliminando compromisos asociados: ' + commitmentsError.message };
-                }
-
-                console.log('✅ [Entities.delete] Compromisos eliminados, procediendo a eliminar entidad');
-
-                // Luego eliminar la entidad
-                const { data, error } = await client
-                    .from('entities')
-                    .delete()
-                    .eq('id', entityId)
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('❌ [Entities.delete] Error Supabase:', error.message);
-                    return { data: null, error: error.message };
-                }
-
-                console.log('✅ [Entities.delete] Entidad eliminada con sus compromisos:', entityId);
-                return { data: data || { id: entityId }, error: null };
             } catch (err) {
                 console.error('❌ [Entities.delete] Excepción:', err);
                 return { data: null, error: err.message };
