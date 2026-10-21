@@ -1828,32 +1828,88 @@ app.put('/api/commitments/:id', requireEditor, async (req, res) => {
 });
 
 // Delete a commitment (REQUIERE ROL DE EDITOR)
+// Delete a commitment (REQUIERE ROL DE EDITOR)
+// Elimina en cascada todos los datos relacionados (datasets, subcarpetas,
+// consultas, observaciones, form_responses, etc.) antes de borrar el
+// compromiso, para no violar llaves foráneas (p.ej. conjuntos_datos_commitment_id_fkey).
 app.delete('/api/commitments/:id', requireEditor, async (req, res) => {
     const id = req.params.id;
     try {
-        // Primero eliminar respuestas de formulario asociadas (cascade delete manual)
-        console.log('🗑️ Eliminando respuestas de formulario asociadas al compromiso:', id);
-        const { error: formResponsesError } = await supabase
-            .from('form_responses')
-            .delete()
-            .eq('commitment_id', id);
+        const warn = (label, error) =>
+            console.warn(`⚠️ Cascada compromiso ${id} - ${label}:`, error?.message || error);
 
-        if (formResponsesError) {
-            console.error('Error eliminando form_responses:', formResponsesError);
-            return res.status(500).json({ success: false, error: 'Error eliminando respuestas de formulario: ' + formResponsesError.message, details: formResponsesError });
+        // SELECT/DELETE tolerantes a errores: si la tabla o columna no existe,
+        // se loguea y se continúa.
+        const selectWhereEq = async (table, columns, column, value) => {
+            try {
+                const { data, error } = await supabase.from(table).select(columns).eq(column, value);
+                if (error) { warn(`${table} where ${column}=${value} (select)`, error); return []; }
+                return data || [];
+            } catch (err) { warn(`${table} where ${column}=${value} (select)`, err); return []; }
+        };
+        const deleteWhereEq = async (table, column, value) => {
+            try {
+                const { error } = await supabase.from(table).delete().eq(column, value);
+                if (error) warn(`${table} where ${column}=${value}`, error);
+            } catch (err) { warn(`${table} where ${column}=${value}`, err); }
+        };
+        const deleteWhereIn = async (table, column, values) => {
+            if (!values?.length) return;
+            try {
+                const { error } = await supabase.from(table).delete().in(column, values);
+                if (error) warn(`${table} where ${column} IN (${values.length} valores)`, error);
+            } catch (err) { warn(`${table} where ${column} IN (${values.length} valores)`, err); }
+        };
+        const deleteByCommitment = (table, column = 'commitment_id') => deleteWhereEq(table, column, id);
+
+        // 1. Datasets del compromiso con toda su cascada
+        const datasetRows = await selectWhereEq('conjuntos_datos', 'id', 'commitment_id', id);
+        for (const ds of datasetRows) {
+            const result = await deleteDatasetCascade(ds.id);
+            if (!result.success) {
+                console.error('Error eliminando dataset del compromiso:', ds.id, result.error);
+                return res.status(500).json({
+                    success: false,
+                    error: `Error eliminando datos del dataset ${ds.id}: ${result.error.message}`
+                });
+            }
         }
 
-        console.log('✅ Respuestas de formulario eliminadas, eliminando compromiso...');
+        // 2. Tablas ligadas por commitment_id, hijas antes que padres
+        const runIds = (await selectWhereEq('ledger_integrity_runs', 'id', 'commitment_id', id)).map(r => r.id);
+        await deleteWhereIn('ledger_integrity_rows', 'run_id', runIds);
+        await deleteByCommitment('ledger_integrity_rows');
+        await deleteByCommitment('ledger_integrity_runs');
 
-        // Ahora eliminar el compromiso
+        const consultaIds = (await selectWhereEq('consultas', 'id', 'commitment_id', id)).map(r => r.id);
+        await deleteWhereIn('consulta_envios', 'consulta_id', consultaIds);
+        await deleteByCommitment('consultas');
+
+        const subfolderIds = (await selectWhereEq('subcarpetas', 'id', 'commitment_id', id)).map(r => r.id);
+        await deleteWhereIn('subdocumentos', 'parent_folder_id', subfolderIds);
+        await deleteByCommitment('subdocumentos');
+        await deleteWhereIn('subcarpetas', 'parent_folder_id', subfolderIds);
+        await deleteByCommitment('subcarpetas');
+
+        await deleteByCommitment('observaciones');
+        await deleteByCommitment('account_assignments');
+        await deleteByCommitment('cuentas_contables');
+        await deleteByCommitment('form_responses');
+
+        // 3. Finalmente el compromiso
         const { data, error } = await supabase
             .from('commitments')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .select();
 
         if (error) {
             console.error('Supabase error deleting commitment:', error);
-            return res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', details: error });
+            return res.status(500).json({
+                success: false,
+                error: `No se pudo eliminar el compromiso: ${error.message}`,
+                details: error.details || null
+            });
         }
 
         if (!data || data.length === 0) {
@@ -1861,8 +1917,11 @@ app.delete('/api/commitments/:id', requireEditor, async (req, res) => {
             return res.status(404).json({ success: false, error: 'No se encontró el compromiso a eliminar.' });
         }
 
-        console.log('✅ Compromiso eliminado exitosamente');
-        res.json({ success: true, data: { message: 'Commitment deleted' } });
+        console.log(`✅ Compromiso ${id} eliminado en cascada: ${datasetRows.length} datasets`);
+        res.json({
+            success: true,
+            data: { message: 'Commitment deleted', deletedDatasets: datasetRows.length }
+        });
     } catch (error) {
         console.error('Error deleting commitment (unexpected):', error);
         res.status(500).json({ success: false, error: error.message || 'Failed to delete commitment', stack: error.stack });
