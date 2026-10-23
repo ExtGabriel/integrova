@@ -6463,6 +6463,15 @@
                 };
             };
 
+            const assignedLedgerKeys = new Set();
+            assignmentsArray.forEach(assignment => {
+                const code = (assignment.code || assignment.accountCode || '').toString().trim();
+                const name = (assignment.name || assignment.accountName || '').toString().trim();
+                if (code) assignedLedgerKeys.add(code);
+                if (name) assignedLedgerKeys.add(name);
+            });
+            const ledgerKeysAlreadyAdded = new Set();
+
             const processNode = (nodeId, level, parentRowId) => {
                 const node = effectiveStructure.nodes.get(nodeId);
                 if (!node) {
@@ -6543,6 +6552,9 @@
                             ? (ledgerValue.name || ledgerValue.accountName || keyStr)
                             : keyStr;
                         
+                        // Omitir cuentas ya asignadas o ya agregadas en otro nodo (evita multiplicar filas por nodo)
+                        if (assignedLedgerKeys.has(keyStr) || assignedLedgerKeys.has(entryName) || ledgerKeysAlreadyAdded.has(keyStr)) continue;
+
                         // Crear fila para cada entrada del ledger si no está ya incluida
                         const ledgerRow = createLedgerRow(keyStr, entryName, level + 1, rowId, node.id);
                         
@@ -6552,13 +6564,8 @@
                             totals.adjustments += ledgerRow.totals.adjustments;
                             totals.finalPrevious += ledgerRow.totals.finalPrevious;
                             ledgerRows.push(ledgerRow.row);
+                            ledgerKeysAlreadyAdded.add(keyStr);
                             hasContent = true;
-                            
-                            console.log(`🔍 Added ledger account ${keyStr}:`, {
-                                preliminary: ledgerRow.totals.preliminary,
-                                adjustments: ledgerRow.totals.adjustments,
-                                finalPrevious: ledgerRow.totals.finalPrevious
-                            });
                         }
                     }
                     
