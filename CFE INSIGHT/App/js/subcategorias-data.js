@@ -600,6 +600,8 @@
                 if (!list.length) return '';
                 let html = '<div class="documents-list">';
                 list.forEach(doc => {
+                    // Los archivos de los slots AP se muestran dentro de su propio espacio
+                    if (container.id === 'archivo-content' && doc.metadata?.apSlot) return;
                     const isArchivo = doc.tipo === 'archivo';
                     const metadata = doc.metadata || {};
                     const fileName = isArchivo ? (metadata.fileName || doc.titulo || 'Archivo') : (doc.titulo || 'Documento');
@@ -747,6 +749,12 @@
             // documentos recién renderizados
             if (typeof window.refreshObservationBadges === 'function') {
                 window.refreshObservationBadges();
+            }
+
+            // Actualizar los slots de Archivo permanente (AP-1, AP-2, ...) si la
+            // sección los contiene
+            if (typeof window.refreshArchivoPermanenteSlots === 'function') {
+                window.refreshArchivoPermanenteSlots(container, documents);
             }
         }
 

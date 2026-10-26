@@ -9814,7 +9814,8 @@ app.post('/api/subdocuments/upload', async (req, res) => {
             entityId, 
             commitmentId,
             parentFolderId,
-            fileData 
+            fileData,
+            metadata: extraMetadata
         } = req.body;
         
         if (!userId) {
@@ -9829,6 +9830,7 @@ app.post('/api/subdocuments/upload', async (req, res) => {
         
         // Preparar metadata con información del archivo y contexto
         const metadata = {
+            ...(extraMetadata && typeof extraMetadata === 'object' ? extraMetadata : {}),
             fileName,
             fileSize,
             fileType,
