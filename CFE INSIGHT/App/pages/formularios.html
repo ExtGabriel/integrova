@@ -11477,9 +11477,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Editar visibilidad
             const visibilityButton = document.querySelector('.document-modal-footer .btn-secondary');
-            visibilityButton.onclick = function() {
-                showNotification('Función de edición de visibilidad en desarrollo', 'info');
-            };
+            if (visibilityButton) {
+                visibilityButton.onclick = function() {
+                    showNotification('Función de edición de visibilidad en desarrollo', 'info');
+                };
+            }
             
             // Cerrar modal al hacer clic fuera
             const modal = document.getElementById('documentPropertiesModal');
@@ -13495,6 +13497,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             currentCategory = getCurrentCategory(document.subcategoria);
             currentDocumentType = document.tipo;
             currentEditingDocumentId = document.id;
+            window.currentEditingDocument = document;
             
             // Cerrar todos los menús dropdown
             try {
@@ -13534,6 +13537,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             const nameField = window.document.getElementById('documentName');
             if (identifierField) identifierField.value = document.metadata?.identifier || document.id;
             if (nameField) nameField.value = document.titulo;
+
+            // El selector de área solo aplica al crear sumarias, no al renombrar
+            const areaGroupEdit = window.document.getElementById('documentAreaGroup');
+            if (areaGroupEdit) areaGroupEdit.style.display = 'none';
             
             // Cambiar texto del botón de guardar
             const saveButton = window.document.getElementById('saveDocumentBtn');
@@ -13594,7 +13601,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             currentEditingDocumentId,
                             documentName,
                             '', // contenido se mantiene igual
-                            { identifier: documentId },
+                            { ...(window.currentEditingDocument?.metadata || {}), identifier: documentId },
                             currentCategory,
                             currentSubcategory
                         );
@@ -13628,6 +13635,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Limpiar variables
             currentEditingDocumentId = null;
+            window.currentEditingDocument = null;
             
             // Reconfigurar eventos para modo de creación
             setupDocumentModalEvents();
@@ -28994,6 +29002,10 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             console.log('✅ Actualización forzada de contadores y UI completada');
         }, 100);
+
+        // Asegurar General + BG (ya con las cuentas restauradas) y carpetas de grupos
+        await createGeneralFolderIfNotExists();
+        await createAssignedGroupFoldersIfNotExist();
     }
 
     function syncUnassignedAccountsWithAssignments(assignments = null) {
@@ -29451,6 +29463,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 console.error('❌ No se pueden crear BG - generalFolder o generalFolder.id no disponible:', { generalFolder });
             }
 
+            // Crear también las carpetas de los grupos que tienen cuentas asignadas
+            await createAssignedGroupFoldersIfNotExist();
+
         } catch (error) {
             console.error('Error creando carpeta "General" automáticamente:', error);
         } finally {
@@ -29459,6 +29474,190 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         })();
 
         return await window.generalFolderLock;
+    }
+
+    // Crea automáticamente en Planes y Procedimientos una carpeta por cada
+    // cuenta estática o grupo que tenga cuentas asignadas (ej: "130 - Clientes").
+    async function createAssignedGroupFoldersIfNotExist() {
+        if (window.assignedGroupFoldersLock) {
+            console.log('⏳ Esperando creación previa de carpetas de grupos...');
+            await window.assignedGroupFoldersLock;
+            return createAssignedGroupFoldersIfNotExist();
+        }
+
+        window.assignedGroupFoldersLock = (async () => {
+            try {
+                if (!window.subcategoriasManager) return;
+                if (!window.subcategoriasManager.userId) {
+                    await window.subcategoriasManager.init();
+                }
+
+                const entityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const commitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+                const groupsList = document.querySelector('.financial-groups-list');
+                if (!groupsList) return;
+
+                // Nombres de las carpetas que deberían existir
+                const desired = new Map(); // key: nombre lowercase -> { name, code, bareName }
+
+                // a) Cuentas estáticas que tienen subcuentas asignadas debajo.
+                //    La inicialización separa el código del nombre (puede quedar
+                //    "- Clientes"), así que el texto visible ".account-name"
+                //    ("130 - Clientes") es la fuente más confiable del nombre.
+                groupsList.querySelectorAll('.static-account').forEach(staticAcc => {
+                    const staticId = (staticAcc.dataset.accountId || '').toString().trim();
+                    if (!staticId) return;
+                    const hasAssigned = groupsList.querySelector(`.assigned-account[data-parent-account-id="${staticId}"]`);
+                    if (!hasAssigned) return;
+                    const displayText = (staticAcc.querySelector('.account-name')?.textContent || '').trim();
+                    const code = (staticAcc.dataset.accountCode || '').trim() || (displayText.match(/^(\d+(?:\.\d+)*)/) || [])[1] || '';
+                    const cleanName = (staticAcc.dataset.accountName || displayText)
+                        .replace(/^[\s\-–—.]+/, '')
+                        .replace(/^(\d+(?:\.\d+)*)\s*[-–—.]?\s*/, '')
+                        .trim();
+                    const name = /^\d/.test(displayText)
+                        ? displayText
+                        : (code ? `${code} - ${cleanName}` : cleanName);
+                    if (name) desired.set(name.toLowerCase(), { name, code, bareName: cleanName });
+                });
+
+                // b) Grupos/subgrupos con cuentas asignadas directamente (sin cuenta padre)
+                groupsList.querySelectorAll('.group-content, .sub-group-content').forEach(content => {
+                    const hasDirect = Array.from(content.querySelectorAll('.assigned-account'))
+                        .some(el => !(el.dataset.parentAccountId || '').trim());
+                    if (!hasDirect) return;
+                    const parentItem = content.closest('.group-item, .sub-group-item');
+                    const name = (parentItem?.querySelector('.group-name, .sub-group-name')?.textContent || '').trim();
+                    if (name) desired.set(name.toLowerCase(), { name, code: '', bareName: name });
+                });
+
+                if (!desired.size) {
+                    console.log('ℹ️ No hay grupos con cuentas asignadas; no se crean carpetas');
+                    return;
+                }
+
+                // Carpetas ya existentes en este contexto
+                const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
+
+                // Normaliza nombres para detectar variantes del mismo grupo
+                // ("130 - - Clientes", "- Clientes", "Clientes" ≈ "130 - Clientes"
+                // sin confundir números distintos).
+                const norm = s => (s || '').toLowerCase().replace(/[\s\-–—.]+/g, ' ').trim();
+                // El servidor no siempre persiste metadata en subcarpetas, así que
+                // también se detectan las carpetas automáticas por la descripción.
+                const isAutoFolder = f =>
+                    f.metadata?.type === 'assigned_group_folder' ||
+                    (f.descripcion || '').startsWith('Grupo con cuentas asignadas');
+                const contextDocs = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, entityId, commitmentId);
+
+                let created = 0;
+                for (const { name, code, bareName } of desired.values()) {
+                    const nameNorm = norm(name);
+                    const bareNorm = norm(bareName);
+
+                    // Buscar carpeta existente equivalente: mismo nombre normalizado
+                    // o, en carpetas automáticas, el nombre sin numeración.
+                    const match = (subfolders || []).find(f =>
+                        norm(f.nombre) === nameNorm ||
+                        (isAutoFolder(f) && bareNorm && norm(f.nombre) === bareNorm)
+                    );
+
+                    if (match) {
+                        if ((match.nombre || '').trim() === name) continue; // ya existe con el nombre correcto
+
+                        // Variante con nombre incorrecto ("Clientes", "- Impuesto...",
+                        // "130 - - Clientes"): eliminarla solo si es automática y está vacía
+                        if (!isAutoFolder(match)) {
+                            console.warn('⚠️ Carpeta de usuario con nombre equivalente, no se duplica:', match.nombre);
+                            continue;
+                        }
+                        try {
+                            const hasDocs = (contextDocs || []).some(d =>
+                                String(d.parent_folder_id) === String(match.id));
+                            if (hasDocs) {
+                                console.warn('⚠️ Carpeta automática con nombre anterior tiene documentos; se conserva:', match.nombre);
+                                continue;
+                            }
+                            await window.subcategoriasManager.deleteSubfolder(match.id, match.nombre, true);
+                            subfolders.splice(subfolders.indexOf(match), 1);
+                            console.log('🧹 Carpeta automática con nombre anterior eliminada:', match.nombre);
+                        } catch (e) {
+                            console.warn('⚠️ No se pudo migrar la carpeta:', match.nombre, e);
+                            continue;
+                        }
+                    }
+
+                    const folder = await window.subcategoriasManager.saveSubfolder(
+                        'planes',
+                        'planes',
+                        name,
+                        `Grupo con cuentas asignadas - ${currentDatasetName || 'Dataset actual'}`,
+                        null,
+                        {
+                            type: 'assigned_group_folder',
+                            groupCode: code,
+                            datasetId: currentDatasetId,
+                            createdAt: new Date().toISOString()
+                        },
+                        entityId,
+                        commitmentId
+                    );
+                    if (folder) {
+                        created++;
+                        console.log('📁 Carpeta de grupo creada:', name);
+                    }
+                }
+
+                // Crear la sumaria de cada carpeta de grupo (una sola vez por carpeta)
+                let sumariasCreated = 0;
+                const freshFolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
+                const freshDocs = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, entityId, commitmentId);
+                const entidadSel = document.getElementById('entidadSelected');
+                const entityName = (entidadSel && entidadSel.classList.contains('selected')) ? entidadSel.textContent.trim() : '';
+                for (const { name, code, bareName } of desired.values()) {
+                    const folder = (freshFolders || []).find(f => (f.nombre || '').trim() === name);
+                    if (!folder) continue;
+                    const hasSumaria = (freshDocs || []).some(d =>
+                        String(d.parent_folder_id) === String(folder.id) && d.tipo === 'hoja-trabajo');
+                    if (hasSumaria) continue;
+                    try {
+                        await window.subcategoriasManager.saveSubdocument(
+                            'planes', 'planes', 'hoja-trabajo',
+                            `Sumaria ${name}`,
+                            '',
+                            {
+                                identifier: code || '',
+                                areaName: bareName || name,
+                                areaRowId: null,
+                                datasetId: currentDatasetId,
+                                autoGenerated: true,
+                                ...(entityName ? { entityName } : {})
+                            },
+                            folder.id,
+                            entityId,
+                            commitmentId
+                        );
+                        sumariasCreated++;
+                    } catch (e) {
+                        console.warn('⚠️ No se pudo crear la sumaria de', name, e);
+                    }
+                }
+                if (sumariasCreated > 0) {
+                    showNotification(`📄 Se crearon ${sumariasCreated} sumaria(s) automáticas en las carpetas de grupos`, 'success');
+                }
+
+                if (created > 0) {
+                    showNotification(`📁 Se crearon ${created} carpeta(s) de grupos con cuentas asignadas en Planes y Procedimientos`, 'success');
+                    window.subcategoriasManager.updateUI('planes', 'planes');
+                }
+            } catch (error) {
+                console.error('Error creando carpetas de grupos asignados:', error);
+            } finally {
+                window.assignedGroupFoldersLock = null;
+            }
+        })();
+
+        return await window.assignedGroupFoldersLock;
     }
 
     // Función para gestionar carpetas "General" por dataset activo
@@ -29506,6 +29705,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 await createGeneralFolderIfNotExists();
             } else {
                 console.log('✅ Carpeta "General" del contexto activo ya existe');
+                // Asegurar que las 3 BG existan aunque la carpeta ya existiera
+                // (p. ej. si fueron eliminadas por una migración o manualmente)
+                await createBGDocumentsIfNotExist(activeFolder.id, entityId, commitmentId);
             }
 
         } catch (error) {
@@ -29553,7 +29755,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             const foldersToDelete = (subfolders || []).filter(folder => {
                 const folderName = (folder.nombre || '').trim().toLowerCase();
-                const shouldDelete = folderName === 'general';
+                const shouldDelete = folderName === 'general' ||
+                                     folder.metadata?.type === 'assigned_group_folder' ||
+                                     (folder.descripcion || '').startsWith('Grupo con cuentas asignadas');
                 
                 console.log('🔍 Analizando carpeta:', {
                     id: folder.id,
@@ -29580,7 +29784,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, folderEntityId, folderCommitmentId);
                     console.log('📄 Total documentos encontrados:', documents?.length || 0);
                     
-                    const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === folder.id);
+                    const docsInFolder = (documents || []).filter(doc => String(doc.parent_folder_id) === String(folder.id));
                     console.log('📄 Documentos a eliminar en esta carpeta:', docsInFolder.length);
                     
                     for (const doc of docsInFolder) {
@@ -29640,7 +29844,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 : '';
 
             const documents = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, resolvedEntityId, resolvedCommitmentId);
-            const docsInFolder = (documents || []).filter(doc => doc.parent_folder_id === parentFolderId);
+            const docsInFolder = (documents || []).filter(doc => String(doc.parent_folder_id) === String(parentFolderId));
 
             const requiredDocs = [
                 { titulo: 'BG-1 ACTIVO', meta: { bgType: 'activo', datasetId: currentDatasetId, entityName: resolvedEntityName || null } },
@@ -30515,6 +30719,9 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         showNotification(`✅ Cuenta ${excelAccount.code} - ${excelAccount.name} asignada en ${staticCode} ${staticName}`, 'success');
 
         console.log('✅ Asignación completada exitosamente');
+
+        // Crear la carpeta del grupo destino si aún no existe
+        createAssignedGroupFoldersIfNotExist();
     }
     
     function removeAccountFromGroup(button) {
@@ -30652,13 +30859,16 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Actualizar contador del grupo (inmediato)
         updateGroupCount(groupContent);
-        
+
         // Mostrar notificación
         showNotification(`Cuenta ${accountData.code} - ${accountData.name} asignada correctamente`, 'success');
-        
+
         console.log('✅ Asignación completada exitosamente');
+
+        // Crear la carpeta del grupo destino si aún no existe
+        createAssignedGroupFoldersIfNotExist();
     }
-    
+
     function createAssignedAccountElement(accountData) {
         console.log('🔨 Creando elemento de cuenta asignada para:', accountData);
         
@@ -47856,7 +48066,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         <i class="bi bi-grid-3x3"></i>
                         Nombre
                     </label>
-                    <input type="text" id="hojaTrabajoName" value="Sumaria" readonly>
+                    <input type="text" id="hojaTrabajoName" value="Sumaria">
                 </div>
             </div>
             <div class="modal-footer hoja-trabajo-modal-footer">

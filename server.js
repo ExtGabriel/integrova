@@ -9407,23 +9407,35 @@ app.post('/api/subfolders/save', async (req, res) => {
         console.log(`💾 Guardando subcarpeta: ${nombre} en ${categoria}/${subcategoria}`);
         console.log(`📌 Contexto carpeta - entity_id: ${entityId}, commitment_id: ${commitmentId}`);
         
-        const { data: subfolder, error } = await supabase
+        const insertPayload = {
+            nombre,
+            descripcion: descripcion || null,
+            categoria,
+            subcategoria,
+            parent_folder_id: parent_folder_id || null,
+            user_id: userId,
+            entity_id: entityId || null,
+            commitment_id: commitmentId || null,
+            metadata: metadata || {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+        let { data: subfolder, error } = await supabase
             .from('subcarpetas')
-            .insert([{
-                nombre,
-                descripcion: descripcion || null,
-                categoria,
-                subcategoria,
-                parent_folder_id: parent_folder_id || null,
-                user_id: userId,
-                entity_id: entityId || null,
-                commitment_id: commitmentId || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
+            .insert([insertPayload])
             .select()
             .single();
-        
+
+        // Fallback: la columna metadata puede no existir en esquemas antiguos
+        if (error && /metadata/i.test(error.message || '')) {
+            delete insertPayload.metadata;
+            ({ data: subfolder, error } = await supabase
+                .from('subcarpetas')
+                .insert([insertPayload])
+                .select()
+                .single());
+        }
+
         if (error) {
             console.error('❌ Error guardando subcarpeta:', error);
             return res.status(500).json({ success: false, error: 'Error al guardar la subcarpeta' });

@@ -551,6 +551,41 @@
                 foldersByParent[key].push(folder);
             });
 
+            // En Planes y Procedimientos: "General" primero, luego las carpetas de
+            // grupos ordenadas por código numérico ascendente (130 < 136.1 < 140 < 1900)
+            if (container.id === 'planes-content') {
+                const folderCode = name => {
+                    const m = (name || '').trim().match(/^(\d+(?:\.\d+)*)\s*[-–—]/);
+                    return m ? m[1] : null;
+                };
+                const compareCodes = (a, b) => {
+                    const pa = a.split('.').map(Number);
+                    const pb = b.split('.').map(Number);
+                    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                        const diff = (pa[i] ?? -1) - (pb[i] ?? -1);
+                        if (diff !== 0) return diff;
+                    }
+                    return 0;
+                };
+                Object.values(foldersByParent).forEach(list => {
+                    list.sort((a, b) => {
+                        const nameA = (a.nombre || '').trim();
+                        const nameB = (b.nombre || '').trim();
+                        const isGeneralA = nameA.toLowerCase() === 'general';
+                        const isGeneralB = nameB.toLowerCase() === 'general';
+                        if (isGeneralA !== isGeneralB) return isGeneralA ? -1 : 1;
+                        const codeA = folderCode(nameA);
+                        const codeB = folderCode(nameB);
+                        if ((codeA !== null) !== (codeB !== null)) return codeA !== null ? -1 : 1;
+                        if (codeA !== null) {
+                            const diff = compareCodes(codeA, codeB);
+                            if (diff !== 0) return diff;
+                        }
+                        return nameA.localeCompare(nameB, 'es');
+                    });
+                });
+            }
+
             documents.forEach(doc => {
                 const key = doc.parent_folder_id || rootKey;
                 if (!docsByParent[key]) docsByParent[key] = [];
@@ -597,7 +632,8 @@
                         ? `${approvalButtons}
                            <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
                         : isSumaria
-                            ? `${approvalButtons}
+                            ? `<button class="btn-action btn-edit" onclick="renameSubdocument(${doc.id})" title="Editar nombre"><i class="bi bi-pencil"></i></button>
+                               ${approvalButtons}
                                ${observationButton}
                                <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
                             : `<button class="btn-action btn-edit" onclick="${editAction}" title="Editar"><i class="bi bi-pencil"></i></button>
@@ -1103,6 +1139,39 @@
             console.error('❌ Error al editar documento:', error);
             console.error('📍 Stack trace:', error.stack);
             alert('Error al editar el documento: ' + error.message);
+        }
+    };
+
+    // Renombrar un subdocumento (p. ej. una Sumaria) y persistir el título en la BD
+    window.renameSubdocument = async (docId) => {
+        try {
+            const docData = await window.subcategoriasManager.getSubdocument(docId);
+
+            // En formularios.html existe el modal de propiedades: reutilizarlo
+            if (typeof openEditDocumentModal === 'function') {
+                openEditDocumentModal(docData);
+                return;
+            }
+
+            // Fallback sin modal: pedir el nombre directamente
+            const newName = (prompt('Nuevo nombre del documento:', docData.titulo || '') || '').trim();
+            if (!newName || newName === docData.titulo) return;
+
+            await window.subcategoriasManager.updateSubdocument(
+                docData.id,
+                newName,
+                docData.contenido,
+                docData.metadata,
+                docData.categoria,
+                docData.subcategoria
+            );
+
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(`Documento renombrado a "${newName}"`, 'success');
+            }
+        } catch (error) {
+            console.error('❌ Error al renombrar documento:', error);
+            alert('Error al renombrar el documento: ' + error.message);
         }
     };
 

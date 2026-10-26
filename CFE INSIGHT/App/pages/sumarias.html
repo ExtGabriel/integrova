@@ -416,6 +416,9 @@
                 <h1>Sumaria</h1>
             </div>
             <div class="toolbar-actions">
+                <button type="button" title="Editar nombre" onclick="renameSumariaDocument()">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
                 <button type="button" title="Editar encabezado" onclick="toggleHeaderEdit()">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -557,6 +560,53 @@
                     el.contentEditable = 'true';
                 });
                 if (allEditable[0]) allEditable[0].focus();
+            }
+        }
+
+        // Renombrar la sumaria y persistir el título en la BD
+        async function renameSumariaDocument() {
+            if (!currentWorksheetDoc?.id) {
+                alert('No hay una sumaria cargada para renombrar');
+                return;
+            }
+
+            const currentName = currentWorksheetDoc.titulo || '';
+            const newName = (prompt('Nuevo nombre de la sumaria:', currentName) || '').trim();
+            if (!newName || newName === currentName) return;
+
+            const hasManager = await waitForManager();
+            if (!hasManager) {
+                alert('No se pudo conectar con la base de datos');
+                return;
+            }
+
+            try {
+                await window.subcategoriasManager.updateSubdocument(
+                    currentWorksheetDoc.id,
+                    newName,
+                    document.getElementById('sumariaContent').innerHTML,
+                    {
+                        ...currentWorksheetDoc.metadata,
+                        datasetId: currentDatasetIdForAreas,
+                        lastSaved: new Date().toISOString()
+                    },
+                    currentWorksheetDoc.categoria,
+                    currentWorksheetDoc.subcategoria
+                );
+
+                currentWorksheetDoc.titulo = newName;
+                try {
+                    localStorage.setItem('currentWorksheetDocument', JSON.stringify(currentWorksheetDoc));
+                } catch (storageError) {
+                    console.warn('No se pudo actualizar currentWorksheetDocument:', storageError);
+                }
+
+                initTitle();
+                document.title = `${newName} - CFE INSIGHT`;
+                console.log('✅ Nombre de sumaria actualizado en la BD:', newName);
+            } catch (e) {
+                console.error('❌ Error renombrando sumaria:', e);
+                alert('Error al renombrar la sumaria: ' + e.message);
             }
         }
 
@@ -945,14 +995,91 @@
             const meta = currentWorksheetDoc?.metadata || {};
             if (!meta.areaRowId && !meta.areaName) return;
 
-            const target = allAreas.find(a => String(a.rowId || '') === String(meta.areaRowId || ''))
-                || allAreas.find(a => a.name.toLowerCase() === String(meta.areaName || '').trim().toLowerCase());
+            const normArea = s => String(s || '').toLowerCase().replace(/^[\s\d.\-–—]+/, '').replace(/\s+/g, ' ').trim();
+            const target = (meta.areaRowId && allAreas.find(a => String(a.rowId || '') === String(meta.areaRowId)))
+                || allAreas.find(a => a.name.toLowerCase() === String(meta.areaName || '').trim().toLowerCase())
+                || allAreas.find(a => normArea(a.name) && normArea(a.name) === normArea(meta.areaName));
             if (!target) return;
 
             const li = Array.from(document.querySelectorAll('.area-item'))
                 .find(el => el.textContent.trim() === target.name);
             selectArea(target, li || null);
             console.log('✅ Área auto-seleccionada desde metadata:', target.name);
+        }
+
+        // Actualiza solo las cifras de la tabla guardada con los datos actuales,
+        // conservando descripciones, referencias y texto editado a mano.
+        function refreshSumariaFigures() {
+            const meta = currentWorksheetDoc?.metadata || {};
+            if (!meta.areaRowId && !meta.areaName) return;
+            if (!allGroups.length) return;
+
+            const normArea = s => String(s || '').toLowerCase().replace(/^[\s\d.\-–—]+/, '').replace(/\s+/g, ' ').trim();
+            const areaRow = (meta.areaRowId && allAreas.find(a => String(a.rowId || '') === String(meta.areaRowId)))
+                || allAreas.find(a => a.name.toLowerCase() === String(meta.areaName || '').trim().toLowerCase())
+                || allAreas.find(a => normArea(a.name) && normArea(a.name) === normArea(meta.areaName));
+            if (!areaRow) return;
+
+            const parentId = String(areaRow.rowId || '');
+            let rows = parentId ? allGroups.filter(g => String(g.parentId || '') === parentId) : [];
+            if (!rows.length) {
+                const self = allGroups.find(g =>
+                    (g.rowId && g.rowId === areaRow.rowId) ||
+                    ((g.accountName || g.name || '').trim().toLowerCase() === areaRow.name.toLowerCase()));
+                if (self) rows = [self];
+            }
+            if (!rows.length) return;
+
+            const byId = new Map();
+            const byName = new Map();
+            rows.forEach((row, idx) => {
+                byId.set(String(row.rowId || row.accountCode || row.account_code || row.id || idx), row);
+                const nm = (row.accountName || row.name || '').trim().toLowerCase();
+                if (nm) byName.set(nm, row);
+            });
+
+            const tbody = document.getElementById('sumariaBody');
+            if (!tbody) return;
+
+            const valuesOf = row => {
+                const finalCurrent = Number(row.finalCurrent ?? 0);
+                return {
+                    current: Number(row.preliminary ?? finalCurrent),
+                    adjustments: Number(row.adjustments ?? 0),
+                    finalCurrent,
+                    previous: Number(row.finalPrevious ?? 0)
+                };
+            };
+            const writeCells = (tr, v) => {
+                const vals = [v.current, v.adjustments, v.finalCurrent, v.previous];
+                tr.querySelectorAll('td.col-amount').forEach((td, i) => {
+                    if (i < vals.length) td.textContent = formatCurrency(vals[i]);
+                });
+                const varCell = tr.querySelector('td.col-variation');
+                if (varCell) varCell.textContent = formatCurrency(v.finalCurrent - v.previous);
+                const pctCell = tr.querySelector('td.col-variation-pct');
+                if (pctCell) pctCell.textContent = calculateVariationPct(v.finalCurrent, v.previous);
+            };
+
+            const totals = { current: 0, adjustments: 0, finalCurrent: 0, previous: 0 };
+            let totalTr = null;
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const desc = tr.querySelector('td.col-description')?.textContent.trim() || '';
+                if (/^total\s/i.test(desc)) { totalTr = tr; return; }
+
+                const rowId = tr.querySelector('td[data-ref-row-id]')?.dataset.refRowId;
+                const row = (rowId && byId.get(rowId)) || byName.get(desc.toLowerCase());
+                if (!row) return;
+                const v = valuesOf(row);
+                writeCells(tr, v);
+                totals.current += v.current;
+                totals.adjustments += v.adjustments;
+                totals.finalCurrent += v.finalCurrent;
+                totals.previous += v.previous;
+            });
+
+            if (totalTr) writeCells(totalTr, totals);
+            console.log('✅ Cifras de sumaria actualizadas con los datos actuales');
         }
 
         // Pone el nombre de la entidad en el encabezado y normaliza el título
@@ -1391,8 +1518,10 @@
             const restored = await loadSavedContent();
             await applyHeaderContext();
             await loadAreas();
-            // Si el documento se creó con un área y no hay contenido guardado, seleccionarla
+            // Si el documento se creó con un área y no hay contenido guardado, seleccionarla.
+            // Si ya había contenido, solo actualizar las cifras con los datos actuales.
             if (!restored) autoSelectMetadataArea();
+            else refreshSumariaFigures();
             await attachSumariaReferences();
 
             const sumariaContent = document.getElementById('sumariaContent');
