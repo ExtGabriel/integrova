@@ -2176,11 +2176,6 @@
                         <label>Periodo del informe:</label>
                         <span>Anualmente</span>
                     </div>
-                    <div class="info-item">
-                        <label>Fecha de fin de año:</label>
-                        <span>31/12/2024</span>
-                    </div>
-                    <p class="info-note">La fecha de finalización del año se puede cambiar en las propiedades del compromiso.</p>
                 </div>
                 
                 <div class="balance-options">
@@ -30216,6 +30211,17 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
     // Crear las hojas de trabajo BG-1 ACTIVO, BG-2 PASIVO y BG-3 ESTADO DE RESULTADOS
     // dentro de la carpeta General si todavía no existen
     async function createBGDocumentsIfNotExist(parentFolderId, entityId = '', commitmentId = '') {
+        // Serializar llamadas por carpeta: dos disparadores concurrentes (p. ej. los
+        // listeners de ajustes) podían leer la lista antes de que la otra guardara
+        // y ambas creaban la misma BG duplicada.
+        if (!window.bgDocsLocks) window.bgDocsLocks = {};
+        const lockKey = String(parentFolderId || 'none');
+        if (window.bgDocsLocks[lockKey]) {
+            await window.bgDocsLocks[lockKey];
+            return createBGDocumentsIfNotExist(parentFolderId, entityId, commitmentId);
+        }
+
+        const lockPromise = (async () => {
         try {
             if (!window.subcategoriasManager || !parentFolderId) return;
 
@@ -30238,6 +30244,37 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 { titulo: 'BG-2 PASIVO Y PATRIMONIO', meta: { bgType: 'pasivo', datasetId: currentDatasetId, entityName: resolvedEntityName || null } },
                 { titulo: 'BG-3 ESTADO DE RESULTADOS', meta: { bgType: 'resultados', datasetId: currentDatasetId, entityName: resolvedEntityName || null } }
             ];
+
+            // Limpiar duplicados ya existentes: conservar el más antiguo por título
+            // (el original conserva historial/aprobaciones) y eliminar los más nuevos.
+            for (const cfg of requiredDocs) {
+                const sameTitle = docsInFolder
+                    .filter(doc => (doc.titulo || '').trim().toLowerCase() === cfg.titulo.toLowerCase())
+                    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+                for (const dup of sameTitle.slice(1)) {
+                    try {
+                        const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+                        const resp = await window.authenticatedFetch(`${apiBase}/api/subdocuments/delete`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'user-id': window.subcategoriasManager.userId
+                            },
+                            body: JSON.stringify({ documentId: dup.id })
+                        });
+                        const del = await resp.json().catch(() => null);
+                        if (del?.success) {
+                            console.log('🗑️ BG duplicada eliminada:', dup.titulo, dup.id);
+                            const idx = docsInFolder.indexOf(dup);
+                            if (idx >= 0) docsInFolder.splice(idx, 1);
+                        } else {
+                            console.warn('⚠️ No se pudo eliminar BG duplicada (¿otro usuario la creó?):', dup.id);
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Error eliminando BG duplicada:', e);
+                    }
+                }
+            }
 
             // Generar contenido de los balances con los datos actuales
             // Primero intentar usar datos de Grupos financieros si están disponibles
@@ -30280,7 +30317,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             }
         } catch (error) {
             console.error('Error creando documentos BG en carpeta General:', error);
+        } finally {
+            delete window.bgDocsLocks[lockKey];
         }
+        })();
+
+        window.bgDocsLocks[lockKey] = lockPromise;
+        return await lockPromise;
     }
 
     // Transformar datos de Grupos financieros al formato de BG
@@ -47813,14 +47856,6 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     </label>
                     <input type="text" id="folderName" placeholder="Ingrese el nombre..." maxlength="50">
                     <small class="form-hint">Máximo 50 caracteres</small>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="folderVisible" checked>
-                        <span class="checkmark"></span>
-                        <i class="bi bi-eye"></i>
-                        Carpeta visible
-                    </label>
                 </div>
             </div>
             <div class="folder-modal-footer">

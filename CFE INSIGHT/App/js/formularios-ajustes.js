@@ -706,6 +706,8 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 if (deleteButton) {
                     deleteButton.style.display = 'none';
                 }
+                // Poner la entidad del contexto actual en el campo Entidad
+                populateAjusteEntidad();
             } else {
                 console.log('🔧 openAjusteModal: Manteniendo formulario (modo edición)');
                 // Mostrar el botón de eliminar para ajustes existentes
@@ -725,6 +727,39 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             }, 50);
         }
         openAjusteModal.isPlaceholder = false;
+
+        // Llena el select Entidad del modal con la entidad del contexto activo
+        async function populateAjusteEntidad() {
+            if (!entidadSelect) return;
+            const entityId = window.commitmentDropdownState?.currentEntityId
+                || document.getElementById('entidad')?.value || '';
+
+            let entityName = '';
+            const entidadSel = document.getElementById('entidadSelected');
+            if (entidadSel && entidadSel.classList.contains('selected')) {
+                entityName = (entidadSel.textContent || '').trim();
+            }
+
+            if (!entityName && entityId) {
+                try {
+                    const apiBase = (window.API_BASE_URL || '').replace(/\/$/, '') || window.location.origin;
+                    const userId = window.currentUser?.id || window.subcategoriasManager?.userId || '';
+                    const resp = await window.authenticatedFetch(`${apiBase}/api/entities/${entityId}`, {
+                        headers: { 'user-id': userId }
+                    });
+                    const data = await resp.json().catch(() => null);
+                    entityName = data?.data?.name || data?.data?.nombre || data?.data?.entity_name || '';
+                } catch (e) {
+                    console.warn('No se pudo resolver el nombre de la entidad para el ajuste:', e);
+                }
+            }
+
+            entidadSelect.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = entityId || entityName || '';
+            opt.textContent = entityName || entityId || 'Sin entidad seleccionada';
+            entidadSelect.appendChild(opt);
+        }
 
         closeAjusteModal = function() {
             if (modalBackdrop.hasAttribute('hidden')) return;
@@ -1707,7 +1742,9 @@ function updateNumeroField() {
 
             selectorModalList.innerHTML = items.map((item) => {
                 const metaText = item.meta || item.groupLabel || item.parentLabel || '';
-                const codeBadge = item.code ? `<strong>${item.code}</strong>` : '';
+                // No repetir el código en el badge si el nombre ya lo incluye ("130 - Clientes")
+                const nameStartsWithCode = item.code && (item.name || '').trim().startsWith(item.code);
+                const codeBadge = item.code && !nameStartsWithCode ? `<strong>${item.code}</strong>` : '';
                 const title = [codeBadge, item.name].filter(Boolean).join(codeBadge ? ' · ' : '');
                 const amountHtml = Number.isFinite(item.value)
                     ? `<span class="selector-item__amount">${formatCurrencyFriendly(item.value)}</span>`
@@ -1995,7 +2032,16 @@ function updateNumeroField() {
                     console.warn('⚠️ periodoSelect no encontrado');
                 }
                 if (currentEntidadSelect) {
-                    currentEntidadSelect.value = datos.entidad || '';
+                    // Asegurar que la opción de la entidad guardada exista en el select
+                    const savedValue = datos.entidad || '';
+                    if (savedValue && !Array.from(currentEntidadSelect.options).some(o => o.value === savedValue)) {
+                        const savedLabel = ajuste.entidadLabel || ajuste.meta?.entidadLabel || savedValue;
+                        const opt = document.createElement('option');
+                        opt.value = savedValue;
+                        opt.textContent = savedLabel;
+                        currentEntidadSelect.appendChild(opt);
+                    }
+                    currentEntidadSelect.value = savedValue;
                     console.log('✅ entidadSelect asignado:', currentEntidadSelect.value);
                 } else {
                     console.warn('⚠️ entidadSelect no encontrado');
@@ -2920,48 +2966,72 @@ function updateNumeroField() {
         function collectAssignedGroups() {
             const groups = [];
             const seen = new Set();
+            const groupsList = document.querySelector('.financial-groups-list');
+            if (!groupsList) return groups;
 
-            document.querySelectorAll('.financial-groups-list .group-item').forEach((groupItem, groupIndex) => {
-                const groupNameElement = groupItem.querySelector('.group-header .group-name');
-                const groupName = groupNameElement ? groupNameElement.textContent.trim() : '';
-                const groupId = groupNameElement?.dataset.groupId || slugify(`${groupIndex}-${groupName}`);
+            // a) Agrupamientos (cuentas estáticas como "140 - Caja y bancos")
+            //    que tienen cuentas asignadas debajo via data-parent-account-id.
+            //    Misma detección que createAssignedGroupFoldersIfNotExist.
+            groupsList.querySelectorAll('.static-account').forEach((staticEl, index) => {
+                const staticId = (staticEl.dataset.accountId || '').toString().trim();
+                if (!staticId) return;
 
-                const groupAssignedAccounts = Array.from(groupItem.querySelectorAll('.assigned-account'));
-                if (groupAssignedAccounts.length && groupName && !seen.has(groupId)) {
-                    const total = groupAssignedAccounts.reduce((sum, accountEl) => sum + parseNumber(accountEl.dataset.accountValue), 0);
-                    groups.push({
-                        id: `group-${groupId}`,
-                        type: 'group',
-                        name: groupName,
-                        label: groupName,
-                        parentLabel: '',
-                        meta: `Grupo con ${groupAssignedAccounts.length} cuentas asignadas`,
-                        value: total
-                    });
-                    seen.add(groupId);
-                }
+                const assigned = Array.from(
+                    groupsList.querySelectorAll(`.assigned-account[data-parent-account-id="${staticId}"]`)
+                );
+                if (!assigned.length) return;
 
-                groupItem.querySelectorAll('.sub-group-item').forEach((subItem, index) => {
-                    const subNameElement = subItem.querySelector('.sub-group-header .sub-group-name');
-                    if (!subNameElement) return;
-                    const subName = subNameElement.textContent.trim();
-                    const subgroupAssigned = Array.from(subItem.querySelectorAll('.assigned-account'));
-                    if (!subgroupAssigned.length) return;
+                const displayText = (staticEl.querySelector('.account-name')?.textContent || '').trim();
+                const code = (staticEl.dataset.accountCode || '').trim()
+                    || (displayText.match(/^(\d+(?:\.\d+)*)/) || [])[1] || '';
+                const cleanName = (staticEl.dataset.accountName || displayText)
+                    .replace(/^[\s\-–—.]+/, '')
+                    .replace(/^(\d+(?:\.\d+)*)\s*[-–—.]?\s*/, '')
+                    .trim();
+                const name = /^\d/.test(displayText)
+                    ? displayText
+                    : (code ? `${code} - ${cleanName}` : cleanName);
+                if (!name || seen.has(staticId)) return;
+                seen.add(staticId);
 
-                    const subId = subNameElement.dataset.groupId || slugify(`${groupName}-${subName}-${index}`);
-                    if (seen.has(subId)) return;
+                const parentItem = staticEl.closest('.group-item, .sub-group-item');
+                const parentName = (parentItem?.querySelector('.group-name, .sub-group-name')?.textContent || '').trim();
+                const total = assigned.reduce((sum, el) => sum + parseNumber(el.dataset.accountValue), 0);
+                groups.push({
+                    id: `group-${staticId}`,
+                    type: 'group',
+                    code,
+                    name,
+                    label: name,
+                    parentLabel: parentName,
+                    meta: `Grupo con ${assigned.length} cuenta${assigned.length === 1 ? '' : 's'} asignada${assigned.length === 1 ? '' : 's'}`,
+                    value: total
+                });
+            });
 
-                    const total = subgroupAssigned.reduce((sum, accountEl) => sum + parseNumber(accountEl.dataset.accountValue), 0);
-                    groups.push({
-                        id: `subgroup-${subId}`,
-                        type: 'group',
-                        name: subName,
-                        label: subName,
-                        parentLabel: groupName,
-                        meta: groupName ? `Agrupamiento en ${groupName}` : 'Agrupamiento',
-                        value: total
-                    });
-                    seen.add(subId);
+            // b) Grupos/subgrupos con cuentas asignadas directamente (sin cuenta padre)
+            groupsList.querySelectorAll('.group-content, .sub-group-content').forEach((content, index) => {
+                const direct = Array.from(content.querySelectorAll('.assigned-account'))
+                    .filter(el => !(el.dataset.parentAccountId || '').trim());
+                if (!direct.length) return;
+
+                const parentItem = content.closest('.group-item, .sub-group-item');
+                const name = (parentItem?.querySelector('.group-name, .sub-group-name')?.textContent || '').trim();
+                if (!name) return;
+
+                const key = `direct-${slugify(name)}-${index}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+
+                const total = direct.reduce((sum, el) => sum + parseNumber(el.dataset.accountValue), 0);
+                groups.push({
+                    id: `group-${key}`,
+                    type: 'group',
+                    name,
+                    label: name,
+                    parentLabel: '',
+                    meta: `Grupo con ${direct.length} cuenta${direct.length === 1 ? '' : 's'} asignada${direct.length === 1 ? '' : 's'}`,
+                    value: total
                 });
             });
 
