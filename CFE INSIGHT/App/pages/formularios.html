@@ -29932,7 +29932,21 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!groupsList) return;
 
                 // Nombres de las carpetas que deberían existir
-                const desired = new Map(); // key: nombre lowercase -> { name, code, bareName }
+                const desired = new Map(); // key: nombre lowercase -> { name, code, bareName, section }
+
+                // Sección raíz (Activo / Pasivo y Patrimonio / Resultados) a la que pertenece un elemento
+                const SECTION_NAMES = ['Activo', 'Pasivo y Patrimonio', 'Resultados'];
+                const getSectionName = el => {
+                    let top = el.closest('.group-item');
+                    while (top && top.parentElement?.closest('.group-item')) {
+                        top = top.parentElement.closest('.group-item');
+                    }
+                    const raw = (top?.querySelector('.group-name')?.textContent || '').trim().toLowerCase();
+                    if (raw.includes('pasivo') || raw.includes('patrimonio')) return SECTION_NAMES[1];
+                    if (raw.includes('resultado')) return SECTION_NAMES[2];
+                    if (raw.includes('activo')) return SECTION_NAMES[0];
+                    return null;
+                };
 
                 // a) Cuentas estáticas que tienen subcuentas asignadas debajo.
                 //    La inicialización separa el código del nombre (puede quedar
@@ -29952,7 +29966,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const name = /^\d/.test(displayText)
                         ? displayText
                         : (code ? `${code} - ${cleanName}` : cleanName);
-                    if (name) desired.set(name.toLowerCase(), { name, code, bareName: cleanName });
+                    if (name) desired.set(name.toLowerCase(), { name, code, bareName: cleanName, section: getSectionName(staticAcc) });
                 });
 
                 // b) Grupos/subgrupos con cuentas asignadas directamente (sin cuenta padre)
@@ -29962,7 +29976,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     if (!hasDirect) return;
                     const parentItem = content.closest('.group-item, .sub-group-item');
                     const name = (parentItem?.querySelector('.group-name, .sub-group-name')?.textContent || '').trim();
-                    if (name) desired.set(name.toLowerCase(), { name, code: '', bareName: name });
+                    if (name) desired.set(name.toLowerCase(), { name, code: '', bareName: name, section: getSectionName(content) });
                 });
 
                 if (!desired.size) {
@@ -29972,6 +29986,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 // Carpetas ya existentes en este contexto
                 const subfolders = await window.subcategoriasManager.getSubfolders('planes', 'planes', false, entityId, commitmentId);
+
+                // Carpetas de sección (Activo, Pasivo y Patrimonio, Resultados) en la raíz
+                const sectionFolders = {};
+                let sectionsCreated = 0;
+                for (const sectionName of SECTION_NAMES) {
+                    let folder = (subfolders || []).find(f =>
+                        !f.parent_folder_id && (f.nombre || '').trim().toLowerCase() === sectionName.toLowerCase());
+                    if (!folder) {
+                        folder = await window.subcategoriasManager.saveSubfolder(
+                            'planes',
+                            'planes',
+                            sectionName,
+                            `Sección de grupos financieros - ${currentDatasetName || 'Dataset actual'}`,
+                            null,
+                            {
+                                type: 'financial_section_folder',
+                                section: sectionName,
+                                datasetId: currentDatasetId,
+                                createdAt: new Date().toISOString()
+                            },
+                            entityId,
+                            commitmentId
+                        );
+                        if (folder) {
+                            sectionsCreated++;
+                            subfolders.push(folder);
+                        }
+                    }
+                    if (folder) sectionFolders[sectionName] = folder;
+                }
 
                 // Normaliza nombres para detectar variantes del mismo grupo
                 // ("130 - - Clientes", "- Clientes", "Clientes" ≈ "130 - Clientes"
@@ -29985,9 +30029,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 const contextDocs = await window.subcategoriasManager.getSubdocuments('planes', 'planes', false, entityId, commitmentId);
 
                 let created = 0;
-                for (const { name, code, bareName } of desired.values()) {
+                let moved = 0;
+                for (const { name, code, bareName, section } of desired.values()) {
                     const nameNorm = norm(name);
                     const bareNorm = norm(bareName);
+                    const sectionParentId = sectionFolders[section]?.id || null;
 
                     // Buscar carpeta existente equivalente: mismo nombre normalizado
                     // o, en carpetas automáticas, el nombre sin numeración.
@@ -29997,7 +30043,19 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     );
 
                     if (match) {
-                        if ((match.nombre || '').trim() === name) continue; // ya existe con el nombre correcto
+                        if ((match.nombre || '').trim() === name) {
+                            // Ya existe con el nombre correcto: asegurar que esté dentro de su sección
+                            if (sectionParentId && String(match.parent_folder_id || '') !== String(sectionParentId)) {
+                                try {
+                                    await window.subcategoriasManager.moveSubfolder(match.id, sectionParentId);
+                                    match.parent_folder_id = sectionParentId;
+                                    moved++;
+                                } catch (e) {
+                                    console.warn('⚠️ No se pudo mover la carpeta a su sección:', match.nombre, e);
+                                }
+                            }
+                            continue;
+                        }
 
                         // Variante con nombre incorrecto ("Clientes", "- Impuesto...",
                         // "130 - - Clientes"): eliminarla solo si es automática y está vacía
@@ -30026,7 +30084,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         'planes',
                         name,
                         `Grupo con cuentas asignadas - ${currentDatasetName || 'Dataset actual'}`,
-                        null,
+                        sectionParentId,
                         {
                             type: 'assigned_group_folder',
                             groupCode: code,
@@ -30082,6 +30140,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
                 if (created > 0) {
                     showNotification(`📁 Se crearon ${created} carpeta(s) de grupos con cuentas asignadas en Planes y Procedimientos`, 'success');
+                }
+                if (created > 0 || sectionsCreated > 0 || moved > 0) {
                     window.subcategoriasManager.updateUI('planes', 'planes');
                 }
             } catch (error) {

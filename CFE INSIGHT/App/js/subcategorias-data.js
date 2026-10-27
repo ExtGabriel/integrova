@@ -233,6 +233,25 @@
         }
 
         // Obtener subcarpetas
+        async moveSubfolder(folderId, parentFolderId = null) {
+            if (!this.userId) {
+                throw new Error('Usuario no autenticado');
+            }
+            const response = await window.authenticatedFetch(buildApiUrl('/api/subfolders/move'), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': this.userId
+                },
+                body: JSON.stringify({ folderId, parentFolderId })
+            });
+            const result = await parseJsonSafe(response);
+            if (!result.success) {
+                throw new Error(result.error || 'Error al mover la carpeta');
+            }
+            return result.subfolder;
+        }
+
         async getSubfolders(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
                 const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
@@ -574,6 +593,11 @@
                         const isGeneralA = nameA.toLowerCase() === 'general';
                         const isGeneralB = nameB.toLowerCase() === 'general';
                         if (isGeneralA !== isGeneralB) return isGeneralA ? -1 : 1;
+                        const sectionOrder = ['activo', 'pasivo y patrimonio', 'resultados'];
+                        const secA = sectionOrder.indexOf(nameA.toLowerCase());
+                        const secB = sectionOrder.indexOf(nameB.toLowerCase());
+                        if ((secA !== -1) !== (secB !== -1)) return secA !== -1 ? -1 : 1;
+                        if (secA !== -1) return secA - secB;
                         const codeA = folderCode(nameA);
                         const codeB = folderCode(nameB);
                         if ((codeA !== null) !== (codeB !== null)) return codeA !== null ? -1 : 1;

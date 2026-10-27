@@ -9454,6 +9454,46 @@ app.post('/api/subfolders/save', async (req, res) => {
     }
 });
 
+// Mover subcarpeta dentro de otra carpeta (o a la raíz con parentFolderId = null)
+app.put('/api/subfolders/move', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { folderId, parentFolderId } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        if (!folderId) {
+            return res.status(400).json({ success: false, error: 'Falta el ID de la carpeta' });
+        }
+
+        if (parentFolderId && String(parentFolderId) === String(folderId)) {
+            return res.status(400).json({ success: false, error: 'Una carpeta no puede contenerse a sí misma' });
+        }
+
+        const { data: subfolder, error } = await supabase
+            .from('subcarpetas')
+            .update({
+                parent_folder_id: parentFolderId || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', folderId)
+            .select()
+            .single();
+
+        if (error || !subfolder) {
+            console.error('❌ Error moviendo subcarpeta:', error);
+            return res.status(500).json({ success: false, error: 'Error al mover la subcarpeta' });
+        }
+
+        res.json({ success: true, subfolder });
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subfolders/move:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
 // Guardar subdocumento
 app.post('/api/subdocuments/save', async (req, res) => {
     try {
