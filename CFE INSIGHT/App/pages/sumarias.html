@@ -848,6 +848,12 @@
             const refScope = sumariaRefScope();
             const plusBtn = (rowId, col) => `<button type="button" class="btn-ref-add" title="Agregar referencia" data-ref-row-id="${rowId}" data-ref-col="${col}" data-ref-bg-type="${refScope}"><i class="bi bi-plus-lg"></i></button>`;
 
+            const ownAdjustment = getAreaOwnAdjustment(areaRow, rows);
+            const ownAdjustmentRow = '';
+            const totalRows = ownAdjustment
+                ? [...rows, { preliminary: 0, adjustments: ownAdjustment, finalCurrent: ownAdjustment, finalPrevious: 0 }]
+                : rows;
+
             tbody.innerHTML = rows.map((row, idx) => {
                 const description = row.accountName || row.name || areaRow.name || '';
                 const rowId = String(row.rowId || row.accountCode || row.account_code || row.id || idx).replace(/"/g, '&quot;');
@@ -870,9 +876,35 @@
                         <td class="col-variation-pct">${calculateVariationPct(finalCurrent, previous)}</td>
                     </tr>
                 `;
-            }).join('') + buildSumariaTotalRow(rows, areaRow.name);
+            }).join('') + ownAdjustmentRow + buildSumariaTotalRow(totalRows, areaRow.name);
 
             attachSumariaReferences();
+        }
+
+        // Ajuste "Línea de grupo" aplicado directamente al área: total del área menos lo que aportan sus hijos
+        function getAreaOwnAdjustment(areaRow, childRows) {
+            if (!areaRow || !areaRow.rowId || !childRows.length) return 0;
+            if (childRows.some(r => String(r.rowId || '') === String(areaRow.rowId))) return 0;
+            const full = allGroups.find(g => String(g.rowId || '') === String(areaRow.rowId)) || areaRow;
+            const childrenSum = childRows.reduce((sum, r) => sum + (Number(r.adjustments) || 0), 0);
+            const own = (Number(full.adjustments) || 0) - childrenSum;
+            return Math.abs(own) > 0.005 ? own : 0;
+        }
+
+        function buildOwnAdjustmentRowHtml(amount) {
+            return `
+                <tr data-own-adjustment="1">
+                    <td class="col-description">Ajuste de grupo</td>
+                    <td class="col-ref"></td>
+                    <td class="col-amount">${formatCurrency(0)}</td>
+                    <td class="col-amount">${formatCurrency(amount)}</td>
+                    <td class="col-amount">${formatCurrency(amount)}</td>
+                    <td class="col-ref"></td>
+                    <td class="col-amount">${formatCurrency(0)}</td>
+                    <td class="col-variation">${formatCurrency(amount)}</td>
+                    <td class="col-variation-pct">${calculateVariationPct(amount, 0)}</td>
+                </tr>
+            `;
         }
 
         function buildSumariaTotalRow(rows, areaName) {
@@ -1063,7 +1095,15 @@
 
             const totals = { current: 0, adjustments: 0, finalCurrent: 0, previous: 0 };
             let totalTr = null;
+
+            // Ajuste propio del grupo: solo se refleja en la fila del total (sin fila aparte)
+            const ownAdjustment = getAreaOwnAdjustment(areaRow, rows);
+            tbody.querySelector('tr[data-own-adjustment]')?.remove();
+            totals.adjustments += ownAdjustment;
+            totals.finalCurrent += ownAdjustment;
+
             tbody.querySelectorAll('tr').forEach(tr => {
+                if (tr.hasAttribute('data-own-adjustment')) return;
                 const desc = tr.querySelector('td.col-description')?.textContent.trim() || '';
                 if (/^total\s/i.test(desc)) { totalTr = tr; return; }
 

@@ -860,18 +860,24 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             const detalles = [];
             
             detailRows.forEach((row) => {
-                const code = row.querySelector('.ajuste-detail-row__code')?.textContent || row.dataset.accountCode || '';
-                const name = row.querySelector('.ajuste-detail-row__name')?.textContent || row.dataset.accountName || '';
+                const detailId = row.dataset.detailId || '';
+                const sourceDetail = detailId ? detalleItems.find((item) => item.id === detailId) : null;
+                const code = row.querySelector('.ajuste-detail-row__code')?.textContent || row.dataset.accountCode || sourceDetail?.code || '';
+                const name = row.querySelector('.ajuste-detail-row__name')?.textContent || row.dataset.accountName || sourceDetail?.name || '';
                 const amountInput = row.querySelector('[data-detail-field="amount"]');
                 const amount = parseFloat(amountInput?.value) || 0;
-                
-                if (code && name && amount !== 0) {
+                const detailType = sourceDetail?.type === 'group' ? 'group' : 'account';
+
+                // Las líneas de grupo pueden no tener código; se identifican por nombre/itemId
+                if (name && amount !== 0 && (code || detailType === 'group')) {
                     detalles.push({
-                        id: row.dataset.detailId || `detail-${Date.now()}-${Math.random()}`,
+                        ...(sourceDetail || {}),
+                        id: detailId || `detail-${Date.now()}-${Math.random()}`,
                         code: code.trim(),
                         name: name.trim(),
+                        label: sourceDetail?.label || name.trim(),
                         amount: amount,
-                        type: 'account', // necesario para partida doble y mapeo de ajustes
+                        type: detailType, // 'account' o 'group' según la línea agregada
                         movementSide: amount > 0 ? 'debit' : 'credit'
                     });
                 }
@@ -1036,11 +1042,13 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
             console.log('- entidadValue:', entidadValue);
             console.log('- descripcion:', descripcionValue);
 
-            // Validación de partida doble: al menos 2 cuentas y Debe = Haber
-            const accountDetails = (detallesRecolectados || []).filter(d => d.type === 'account' && (d.code || '').trim());
+            // Validación de partida doble: al menos 2 líneas (cuentas o grupos) y Debe = Haber
+            const accountDetails = (detallesRecolectados || []).filter(d =>
+                (d.type === 'account' || d.type === 'group') && ((d.code || '').trim() || (d.name || '').trim())
+            );
             if (accountDetails.length < 2) {
-                console.warn('ERROR: La partida necesita al menos dos cuentas (doble entrada)');
-                notify('La partida necesita al menos dos cuentas (doble partida). Agrega cuenta contrapartida.', 'warning');
+                console.warn('ERROR: La partida necesita al menos dos líneas (doble entrada)');
+                notify('La partida necesita al menos dos líneas (doble partida). Agrega la contrapartida.', 'warning');
                 return;
             }
 
@@ -1411,9 +1419,16 @@ console.log('🚀 formularios-ajustes.js: EMPEZANDO A EJECUTAR SCRIPT');
                 const amount = Number.isFinite(detail.amount) ? detail.amount : 0;
                 const amountValue = amount.toFixed(2);
                 const code = (detail.code || '').trim();
-                
+
                 // Determinar lado de origen y efecto
-                const originSide = getAccountOriginSide(code);
+                // Para líneas de grupo se usa la naturaleza guardada (entendida para
+                // códigos de grupo de 3 dígitos); para cuentas, el rango de origen.
+                const detailNature = (detail.nature || '').toString().toLowerCase();
+                const originSide = detail.type === 'group'
+                    ? ((detailNature === 'haber' || detailNature === 'credit') ? 'HABER'
+                        : (detailNature === 'debe' || detailNature === 'debit') ? 'DEBE'
+                        : getAccountOriginSide(code))
+                    : getAccountOriginSide(code);
                 const isSameSide = (originSide === 'DEBE' && amount > 0) || (originSide === 'HABER' && amount < 0);
                 const effect = isSameSide ? 'SUMA' : 'RESTA';
                 const effectClass = isSameSide ? 'effect-increase' : 'effect-decrease';
@@ -1934,10 +1949,12 @@ function updateNumeroField() {
 
         function updateDetailWithItem(detail, item) {
             if (detail.type === 'group') {
+                detail.code = item.code || '';
                 detail.name = item.name;
                 detail.label = item.label || item.name;
                 detail.meta = item.meta || (item.parentLabel ? `Agrupamiento · ${item.parentLabel}` : 'Agrupamiento');
                 detail.parentLabel = item.parentLabel || '';
+                detail.itemId = item.id || '';
                 detail.valueSource = item;
                 detail.amount = Number.isFinite(item.value) ? item.value : detail.amount;
                 return;
@@ -3133,19 +3150,15 @@ function updateNumeroField() {
                 meta: item.meta || (type === 'group' ? 'Agrupamiento' : 'Cuenta'),
                 groupLabel: item.groupLabel || '',
                 parentLabel: item.parentLabel || '',
+                // Si el item tiene un id, guardarlo como referencia (para grupos permite
+                // ubicar el nodo exacto en la estructura de grupos financieros)
+                itemId: item.id || '',
                 amount: Number.isFinite(item.value) ? item.value : 0,
                 nature: nature,
                 valueSource: item
             };
-            
+
             console.log('🔧 Detalle creado en createDetailFromItem:', detail);
-            return detail;
-            
-            // Si el item tiene un id, guardarlo como referencia
-            if (item.id) {
-                detail.itemId = item.id;
-            }
-            
             return detail;
         }
 

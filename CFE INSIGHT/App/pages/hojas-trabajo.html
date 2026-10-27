@@ -2968,19 +2968,46 @@
             return (current?.accountName || '').toLowerCase();
         }
 
+        // Ajuste propio de una fila padre (ajuste "Línea de grupo" aplicado directamente al grupo):
+        // el total guardado del padre menos lo que aportan todos sus hijos directos
+        function getOwnGroupAdjustment(parent, childrenByParent) {
+            const children = childrenByParent[parent.rowId] || [];
+            if (!children.length) return 0;
+            const childrenSum = children.reduce((sum, c) => sum + (Number(c.adjustments) || 0), 0);
+            const own = (Number(parent.adjustments) || 0) - childrenSum;
+            return Math.abs(own) > 0.005 ? own : 0;
+        }
+
+        function buildChildrenByParent(rows) {
+            const map = {};
+            rows.forEach(r => {
+                if (r.parentId) {
+                    if (!map[r.parentId]) map[r.parentId] = [];
+                    map[r.parentId].push(r);
+                }
+            });
+            return map;
+        }
+
         // Suma los valores de todas las filas que pertenecen al grupo raíz "Resultados"
         function computeResultadoPeriodo(rows) {
             const rowById = {};
             rows.forEach(r => { if (r.rowId) rowById[r.rowId] = r; });
+            const childrenByParent = buildChildrenByParent(rows);
 
             let preliminary = 0, adjustments = 0, finalCurrent = 0, finalPrevious = 0;
             const isLeaf = (r) => !(r.isParent || r.hasChildren || r.nodeType === 'group');
             rows.forEach(r => {
-                if (isLeaf(r) && getTopLevelName(r, rowById).includes('resultado')) {
+                if (!getTopLevelName(r, rowById).includes('resultado')) return;
+                if (isLeaf(r)) {
                     preliminary += Number(r.preliminary) || 0;
                     adjustments += Number(r.adjustments) || 0;
                     finalCurrent += Number(r.finalCurrent) || 0;
                     finalPrevious += Number(r.finalPrevious) || 0;
+                } else {
+                    const own = getOwnGroupAdjustment(r, childrenByParent);
+                    adjustments += own;
+                    finalCurrent += own;
                 }
             });
             return { preliminary, adjustments, finalCurrent, finalPrevious };
@@ -3017,14 +3044,15 @@
             const summary = [];
             parentRows.forEach(parent => {
                 const children = (childrenByParent[parent.rowId] || []).filter(c => isLeaf(c) && matchesBgType(c));
-                if (children.length === 0) return;
+                const ownAdjustment = getOwnGroupAdjustment(parent, childrenByParent);
+                if (children.length === 0 && !ownAdjustment) return;
 
                 const totals = children.reduce((acc, c) => ({
                     preliminary: acc.preliminary + (Number(c.preliminary) || 0),
                     adjustments: acc.adjustments + (Number(c.adjustments) || 0),
                     finalCurrent: acc.finalCurrent + (Number(c.finalCurrent) || 0),
                     finalPrevious: acc.finalPrevious + (Number(c.finalPrevious) || 0)
-                }), { preliminary: 0, adjustments: 0, finalCurrent: 0, finalPrevious: 0 });
+                }), { preliminary: 0, adjustments: ownAdjustment, finalCurrent: ownAdjustment, finalPrevious: 0 });
 
                 summary.push({
                     accountName: parent.accountName,
