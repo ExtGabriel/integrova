@@ -646,15 +646,15 @@
                     const isBG = (title || '').toUpperCase().startsWith('BG-') || !!metadata.bgType;
                     // Hoja de trabajo tipo Sumaria: no lleva Ver/Editar, pero sí aprobaciones, observaciones y eliminar
                     const isSumaria = doc.tipo === 'hoja-trabajo' && !isBG;
-                    const clickAction = isArchivo ? `openUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
-                    const editAction = isArchivo ? `editUploadedDocument('${doc.id}')` : `editSubdocument(${doc.id})`;
-                    const viewAction = isArchivo ? `downloadUploadedDocument('${doc.id}')` : `viewSubdocument(${doc.id})`;
-                    const deleteAction = isArchivo ? `deleteUploadedDocument('${doc.id}')` : `deleteSubdocument(${doc.id})`;
+                    const clickAction = isArchivo ? `openUploadedDocument('${doc.id}')` : `viewSubdocument('${doc.id}')`;
+                    const editAction = isArchivo ? `editUploadedDocument('${doc.id}')` : `editSubdocument('${doc.id}')`;
+                    const viewAction = isArchivo ? `downloadUploadedDocument('${doc.id}')` : `viewSubdocument('${doc.id}')`;
+                    const deleteAction = isArchivo ? `deleteUploadedDocument('${doc.id}')` : `deleteSubdocument('${doc.id}')`;
                     const safeTitle = (title || '').replace(/"/g, '&quot;').replace(/'/g, "\\'");
 
-                    const approvalButtons = `<button class="btn-action btn-prepared prepared-btn" data-form-id="${doc.id}" data-approval="prepared-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'prepared-by')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
-                           <button class="btn-action btn-reviewed reviewed-btn" data-form-id="${doc.id}" data-approval="reviewed-by" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'reviewed-by')" title="Revisado por"><i class="bi bi-person-check"></i></button>
-                           <button class="btn-action btn-partner partner-btn" data-form-id="${doc.id}" data-approval="partner" onclick="showDocApproval(event, ${doc.id}, '${safeTitle}', 'partner')" title="Socio"><i class="bi bi-person-badge"></i></button>`;
+                    const approvalButtons = `<button class="btn-action btn-prepared prepared-btn" data-form-id="${doc.id}" data-approval="prepared-by" onclick="showDocApproval(event, '${doc.id}', '${safeTitle}', 'prepared-by')" title="Preparado por"><i class="bi bi-person-plus"></i></button>
+                           <button class="btn-action btn-reviewed reviewed-btn" data-form-id="${doc.id}" data-approval="reviewed-by" onclick="showDocApproval(event, '${doc.id}', '${safeTitle}', 'reviewed-by')" title="Revisado por"><i class="bi bi-person-check"></i></button>
+                           <button class="btn-action btn-partner partner-btn" data-form-id="${doc.id}" data-approval="partner" onclick="showDocApproval(event, '${doc.id}', '${safeTitle}', 'partner')" title="Socio"><i class="bi bi-person-badge"></i></button>`;
 
                     const observationButton = `<button class="btn-action btn-observations observations-btn" data-form-id="${doc.id}" onclick="showObservations(event, '${doc.id}')" title="Observaciones"><i class="bi bi-flag"></i></button>`;
 
@@ -662,7 +662,7 @@
                         ? `${approvalButtons}
                            <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`
                         : isSumaria
-                            ? `<button class="btn-action btn-edit" onclick="renameSubdocument(${doc.id})" title="Editar nombre"><i class="bi bi-pencil"></i></button>
+                            ? `<button class="btn-action btn-edit" onclick="renameSubdocument('${doc.id}')" title="Editar nombre"><i class="bi bi-pencil"></i></button>
                                ${approvalButtons}
                                ${observationButton}
                                <button class="btn-action btn-delete" onclick="${deleteAction}" title="Eliminar"><i class="bi bi-trash"></i></button>`

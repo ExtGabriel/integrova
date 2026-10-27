@@ -13992,9 +13992,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                     
                     try {
-                        // Obtener la categoría y subcategoría actuales del documento
-                        const currentCategory = window.subcategoriasManager.currentCategory || 'planificacion';
-                        const currentSubcategory = window.subcategoriasManager.currentSubcategory || 'configuracion';
+                        // Refrescar la lista donde vive el documento, no la última
+                        // sección que se haya cargado (podría ser otra)
+                        const docCtx = window.currentEditingDocument || {};
+                        const currentCategory = docCtx.categoria || window.subcategoriasManager.currentCategory || 'planificacion';
+                        const currentSubcategory = docCtx.subcategoria || window.subcategoriasManager.currentSubcategory || 'configuracion';
                         
                         console.log('📍 Actualizando documento con contexto:', { currentCategory, currentSubcategory });
                         
