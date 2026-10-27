@@ -591,7 +591,35 @@
                 if (!docsByParent[key]) docsByParent[key] = [];
                 docsByParent[key].push(doc);
             });
-            
+
+            // Ordenar documentos por numeración inicial del título (p. ej. "140.1.10", "140.10")
+            const docCode = (doc) => {
+                const text = (doc.titulo || doc.metadata?.fileName || '').trim();
+                const match = text.match(/^\d+(?:\.\d+)*/);
+                return match ? match[0] : null;
+            };
+            const compareDocCodes = (a, b) => {
+                const pa = a.split('.').map(Number);
+                const pb = b.split('.').map(Number);
+                for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                    const diff = (pa[i] ?? -1) - (pb[i] ?? -1);
+                    if (diff !== 0) return diff;
+                }
+                return 0;
+            };
+            Object.values(docsByParent).forEach(list => {
+                list.sort((a, b) => {
+                    const codeA = docCode(a);
+                    const codeB = docCode(b);
+                    if ((codeA !== null) !== (codeB !== null)) return codeA !== null ? -1 : 1;
+                    if (codeA !== null) {
+                        const diff = compareDocCodes(codeA, codeB);
+                        if (diff !== 0) return diff;
+                    }
+                    return (a.titulo || '').localeCompare(b.titulo || '', 'es');
+                });
+            });
+
             console.log('🗂️ Carpetas agrupadas por padre:', foldersByParent);
             console.log('📄 Documentos agrupados por padre:', docsByParent);
 

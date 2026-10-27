@@ -46453,6 +46453,27 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     const existingDocs = documentsContainer.querySelectorAll('.uploaded-document');
                     existingDocs.forEach(doc => existingIds.add(doc.id));
                     
+                    // Ordenar por numeración inicial del título (p. ej. "140.1.10" < "140.10")
+                    const docCode = (doc) => {
+                        const text = (doc.titulo || doc.metadata?.fileName || '').trim();
+                        const match = text.match(/^\d+(?:\.\d+)*/);
+                        return match ? match[0] : null;
+                    };
+                    result.documents.sort((a, b) => {
+                        const codeA = docCode(a);
+                        const codeB = docCode(b);
+                        if ((codeA !== null) !== (codeB !== null)) return codeA !== null ? -1 : 1;
+                        if (codeA !== null) {
+                            const pa = codeA.split('.').map(Number);
+                            const pb = codeB.split('.').map(Number);
+                            for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                                const diff = (pa[i] ?? -1) - (pb[i] ?? -1);
+                                if (diff !== 0) return diff;
+                            }
+                        }
+                        return (a.titulo || '').localeCompare(b.titulo || '', 'es');
+                    });
+
                     // Agregar cada archivo (solo si no existe)
                     result.documents.forEach(doc => {
                         if (doc.tipo === 'archivo' && doc.metadata && doc.metadata.fileName && !existingIds.has(doc.id)) {
@@ -46546,8 +46567,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     }
                     
                     const newTitle = prompt('Editar título del documento:', doc.titulo);
-                    if (newTitle && newTitle.trim() !== '') {
-                        updateDocumentTitle(documentId, newTitle.trim());
+                    if (newTitle && newTitle.trim() !== '' && newTitle.trim() !== doc.titulo) {
+                        updateDocumentTitle(documentId, newTitle.trim(), doc);
                     }
                 } else {
                     console.error('❌ Error del servidor:', result);
@@ -46560,37 +46581,62 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             });
         }
 
-        function updateDocumentTitle(documentId, newTitle) {
-            window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/${documentId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'user-id': window.currentUser.id
-                },
-                body: JSON.stringify({
-                    titulo: newTitle
-                })
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    // Actualizar el título en el DOM
-                    const docElement = document.getElementById(documentId);
-                    if (docElement) {
-                        const titleElement = docElement.querySelector('.document-title');
-                        if (titleElement) {
-                            titleElement.textContent = newTitle;
-                        }
+        async function updateDocumentTitle(documentId, newTitle, doc) {
+            try {
+                // Usar el mismo endpoint que el resto de la app: no filtra por user_id
+                let saved = false;
+                if (window.subcategoriasManager && typeof window.subcategoriasManager.updateSubdocument === 'function') {
+                    try {
+                        await window.subcategoriasManager.updateSubdocument(
+                            documentId,
+                            newTitle,
+                            doc?.contenido,
+                            doc?.metadata,
+                            doc?.categoria,
+                            doc?.subcategoria
+                        );
+                        saved = true;
+                    } catch (e) {
+                        console.warn('updateSubdocument falló, intentando fetch directo:', e);
                     }
-                    alert('Título actualizado correctamente');
-                } else {
-                    alert('No se pudo actualizar el título');
                 }
-            })
-            .catch(error => {
+                if (!saved) {
+                    const userId = window.subcategoriasManager?.userId || window.currentUser?.id;
+                    const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/subdocuments/update`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'user-id': userId
+                        },
+                        body: JSON.stringify({
+                            documentId,
+                            titulo: newTitle,
+                            contenido: doc?.contenido,
+                            metadata: doc?.metadata
+                        })
+                    });
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Error al actualizar el documento');
+                    }
+                }
+
+                // Actualizar el título en el DOM (la lista puede usar id o data-id)
+                const docElement = document.getElementById(documentId)
+                    || document.querySelector(`[data-id="${documentId}"]`);
+                if (docElement) {
+                    const titleElement = docElement.querySelector('.document-title');
+                    if (titleElement) titleElement.textContent = newTitle;
+                }
+                if (typeof showNotification === 'function') {
+                    showNotification('Título actualizado correctamente', 'success');
+                } else {
+                    alert('Título actualizado correctamente');
+                }
+            } catch (error) {
                 console.error('Error al actualizar título:', error);
-                alert('Error al actualizar el título');
-            });
+                alert('Error al actualizar el título: ' + error.message);
+            }
         }
 
         function downloadUploadedDocument(documentId) {
