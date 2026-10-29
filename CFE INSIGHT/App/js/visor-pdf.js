@@ -94,7 +94,10 @@ async function initViewer() {
         
         // Cargar anotaciones existentes
         await loadAnnotations();
-        
+
+        // Cargar referencias a otros documentos
+        await loadDocReferences();
+
         hideLoading();
     } catch (error) {
         console.error('Error inicializando visor:', error);
@@ -205,6 +208,9 @@ async function renderPage(pageNum) {
     
     // Redibujar anotaciones de esta página
     redrawAnnotations();
+
+    // Colocar las marcas de referencia de esta página
+    if (typeof renderRefMarkers === 'function') renderRefMarkers();
 }
 
 // Configurar eventos del canvas de anotaciones
@@ -260,7 +266,20 @@ function pathToCanvas(path) {
 
 function handleMouseDown(e) {
     if (viewerState.currentTool === 'select') return;
-    
+
+    // Herramienta "Referencia": marcar el punto donde se coloca la referencia
+    if (viewerState.currentTool === 'ref') {
+        const coords = getCanvasCoordinates(e);
+        const norm = canvasToNormalized(coords.x, coords.y);
+        docRefsState.pendingPos = {
+            page: viewerState.currentPage,
+            x: norm.x,
+            y: norm.y
+        };
+        openDocRefModal();
+        return;
+    }
+
     const coords = getCanvasCoordinates(e);
     viewerState.isDrawing = true;
     viewerState.startX = coords.x;
@@ -1052,3 +1071,355 @@ window.addEventListener('beforeunload', function(e) {
         e.returnValue = '';
     }
 });
+
+// ============ Referencias a otros documentos ============
+// Se guardan en la tabla `formularios` con form_id "ref_doc_{documentId}|{fileId}",
+// igual que las referencias de las sumarias/BG (ref_bg_*).
+
+const docRefsState = { refs: [], context: null, pendingPos: null };
+
+function docRefPrefix() {
+    return `ref_doc_${viewerState.documentId}|`;
+}
+
+// Resuelve la entidad/compromiso a la que pertenece el documento actual
+async function getDocRefContext() {
+    if (docRefsState.context) return docRefsState.context;
+
+    let ctx = { entityId: '', commitmentId: '' };
+    try {
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/subdocuments/document/${viewerState.documentId}`,
+            { headers: { 'user-id': window.currentUser?.id || '' } }
+        );
+        const result = await response.json();
+        if (result.success && result.document) {
+            ctx.entityId = result.document.entity_id || '';
+            ctx.commitmentId = result.document.commitment_id || '';
+        }
+    } catch (e) {
+        console.warn('No se pudo obtener el contexto del documento:', e);
+    }
+
+    // Fallback: selección guardada desde formularios
+    if (!ctx.entityId) {
+        try {
+            const saved = JSON.parse(localStorage.getItem('formularios_entity_selections') || '{}');
+            ctx.entityId = saved?.entidad?.value || '';
+            ctx.commitmentId = ctx.commitmentId || saved?.compromiso?.id || '';
+        } catch (e) {}
+    }
+
+    docRefsState.context = ctx;
+    return ctx;
+}
+
+function toggleRefsPanel() {
+    const panel = document.getElementById('refsPanel');
+    if (!panel) return;
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        loadDocReferences();
+    }
+}
+
+async function loadDocReferences() {
+    const listEl = document.getElementById('docRefsList');
+    const badge = document.getElementById('refCountBadge');
+    if (!listEl) return;
+
+    if (!viewerState.documentId) {
+        listEl.innerHTML = '<div class="refs-empty">Las referencias no están disponibles para este documento.</div>';
+        return;
+    }
+
+    try {
+        const { entityId, commitmentId } = await getDocRefContext();
+        const params = new URLSearchParams({ form_id_prefix: docRefPrefix() });
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/formularios/list?${params}`,
+            { headers: { 'user-id': window.currentUser?.id || '' } }
+        );
+        const result = await response.json();
+        docRefsState.refs = (result.success ? result.formularios : []) || [];
+    } catch (e) {
+        console.error('Error cargando referencias:', e);
+        docRefsState.refs = [];
+    }
+
+    if (badge) {
+        badge.textContent = docRefsState.refs.length;
+        badge.style.display = docRefsState.refs.length ? '' : 'none';
+    }
+
+    if (!docRefsState.refs.length) {
+        listEl.innerHTML = '<div class="refs-empty">Sin referencias. Usa el botón de abajo para vincular un documento.</div>';
+        renderRefMarkers();
+        return;
+    }
+
+    listEl.innerHTML = docRefsState.refs.map(ref => {
+        const fd = ref.form_data || {};
+        const name = (fd.fileName || 'Documento').replace(/</g, '&lt;');
+        const icon = fd.fileType === 'archivo' ? 'bi-file-earmark'
+            : fd.fileType === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet'
+            : 'bi-file-earmark-text';
+        return `
+            <div class="ref-item">
+                <i class="bi ${icon}"></i>
+                <span class="ref-item-name" title="${name.replace(/"/g, '&quot;')}"
+                    onclick="openDocRef('${fd.fileId}', '${(fd.fileType || '').replace(/'/g, '')}', this.dataset.name)"
+                    data-name="${name.replace(/"/g, '&quot;')}">${name}</span>
+                <button class="ref-item-remove" title="Quitar referencia"
+                    onclick="removeDocRef('${ref.form_id}')"><i class="bi bi-x"></i></button>
+            </div>`;
+    }).join('');
+
+    renderRefMarkers();
+}
+
+async function openDocRefModal() {
+    const modal = document.getElementById('docRefModal');
+    const listEl = document.getElementById('docRefFileList');
+    if (!modal || !listEl) return;
+
+    modal.classList.add('show');
+    listEl.innerHTML = '<div class="refs-empty">Cargando documentos...</div>';
+
+    try {
+        const { entityId, commitmentId } = await getDocRefContext();
+        const params = new URLSearchParams();
+        if (entityId) params.append('entity_id', entityId);
+        if (commitmentId) params.append('commitment_id', commitmentId);
+
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/subdocuments/context?${params}`,
+            { headers: { 'user-id': window.currentUser?.id || '' } }
+        );
+        const result = await response.json();
+        const files = (result.success ? result.documents : []) || [];
+
+        // Excluir el propio documento y los ya referenciados
+        const linked = new Set(docRefsState.refs.map(r => (r.form_data || {}).fileId));
+        const available = files.filter(f =>
+            String(f.id) !== String(viewerState.documentId) && !linked.has(f.id));
+
+        if (!available.length) {
+            listEl.innerHTML = '<div class="refs-empty">No hay más documentos cargados en esta entidad/compromiso.</div>';
+            return;
+        }
+
+        // Ordenar por numeración inicial del título, como en las carpetas
+        const docCode = t => ((t || '').trim().match(/^\d+(?:\.\d+)*/) || [null])[0];
+        available.sort((a, b) => {
+            const ca = docCode(a.titulo || a.metadata?.fileName);
+            const cb = docCode(b.titulo || b.metadata?.fileName);
+            if ((ca !== null) !== (cb !== null)) return ca !== null ? -1 : 1;
+            if (ca !== null) {
+                const pa = ca.split('.').map(Number), pb = cb.split('.').map(Number);
+                for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                    const d = (pa[i] ?? -1) - (pb[i] ?? -1);
+                    if (d !== 0) return d;
+                }
+            }
+            return (a.titulo || '').localeCompare(b.titulo || '', 'es');
+        });
+
+        listEl.innerHTML = available.map(f => {
+            const name = (f.titulo || f.metadata?.fileName || 'Documento').replace(/</g, '&lt;');
+            const icon = f.tipo === 'archivo' ? 'bi-file-earmark'
+                : f.tipo === 'hoja-trabajo' ? 'bi-file-earmark-spreadsheet'
+                : 'bi-file-earmark-text';
+            return `
+                <div class="ref-file-item"
+                    onclick="selectDocRef('${f.id}', this.dataset.name, '${(f.tipo || '').replace(/'/g, '')}')"
+                    data-name="${name.replace(/"/g, '&quot;')}">
+                    <i class="bi ${icon}"></i><span>${name}</span>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Error cargando documentos:', e);
+        listEl.innerHTML = '<div class="refs-empty">Error cargando documentos.</div>';
+    }
+}
+
+function closeDocRefModal() {
+    docRefsState.pendingPos = null;
+    document.getElementById('docRefModal')?.classList.remove('show');
+}
+
+// Coloca las marcas de referencia sobre la página visible (como etiquetas en el PDF)
+function renderRefMarkers() {
+    if (!pageWrapper) return;
+    pageWrapper.querySelectorAll('.pdf-ref-marker').forEach(el => el.remove());
+
+    const w = annotationCanvas.width;
+    const h = annotationCanvas.height;
+    if (!w || !h) return;
+
+    docRefsState.refs.forEach(ref => {
+        const fd = ref.form_data || {};
+        if (fd.page !== viewerState.currentPage || fd.x === undefined || fd.y === undefined) return;
+
+        const name = (fd.fileName || 'Documento').replace(/</g, '&lt;');
+        const marker = document.createElement('div');
+        marker.className = 'pdf-ref-marker';
+        marker.style.left = (fd.x * w) + 'px';
+        marker.style.top = (fd.y * h) + 'px';
+        marker.innerHTML = `
+            <i class="bi bi-link-45deg"></i>
+            <span class="ref-name" title="${name.replace(/"/g, '&quot;')}">${name}</span>
+            <button class="ref-remove" title="Quitar"><i class="bi bi-x"></i></button>`;
+        marker.querySelector('.ref-name').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDocRef(fd.fileId, fd.fileType, fd.fileName);
+        });
+        marker.querySelector('.ref-remove').addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeDocRef(ref.form_id);
+        });
+        pageWrapper.appendChild(marker);
+    });
+}
+
+async function selectDocRef(fileId, fileName, fileType) {
+    try {
+        const { entityId, commitmentId } = await getDocRefContext();
+        const pos = docRefsState.pendingPos || null;
+        // Las referencias colocadas en la página llevan un sufijo único (permite
+        // referenciar el mismo documento en varios puntos)
+        const formId = pos
+            ? `${docRefPrefix()}${fileId}|p${pos.page}_${Date.now()}`
+            : `${docRefPrefix()}${fileId}`;
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/formularios/save`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': window.currentUser?.id || '',
+                    ...(entityId ? { 'entity-id': entityId } : {}),
+                    ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+                },
+                body: JSON.stringify({
+                    form_id: formId,
+                    form_title: `Referencia doc ${viewerState.documentId}`,
+                    form_data: {
+                        documentId: viewerState.documentId,
+                        fileId,
+                        fileName,
+                        fileType: fileType || '',
+                        ...(pos ? { page: pos.page, x: pos.x, y: pos.y } : {})
+                    },
+                    subdocument_id: null,
+                    metadata: {},
+                    entity_id: entityId,
+                    commitment_id: commitmentId
+                })
+            }
+        );
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error guardando referencia');
+
+        docRefsState.pendingPos = null;
+        closeDocRefModal();
+        showNotification('Referencia agregada', 'success');
+        await loadDocReferences();
+        renderRefMarkers();
+    } catch (e) {
+        console.error('Error agregando referencia:', e);
+        alert('Error agregando referencia: ' + e.message);
+    }
+}
+
+async function removeDocRef(formId) {
+    try {
+        const { entityId, commitmentId } = await getDocRefContext();
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/formularios/delete`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': window.currentUser?.id || ''
+                },
+                body: JSON.stringify({ form_id: formId, entity_id: entityId, commitment_id: commitmentId })
+            }
+        );
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Error eliminando referencia');
+        await loadDocReferences();
+        renderRefMarkers();
+    } catch (e) {
+        console.error('Error quitando referencia:', e);
+        alert('Error quitando referencia: ' + e.message);
+    }
+}
+
+async function openDocRef(fileId, fileType, fileName) {
+    if (!fileId) return;
+
+    if (fileType === 'archivo') {
+        // PDFs se abren en el visor; el resto se muestra en una pestaña nueva
+        const isPdf = /\.pdf$/i.test(fileName || '');
+        if (isPdf) {
+            window.open(`visor-pdf.html?id=${fileId}&name=${encodeURIComponent(fileName)}`, '_blank');
+            return;
+        }
+        try {
+            const response = await window.authenticatedFetch(
+                `${getApiBaseUrl()}/api/subdocuments/download/${fileId}`,
+                { headers: { 'user-id': window.currentUser?.id || '' } }
+            );
+            if (!response.ok) throw new Error('No se pudo obtener el archivo');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const win = window.open(url, '_blank');
+            // Si el navegador no puede mostrarlo (Word/Excel), ofrecer descarga
+            if (!win) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName || `documento_${fileId}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }
+            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } catch (e) {
+            alert('Error abriendo referencia: ' + e.message);
+        }
+        return;
+    }
+
+    // Otros tipos (sumarias, BG, etc.): abrir su página como en las sumarias
+    try {
+        const response = await window.authenticatedFetch(
+            `${getApiBaseUrl()}/api/subdocuments/get`,
+            {
+                method: 'POST',
+                headers: { 'user-id': window.currentUser?.id || '' },
+                body: JSON.stringify({ documentId: fileId })
+            }
+        );
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'No se pudo abrir el documento');
+        const doc = result.document;
+        localStorage.setItem('currentWorksheetDocument', JSON.stringify({
+            id: doc.id,
+            titulo: doc.titulo,
+            tipo: doc.tipo,
+            categoria: doc.categoria,
+            subcategoria: doc.subcategoria,
+            entityId: doc.entity_id,
+            commitmentId: doc.commitment_id,
+            metadata: doc.metadata || {}
+        }));
+        const target = doc.metadata?.bgType ? 'hojas-trabajo.html' : 'sumarias.html';
+        window.open(target, '_blank');
+    } catch (e) {
+        alert('Error abriendo documento: ' + e.message);
+    }
+}

@@ -438,6 +438,233 @@
             min-width: 150px;
             outline: none;
         }
+
+        /* Marcador de referencia sobre la página */
+        .pdf-ref-marker {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #0d6efd;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 7px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            z-index: 10;
+            white-space: nowrap;
+            transform: translate(-4px, -50%);
+        }
+
+        .pdf-ref-marker .ref-name {
+            cursor: pointer;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pdf-ref-marker .ref-name:hover {
+            text-decoration: underline;
+        }
+
+        .pdf-ref-marker .ref-remove {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: #fff;
+            border-radius: 50%;
+            width: 15px;
+            height: 15px;
+            font-size: 10px;
+            line-height: 1;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .pdf-ref-marker:hover .ref-remove {
+            display: flex;
+        }
+
+        /* Panel de referencias */
+        .refs-panel {
+            width: 0;
+            overflow: hidden;
+            background: #16213e;
+            border-left: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.25s ease;
+        }
+
+        .refs-panel.open {
+            width: 280px;
+            padding: 15px;
+        }
+
+        .refs-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #e0e0e0;
+            font-weight: 600;
+            margin-bottom: 12px;
+            white-space: nowrap;
+        }
+
+        .refs-close-btn {
+            background: transparent;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .refs-close-btn:hover { color: #fff; }
+
+        #docRefsList {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+            min-height: 0;
+        }
+
+        .ref-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #e0e0e0;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .ref-item-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .ref-item-name:hover { color: #0d6efd; }
+
+        .ref-item-remove {
+            background: transparent;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .ref-item-remove:hover { color: #dc3545; }
+
+        .refs-empty {
+            color: #6c757d;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 15px 0;
+            white-space: normal;
+        }
+
+        .btn-add-ref {
+            background: #0d6efd;
+            border: none;
+            color: #fff;
+            padding: 9px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .btn-add-ref:hover { background: #0b5ed7; }
+
+        .ref-badge {
+            background: #ffc107;
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 1px 6px;
+            margin-left: 4px;
+        }
+
+        /* Modal de selección de referencia */
+        .ref-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .ref-modal-overlay.show { display: flex; }
+
+        .ref-modal {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 10px;
+            width: 440px;
+            max-width: 90vw;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            color: #e0e0e0;
+        }
+
+        .ref-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid #0f3460;
+            font-weight: 600;
+        }
+
+        .ref-modal-body {
+            padding: 12px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ref-file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .ref-file-item:hover { background: rgba(13,110,253,0.25); }
+
+        .ref-file-item i { color: #0d6efd; }
+
+        .ref-file-item span {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -508,6 +735,9 @@
             </button>
             <button class="tool-btn" id="toolText" title="Texto" onclick="setTool('text')">
                 <i class="bi bi-fonts"></i>
+            </button>
+            <button class="tool-btn" id="toolRef" title="Referencia" onclick="setTool('ref')">
+                <i class="bi bi-link-45deg"></i>
             </button>
             
             <div class="toolbar-divider"></div>
@@ -580,6 +810,31 @@
                         <input type="text" id="textInput" placeholder="Escribir texto..." onkeydown="handleTextInput(event)">
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Panel de referencias -->
+        <div class="refs-panel" id="refsPanel">
+            <div class="refs-panel-header">
+                <span><i class="bi bi-link-45deg"></i> Referencias</span>
+                <button class="refs-close-btn" onclick="toggleRefsPanel()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div id="docRefsList"></div>
+            <button class="btn-add-ref" onclick="openDocRefModal()">
+                <i class="bi bi-plus-lg"></i> Agregar referencia
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal para elegir documento de referencia -->
+    <div class="ref-modal-overlay" id="docRefModal" onclick="if(event.target===this)closeDocRefModal()">
+        <div class="ref-modal">
+            <div class="ref-modal-header">
+                <span>Agregar referencia</span>
+                <button class="refs-close-btn" onclick="closeDocRefModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="ref-modal-body" id="docRefFileList">
+                <div class="refs-empty">Cargando documentos...</div>
             </div>
         </div>
     </div>
