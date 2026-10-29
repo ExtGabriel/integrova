@@ -1073,6 +1073,23 @@
             const tbody = document.getElementById('sumariaBody');
             if (!tbody) return;
 
+            // Sumaria guardada sin filas de datos (se abrió antes de que el área existiera
+            // en Grupos Financieros): reconstruir la tabla con los datos actuales
+            const hasDataRows = Array.from(tbody.querySelectorAll('tr')).some(tr => {
+                const desc = tr.querySelector('td.col-description')?.textContent.trim() || '';
+                return desc && !/^total\s/i.test(desc);
+            });
+            if (!hasDataRows) {
+                const titleEl = document.querySelector('.summary-title');
+                const cleanName = String(areaRow.name || '').replace(/^[\s\-–—]+/, '').trim();
+                if (titleEl && cleanName && titleEl.textContent.trim().toUpperCase() === 'SUMARIA') {
+                    titleEl.textContent = `SUMARIA - ${cleanName}`;
+                }
+                renderAreaRows(areaRow);
+                scheduleAutoSave();
+                return;
+            }
+
             const valuesOf = row => {
                 const finalCurrent = Number(row.finalCurrent ?? 0);
                 return {

@@ -252,6 +252,26 @@
             return result.subfolder;
         }
 
+        async renameSubfolder(folderId, nombre) {
+            if (!this.userId) {
+                throw new Error('Usuario no autenticado');
+            }
+            const response = await window.authenticatedFetch(buildApiUrl('/api/subfolders/rename'), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': this.userId
+                },
+                body: JSON.stringify({ folderId, nombre })
+            });
+            const result = await parseJsonSafe(response);
+            if (!result.success) {
+                throw new Error(result.error || 'Error al renombrar la carpeta');
+            }
+            if (this.cache && typeof this.cache.clear === 'function') this.cache.clear();
+            return result.subfolder;
+        }
+
         async getSubfolders(categoria, subcategoria, useCache = true, entityId = null, commitmentId = null) {
             try {
                 const resolvedEntityId = entityId || window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';

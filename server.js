@@ -5842,12 +5842,20 @@ app.post('/api/assignments/save', async (req, res) => {
         
         console.log('Verificando si la cuenta existe en cuentas_contables:', accountCode);
         
-        // Buscar cuenta por código
-        const { data: existingAccount, error: searchError } = await supabase
+        // Buscar cuenta por código DENTRO del mismo dataset (el código se repite
+        // entre datasets; sin este filtro .single() puede devolver la cuenta de
+        // otro dataset o fallar con múltiples filas)
+        const { data: existingAccounts, error: searchError } = await supabase
             .from('cuentas_contables')
             .select('id, numero_cuenta, nombre_cuenta')
             .eq('numero_cuenta', accountCode)
-            .single();
+            .eq('conjunto_id', realDatasetId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        const existingAccount = Array.isArray(existingAccounts) && existingAccounts.length
+            ? existingAccounts[0]
+            : null;
             
         if (searchError && searchError.code !== 'PGRST116') {
             console.error('Error buscando cuenta:', searchError);
@@ -9490,6 +9498,43 @@ app.put('/api/subfolders/move', async (req, res) => {
         res.json({ success: true, subfolder });
     } catch (error) {
         console.error('❌ Error en endpoint /api/subfolders/move:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+});
+
+// Renombrar subcarpeta
+app.put('/api/subfolders/rename', async (req, res) => {
+    try {
+        const userId = req.user?.id || req.headers['user-id'];
+        const { folderId, nombre } = req.body;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+
+        const cleanName = (nombre || '').toString().trim();
+        if (!folderId || !cleanName) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos: folderId, nombre' });
+        }
+
+        const { data: subfolder, error } = await supabase
+            .from('subcarpetas')
+            .update({
+                nombre: cleanName,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', folderId)
+            .select()
+            .single();
+
+        if (error || !subfolder) {
+            console.error('❌ Error renombrando subcarpeta:', error);
+            return res.status(500).json({ success: false, error: 'Error al renombrar la subcarpeta' });
+        }
+
+        res.json({ success: true, subfolder });
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/subfolders/rename:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });

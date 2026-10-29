@@ -5112,6 +5112,10 @@
                 console.log('  normalized assignments:', normalized.length);
                 cachedAssignments = normalized;
 
+                // La estructura en caché puede ser anterior a cuentas manuales nuevas: releerla del panel
+                const freshStructure = buildFinancialGroupStructureFromDom();
+                if (freshStructure && freshStructure.nodes?.size) cachedFinancialGroupStructure = freshStructure;
+
                 const localAdjustmentsMap = getLocalAdjustmentsMapSafe();
                 console.log('  localAdjustmentsMap.size:', localAdjustmentsMap.size);
                 
@@ -5381,6 +5385,7 @@
         }
 
         function buildFinancialGroupStructureFromDom() {
+            applyGroupNameOverrides();
             const list = document.querySelector('.financial-groups-list');
             if (!list) {
                 console.warn('buildFinancialGroupStructureFromDom: no se encontró .financial-groups-list');
@@ -5765,6 +5770,21 @@
                 console.log('❌ DIAGNÓSTICO: No hay dataset activo, abortando carga');
                 renderGruposFinancieros([], 'No hay datos de Excel para esta entidad y compromiso');
                 return;
+            }
+
+            await refreshGroupNameOverrides();
+
+            // Las cuentas manuales y sus subcuentas viven en el panel de Asignar cuentas:
+            // restaurarlas desde la BD aunque esa sección no se haya abierto
+            if (!document.querySelector('.financial-groups-list .assigned-account, .financial-groups-list .manual-static-account') &&
+                typeof restoreAssignedAccounts === 'function') {
+                try {
+                    await restoreAssignedAccounts();
+                    cachedFinancialGroupsLoaded = false;
+                    forceReload = true;
+                } catch (e) {
+                    console.warn('⚠️ No se pudieron restaurar asignaciones para Grupos Financieros:', e);
+                }
             }
 
             console.log('🔍 DIAGNÓSTICO: Estado de caché:', {
@@ -6401,7 +6421,12 @@
                 console.log(`  ... y ${effectiveStructure.nodes.size - 3} nodos más`);
             }
 
-            const assignmentsArray = Array.isArray(assignments) ? assignments : [];
+            // La asignación de una cuenta manual raíz solo representa a la cuenta padre
+            // (ya existe como nodo estático en la estructura); no es una cuenta hija.
+            const assignmentsArray = (Array.isArray(assignments) ? assignments : []).filter(assignment => {
+                const source = (assignment?.meta?.source || '').toString().toLowerCase();
+                return !(source === 'manual' && !assignment.parentAccountId);
+            });
             const assignmentsByGroup = new Map();
             const assignmentsByParent = new Map();
 
@@ -28078,12 +28103,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     break;
                 case 'grupos-financieros':
                     gruposFinancierosSection.style.display = 'block';
-                    if (!dataLoadState.gruposFinancieros) {
-                        console.log('📊 Cargando grupos financieros (primera vez)...');
-                        loadGruposFinancierosFromLatestExcel();
-                    } else {
-                        console.log('✅ Grupos financieros ya cargados, omitiendo recarga');
-                    }
+                    // Siempre reconstruir: las cuentas manuales y sus asignaciones pueden haber cambiado
+                    loadGruposFinancierosFromLatestExcel({ forceReload: true });
                     break;
                 default:
                     dataMainContent.style.display = 'block';
@@ -29178,6 +29199,25 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                     assignments = dbAssignments || [];
                     console.log('✅ Cargadas', assignments.length, 'asignaciones desde base de datos con filtros:', { currentEntity, currentCommitment });
                     console.log('📋 Muestra de asignaciones:', assignments.slice(0, 3));
+
+                    // Fusionar respaldos de localStorage que no estén en BD
+                    // (ej: cuenta manual cuya llamada a /api/assignments/save falló)
+                    const localAssignments = (getStoredAssignments(datasetId) || []).filter(a => {
+                        if (currentEntity && a.entity_id && a.entity_id !== currentEntity) return false;
+                        if (currentEntity && !a.entity_id && a.meta?.source !== 'manual') return false;
+                        if (currentCommitment && a.commitment_id && a.commitment_id !== currentCommitment) return false;
+                        if (currentCommitment && !a.commitment_id && a.meta?.source !== 'manual') return false;
+                        return true;
+                    });
+                    const dbKeys = new Set(assignments.map(a => (a.accountKey || a.accountId || '').toString()));
+                    const missing = localAssignments.filter(a => {
+                        const key = (a.accountKey || a.accountId || '').toString();
+                        return key && !dbKeys.has(key);
+                    });
+                    if (missing.length) {
+                        assignments = assignments.concat(missing);
+                        console.log('📦 Fusionadas', missing.length, 'asignaciones extra desde localStorage');
+                    }
                 }
             } catch (error) {
                 console.warn('⚠️ Error cargando desde BD, usando localStorage:', error);
@@ -29211,6 +29251,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         if (!assignments.length) {
             console.log('❌ No hay asignaciones para restaurar');
+            await refreshGroupNameOverrides();
             return;
         }
 
@@ -29256,7 +29297,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             // renderizarla como cuenta estática para que pueda sumar sus subcuentas
             if (isManualRoot) {
                 const code = meta.code || assignment.code || meta.accountCode || '';
-                const displayName = meta.name || assignment.name || meta.accountName || '';
+                let displayName = (meta.name || assignment.name || meta.accountName || '').toString().trim();
+                // El nombre guardado ya puede incluir el prefijo "código - ": quitarlo para no duplicarlo
+                if (code && displayName.startsWith(code)) {
+                    displayName = displayName.slice(code.length).replace(/^\s*[-–—.]\s*/, '').trim();
+                }
                 const accountId = assignment.accountId || assignment.accountKey || code;
 
                 // Evitar duplicados de cuentas estáticas manuales
@@ -29396,6 +29441,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         });
 
         console.log('✅ Se restauraron', restoredCount, 'asignaciones en la UI');
+
+        await refreshGroupNameOverrides();
 
         updateRemainingCount();
         refreshLedgerIntegrityIfVisible();
@@ -30075,6 +30122,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                             console.log('🧹 Carpeta automática con nombre anterior eliminada:', match.nombre);
                         } catch (e) {
                             console.warn('⚠️ No se pudo migrar la carpeta:', match.nombre, e);
+                            continue;
+                        }
+                    }
+
+                    // Carpeta automática de la misma cuenta (mismo código) cuyo nombre ya no
+                    // corresponde (cuenta renombrada): renombrarla en lugar de duplicarla
+                    const folderCodeOf = f => ((f.nombre || '').trim().match(/^(\d+(?:\.\d+)*)/) || [])[1] || '';
+                    const desiredNorms = new Set(Array.from(desired.values()).map(d => norm(d.name)));
+                    const staleFolder = code && (subfolders || []).find(f =>
+                        isAutoFolder(f) && folderCodeOf(f) === code && !desiredNorms.has(norm(f.nombre)));
+                    if (staleFolder) {
+                        try {
+                            const oldFolderName = (staleFolder.nombre || '').trim();
+                            await window.subcategoriasManager.renameSubfolder(staleFolder.id, name);
+                            staleFolder.nombre = name;
+                            const staleSumaria = (contextDocs || []).find(d =>
+                                String(d.parent_folder_id) === String(staleFolder.id) &&
+                                d.tipo === 'hoja-trabajo' &&
+                                (d.titulo || '').trim() === `Sumaria ${oldFolderName}`);
+                            if (staleSumaria) {
+                                await window.subcategoriasManager.updateSubdocument(
+                                    staleSumaria.id,
+                                    `Sumaria ${name}`,
+                                    null,
+                                    { ...(staleSumaria.metadata || {}), areaName: bareName || name },
+                                    'planes',
+                                    'planes'
+                                );
+                            }
+                            if (sectionParentId && String(staleFolder.parent_folder_id || '') !== String(sectionParentId)) {
+                                await window.subcategoriasManager.moveSubfolder(staleFolder.id, sectionParentId);
+                                staleFolder.parent_folder_id = sectionParentId;
+                            }
+                            moved++;
+                            console.log('✏️ Carpeta automática renombrada:', oldFolderName, '→', name);
+                            continue;
+                        } catch (e) {
+                            console.warn('⚠️ No se pudo renombrar la carpeta anterior; no se crea una nueva para evitar duplicados:', staleFolder.nombre, e);
                             continue;
                         }
                     }
@@ -31119,6 +31204,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         console.log('📊 Cuentas estáticas encontradas:', staticAccounts.length);
         
         staticAccounts.forEach((account, index) => {
+            if (account.classList.contains('manual-static-account')) return;
             const nameElement = account.querySelector('.account-name');
             const valueElement = account.querySelector('.account-value');
             const existingPrevValues = account.querySelectorAll('.static-account-value[data-year="previous"]');
@@ -32397,150 +32483,273 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         function editAccountGroups() {
             const editButton = document.querySelector('[onclick="editAccountGroups()"]');
-            const groupNames = document.querySelectorAll('.group-name');
-            const subGroupNames = document.querySelectorAll('.sub-group-name');
-            const accountNames = document.querySelectorAll('.account-name');
-            
+
             if (!isEditMode) {
-                // Entering edit mode
                 isEditMode = true;
                 editButton.innerHTML = '<i class="bi bi-check"></i>';
                 editButton.classList.remove('btn-outline-primary');
                 editButton.classList.add('btn-success');
                 editButton.title = 'Guardar cambios';
-                
-                // Store original names and make them editable
-                const allEditableElements = [...groupNames, ...subGroupNames, ...accountNames];
-                allEditableElements.forEach(element => {
-                    const currentName = element.textContent.trim();
-                    originalGroupNames.set(element, currentName);
-                    
-                    // Make content editable
-                    element.contentEditable = true;
-                    element.style.backgroundColor = '#f8f9fa';
-                    element.style.border = '1px solid #007bff';
-                    element.style.borderRadius = '4px';
-                    element.style.padding = '2px 4px';
-                    element.style.cursor = 'text';
-                    
-                    // Add focus and blur events
-                    element.addEventListener('focus', function() {
-                        this.select();
-                    });
-                    
-                    element.addEventListener('blur', function() {
-                        this.style.backgroundColor = '#f8f9fa';
-                    });
-                    
-                    element.addEventListener('keydown', function(e) {
+
+                originalGroupNames.clear();
+                getEditableNameItems().forEach(({ el }) => {
+                    originalGroupNames.set(el, el.textContent.trim());
+                    el.contentEditable = true;
+                    el.style.backgroundColor = '#f8f9fa';
+                    el.style.border = '1px solid #007bff';
+                    el.style.borderRadius = '4px';
+                    el.style.padding = '2px 4px';
+                    el.style.cursor = 'text';
+                    el.onkeydown = function (e) {
                         if (e.key === 'Enter') {
                             e.preventDefault();
                             this.blur();
                         }
-                    });
+                    };
+                    el.onclick = function (e) { e.stopPropagation(); };
                 });
-                
-                showNotification('Modo de edición activado. Modifica los nombres de grupos y cuentas y presiona el botón verde para guardar.', 'info');
-                
-            } else {
-                // Exiting edit mode - save changes
-                isEditMode = false;
-                editButton.innerHTML = '<i class="bi bi-pencil"></i>';
-                editButton.classList.remove('btn-success');
-                editButton.classList.add('btn-outline-primary');
-                editButton.title = 'Editar grupos de cuentas';
-                
-                // Save changes and make names non-editable
-                const changes = [];
-                const allEditableElements = [...groupNames, ...subGroupNames, ...accountNames];
-                allEditableElements.forEach(element => {
-                    const newName = element.textContent.trim();
-                    const originalName = originalGroupNames.get(element);
-                    
-                    if (newName !== originalName) {
-                        changes.push({
-                            element: element,
-                            oldName: originalName,
-                            newName: newName,
-                            type: element.classList.contains('account-name') ? 'account' : 'group'
-                        });
-                    }
-                    
-                    // Make content non-editable
-                    element.contentEditable = false;
-                    element.style.backgroundColor = '';
-                    element.style.border = '';
-                    element.style.borderRadius = '';
-                    element.style.padding = '';
-                    element.style.cursor = '';
-                    
-                    // Remove event listeners
-                    element.removeEventListener('focus', null);
-                    element.removeEventListener('blur', null);
-                    element.removeEventListener('keydown', null);
-                });
-                
-                // Clear original names
-                originalGroupNames.clear();
-                
-                if (changes.length > 0) {
-                    const groupChanges = changes.filter(c => c.type === 'group').length;
-                    const accountChanges = changes.filter(c => c.type === 'account').length;
-                    let message = `Se guardaron ${changes.length} cambios`;
-                    if (groupChanges > 0 && accountChanges > 0) {
-                        message += ` (${groupChanges} grupos, ${accountChanges} cuentas)`;
-                    } else if (groupChanges > 0) {
-                        message += ' en nombres de grupos';
-                    } else if (accountChanges > 0) {
-                        message += ' en nombres de cuentas';
-                    }
-                    message += '.';
-                    
-                    showNotification(message, 'success');
-                    console.log('Cambios guardados:', changes);
-                    
-                    // Save to backend or localStorage
-                    saveGroupNamesToStorage();
-                    saveAccountNamesToStorage();
-                } else {
-                    showNotification('No se realizaron cambios.', 'info');
+
+                showNotification('Modo de edición activado. Modifica los nombres de las cuentas del panel de grupos y presiona el botón verde para guardar.', 'info');
+                return;
+            }
+
+            isEditMode = false;
+            editButton.innerHTML = '<i class="bi bi-pencil"></i>';
+            editButton.classList.remove('btn-success');
+            editButton.classList.add('btn-outline-primary');
+            editButton.title = 'Editar grupos de cuentas';
+
+            const changes = [];
+            getEditableNameItems().forEach(item => {
+                const { el, key, type, host } = item;
+                const original = originalGroupNames.get(el);
+                const newName = el.textContent.replace(/\s+/g, ' ').trim();
+
+                el.contentEditable = false;
+                el.style.backgroundColor = '';
+                el.style.border = '';
+                el.style.borderRadius = '';
+                el.style.padding = '';
+                el.style.cursor = '';
+                el.onkeydown = null;
+                el.onclick = null;
+
+                if (original === undefined) return;
+                if (!newName) {
+                    el.textContent = original;
+                    return;
                 }
+                el.textContent = newName;
+                if (newName !== original) changes.push({ key, type, host, oldName: original, newName });
+            });
+            originalGroupNames.clear();
+
+            if (!changes.length) {
+                showNotification('No se realizaron cambios.', 'info');
+                return;
+            }
+
+            commitGroupNameChanges(changes);
+        }
+
+        async function commitGroupNameChanges(changes) {
+            const { entityId } = getNameOverrideContext();
+            if (!entityId) {
+                showNotification('Selecciona una entidad antes de renombrar.', 'warning');
+                return;
+            }
+
+            const renames = [];
+            changes.forEach(({ key, type, host, oldName, newName }) => {
+                groupNameOverrides[key] = newName;
+                if (type === 'account') host.dataset.accountName = newName;
+                renames.push({
+                    oldName: computeAssignedFolderName(type, host, oldName),
+                    newName: computeAssignedFolderName(type, host, newName),
+                    bareName: computeAssignedBareName(type, newName)
+                });
+            });
+
+            try {
+                await saveGroupNameOverrides();
+            } catch (error) {
+                console.error('❌ Error guardando nombres personalizados:', error);
+                showNotification('No se pudieron guardar los nombres en la base de datos. Intenta de nuevo.', 'danger');
+                return;
+            }
+
+            try {
+                if (typeof cachedFinancialGroupStructure !== 'undefined') cachedFinancialGroupStructure = null;
+                await loadGruposFinancierosFromLatestExcel({ forceReload: true });
+                refreshLedgerIntegrityIfVisible();
+            } catch (error) {
+                console.warn('⚠️ No se pudo refrescar Grupos Financieros tras renombrar:', error);
+            }
+
+            try {
+                await renameAssignedFolderArtifacts(renames);
+            } catch (error) {
+                console.warn('⚠️ No se pudieron renombrar las carpetas/sumarias asociadas:', error);
+                showNotification('El nombre se guardó, pero no se pudo renombrar la carpeta en Planes. Verifica que el servidor esté actualizado.', 'warning');
+            }
+
+            showNotification(`Se guardaron ${changes.length} cambio(s) de nombre.`, 'success');
+        }
+
+        function getNameOverrideContext() {
+            return {
+                entityId: window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '',
+                commitmentId: window.commitmentDropdownState?.selectedCommitmentId || ''
+            };
+        }
+
+        function getEditableNameItems() {
+            const list = document.querySelector('.financial-groups-list');
+            if (!list) return [];
+            const items = [];
+            list.querySelectorAll('.static-account').forEach(host => {
+                const el = host.querySelector('.account-name');
+                const id = (host.dataset.accountId || '').toString().trim();
+                if (el && id) items.push({ el, key: `a:${id}`, type: 'account', host });
+            });
+            list.querySelectorAll('.sub-group-item').forEach(host => {
+                const el = host.querySelector('.sub-group-header .sub-group-name');
+                const id = (host.querySelector('.sub-group-content')?.id || '').toString().trim();
+                if (el && id) items.push({ el, key: `g:${id}`, type: 'group', host });
+            });
+            return items;
+        }
+
+        function computeAssignedFolderName(type, host, displayText) {
+            const text = (displayText || '').trim();
+            if (type !== 'account') return text;
+            const code = (host.dataset.accountCode || '').trim() || (text.match(/^(\d+(?:\.\d+)*)/) || [])[1] || '';
+            const cleanName = computeAssignedBareName(type, text);
+            return /^\d/.test(text) ? text : (code ? `${code} - ${cleanName}` : cleanName);
+        }
+
+        function computeAssignedBareName(type, displayText) {
+            const text = (displayText || '').trim();
+            if (type !== 'account') return text;
+            return text.replace(/^[\s\-–—.]+/, '').replace(/^(\d+(?:\.\d+)*)\s*[-–—.]?\s*/, '').trim();
+        }
+
+        let groupNameOverrides = {};
+        let groupNameOverridesCtx = null;
+        const NAME_OVERRIDES_FORM_ID = 'fg_names_override';
+
+        async function loadGroupNameOverrides(force = false) {
+            const { entityId, commitmentId } = getNameOverrideContext();
+            if (!entityId) return groupNameOverrides;
+            const ctxKey = `${entityId}|${commitmentId}`;
+            if (!force && groupNameOverridesCtx === ctxKey) return groupNameOverrides;
+
+            try {
+                const params = new URLSearchParams({
+                    form_id_prefix: NAME_OVERRIDES_FORM_ID,
+                    entity_id: entityId,
+                    commitment_id: commitmentId || ''
+                });
+                const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/list?${params}`, {
+                    headers: { 'user-id': getCurrentUserId() }
+                });
+                const result = await response.json();
+                const rows = (result.success ? result.formularios : []) || [];
+                rows.sort((a, b) => new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0));
+                const merged = {};
+                rows.forEach(r => Object.assign(merged, r.form_data?.names || {}));
+                groupNameOverrides = merged;
+                groupNameOverridesCtx = ctxKey;
+            } catch (error) {
+                console.warn('⚠️ No se pudieron cargar los nombres personalizados:', error);
+            }
+            return groupNameOverrides;
+        }
+
+        async function saveGroupNameOverrides() {
+            const { entityId, commitmentId } = getNameOverrideContext();
+            const response = await window.authenticatedFetch(`${getApiBaseUrl()}/api/formularios/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'user-id': getCurrentUserId(),
+                    ...(entityId ? { 'entity-id': entityId } : {}),
+                    ...(commitmentId ? { 'commitment-id': commitmentId } : {})
+                },
+                body: JSON.stringify({
+                    form_id: NAME_OVERRIDES_FORM_ID,
+                    form_title: 'Nombres personalizados de grupos y cuentas',
+                    form_data: { names: groupNameOverrides },
+                    subdocument_id: null,
+                    metadata: {},
+                    entity_id: entityId,
+                    commitment_id: commitmentId
+                })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Error guardando nombres personalizados');
+            groupNameOverridesCtx = `${entityId}|${commitmentId}`;
+        }
+
+        function applyGroupNameOverrides() {
+            let changed = false;
+            getEditableNameItems().forEach(({ el, key, type, host }) => {
+                const name = groupNameOverrides[key];
+                if (!name) return;
+                if (el.textContent.trim() !== name) {
+                    el.textContent = name;
+                    changed = true;
+                }
+                if (type === 'account') host.dataset.accountName = name;
+            });
+            return changed;
+        }
+
+        async function refreshGroupNameOverrides() {
+            await loadGroupNameOverrides();
+            if (applyGroupNameOverrides() && typeof cachedFinancialGroupStructure !== 'undefined') {
+                cachedFinancialGroupStructure = null;
             }
         }
 
-        function saveGroupNamesToStorage() {
-            const groupNames = [];
-            document.querySelectorAll('.group-name, .sub-group-name').forEach(element => {
-                const groupId = element.closest('.group-item, .sub-group-item').querySelector('.group-header, .sub-group-header').onclick?.toString().match(/toggleGroup\('([^']+)'\)/);
-                if (groupId) {
-                    groupNames.push({
-                        id: groupId[1],
-                        name: element.textContent.trim()
-                    });
-                }
-            });
-            
-            // Save to localStorage
-            localStorage.setItem('customGroupNames', JSON.stringify(groupNames));
-        }
+        async function renameAssignedFolderArtifacts(renames) {
+            const manager = window.subcategoriasManager;
+            if (!manager || !renames.length) return;
+            if (!manager.userId) await manager.init();
 
-        function saveAccountNamesToStorage() {
-            const accountNames = [];
-            document.querySelectorAll('.account-name').forEach(element => {
-                const accountElement = element.closest('.account-item');
-                if (accountElement) {
-                    const accountId = accountElement.dataset.accountId || accountElement.id;
-                    if (accountId) {
-                        accountNames.push({
-                            id: accountId,
-                            name: element.textContent.trim()
-                        });
-                    }
+            const { entityId, commitmentId } = getNameOverrideContext();
+            const folders = await manager.getSubfolders('planes', 'planes', false, entityId, commitmentId) || [];
+            const docs = await manager.getSubdocuments('planes', 'planes', false, entityId, commitmentId) || [];
+            const norm = s => (s || '').toLowerCase().replace(/[\s\-–—.]+/g, ' ').trim();
+
+            let renamedAny = false;
+            for (const { oldName, newName, bareName } of renames) {
+                if (!oldName || !newName || norm(oldName) === norm(newName)) continue;
+                const folder = folders.find(f => norm(f.nombre) === norm(oldName));
+                if (!folder) continue;
+                if (folders.some(f => f !== folder && norm(f.nombre) === norm(newName))) continue;
+
+                const oldFolderName = (folder.nombre || '').trim();
+                await manager.renameSubfolder(folder.id, newName);
+                folder.nombre = newName;
+                renamedAny = true;
+
+                const autoSumaria = docs.find(d =>
+                    String(d.parent_folder_id) === String(folder.id) &&
+                    d.tipo === 'hoja-trabajo' &&
+                    (d.titulo || '').trim() === `Sumaria ${oldFolderName}`);
+                if (autoSumaria) {
+                    await manager.updateSubdocument(
+                        autoSumaria.id,
+                        `Sumaria ${newName}`,
+                        null,
+                        { ...(autoSumaria.metadata || {}), areaName: bareName || newName },
+                        'planes',
+                        'planes'
+                    );
                 }
-            });
-            
-            // Save to localStorage
-            localStorage.setItem('customAccountNames', JSON.stringify(accountNames));
+            }
+            if (renamedAny) manager.updateUI('planes', 'planes');
         }
 
         function addNewAccount() {
@@ -32740,10 +32949,39 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 updateGroupCount(groupContent);
 
                 // Guardar también la asignación de la cuenta manual al grupo para restaurarla al recargar
+                const currentEntityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
+                const currentCommitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
+
+                // 1) Respaldo en localStorage (mismo mecanismo que persistAssignment para cuentas de Excel)
+                try {
+                    const manualAssignmentRecord = {
+                        accountKey: code,
+                        accountId: savedAccount?.id || code,
+                        id: savedAccount?.id || code,
+                        code,
+                        name: `${code} - ${name}`,
+                        ls: '',
+                        value,
+                        prevValue: 0,
+                        groupContentId: `${group}-content`,
+                        parentAccountId: '',
+                        datasetId: currentDatasetId,
+                        entity_id: currentEntityId || null,
+                        commitment_id: currentCommitmentId || null,
+                        meta: { source: 'manual', group, code, accountKey: code }
+                    };
+                    const stored = (getStoredAssignments(currentDatasetId) || [])
+                        .filter(item => item.accountKey !== manualAssignmentRecord.accountKey);
+                    stored.push(manualAssignmentRecord);
+                    saveStoredAssignments(stored, currentDatasetId);
+                    console.log('✅ Asignación de cuenta manual guardada en localStorage');
+                } catch (localError) {
+                    console.warn('⚠️ No se pudo guardar asignación manual en localStorage:', localError);
+                }
+
+                // 2) Guardar en base de datos
                 try {
                     if (typeof window.saveAccountAssignment === 'function' && savedAccount?.id) {
-                        const currentEntityId = window.commitmentDropdownState?.currentEntityId || document.getElementById('entidad')?.value || '';
-                        const currentCommitmentId = window.commitmentDropdownState?.selectedCommitmentId || '';
                         await window.saveAccountAssignment({
                             accountId: savedAccount.id,
                             groupContentId: `${group}-content`,
@@ -32765,7 +33003,8 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                         console.log('✅ Asignación de cuenta manual guardada en BD');
                     }
                 } catch (assignmentError) {
-                    console.warn('⚠️ No se pudo guardar asignación de cuenta manual:', assignmentError);
+                    console.warn('⚠️ No se pudo guardar asignación de cuenta manual en BD:', assignmentError);
+                    showNotification('La cuenta se guardó localmente pero no se pudo registrar la asignación en el servidor. Podría no restaurarse en otros equipos.', 'warning');
                 }
                 
                 // Cerrar el modal
@@ -32822,42 +33061,11 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         function loadGroupNamesFromStorage() {
-            // Clear old group names to ensure correct display
             localStorage.removeItem('customGroupNames');
-            
-            // Load group names
-            const savedGroupNames = localStorage.getItem('customGroupNames');
-            if (savedGroupNames) {
-                try {
-                    const groupNames = JSON.parse(savedGroupNames);
-                    groupNames.forEach(item => {
-                        const element = document.querySelector(`[onclick="toggleGroup('${item.id}')"] .group-name, [onclick="toggleGroup('${item.id}')"] .sub-group-name`);
-                        if (element) {
-                            element.textContent = item.name;
-                        }
-                    });
-                } catch (error) {
-                    console.warn('Error loading custom group names:', error);
-                }
-            }
-            
-            // Load account names
-            const savedAccountNames = localStorage.getItem('customAccountNames');
-            if (savedAccountNames) {
-                try {
-                    const accountNames = JSON.parse(savedAccountNames);
-                    accountNames.forEach(item => {
-                        const element = document.querySelector(`[data-account-id="${item.id}"] .account-name, #${item.id} .account-name`);
-                        if (element) {
-                            element.textContent = item.name;
-                        }
-                    });
-                } catch (error) {
-                    console.warn('Error loading custom account names:', error);
-                }
-            }
+            localStorage.removeItem('customAccountNames');
+            refreshGroupNameOverrides();
         }
-        
+
         function searchAccounts(type) {
             let searchInput, container;
             
