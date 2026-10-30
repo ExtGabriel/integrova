@@ -15185,6 +15185,36 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+
+            setTimeout(() => {
+                cargarDatosFormularioCedulaHallazgo();
+            }, 100);
+        }
+
+        // Función para cargar las respuestas guardadas de la Cédula de hallazgo
+        async function cargarDatosFormularioCedulaHallazgo() {
+            try {
+                const formulario = await getFormularioGuardado('CEDULA_HALLAZGO');
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.querySelector('.cedula-hallazgo-modal');
+                if (!modal) return;
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando respuestas CEDULA_HALLAZGO:', error);
+            }
         }
 
         // Función para cerrar el formulario Cédula de hallazgo
@@ -15200,9 +15230,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Cédula de hallazgo
-        function guardarFormularioCedulaHallazgo() {
-            showNotification('Cédula de hallazgo guardada correctamente', 'success');
-            cerrarFormularioCedulaHallazgo();
+        async function guardarFormularioCedulaHallazgo() {
+            try {
+                const modal = document.querySelector('.cedula-hallazgo-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Cédula de hallazgo');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario CEDULA_HALLAZGO:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'CEDULA_HALLAZGO',
+                        'Cédula de Hallazgo de Auditoría',
+                        respuestas
+                    );
+                    cerrarFormularioCedulaHallazgo();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Cédula de hallazgo guardada localmente (API no disponible)', 'warning');
+                    cerrarFormularioCedulaHallazgo();
+                }
+            } catch (error) {
+                console.error('Error guardando CEDULA_HALLAZGO:', error);
+            }
         }
 
         // Función para mostrar el formulario Minuta
@@ -15502,6 +15567,58 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+
+            setTimeout(() => {
+                cargarDatosFormularioMinuta();
+            }, 100);
+        }
+
+        // Función para cargar las respuestas guardadas de la Minuta
+        async function cargarDatosFormularioMinuta() {
+            try {
+                const formulario = await getFormularioGuardado('MINUTA');
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.querySelector('.minuta-modal');
+                if (!modal) return;
+
+                // Recrear filas dinámicas antes de llenar campos
+                const maxRow = (prefix) => Object.keys(data).reduce((max, key) => {
+                    const m = key.match(new RegExp(`^${prefix}(\\d+)_`));
+                    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+                }, 0);
+
+                const participantes = maxRow('min_p');
+                if (participantes > 0) {
+                    const tbody = modal.querySelector('#min_tabla_participantes tbody');
+                    while (tbody && tbody.querySelectorAll('tr').length < participantes) {
+                        agregarFilaParticipante();
+                    }
+                }
+
+                const acuerdos = maxRow('min_a');
+                if (acuerdos > 0) {
+                    const tbody = modal.querySelector('#min_tabla_acuerdos tbody');
+                    while (tbody && tbody.querySelectorAll('tr').length < acuerdos) {
+                        agregarFilaAcuerdo();
+                    }
+                }
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando respuestas MINUTA:', error);
+            }
         }
 
         // Función para cerrar el formulario Minuta
@@ -15517,9 +15634,44 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         }
 
         // Función para guardar el formulario Minuta
-        function guardarFormularioMinuta() {
-            showNotification('Minuta guardada correctamente', 'success');
-            cerrarFormularioMinuta();
+        async function guardarFormularioMinuta() {
+            try {
+                const modal = document.querySelector('.minuta-modal');
+                if (!modal) {
+                    console.warn('⚠️ No se encontró modal de Minuta');
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log('Respuestas del formulario MINUTA:', respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(
+                        'MINUTA',
+                        'Minuta',
+                        respuestas
+                    );
+                    cerrarFormularioMinuta();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification('Minuta guardada localmente (API no disponible)', 'warning');
+                    cerrarFormularioMinuta();
+                }
+            } catch (error) {
+                console.error('Error guardando MINUTA:', error);
+            }
         }
 
         // Funciones para agregar/quitar filas de participantes en la Minuta
@@ -15666,7 +15818,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
         function mostrarFormularioComunicacionesGerenciaGobierno() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal';
@@ -15878,11 +16030,107 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+
+            setTimeout(() => {
+                cargarDatosFormularioComunicacionesGerenciaGobierno();
+            }, 100);
+        }
+
+        // Función para cargar las respuestas guardadas del formulario
+        // de Comunicaciones con la gerencia y los encargados del gobierno
+        async function cargarDatosFormularioComunicacionesGerenciaGobierno() {
+            try {
+                const formulario = await getFormularioGuardado('COMUNICACIONES_GERENCIA_GOBIERNO');
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
+                if (!modal) return;
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando respuestas COMUNICACIONES_GERENCIA_GOBIERNO:', error);
+            }
+        }
+
+        // Carga genérica de respuestas guardadas: lee el formulario por form_id
+        // y repuebla los campos del modal indicado por su name/id
+        async function cargarRespuestasFormularioGenerico(formId, modalSelector) {
+            try {
+                const formulario = await getFormularioGuardado(formId);
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.querySelector(modalSelector);
+                if (!modal) return;
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error(`Error cargando respuestas ${formId}:`, error);
+            }
+        }
+
+        // Guardado genérico de respuestas: recolecta los campos del modal por
+        // name/id y los persiste con guardarFormularioEnBD
+        async function guardarRespuestasFormularioGenerico(formId, formTitle, modalSelector, onSaved) {
+            try {
+                const modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    console.warn(`⚠️ No se encontró modal de ${formId}`);
+                    return;
+                }
+
+                const respuestas = {};
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        if (campo.checked) respuestas[key] = campo.value;
+                    } else {
+                        respuestas[key] = campo.value;
+                    }
+                });
+
+                console.log(`Respuestas del formulario ${formId}:`, respuestas);
+
+                if (window.guardarFormularioEnBD) {
+                    await guardarFormularioEnBD(formId, formTitle, respuestas);
+                    if (typeof onSaved === 'function') onSaved();
+                } else {
+                    console.warn('⚠️ guardarFormularioEnBD no disponible, guardando solo localmente');
+                    showNotification(`${formTitle} guardado localmente (API no disponible)`, 'warning');
+                    if (typeof onSaved === 'function') onSaved();
+                }
+            } catch (error) {
+                console.error(`Error guardando ${formId}:`, error);
+            }
         }
 
         // Función para cerrar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
         function cerrarFormularioComunicacionesGerenciaGobierno() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -15894,7 +16142,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para guardar el formulario de Comunicaciones con la gerencia y los encargados del gobierno de la entidad
         async function guardarFormularioComunicacionesGerenciaGobierno() {
             try {
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) {
                     console.warn('⚠️ No se encontró modal de Comunicaciones con la gerencia');
                     return;
@@ -16014,7 +16262,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         
         // Función para mostrar el formulario Finalización de auditoría
         function mostrarFormularioFinalizacionAuditoria() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal finalizacion-auditoria-modal';
@@ -16140,11 +16388,41 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight;
             modal.classList.add('show');
             agregarBotonesVincular('.finalizacion-auditoria-modal', 'fau_');
+
+            setTimeout(() => {
+                cargarDatosFormularioFinalizacionAuditoria();
+            }, 100);
+        }
+
+        // Función para cargar las respuestas guardadas de Finalización de auditoría
+        async function cargarDatosFormularioFinalizacionAuditoria() {
+            try {
+                const formulario = await getFormularioGuardado('FINALIZACION_AUDITORIA');
+                if (!formulario || !formulario.form_data) return;
+
+                const data = formulario.form_data;
+                const modal = document.querySelector('.finalizacion-auditoria-modal');
+                if (!modal) return;
+
+                const campos = modal.querySelectorAll('input, textarea, select');
+                campos.forEach(campo => {
+                    const key = campo.name || campo.id;
+                    if (!key || !(key in data)) return;
+
+                    if (campo.type === 'radio' || campo.type === 'checkbox') {
+                        campo.checked = campo.value === data[key];
+                    } else {
+                        campo.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error cargando respuestas FINALIZACION_AUDITORIA:', error);
+            }
         }
 
         // Función para cerrar el formulario Finalización de auditoría
         function cerrarFormularioFinalizacionAuditoria() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -16156,7 +16434,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para guardar el formulario Finalización de auditoría
         async function guardarFormularioFinalizacionAuditoria() {
             try {
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) {
                     console.warn('⚠️ No se encontró modal de Finalización de auditoría');
                     return;
@@ -16198,7 +16476,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario Revisión analítica
         function mostrarFormularioRevisionAnalitica() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal';
@@ -16701,11 +16979,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             document.body.appendChild(modal);
             modal.offsetHeight;
             modal.classList.add('show');
+            setTimeout(() => cargarRespuestasFormularioGenerico('REVISION_ANALITICA', '.formulario-modal:not(.modal-suspended)'), 100);
         }
 
         // Función para cerrar el formulario Revisión analítica
         function cerrarFormularioRevisionAnalitica() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -16716,13 +16995,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario Revisión analítica
         function guardarFormularioRevisionAnalitica() {
-            showNotification('Revisión analítica guardada correctamente', 'success');
-            cerrarFormularioRevisionAnalitica();
+            guardarRespuestasFormularioGenerico('REVISION_ANALITICA', 'Revisión analítica', '.formulario-modal:not(.modal-suspended)', cerrarFormularioRevisionAnalitica);
         }
 
         // Función para mostrar el formulario Hechos posteriores
         function mostrarFormularioHechosPosteriores() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal hechos-posteriores-modal';
@@ -17387,11 +17665,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight;
             modal.classList.add('show');
             agregarBotonesVincular('.hechos-posteriores-modal', 'hpo_');
+            setTimeout(() => cargarRespuestasFormularioGenerico('HECHOS_POSTERIORES', '.hechos-posteriores-modal'), 100);
         }
 
         // Función para cerrar el formulario Hechos posteriores
         function cerrarFormularioHechosPosteriores() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -17403,7 +17682,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para guardar el formulario Hechos posteriores
         async function guardarFormularioHechosPosteriores() {
             try {
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) {
                     console.warn('⚠️ No se encontró modal de Hechos posteriores');
                     return;
@@ -17523,7 +17802,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario Calidad informe de auditoría
         function mostrarFormularioCalidadInformeAuditoria() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal calidad-informe-modal';
@@ -19266,11 +19545,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight;
             modal.classList.add('show');
             agregarBotonesVincular('.calidad-informe-modal', 'cia_');
+            setTimeout(() => cargarRespuestasFormularioGenerico('CALIDAD_INFORME_AUDITORIA', '.calidad-informe-modal'), 100);
         }
 
         // Función para cerrar el formulario Calidad informe de auditoría
         function cerrarFormularioCalidadInformeAuditoria() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -19282,7 +19562,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para guardar el formulario Calidad informe de auditoría
         async function guardarFormularioCalidadInformeAuditoria() {
             try {
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) {
                     console.warn('⚠️ No se encontró modal de Calidad informe de auditoría');
                     return;
@@ -19324,7 +19604,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para mostrar el formulario Cierre del compromiso
         function mostrarFormularioCierreCompromiso() {
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) document.body.removeChild(modalExistente);
             const modal = document.createElement('div');
             modal.className = 'formulario-modal cierre-compromiso-modal';
@@ -20640,11 +20920,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             modal.offsetHeight;
             modal.classList.add('show');
             agregarBotonesVincular('.cierre-compromiso-modal', 'cco_');
+            setTimeout(() => cargarRespuestasFormularioGenerico('CIERRE_COMPROMISO', '.cierre-compromiso-modal'), 100);
         }
 
         // Función para cerrar el formulario Cierre del compromiso
         function cerrarFormularioCierreCompromiso() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -20656,7 +20937,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para guardar el formulario Cierre del compromiso
         async function guardarFormularioCierreCompromiso() {
             try {
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) {
                     console.warn('⚠️ No se encontró modal de Cierre del compromiso');
                     return;
@@ -20699,7 +20980,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario B400
         function mostrarFormularioB400() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -21271,7 +21552,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario B400
         function cerrarFormularioB400() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -24884,7 +25165,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.a300-form-modal');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -24905,7 +25186,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario A300
         async function guardarFormularioA300() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.a300-form-modal');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -34108,7 +34389,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.a400-modal');
                 if (!modal) return;
 
                 // Cargar textos, selects y radios (las claves en data no llevan prefijo a400_)
@@ -34363,7 +34644,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Tabla Auditoria Grupo
         function mostrarFormularioA400TablaAuditoria() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -35705,7 +35986,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Comprensión de los controles de la entidad
         async function guardarFormularioControlesEntidad() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -35741,7 +36022,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -35763,7 +36044,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Componentes control interno
         function mostrarFormularioComponentesControlInterno() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -36193,7 +36474,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Componentes control interno
         function cerrarFormularioComponentesControlInterno() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -36204,7 +36485,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Componentes control interno
         async function guardarFormularioComponentesControlInterno() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -36240,7 +36521,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -36374,7 +36655,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Auditoria interna
         function mostrarFormularioAuditoriaInterna() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -36858,7 +37139,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Auditoria interna
         function cerrarFormularioAuditoriaInterna() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -36869,7 +37150,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Auditoria interna
         async function guardarFormularioAuditoriaInterna() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -36905,7 +37186,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -37782,7 +38063,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Evaluación de riesgos de incorrección material
         async function guardarFormularioEvaluacionRiesgosIncorreccion() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -37821,7 +38102,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -38068,7 +38349,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Áreas específicas
         function mostrarFormularioAreasEspecificas() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -39633,7 +39914,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Evaluación del trabajo ejecutado por otros involucrados en la auditoría
         function mostrarFormularioEvaluacionTrabajoOtros() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -40439,7 +40720,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Evaluación del trabajo ejecutado por otros involucrados en la auditoría
         function cerrarFormularioEvaluacionTrabajoOtros() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -40528,7 +40809,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 for (const [key, value] of Object.entries(data)) {
@@ -40716,7 +40997,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario de Evaluación de declaraciones incorrectas identificadas
         function mostrarFormularioEvaluacionDeclaracionesIncorrectas() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -41089,7 +41370,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Evaluación de declaraciones incorrectas identificadas
         function cerrarFormularioEvaluacionDeclaracionesIncorrectas() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -42115,7 +42396,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario de Áreas específicas
         function cerrarFormularioAreasEspecificas() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -42126,7 +42407,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Áreas específicas
         async function guardarFormularioAreasEspecificas() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -42187,7 +42468,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -42457,7 +42738,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario de Comprensión de la entidad
         async function guardarFormularioA400ComprensionEntidad() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (!modal) {
                 showNotification('No se encontró el formulario', 'error');
                 return;
@@ -42493,7 +42774,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
                 if (!formulario || !formulario.form_data) return;
 
                 const data = formulario.form_data;
-                const modal = document.querySelector('.formulario-modal');
+                const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
                 if (!modal) return;
 
                 const campos = modal.querySelectorAll('input, textarea, select');
@@ -42705,7 +42986,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario B100
         function mostrarFormularioB100() {
             // Eliminar cualquier modal existente
-            const existingModal = document.querySelector('.formulario-modal');
+            const existingModal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (existingModal) {
                 document.body.removeChild(existingModal);
             }
@@ -43074,7 +43355,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario B100
         function cerrarFormularioB100() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -43129,7 +43410,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
         // Función para mostrar el formulario B200
         function mostrarFormularioB200() {
             // Eliminar cualquier modal existente
-            const existingModal = document.querySelector('.formulario-modal');
+            const existingModal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (existingModal) {
                 document.body.removeChild(existingModal);
             }
@@ -44070,7 +44351,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario B200
         function cerrarFormularioB200() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -45155,11 +45436,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             modal.offsetHeight;
             modal.classList.add('show');
+            setTimeout(() => cargarRespuestasFormularioGenerico('B300', '.formulario-modal:not(.modal-suspended)'), 100);
         }
 
         // Función para cerrar el formulario B300
         function cerrarFormularioB300() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -45170,14 +45452,13 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario B300
         function guardarFormularioB300() {
-            showNotification('Formulario B300 guardado correctamente', 'success');
-            cerrarFormularioB300();
+            guardarRespuestasFormularioGenerico('B300', 'Formulario B300', '.formulario-modal:not(.modal-suspended)', cerrarFormularioB300);
         }
 
         // Función para mostrar el formulario B335
         function mostrarFormularioB335() {
             // Eliminar cualquier modal existente
-            const modalExistente = document.querySelector('.formulario-modal');
+            const modalExistente = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modalExistente) {
                 document.body.removeChild(modalExistente);
             }
@@ -45644,11 +45925,12 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             modal.offsetHeight;
             modal.classList.add('show');
+            setTimeout(() => cargarRespuestasFormularioGenerico('B335', '.formulario-modal:not(.modal-suspended)'), 100);
         }
 
         // Función para cerrar el formulario B335
         function cerrarFormularioB335() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -45659,8 +45941,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para guardar el formulario B335
         function guardarFormularioB335() {
-            showNotification('Formulario B335 guardado correctamente', 'success');
-            cerrarFormularioB335();
+            guardarRespuestasFormularioGenerico('B335', 'Entendimiento del proceso de información financiera (B335)', '.formulario-modal:not(.modal-suspended)', cerrarFormularioB335);
         }
 
         // Función para Sign Off del formulario B335
@@ -46497,7 +46778,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
 
         // Función para cerrar el formulario B350
         function cerrarFormularioB350() {
-            const modal = document.querySelector('.formulario-modal');
+            const modal = document.querySelector('.formulario-modal:not(.modal-suspended)');
             if (modal) {
                 modal.classList.remove('show');
                 setTimeout(() => {
@@ -47485,7 +47766,7 @@ Fila,Columna1,Columna2,Columna3,Columna4,Columna5
             
             // Buscar el modal de New Risk específicamente
             const modal = document.querySelector('.formulario-modal.new-risk-modal') || 
-                         document.querySelector('.formulario-modal');
+                         document.querySelector('.formulario-modal:not(.modal-suspended)');
             
             console.log('Modal found:', modal);
             

@@ -315,21 +315,48 @@
             }
         }
 
+        const A300_FIELDS = [
+            'a300_objetivo', 'a300_referencia', 'a300_q1_actividad', 'a300_q2_estructura',
+            'a300_q3_operativa', 'a300_q4_ingresos', 'a300_q5_ubicaciones', 'a300_q6_sistemas',
+            'a300_q7_cambios', 'a300_q8_accionistas', 'a300_q9_financiamiento', 'a300_q10_normativa',
+            'a300_q11_litigios', 'a300_q12_usuarios', 'a300_q13_asuntos'
+        ];
+
+        function collectFormData() {
+            const data = {};
+            A300_FIELDS.forEach(id => { data[id] = getFieldValue(id); });
+            return data;
+        }
+
         async function loadFormData() {
             try {
                 const response = await apiClient.get(`/api/audit/forms/${FORM_TYPE}?commitment_id=${commitmentId}`);
 
                 if (response && response.success && response.data) {
                     currentFormId = response.data.id;
-                    // Formulario simplificado - no hay datos que cargar
+                    const data = response.data.data || {};
+                    A300_FIELDS.forEach(id => setFieldValue(id, data[id] || ''));
+
+                    if (isAdmin && response.data.reviews) {
+                        loadReviewStatus(response.data.reviews);
+                    }
                 }
 
                 updateStatus();
 
             } catch (error) {
                 console.error('Error loading form data:', error);
-                updateStatus();
+                loadFromLocalStorage();
             }
+        }
+
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem(`form_${FORM_TYPE}_commitment_${commitmentId}`);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                A300_FIELDS.forEach(id => setFieldValue(id, data[id] || ''));
+            }
+            updateStatus();
         }
 
         function loadReviewStatus(reviews) {
@@ -352,10 +379,7 @@
             indicator.textContent = 'Guardando...';
 
             try {
-                const data = {
-                    simplified: true,
-                    message: 'Formulario simplificado - sin preguntas'
-                };
+                const data = collectFormData();
 
                 const response = await apiClient.post('/api/audit/forms', {
                     formType: FORM_TYPE,
