@@ -561,12 +561,14 @@
 
         // Función para Filtrar Compromisos
         function filterCommitments() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const input = document.getElementById('searchInput');
+            const searchTerm = input ? input.value.toLowerCase().trim() : '';
             const rows = document.querySelectorAll('.commitment-card');
             let visibleCount = 0;
 
             rows.forEach(card => {
-                const name = card.querySelector('h3').textContent.toLowerCase();
+                const h3 = card.querySelector('h3');
+                const name = h3 ? h3.textContent.toLowerCase() : '';
                 const entity = card.getAttribute('data-entity') || '';
                 const status = card.getAttribute('data-status');
 
@@ -581,7 +583,8 @@
                 }
             });
 
-            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+            const noResults = document.getElementById('noResults');
+            if (noResults) noResults.style.display = visibleCount === 0 ? 'block' : 'none';
         }
 
         // Función para toggle de detalles del compromiso
@@ -822,16 +825,8 @@
                     `;
                 });
 
-                // Búsqueda en tiempo real con sanitización
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    searchInput.addEventListener('input', function () {
-                        // Sanitize search input
-                        this.value = sanitizeInput(this.value);
-                        filterCommitments();
-                        saveFilters(); // Guardar filtros
-                    });
-                }
+                // El listener del buscador se engancha al final del script,
+                // fuera de initCompromisos, para no depender de protectPage
 
                 // Configura select inicial
                 if (selectSelected) {
@@ -2652,6 +2647,18 @@
                     break;
             }
         }
+
+        // Búsqueda en tiempo real: se engancha directo, sin depender de
+        // initCompromisos/protectPage. El input ya existe en el HTML.
+        (function () {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    filterCommitments();
+                    if (typeof saveFilters === 'function') saveFilters();
+                });
+            }
+        })();
     </script>
 
     <!-- ========================================
